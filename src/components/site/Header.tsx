@@ -30,7 +30,8 @@ export default function Header() {
     <header
       className={cn(
         // border always present — toggling color avoids the white-flash repaint
-        "fixed inset-x-0 top-0 z-50 border-b transition-all duration-300",
+        "fixed inset-x-0 top-0 z-50 border-b",
+        open ? "" : "transition-all duration-300",
         open
           ? "border-ink-600 bg-ink-950"
           : solid
@@ -59,7 +60,7 @@ export default function Header() {
           <Link href="/portal" className="mono-tag hidden hover:text-bone-50 sm:block">
             client login
           </Link>
-          <Link href="/contact" className="btn btn-primary h-10 hidden md:inline-flex">
+          <Link href="/contact" className="btn btn-primary h-10 !hidden md:!inline-flex">
             Start a project
           </Link>
           <button
