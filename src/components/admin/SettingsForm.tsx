@@ -85,7 +85,7 @@ export default function SettingsForm({ settings, staff }: { settings: any; staff
         <p className="mb-3 text-xs text-bone-400">These print on every invoice under &ldquo;How to pay&rdquo;.</p>
         <div className="space-y-3">
           {Object.keys(bank).map((k) => (
-            <div key={k} className="grid grid-cols-[130px_1fr] items-center gap-2">
+            <div key={k} className="flex flex-col gap-1 sm:grid sm:grid-cols-[130px_1fr] sm:items-center sm:gap-2">
               <span className="mono-tag">{k}</span>
               <input className={field} value={bank[k]} onChange={(e) => setBank({ ...bank, [k]: e.target.value })} />
             </div>

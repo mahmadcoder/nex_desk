@@ -170,7 +170,7 @@ export default function DealForm({
 
           <div className="space-y-3">
             {items.map((it, i) => (
-              <div key={i} className="grid grid-cols-[1fr_70px_130px_32px] items-start gap-2">
+              <div key={i} className="flex flex-col gap-2 sm:grid sm:grid-cols-[1fr_70px_130px_32px] sm:items-start">
                 <div>
                   <input className={field} placeholder="Deliverable" value={it.item}
                     onChange={(e) => setItems((p) => p.map((x, j) => j === i ? { ...x, item: e.target.value } : x))} />
@@ -223,7 +223,7 @@ export default function DealForm({
 
           <div className="space-y-3">
             {schedule.map((p, i) => (
-              <div key={i} className="grid grid-cols-[1fr_80px_150px_100px_32px] items-center gap-2">
+              <div key={i} className="flex flex-col gap-2 sm:grid sm:grid-cols-[1fr_80px_150px_100px_32px] sm:items-center">
                 <input className={field} placeholder="Stage" value={p.label}
                   onChange={(e) => setSchedule((s) => s.map((x, j) => j === i ? { ...x, label: e.target.value } : x))} />
                 <input className={field} type="number" min={0} max={100} value={p.percent}
@@ -254,7 +254,7 @@ export default function DealForm({
         {/* ---- timeline + terms ---- */}
         <section className="card p-6">
           <h2 className="mb-5 text-base">Timeline and terms</h2>
-          <div className="grid gap-4 sm:grid-cols-4">
+          <div className="grid gap-4 grid-cols-2 sm:grid-cols-4">
             <div>
               <label className={label}>Start date</label>
               <input className={field} type="date" value={d.start_date} onChange={(e) => set("start_date", e.target.value)} />

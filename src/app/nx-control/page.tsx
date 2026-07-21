@@ -35,7 +35,7 @@ export default async function Dashboard() {
         action={<Link href={`${BASE}/deals/new`} className="btn btn-primary h-10">Lock a deal</Link>}
       />
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+      <div className="grid gap-4 grid-cols-2 sm:grid-cols-3 lg:grid-cols-5">
         <Stat label="Revenue this month" value={money(revenue)} tone="good" />
         <Stat label="Outstanding" value={money(outstanding)} hint={`${invoices.data?.length ?? 0} unpaid invoices`} tone={outstanding > 0 ? "warn" : "default"} />
         <Stat label="Overdue" value={String(overdue)} tone={overdue ? "warn" : "default"} />
@@ -107,7 +107,7 @@ export default async function Dashboard() {
                 <p className="text-xs text-bone-400">{l.email}</p>
               </td>
               <td className="px-5 py-3 text-bone-400">{l.company ?? "—"}</td>
-              <td className="px-5 py-3 text-bone-400">{(l.service_slugs ?? []).join(", ") || "—"}</td>
+              <td className="hidden px-5 py-3 text-bone-400 sm:table-cell">{(l.service_slugs ?? []).join(", ") || "—"}</td>
               <td className="px-5 py-3"><Badge>{l.status}</Badge></td>
               <td className="px-5 py-3 text-bone-400">{new Date(l.created_at).toLocaleDateString("en-GB")}</td>
             </tr>

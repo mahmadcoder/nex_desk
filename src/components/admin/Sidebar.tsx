@@ -1,12 +1,13 @@
 "use client";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useState, useEffect } from "react";
 import { LogoMark } from "@/components/brand/Logo";
 import { signOut } from "@/lib/actions";
 import { cn } from "@/lib/utils";
 import {
   LayoutDashboard, Inbox, Users, Handshake, FolderKanban,
-  Receipt, FileText, Mail, Settings, LogOut,
+  Receipt, FileText, Mail, Settings, LogOut, Menu, X,
 } from "lucide-react";
 
 const NAV = [
@@ -23,9 +24,19 @@ const NAV = [
 
 export default function Sidebar({ base, user }: { base: string; user: { name: string; role: string } }) {
   const path = usePathname();
+  const [open, setOpen] = useState(false);
 
-  return (
-    <aside className="sticky top-0 flex h-screen w-60 shrink-0 flex-col border-r border-ink-600 bg-ink-950 p-4">
+  // Close drawer on route change
+  useEffect(() => { setOpen(false); }, [path]);
+
+  // Prevent body scroll when drawer is open
+  useEffect(() => {
+    document.body.style.overflow = open ? "hidden" : "";
+    return () => { document.body.style.overflow = ""; };
+  }, [open]);
+
+  const navContent = (
+    <>
       <Link href={base} className="mb-8 flex items-center gap-2.5 px-2 pt-2">
         <LogoMark className="h-6 w-6 text-bone-50" />
         <div>
@@ -67,6 +78,49 @@ export default function Sidebar({ base, user }: { base: string; user: { name: st
           </button>
         </form>
       </div>
-    </aside>
+    </>
+  );
+
+  return (
+    <>
+      {/* ── Mobile top bar ── */}
+      <div className="fixed inset-x-0 top-0 z-40 flex h-14 items-center justify-between border-b border-ink-600 bg-ink-950 px-4 lg:hidden">
+        <Link href={base} className="flex items-center gap-2">
+          <LogoMark className="h-5 w-5 text-bone-50" />
+          <span className="text-sm font-medium" style={{ fontFamily: "var(--font-display)" }}>Nex Desk</span>
+        </Link>
+        <button
+          onClick={() => setOpen((v) => !v)}
+          className="rounded-lg p-2 text-bone-400 hover:bg-ink-800 hover:text-bone-50"
+          aria-label={open ? "Close menu" : "Open menu"}
+        >
+          {open ? <X size={20} /> : <Menu size={20} />}
+        </button>
+      </div>
+
+      {/* ── Mobile drawer backdrop ── */}
+      {open && (
+        <div
+          className="fixed inset-0 z-40 bg-ink-950/80 backdrop-blur-sm lg:hidden"
+          onClick={() => setOpen(false)}
+          aria-hidden
+        />
+      )}
+
+      {/* ── Mobile drawer ── */}
+      <aside
+        className={cn(
+          "fixed inset-y-0 left-0 z-50 flex w-64 flex-col border-r border-ink-600 bg-ink-950 p-4 transition-transform duration-300 lg:hidden",
+          open ? "translate-x-0" : "-translate-x-full"
+        )}
+      >
+        {navContent}
+      </aside>
+
+      {/* ── Desktop sidebar ── */}
+      <aside className="sticky top-0 hidden h-screen w-60 shrink-0 flex-col border-r border-ink-600 bg-ink-950 p-4 lg:flex">
+        {navContent}
+      </aside>
+    </>
   );
 }

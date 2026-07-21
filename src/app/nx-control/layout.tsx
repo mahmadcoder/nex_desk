@@ -20,7 +20,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   return (
     <div className="admin flex min-h-screen bg-ink-900">
       <Sidebar base={BASE} user={{ name: profile?.full_name ?? user.email!, role: profile?.role ?? "staff" }} />
-      <div className="min-w-0 flex-1 p-8">{children}</div>
+      <div className="min-w-0 flex-1 p-4 pt-[calc(3.5rem+1rem)] lg:p-8 lg:pt-8">{children}</div>
     </div>
   );
 }

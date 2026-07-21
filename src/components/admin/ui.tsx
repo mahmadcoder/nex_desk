@@ -78,16 +78,18 @@ export function Empty({ title, body, href, cta }: { title: string; body: string;
 export function Table({ head, children }: { head: string[]; children: React.ReactNode }) {
   return (
     <div className="card overflow-hidden">
-      <table className="w-full text-left text-sm">
-        <thead className="bg-ink-700/50">
-          <tr>
-            {head.map((h) => (
-              <th key={h} className="mono-tag px-5 py-3 font-normal">{h}</th>
-            ))}
-          </tr>
-        </thead>
-        <tbody className="divide-y divide-ink-600">{children}</tbody>
-      </table>
+      <div className="overflow-x-auto">
+        <table className="w-full min-w-[560px] text-left text-sm">
+          <thead className="bg-ink-700/50">
+            <tr>
+              {head.map((h) => (
+                <th key={h} className="mono-tag px-5 py-3 font-normal">{h}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-ink-600">{children}</tbody>
+        </table>
+      </div>
     </div>
   );
 }
