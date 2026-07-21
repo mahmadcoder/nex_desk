@@ -31,9 +31,11 @@ export default function Header() {
       className={cn(
         // border always present — toggling color avoids the white-flash repaint
         "fixed inset-x-0 top-0 z-50 border-b transition-all duration-300",
-        solid
+        open
+          ? "border-ink-600 bg-ink-950"
+          : solid
           ? "border-ink-600 bg-ink-900/80 backdrop-blur-xl"
-          : "border-transparent"
+          : "border-transparent bg-transparent"
       )}
     >
       <div className="shell flex h-[72px] items-center justify-between">
@@ -57,8 +59,7 @@ export default function Header() {
           <Link href="/portal" className="mono-tag hidden hover:text-bone-50 sm:block">
             client login
           </Link>
-          {/* max-md:hidden — explicit, avoids Tailwind v4 purge edge cases */}
-          <Link href="/contact" className="btn btn-primary h-10 max-md:hidden">
+          <Link href="/contact" className="btn btn-primary h-10 hidden md:inline-flex">
             Start a project
           </Link>
           <button
