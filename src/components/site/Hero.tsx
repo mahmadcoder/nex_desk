@@ -21,13 +21,13 @@ export default function Hero() {
 
   return (
     <section ref={ref} className="shell flex min-h-[calc(100vh-72px)] flex-col justify-center py-16">
-      <p data-hero-fade className="drawer-label opacity-0">Multan, Pakistan · working worldwide</p>
+      <p data-hero-fade className="drawer-label opacity-0">Pakistan · working worldwide</p>
 
       <SplitHeading
         as="h1"
         onLoad
         delay={0.5}
-        className="mt-6 text-[var(--text-hero)]"
+        className="mt-12 text-[var(--text-hero)]"
         lines={[
           "We build it,",
           <>we ship it,</>,

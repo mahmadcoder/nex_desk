@@ -60,11 +60,19 @@ export default function Header() {
           <Link href="/portal" className="mono-tag hidden hover:text-bone-50 sm:block">
             client login
           </Link>
+          {/* Book a call — desktop only */}
+          <Link
+            href="#"
+            className="btn h-10 px-4 !hidden md:!inline-flex"
+          >
+            Book a call
+          </Link>
           <Link href="/contact" className="btn btn-primary h-10 !hidden md:!inline-flex">
             Start a project
           </Link>
+          {/* Hamburger — mobile only */}
           <button
-            className="btn h-10 px-4 md:hidden"
+            className="btn h-10 px-4 !inline-flex md:!hidden"
             onClick={() => setOpen((v) => !v)}
             aria-expanded={open}
             aria-label={open ? "Close menu" : "Open menu"}
@@ -95,6 +103,13 @@ export default function Header() {
             className="btn btn-primary mt-8 w-full justify-center"
           >
             Start a project
+          </Link>
+          <Link
+            href="#"
+            onClick={() => setOpen(false)}
+            className="btn mt-3 w-full justify-center"
+          >
+            Book a call
           </Link>
         </div>
       )}
