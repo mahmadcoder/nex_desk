@@ -2,9 +2,9 @@ export const metadata = { title: "Terms" };
 
 export default function Terms() {
   return (
-    <section className="shell max-w-3xl py-24">
+    <section className="shell max-w-3xl py-16">
       <p className="drawer-label">Legal</p>
-      <h1 className="mt-8 text-[var(--text-h1)]">Terms of service</h1>
+      <h1 className="mt-6 text-[var(--text-h1)]">Terms of service</h1>
       <div className="mt-10 space-y-6 leading-relaxed text-bone-200">
         <p>
           These general terms apply to the website. The terms that govern any actual project

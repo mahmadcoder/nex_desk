@@ -14,12 +14,12 @@ export default async function WorkPage() {
 
   return (
     <>
-      <section className="shell py-24">
+      <section className="shell py-16">
         <p className="drawer-label">Work</p>
-        <h1 className="mt-8 max-w-3xl text-[var(--text-h1)]">Shipped, live, and still running.</h1>
+        <h1 className="mt-6 max-w-3xl text-[var(--text-h1)]">Shipped, live, and still running.</h1>
       </section>
 
-      <section className="shell pb-24">
+      <section className="shell pb-16">
         {!cases?.length ? (
           <div className="card p-16 text-center">
             <h2 className="text-2xl">Case studies coming soon</h2>

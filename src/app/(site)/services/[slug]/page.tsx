@@ -35,13 +35,13 @@ export default async function ServiceDetail({ params }: { params: Promise<{ slug
 
   return (
     <>
-      <section className="shell py-24">
+      <section className="shell py-16">
         <Link href="/services" className="mono-tag hover:text-bone-50">← all services</Link>
-        <p className="drawer-label mt-10">{service.category}</p>
+        <p className="drawer-label mt-7">{service.category}</p>
         <h1 className="mt-6 max-w-4xl text-[var(--text-h1)]">{service.title}</h1>
         <p className="mt-6 max-w-2xl text-lg text-bone-200">{service.short_desc}</p>
 
-        <div className="mt-12 flex flex-wrap gap-x-12 gap-y-4 border-y border-ink-600 py-6">
+        <div className="mt-8 flex flex-wrap gap-x-12 gap-y-4 border-y border-ink-600 py-6">
           <div>
             <p className="mono-tag">Starting at</p>
             <p className="mt-1 text-xl">
@@ -55,7 +55,7 @@ export default async function ServiceDetail({ params }: { params: Promise<{ slug
         </div>
       </section>
 
-      <section className="shell grid gap-16 pb-24 lg:grid-cols-[1.4fr_1fr]">
+      <section className="shell grid gap-16 pb-16 lg:grid-cols-[1.4fr_1fr]">
         <div>
           <h2 className="text-[var(--text-h3)]">What&apos;s included</h2>
           <ul className="mt-8 divide-y divide-ink-600 border-y border-ink-600">

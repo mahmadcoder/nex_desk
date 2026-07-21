@@ -26,7 +26,7 @@ function Parties({ client, meta }: { client: Party; meta: [string, string][] }) 
         <Text style={s.label}>Prepared by</Text>
         <Text style={{ fontWeight: 500 }}>Nex Desk</Text>
         <Text>ahmadsadiq.dev@gmail.com</Text>
-        <Text>Islamabad, Pakistan</Text>
+        <Text>Multan, Pakistan</Text>
       </View>
       <View style={s.col}>
         {meta.map(([k, v]) => (

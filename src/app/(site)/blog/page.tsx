@@ -12,19 +12,19 @@ export default async function BlogPage() {
     .eq("is_published", true).order("published_at", { ascending: false });
 
   return (
-    <section className="shell py-24">
+    <section className="shell py-16">
       <p className="drawer-label">Journal</p>
-      <h1 className="mt-8 max-w-2xl text-[var(--text-h1)]">Notes from the desk.</h1>
+      <h1 className="mt-6 max-w-2xl text-[var(--text-h1)]">Notes from the desk.</h1>
 
       {!posts?.length ? (
-        <div className="card mt-14 p-16 text-center">
+        <div className="card mt-9 p-16 text-center">
           <h2 className="text-2xl">Nothing published yet</h2>
           <p className="mx-auto mt-3 max-w-sm text-bone-400">
             Write your first post from the admin panel and it appears here.
           </p>
         </div>
       ) : (
-        <div className="mt-14 divide-y divide-ink-600 border-y border-ink-600">
+        <div className="mt-9 divide-y divide-ink-600 border-y border-ink-600">
           {posts.map((p) => (
             <Link key={p.slug} href={`/blog/${p.slug}`} className="group flex flex-col gap-3 py-8 md:flex-row md:items-baseline md:gap-10">
               <span className="mono-tag shrink-0 md:w-32">

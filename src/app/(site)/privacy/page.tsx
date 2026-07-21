@@ -2,9 +2,9 @@ export const metadata = { title: "Privacy" };
 
 export default function Privacy() {
   return (
-    <section className="shell max-w-3xl py-24">
+    <section className="shell max-w-3xl py-16">
       <p className="drawer-label">Legal</p>
-      <h1 className="mt-8 text-[var(--text-h1)]">Privacy</h1>
+      <h1 className="mt-6 text-[var(--text-h1)]">Privacy</h1>
       <div className="mt-10 space-y-6 leading-relaxed text-bone-200">
         <p>
           We collect only what we need to quote and deliver work: your name, email, phone,

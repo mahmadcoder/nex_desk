@@ -13,12 +13,43 @@ export default function Marquee() {
 
   useEffect(() => {
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
-    const ctx = gsap.context(() => {
-      gsap.to(".marquee-row", {
-        xPercent: -50, duration: 34, ease: "none", repeat: -1,
-      });
-    }, ref);
-    return () => ctx.revert();
+
+    const el = ref.current;
+    if (!el) return;
+
+    const tween = gsap.to(".marquee-row", {
+      xPercent: -50,
+      duration: 80,
+      ease: "none",
+      repeat: -1,
+    });
+
+    // Hover — pause while mouse is over
+    const pause = () => tween.pause();
+    const resume = () => tween.resume();
+    el.addEventListener("mouseenter", pause);
+    el.addEventListener("mouseleave", resume);
+
+    // Touch — pause on contact, resume 900ms after finger lifts
+    let resumeTimer: ReturnType<typeof setTimeout>;
+    const onTouchStart = () => {
+      clearTimeout(resumeTimer);
+      tween.pause();
+    };
+    const onTouchEnd = () => {
+      resumeTimer = setTimeout(() => tween.resume(), 900);
+    };
+    el.addEventListener("touchstart", onTouchStart, { passive: true });
+    el.addEventListener("touchend", onTouchEnd, { passive: true });
+
+    return () => {
+      tween.kill();
+      el.removeEventListener("mouseenter", pause);
+      el.removeEventListener("mouseleave", resume);
+      el.removeEventListener("touchstart", onTouchStart);
+      el.removeEventListener("touchend", onTouchEnd);
+      clearTimeout(resumeTimer);
+    };
   }, []);
 
   return (

@@ -15,13 +15,13 @@ const STEPS = [
 
 export default function Process() {
   return (
-    <section className="shell py-28">
+    <section className="shell py-16">
       <p className="drawer-label">How it goes</p>
       <h2 className="mt-6 max-w-2xl text-[var(--text-h2)]">
         Six steps. You always know which one you&apos;re on.
       </h2>
 
-      <Reveal className="mt-16 grid gap-px overflow-hidden rounded-xl border border-ink-600 bg-ink-600 md:grid-cols-2 lg:grid-cols-3">
+      <Reveal className="mt-10 grid gap-px overflow-hidden rounded-xl border border-ink-600 bg-ink-600 md:grid-cols-2 lg:grid-cols-3">
         {STEPS.map(([title, body], i) => (
           <div key={title} className="bg-ink-900 p-8">
             <span className="mono-tag text-lime-400">{String(i + 1).padStart(2, "0")}</span>

@@ -7,12 +7,12 @@ export const metadata: Metadata = { title: "About" };
 export default function AboutPage() {
   return (
     <>
-      <section className="shell py-24">
+      <section className="shell py-16">
         <p className="drawer-label">About</p>
-        <h1 className="mt-8 max-w-4xl text-[var(--text-h1)]">
+        <h1 className="mt-6 max-w-4xl text-[var(--text-h1)]">
           A small team that would rather ship than pitch.
         </h1>
-        <div className="mt-10 grid max-w-4xl gap-8 text-lg leading-relaxed text-bone-200 md:grid-cols-2">
+        <div className="mt-8 grid max-w-4xl gap-8 text-lg leading-relaxed text-bone-200 md:grid-cols-2">
           <p>
             Nex Desk started because too much agency work stops at the handover. A site
             gets built, the invoice clears, and nobody checks whether it actually did
@@ -26,9 +26,9 @@ export default function AboutPage() {
         </div>
       </section>
 
-      <section className="shell border-t border-ink-600 py-20">
+      <section className="shell border-t border-ink-600 py-16">
         <p className="drawer-label">How we work</p>
-        <Reveal className="mt-12 grid gap-px overflow-hidden rounded-xl border border-ink-600 bg-ink-600 md:grid-cols-3">
+        <Reveal className="mt-8 grid gap-px overflow-hidden rounded-xl border border-ink-600 bg-ink-600 md:grid-cols-3">
           {[
             ["Written before verbal", "If it isn't in the agreement it isn't in the project. That protects you as much as us."],
             ["One person owns it", "Every project has a named lead on our side. You never chase a group inbox."],

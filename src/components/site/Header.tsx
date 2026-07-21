@@ -29,8 +29,11 @@ export default function Header() {
   return (
     <header
       className={cn(
-        "fixed inset-x-0 top-0 z-50 transition-colors duration-300",
-        solid && "border-b border-ink-600 bg-ink-900/80 backdrop-blur-xl"
+        // border always present — toggling color avoids the white-flash repaint
+        "fixed inset-x-0 top-0 z-50 border-b transition-all duration-300",
+        solid
+          ? "border-ink-600 bg-ink-900/80 backdrop-blur-xl"
+          : "border-transparent"
       )}
     >
       <div className="shell flex h-[72px] items-center justify-between">
@@ -54,7 +57,8 @@ export default function Header() {
           <Link href="/portal" className="mono-tag hidden hover:text-bone-50 sm:block">
             client login
           </Link>
-          <Link href="/contact" className="btn btn-primary hidden h-10 md:inline-flex">
+          {/* max-md:hidden — explicit, avoids Tailwind v4 purge edge cases */}
+          <Link href="/contact" className="btn btn-primary h-10 max-md:hidden">
             Start a project
           </Link>
           <button
@@ -83,7 +87,11 @@ export default function Header() {
               </Link>
             ))}
           </nav>
-          <Link href="/contact" onClick={() => setOpen(false)} className="btn btn-primary mt-8 w-full justify-center">
+          <Link
+            href="/contact"
+            onClick={() => setOpen(false)}
+            className="btn btn-primary mt-8 w-full justify-center"
+          >
             Start a project
           </Link>
         </div>

@@ -12,12 +12,12 @@ export default async function FaqPage() {
 
   return (
     <>
-      <section className="shell py-24">
+      <section className="shell py-16">
         <p className="drawer-label">FAQ</p>
-        <h1 className="mt-8 max-w-2xl text-[var(--text-h1)]">Questions we get asked.</h1>
+        <h1 className="mt-6 max-w-2xl text-[var(--text-h1)]">Questions we get asked.</h1>
       </section>
 
-      <section className="shell max-w-3xl pb-24">
+      <section className="shell max-w-3xl pb-16">
         <div className="divide-y divide-ink-600 border-y border-ink-600">
           {(faqs ?? []).map((f) => (
             <details key={f.id} className="group py-6">

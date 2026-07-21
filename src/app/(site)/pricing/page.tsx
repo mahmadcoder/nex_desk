@@ -14,18 +14,18 @@ export default async function PricingPage() {
 
   return (
     <>
-      <section className="shell py-24">
+      <section className="shell py-16">
         <p className="drawer-label">Pricing</p>
-        <h1 className="mt-8 max-w-3xl text-[var(--text-h1)]">
+        <h1 className="mt-6 max-w-3xl text-[var(--text-h1)]">
           Fixed prices, written down before we start.
         </h1>
-        <p className="mt-6 max-w-xl text-lg text-bone-200">
+        <p className="mt-4 max-w-xl text-lg text-bone-200">
           These are honest starting points, not bait. Your quote is fixed once the
           scope is agreed, and anything added later comes as a change order you approve first.
         </p>
       </section>
 
-      <section className="shell pb-16">
+      <section className="shell pb-12">
         <div className="overflow-hidden rounded-xl border border-ink-600">
           <table className="w-full text-left text-sm">
             <thead className="bg-ink-800">
@@ -57,7 +57,7 @@ export default async function PricingPage() {
         </p>
       </section>
 
-      <section className="shell pb-24">
+      <section className="shell pb-16">
         <div className="grid gap-5 md:grid-cols-3">
           {[
             ["50 / 50", "Standard split", "Half to start, half on delivery. Larger projects split across milestones instead."],

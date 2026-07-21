@@ -22,20 +22,20 @@ export default async function ServicesPage() {
 
   return (
     <>
-      <section className="shell py-24">
+      <section className="shell py-16">
         <p className="drawer-label">Services</p>
-        <h1 className="mt-8 max-w-4xl text-[var(--text-h1)]">
+        <h1 className="mt-6 max-w-4xl text-[var(--text-h1)]">
           Everything needed to launch and grow a product.
         </h1>
-        <p className="mt-6 max-w-xl text-lg text-bone-200">
+        <p className="mt-4 max-w-xl text-lg text-bone-200">
           Grouped by what they do for you rather than by our internal departments.
         </p>
       </section>
 
       {Object.entries(grouped).map(([category, items]) => (
-        <section key={category} className="shell border-t border-ink-600 py-16">
+        <section key={category} className="shell border-t border-ink-600 py-12">
           <p className="drawer-label">{category}</p>
-          <Reveal className="mt-10 grid gap-5 md:grid-cols-2 lg:grid-cols-3">
+          <Reveal className="mt-7 grid gap-5 md:grid-cols-2 lg:grid-cols-3">
             {items!.map((s) => (
               <Link key={s.slug} href={`/services/${s.slug}`}
                 className="card group flex flex-col justify-between p-7 hover:border-lime-400/40">

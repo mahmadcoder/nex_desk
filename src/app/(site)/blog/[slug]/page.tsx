@@ -18,7 +18,7 @@ export default async function PostPage({ params }: { params: Promise<{ slug: str
   if (!post) notFound();
 
   return (
-    <article className="shell max-w-3xl py-24">
+    <article className="shell max-w-3xl py-16">
       <p className="mono-tag">
         {post.published_at ? new Date(post.published_at).toLocaleDateString("en-GB", { dateStyle: "long" }) : ""}
         {" · "}{post.read_minutes ?? 4} min read

@@ -20,14 +20,14 @@ export default function Hero() {
   }, []);
 
   return (
-    <section ref={ref} className="shell flex min-h-[88vh] flex-col justify-center py-24">
-      <p data-hero-fade className="drawer-label opacity-0">Islamabad · working worldwide</p>
+    <section ref={ref} className="shell flex min-h-[calc(100vh-72px)] flex-col justify-center py-16">
+      <p data-hero-fade className="drawer-label opacity-0">Multan, Pakistan · working worldwide</p>
 
       <SplitHeading
         as="h1"
         onLoad
         delay={0.5}
-        className="mt-8 text-[var(--text-hero)]"
+        className="mt-6 text-[var(--text-hero)]"
         lines={[
           "We build it,",
           <>we ship it,</>,
@@ -35,7 +35,7 @@ export default function Hero() {
         ]}
       />
 
-      <div className="mt-12 grid gap-10 md:grid-cols-[1.2fr_1fr] md:items-end">
+      <div className="mt-9 grid gap-10 md:grid-cols-[1.2fr_1fr] md:items-end">
         <p data-hero-fade className="max-w-lg text-lg text-bone-200 opacity-0">
           Nex Desk is a software agency. Websites, apps, and the design and marketing
           that make them worth building. Fixed scope, written agreement, and a link
@@ -48,7 +48,7 @@ export default function Hero() {
         </div>
       </div>
 
-      <div data-hero-fade className="mt-20 grid grid-cols-2 gap-px overflow-hidden rounded-xl border border-ink-600 bg-ink-600 opacity-0 sm:grid-cols-4">
+      <div data-hero-fade className="mt-12 grid grid-cols-2 gap-px overflow-hidden rounded-xl border border-ink-600 bg-ink-600 opacity-0 sm:grid-cols-4">
         {[
           ["Projects shipped", "60+"],
           ["Avg. delivery", "4 weeks"],

@@ -28,7 +28,7 @@ export default async function Home() {
       <ServicesScroll services={services ?? []} />
 
       {!!cases?.length && (
-        <section className="shell py-28">
+        <section className="shell py-16">
           <div className="flex items-end justify-between gap-6">
             <div>
               <p className="drawer-label">Selected work</p>
@@ -37,7 +37,7 @@ export default async function Home() {
             <Link href="/work" className="btn hidden shrink-0 sm:inline-flex">All work</Link>
           </div>
 
-          <Reveal className="mt-14 grid gap-5 md:grid-cols-2">
+          <Reveal className="mt-10 grid gap-5 md:grid-cols-2">
             {cases.map((c) => (
               <Link key={c.slug} href={`/work/${c.slug}`} className="card group overflow-hidden">
                 <div className="aspect-[16/10] overflow-hidden bg-ink-700">
@@ -60,9 +60,9 @@ export default async function Home() {
       <Process />
 
       {!!quotes?.length && (
-        <section className="shell py-28">
+        <section className="shell py-16">
           <p className="drawer-label">What clients say</p>
-          <Reveal className="mt-12 grid gap-5 md:grid-cols-3">
+          <Reveal className="mt-8 grid gap-5 md:grid-cols-3">
             {quotes.map((t, i) => (
               <figure key={i} className="card flex flex-col justify-between p-8">
                 <blockquote className="text-lg leading-relaxed text-bone-100">
