@@ -1,6 +1,7 @@
 -- ============================================================
 -- NEX DESK — Supabase schema
 -- Run this in Supabase Dashboard → SQL Editor → New query → Run
+-- Safe to re-run multiple times (idempotent)
 -- ============================================================
 
 create extension if not exists "uuid-ossp";
@@ -8,20 +9,20 @@ create extension if not exists "pgcrypto";
 
 -- ---------- ENUMS -------------------------------------------------
 
-create type user_role       as enum ('owner','admin','staff','client');
-create type lead_status     as enum ('new','contacted','quoted','won','lost');
-create type deal_status     as enum ('draft','sent','locked','cancelled');
-create type project_status  as enum ('not_started','in_progress','review','on_hold','delivered','completed','cancelled');
-create type task_status     as enum ('backlog','todo','doing','review','done');
-create type invoice_status  as enum ('draft','sent','partial','paid','overdue','void');
-create type payment_method  as enum ('bank_transfer','jazzcash','easypaisa','wise','payoneer','stripe','paypal','cash','other');
-create type doc_type        as enum ('quotation','agreement','invoice','receipt','change_order','progress_report','handover');
-create type email_status    as enum ('queued','sent','failed','opened');
-create type priority_level  as enum ('low','normal','high','urgent');
+DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'user_role') THEN CREATE TYPE user_role AS ENUM ('owner','admin','staff','client'); END IF; END $$;
+DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'lead_status') THEN CREATE TYPE lead_status AS ENUM ('new','contacted','quoted','won','lost'); END IF; END $$;
+DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'deal_status') THEN CREATE TYPE deal_status AS ENUM ('draft','sent','locked','cancelled'); END IF; END $$;
+DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'project_status') THEN CREATE TYPE project_status AS ENUM ('not_started','in_progress','review','on_hold','delivered','completed','cancelled'); END IF; END $$;
+DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'task_status') THEN CREATE TYPE task_status AS ENUM ('backlog','todo','doing','review','done'); END IF; END $$;
+DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'invoice_status') THEN CREATE TYPE invoice_status AS ENUM ('draft','sent','partial','paid','overdue','void'); END IF; END $$;
+DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'payment_method') THEN CREATE TYPE payment_method AS ENUM ('bank_transfer','jazzcash','easypaisa','wise','payoneer','stripe','paypal','cash','other'); END IF; END $$;
+DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'doc_type') THEN CREATE TYPE doc_type AS ENUM ('quotation','agreement','invoice','receipt','change_order','progress_report','handover'); END IF; END $$;
+DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'email_status') THEN CREATE TYPE email_status AS ENUM ('queued','sent','failed','opened'); END IF; END $$;
+DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'priority_level') THEN CREATE TYPE priority_level AS ENUM ('low','normal','high','urgent'); END IF; END $$;
 
 -- ---------- PROFILES (extends auth.users) -------------------------
 
-create table profiles (
+create table if not exists profiles (
   id          uuid primary key references auth.users(id) on delete cascade,
   full_name   text,
   email       text unique not null,
@@ -42,6 +43,7 @@ begin
   return new;
 end; $$;
 
+drop trigger if exists on_auth_user_created on auth.users;
 create trigger on_auth_user_created
   after insert on auth.users
   for each row execute function handle_new_user();
@@ -57,7 +59,7 @@ $$;
 
 -- ---------- SETTINGS (single row, agency config) ------------------
 
-create table settings (
+create table if not exists settings (
   id                 int primary key default 1 check (id = 1),
   company_name       text not null default 'Nex Desk',
   tagline            text default 'A software agency built on shipped work.',
@@ -83,7 +85,7 @@ insert into settings (id) values (1) on conflict do nothing;
 
 -- ---------- SERVICES CATALOGUE ------------------------------------
 
-create table services (
+create table if not exists services (
   id            uuid primary key default gen_random_uuid(),
   slug          text unique not null,
   title         text not null,
@@ -104,7 +106,10 @@ create table services (
   created_at    timestamptz not null default now()
 );
 
-create table packages (
+alter table services add column if not exists duration_note text;
+alter table services add column if not exists scope_note text;
+
+create table if not exists packages (
   id           uuid primary key default gen_random_uuid(),
   service_id   uuid references services(id) on delete cascade,
   name         text not null,
@@ -120,7 +125,7 @@ create table packages (
 
 -- ---------- LEADS (contact form inbox) ----------------------------
 
-create table leads (
+create table if not exists leads (
   id            uuid primary key default gen_random_uuid(),
   name          text not null,
   email         text not null,
@@ -143,7 +148,7 @@ create table leads (
 
 -- ---------- CLIENTS -----------------------------------------------
 
-create table clients (
+create table if not exists clients (
   id            uuid primary key default gen_random_uuid(),
   profile_id    uuid references profiles(id) on delete set null,
   name          text not null,
@@ -171,11 +176,17 @@ create table clients (
   created_at    timestamptz not null default now(),
   updated_at    timestamptz not null default now()
 );
-create index on clients (email);
+create index if not exists idx_clients_email on clients (email);
+
+-- Ensure columns exist if clients table was created in an older schema run
+alter table clients add column if not exists source text default 'website';
+alter table clients add column if not exists portal_password_preview text;
+alter table clients add column if not exists portal_access_token text;
+alter table clients add column if not exists client_permissions jsonb default '{"show_financials": true, "show_invoices": true, "show_milestones": true, "show_files": true, "show_staging": true}'::jsonb;
 
 -- ---------- DEALS (the "lock the deal" record) --------------------
 
-create table deals (
+create table if not exists deals (
   id                uuid primary key default gen_random_uuid(),
   deal_no           text unique,
   client_id         uuid not null references clients(id) on delete cascade,
@@ -207,7 +218,7 @@ create table deals (
 
 -- ---------- PROJECTS ----------------------------------------------
 
-create table projects (
+create table if not exists projects (
   id            uuid primary key default gen_random_uuid(),
   deal_id       uuid references deals(id) on delete set null,
   client_id     uuid not null references clients(id) on delete cascade,
@@ -226,7 +237,7 @@ create table projects (
   updated_at    timestamptz not null default now()
 );
 
-create table milestones (
+create table if not exists milestones (
   id          uuid primary key default gen_random_uuid(),
   project_id  uuid not null references projects(id) on delete cascade,
   title       text not null,
@@ -238,7 +249,7 @@ create table milestones (
   sort_order  int default 0
 );
 
-create table tasks (
+create table if not exists tasks (
   id          uuid primary key default gen_random_uuid(),
   project_id  uuid not null references projects(id) on delete cascade,
   milestone_id uuid references milestones(id) on delete set null,
@@ -254,7 +265,7 @@ create table tasks (
 
 -- ---------- INVOICES & PAYMENTS -----------------------------------
 
-create table invoices (
+create table if not exists invoices (
   id            uuid primary key default gen_random_uuid(),
   invoice_no    text unique not null,
   client_id     uuid not null references clients(id) on delete cascade,
@@ -274,7 +285,7 @@ create table invoices (
   created_at    timestamptz not null default now()
 );
 
-create table payments (
+create table if not exists payments (
   id            uuid primary key default gen_random_uuid(),
   invoice_id    uuid references invoices(id) on delete set null,
   client_id     uuid not null references clients(id) on delete cascade,
@@ -290,6 +301,9 @@ create table payments (
   realized_base_amount numeric(12,2),
   created_at    timestamptz not null default now()
 );
+
+alter table payments add column if not exists exchange_rate numeric(10,4) default 1.0;
+alter table payments add column if not exists realized_base_amount numeric(12,2);
 
 -- Keep invoice.amount_paid and status in sync automatically
 create or replace function sync_invoice_totals()
@@ -310,13 +324,14 @@ begin
   return coalesce(new, old);
 end; $$;
 
+drop trigger if exists payments_sync_invoice on payments;
 create trigger payments_sync_invoice
   after insert or update or delete on payments
   for each row execute function sync_invoice_totals();
 
 -- ---------- DOCUMENTS (generated PDFs) ----------------------------
 
-create table documents (
+create table if not exists documents (
   id          uuid primary key default gen_random_uuid(),
   type        doc_type not null,
   title       text not null,
@@ -333,7 +348,7 @@ create table documents (
 
 -- ---------- EMAIL TEMPLATES & LOG ---------------------------------
 
-create table email_templates (
+create table if not exists email_templates (
   id          uuid primary key default gen_random_uuid(),
   key         text unique not null,
   name        text not null,
@@ -344,7 +359,7 @@ create table email_templates (
   is_active   boolean default true
 );
 
-create table email_log (
+create table if not exists email_log (
   id           uuid primary key default gen_random_uuid(),
   template_key text,
   to_email     text not null,
@@ -364,7 +379,7 @@ create table email_log (
 
 -- ---------- CMS: case studies, testimonials, blog, faq ------------
 
-create table case_studies (
+create table if not exists case_studies (
   id           uuid primary key default gen_random_uuid(),
   slug         text unique not null,
   title        text not null,
@@ -384,7 +399,7 @@ create table case_studies (
   created_at   timestamptz not null default now()
 );
 
-create table testimonials (
+create table if not exists testimonials (
   id          uuid primary key default gen_random_uuid(),
   client_name text not null,
   role        text,
@@ -397,7 +412,7 @@ create table testimonials (
   sort_order  int default 0
 );
 
-create table posts (
+create table if not exists posts (
   id           uuid primary key default gen_random_uuid(),
   slug         text unique not null,
   title        text not null,
@@ -414,7 +429,7 @@ create table posts (
   created_at   timestamptz not null default now()
 );
 
-create table faqs (
+create table if not exists faqs (
   id         uuid primary key default gen_random_uuid(),
   question   text not null,
   answer     text not null,
@@ -425,7 +440,7 @@ create table faqs (
 
 -- ---------- CLIENT PORTAL: files & messages -----------------------
 
-create table project_files (
+create table if not exists project_files (
   id           uuid primary key default gen_random_uuid(),
   project_id   uuid not null references projects(id) on delete cascade,
   name         text not null,
@@ -437,7 +452,7 @@ create table project_files (
   created_at   timestamptz not null default now()
 );
 
-create table messages (
+create table if not exists messages (
   id          uuid primary key default gen_random_uuid(),
   project_id  uuid not null references projects(id) on delete cascade,
   sender_id   uuid references profiles(id),
@@ -449,7 +464,7 @@ create table messages (
 
 -- ---------- AUDIT LOG ---------------------------------------------
 
-create table audit_log (
+create table if not exists audit_log (
   id         uuid primary key default gen_random_uuid(),
   actor_id   uuid references profiles(id),
   action     text not null,
@@ -481,6 +496,7 @@ begin
   return new;
 end; $$;
 
+drop trigger if exists deals_set_no on deals;
 create trigger deals_set_no before insert on deals
   for each row execute function set_deal_no();
 
@@ -493,14 +509,13 @@ do $$
 declare t text;
 begin
   foreach t in array array['leads','clients','deals','projects'] loop
+    execute format('drop trigger if exists %I_touch on %I', t, t);
     execute format('create trigger %I_touch before update on %I for each row execute function touch_updated_at()', t, t);
   end loop;
 end $$;
 
 -- ============================================================
 -- ROW LEVEL SECURITY
--- Staff see everything. Clients see only their own rows.
--- Public site reads only published marketing content.
 -- ============================================================
 
 alter table profiles       enable row level security;
@@ -526,6 +541,38 @@ alter table project_files  enable row level security;
 alter table messages       enable row level security;
 alter table audit_log      enable row level security;
 
+-- Drop existing policies if re-running
+drop policy if exists "read own profile" on profiles;
+drop policy if exists "update own profile" on profiles;
+drop policy if exists "staff manage profiles" on profiles;
+drop policy if exists "public read services" on services;
+drop policy if exists "staff write services" on services;
+drop policy if exists "public read packages" on packages;
+drop policy if exists "staff write packages" on packages;
+drop policy if exists "public read cases" on case_studies;
+drop policy if exists "staff write cases" on case_studies;
+drop policy if exists "public read testimonials" on testimonials;
+drop policy if exists "staff write testimonials" on testimonials;
+drop policy if exists "public read posts" on posts;
+drop policy if exists "staff write posts" on posts;
+drop policy if exists "public read faqs" on faqs;
+drop policy if exists "staff write faqs" on faqs;
+drop policy if exists "public read settings" on settings;
+drop policy if exists "staff write settings" on settings;
+drop policy if exists "clients staff all" on clients;
+drop policy if exists "clients read own" on clients;
+drop policy if exists "projects staff all" on projects;
+drop policy if exists "projects read own" on projects;
+drop policy if exists "milestones staff all" on milestones;
+drop policy if exists "milestones read own" on milestones;
+drop policy if exists "documents staff all" on documents;
+drop policy if exists "documents read own" on documents;
+drop policy if exists "files staff all" on project_files;
+drop policy if exists "files read own" on project_files;
+drop policy if exists "messages staff all" on messages;
+drop policy if exists "messages own" on messages;
+drop policy if exists "messages client send" on messages;
+
 -- Profiles
 create policy "read own profile"  on profiles for select using (id = auth.uid() or is_staff());
 create policy "update own profile" on profiles for update using (id = auth.uid() or is_staff());
@@ -536,6 +583,7 @@ do $$
 declare t text;
 begin
   foreach t in array array['leads','deals','invoices','payments','email_templates','email_log','audit_log','tasks'] loop
+    execute format('drop policy if exists "staff all" on %I', t);
     execute format('create policy "staff all" on %I for all using (is_staff()) with check (is_staff())', t);
   end loop;
 end $$;
@@ -589,6 +637,11 @@ insert into storage.buckets (id, name, public) values
   ('project-files','project-files', false),
   ('public-assets','public-assets', true)
 on conflict do nothing;
+
+drop policy if exists "staff manage documents" on storage.objects;
+drop policy if exists "staff manage project files" on storage.objects;
+drop policy if exists "anyone read public assets" on storage.objects;
+drop policy if exists "staff write public assets" on storage.objects;
 
 create policy "staff manage documents" on storage.objects for all
   using (bucket_id = 'documents' and is_staff());

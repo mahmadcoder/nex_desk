@@ -1,5 +1,6 @@
 "use client";
 
+import { Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { DollarSign, Layers } from "lucide-react";
 
@@ -11,7 +12,7 @@ const CURRENCIES = [
   { code: "GBP", label: "GBP (£)", flagUrl: "https://flagcdn.com/w40/gb.png" },
 ];
 
-export default function DashboardCurrencyTabs() {
+function CurrencyTabsContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const activeCurrency = searchParams.get("curr") || "ALL";
@@ -89,5 +90,13 @@ export default function DashboardCurrencyTabs() {
         })}
       </div>
     </div>
+  );
+}
+
+export default function DashboardCurrencyTabs() {
+  return (
+    <Suspense fallback={<div className="h-14 mb-6 rounded-xl bg-ink-900/50 animate-pulse border border-ink-600" />}>
+      <CurrencyTabsContent />
+    </Suspense>
   );
 }
