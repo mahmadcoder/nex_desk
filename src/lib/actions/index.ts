@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { createClient, createAdminClient } from "@/lib/supabase/server";
 import { sendEmail } from "@/lib/email/send";
 import type { DocType } from "@/lib/pdf/generate";
+import { getLiveExchangeRates, convertCurrency, DEFAULT_RATES } from "@/lib/currency";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
@@ -65,7 +66,7 @@ export async function convertLeadToClient(leadId: string) {
   const { data: client } = await db.from("clients").insert({
     name: lead.name, email: lead.email, phone: lead.phone, company: lead.company,
     city: lead.city, country: lead.country, lead_id: lead.id,
-    notes: lead.message,
+    notes: lead.message, source: lead.source || "website",
   }).select().single();
 
   await db.from("leads").update({ status: "won" }).eq("id", leadId);
@@ -84,8 +85,99 @@ export async function saveClient(id: string | null, data: Record<string, unknown
     : await db.from("clients").insert(data).select().single();
   if (res.error) throw res.error;
   await audit(me.id, id ? "client.update" : "client.create", "clients", res.data.id);
+  
+  if (!id && res.data?.id) {
+    try {
+      await ensureClientPortalAccount(res.data.id);
+    } catch (e) {
+      console.error("Portal provisioning notice on saveClient:", e);
+    }
+  }
+
   revalidatePath(`/${ADMIN}/clients`);
   return res.data;
+}
+
+export async function deleteClient(id: string) {
+  const me = await requireStaff();
+  const db = createAdminClient();
+  const { data: client } = await db.from("clients").select("profile_id").eq("id", id).single();
+  if (client?.profile_id) {
+    try {
+      await db.auth.admin.deleteUser(client.profile_id);
+    } catch (e) {
+      console.error("Error deleting auth user:", e);
+    }
+  }
+  await db.from("clients").delete().eq("id", id);
+  await audit(me.id, "client.delete", "clients", id);
+  revalidatePath(`/${ADMIN}/clients`);
+  redirect(`/${ADMIN}/clients`);
+}
+
+export async function updateClientPermissions(id: string, permissions: Record<string, boolean>) {
+  const me = await requireStaff();
+  const db = createAdminClient();
+  await db.from("clients").update({ client_permissions: permissions }).eq("id", id);
+  await audit(me.id, "client.permissions", "clients", id, permissions);
+  revalidatePath(`/${ADMIN}/clients/${id}`);
+}
+
+export async function ensureClientPortalAccount(clientId: string, customPassword?: string) {
+  const me = await requireStaff();
+  const db = createAdminClient();
+  const { data: client } = await db.from("clients").select("*").eq("id", clientId).single();
+  if (!client) throw new Error("Client not found");
+
+  let password = customPassword || client.portal_password_preview;
+  if (!password) {
+    password = "Nex#" + Math.floor(100000 + Math.random() * 900000);
+  }
+
+  let profileId = client.profile_id;
+
+  if (!profileId) {
+    try {
+      const { data: authUser, error } = await db.auth.admin.createUser({
+        email: client.email,
+        password: password,
+        email_confirm: true,
+        user_metadata: { full_name: client.name, role: "client" },
+      });
+      if (authUser?.user) {
+        profileId = authUser.user.id;
+        await db.from("profiles").upsert({ id: profileId, email: client.email, full_name: client.name, role: "client" });
+      } else if (error) {
+        const { data: list } = await db.auth.admin.listUsers();
+        const existing = list?.users?.find((u) => u.email === client.email);
+        if (existing) {
+          profileId = existing.id;
+          await db.auth.admin.updateUserById(profileId, { password });
+          await db.from("profiles").upsert({ id: profileId, email: client.email, full_name: client.name, role: "client" });
+        }
+      }
+    } catch (e) {
+      console.error("Auth creation notice:", e);
+    }
+  } else {
+    try {
+      await db.auth.admin.updateUserById(profileId, { password });
+    } catch (e) {
+      console.error("Auth password update notice:", e);
+    }
+  }
+
+  const token = client.portal_access_token || Math.random().toString(36).substring(2) + Date.now().toString(36);
+
+  const { data: updated } = await db.from("clients").update({
+    profile_id: profileId,
+    portal_password_preview: password,
+    portal_access_token: token,
+  }).eq("id", clientId).select().single();
+
+  await audit(me.id, "client.credentials", "clients", clientId, { email: client.email });
+  revalidatePath(`/${ADMIN}/clients`);
+  return updated;
 }
 
 
@@ -104,6 +196,13 @@ export async function lockDeal(dealData: any, options: { sendEmail: boolean } = 
   }).select("*, clients(*)").single();
   if (error) throw error;
 
+  // Auto provision / update client portal credentials upon locking deal
+  let clientAcc: any = null;
+  try {
+    clientAcc = await ensureClientPortalAccount(deal.client_id);
+  } catch (e) {
+    console.error("Portal account provision error on lockDeal:", e);
+  }
 
   const { data: project } = await db.from("projects").insert({
     deal_id: deal.id,
@@ -148,6 +247,12 @@ export async function lockDeal(dealData: any, options: { sendEmail: boolean } = 
 
 
   if (options.sendEmail) {
+    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://nexdesk.com";
+    const portalUrl = `${siteUrl}/portal/login`;
+    const passwordMsg = clientAcc?.portal_password_preview
+      ? `\n\nYour Portal Credentials:\nEmail: ${deal.clients.email}\nPassword: ${clientAcc.portal_password_preview}\nLogin link: ${portalUrl}`
+      : `\n\nAccess your client portal at: ${portalUrl}`;
+
     await sendEmail({
       templateKey: "deal_locked",
       to: deal.clients.email,
@@ -162,7 +267,7 @@ export async function lockDeal(dealData: any, options: { sendEmail: boolean } = 
         amount: Number(deal.total).toLocaleString(),
         currency: deal.currency,
         deadline: deal.deadline ?? "as agreed",
-        portal_url: `${process.env.NEXT_PUBLIC_SITE_URL}/portal`,
+        portal_url: portalUrl + passwordMsg,
         sender_name: me.full_name ?? "Nex Desk",
       },
     });
@@ -196,8 +301,29 @@ export async function recordPayment(data: any, notify = true) {
   const me = await requireStaff();
   const db = createAdminClient();
 
+  const payCurrency = data.currency || "PKR";
+  const payAmount = Number(data.amount) || 0;
+
+  // Lock historical exchange rate at payment creation time
+  let exRate = data.exchange_rate;
+  if (!exRate) {
+    try {
+      const rates = await getLiveExchangeRates();
+      exRate = rates[payCurrency] || DEFAULT_RATES[payCurrency] || 1.0;
+    } catch {
+      exRate = DEFAULT_RATES[payCurrency] || 1.0;
+    }
+  }
+
+  const realizedBase = data.realized_base_amount ?? convertCurrency(payAmount, payCurrency, "PKR", DEFAULT_RATES);
+
   const { data: payment, error } = await db.from("payments")
-    .insert({ ...data, recorded_by: me.id })
+    .insert({
+      ...data,
+      recorded_by: me.id,
+      exchange_rate: exRate,
+      realized_base_amount: realizedBase,
+    })
     .select("*, clients(*)").single();
   if (error) throw error;
 

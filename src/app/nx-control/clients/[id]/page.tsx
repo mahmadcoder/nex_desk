@@ -5,6 +5,8 @@ import { PageHead, Badge, Stat, Table } from "@/components/admin/ui";
 import { money } from "@/lib/utils";
 import DocButton from "@/components/admin/DocButton";
 
+import ClientManagerCard from "@/components/admin/ClientManagerCard";
+
 const BASE = `/${process.env.ADMIN_PATH || "nx-control"}`;
 export const dynamic = "force-dynamic";
 
@@ -31,7 +33,12 @@ export default async function ClientDetail({ params }: { params: Promise<{ id: s
 
       <PageHead
         title={client.name}
-        sub={[client.company, client.email, [client.city, client.country].filter(Boolean).join(", ")].filter(Boolean).join(" · ")}
+        sub={[
+          client.company,
+          client.email,
+          [client.city, client.country].filter(Boolean).join(", "),
+          client.source ? `Source: ${client.source.charAt(0).toUpperCase() + client.source.slice(1).replace(/_/g, " ")}` : null,
+        ].filter(Boolean).join(" · ")}
         action={<Link href={`${BASE}/deals/new`} className="btn btn-primary h-10">Lock a deal</Link>}
       />
 
@@ -41,6 +48,8 @@ export default async function ClientDetail({ params }: { params: Promise<{ id: s
         <Stat label="Outstanding" value={money(billed - paid, client.preferred_currency)} tone={billed - paid > 0 ? "warn" : "default"} />
         <Stat label="Projects" value={String(projects?.length ?? 0)} />
       </div>
+
+      <ClientManagerCard client={client} />
 
       <div className="mt-8 grid gap-6 lg:grid-cols-2">
         <section>

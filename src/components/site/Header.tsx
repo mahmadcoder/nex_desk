@@ -1,6 +1,7 @@
 "use client";
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { usePathname } from "next/navigation";
 import { Logo } from "@/components/brand/Logo";
 import { cn } from "@/lib/utils";
 
@@ -13,8 +14,13 @@ const NAV = [
 ];
 
 export default function Header() {
+  const pathname = usePathname();
   const [solid, setSolid] = useState(false);
   const [open, setOpen] = useState(false);
+
+  /** Match current path — /services/web-development highlights "Services" */
+  const isActive = (href: string) =>
+    pathname === href || pathname.startsWith(href + "/");
 
   useEffect(() => {
     const onScroll = () => setSolid(window.scrollY > 40);
@@ -49,7 +55,12 @@ export default function Header() {
             <Link
               key={n.href}
               href={n.href}
-              className="text-sm text-bone-200 transition-colors hover:text-bone-50"
+              className={cn(
+                "relative text-sm transition-colors hover:text-bone-50",
+                isActive(n.href)
+                  ? "text-lime-400"
+                  : "text-bone-200"
+              )}
             >
               {n.label}
             </Link>
@@ -57,9 +68,6 @@ export default function Header() {
         </nav>
 
         <div className="flex items-center gap-3">
-          <Link href="/portal" className="mono-tag hidden hover:text-bone-50 sm:block">
-            client login
-          </Link>
           {/* Book a call — desktop only */}
           <Link
             href="#"
@@ -90,7 +98,12 @@ export default function Header() {
                 key={n.href}
                 href={n.href}
                 onClick={() => setOpen(false)}
-                className="border-b border-ink-600 py-5 text-3xl tracking-tight"
+                className={cn(
+                  "border-b border-ink-600 py-5 text-3xl tracking-tight",
+                  isActive(n.href)
+                    ? "border-l-2 border-l-lime-400 pl-4 text-lime-400"
+                    : ""
+                )}
                 style={{ fontFamily: "var(--font-display)" }}
               >
                 {n.label}

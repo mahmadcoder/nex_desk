@@ -95,6 +95,7 @@ create table services (
   starting_at   numeric(12,2),
   currency      text default 'PKR',
   duration_note text,
+  scope_note    text,
   is_featured   boolean default false,
   is_active     boolean default true,
   sort_order    int default 0,
@@ -162,6 +163,10 @@ create table clients (
   notes         text,
   tags          text[] default '{}',
   lead_id       uuid references leads(id),
+  portal_password_preview text,
+  portal_access_token text,
+  client_permissions jsonb default '{"show_financials": true, "show_invoices": true, "show_milestones": true, "show_files": true, "show_staging": true}'::jsonb,
+  source        text default 'website',
   is_active     boolean default true,
   created_at    timestamptz not null default now(),
   updated_at    timestamptz not null default now()
@@ -281,6 +286,8 @@ create table payments (
   proof_url     text,
   note          text,
   recorded_by   uuid references profiles(id),
+  exchange_rate numeric(10,4) default 1.0,
+  realized_base_amount numeric(12,2),
   created_at    timestamptz not null default now()
 );
 

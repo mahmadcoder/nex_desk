@@ -45,8 +45,11 @@ export default async function ServiceDetail({ params }: { params: Promise<{ slug
           <div>
             <p className="mono-tag">Starting at</p>
             <p className="mt-1 text-xl">
-              {service.starting_at ? `Rs ${Number(service.starting_at).toLocaleString()}` : "On request"}
+              {service.starting_at ? `$${Number(service.starting_at).toLocaleString()}` : "On request"}
             </p>
+            {service.scope_note && (
+              <p className="mt-1 text-xs text-bone-400">{service.scope_note} · Exact price depends on scope</p>
+            )}
           </div>
           <div>
             <p className="mono-tag">Typical timeline</p>
@@ -83,7 +86,7 @@ export default async function ServiceDetail({ params }: { params: Promise<{ slug
               )}
               <h3 className="mt-4 text-xl">{p.name}</h3>
               <p className="mt-2 text-3xl tracking-tight" style={{ fontFamily: "var(--font-display)" }}>
-                Rs {Number(p.price).toLocaleString()}
+                ${Number(p.price).toLocaleString()}
               </p>
               <ul className="mt-5 space-y-2">
                 {(p.features ?? []).map((f: string) => (

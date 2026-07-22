@@ -94,7 +94,7 @@ export default function ServicesScroll({ services }: { services: Service[] }) {
       </div>
       <div className="mt-10 flex items-center justify-between border-t border-ink-600 pt-5">
         <span className="mono-tag">
-          {s.starting_at ? `from Rs ${s.starting_at.toLocaleString()}` : "on request"}
+          {s.starting_at ? `from $${s.starting_at.toLocaleString()}` : "on request"}
         </span>
         <span className="text-lime-400 transition-transform group-hover:translate-x-1">→</span>
       </div>
@@ -156,7 +156,7 @@ export default function ServicesScroll({ services }: { services: Service[] }) {
             </div>
             <div className="mt-10 flex items-center justify-between border-t border-ink-600 pt-5">
               <span className="mono-tag">
-                {s.starting_at ? `from Rs ${s.starting_at.toLocaleString()}` : "on request"}
+                {s.starting_at ? `from $${s.starting_at.toLocaleString()}` : "on request"}
               </span>
               <span className="text-lime-400 transition-transform group-hover:translate-x-1">→</span>
             </div>

@@ -603,3 +603,80 @@ export function HandoverDoc({ project, client, credentials }: { project: any; cl
     </Document>
   );
 }
+
+export function AgencyTemplatePdfDocument({
+  title,
+  badge,
+  content,
+}: {
+  title: string;
+  badge: string;
+  content: string;
+}) {
+  const no = `ND-TMPL-${Date.now().toString().slice(-4)}`;
+  const lines = content.split("\n").map((l) => l.trim()).filter(Boolean);
+
+  return (
+    <Document title={title} author="Nex Desk">
+      <Page size="A4" style={s.page}>
+        <DocHeader type={badge || "AGENCY DOCUMENT"} number={no} />
+
+        <View style={{ marginTop: 8, marginBottom: 12, borderBottomWidth: 1, borderBottomColor: C.line, paddingBottom: 6 }}>
+          <Text style={[s.h1, { fontSize: 15, color: C.ink }]}>{title.toUpperCase()}</Text>
+          <Text style={{ fontSize: 8, color: C.muted, marginTop: 3 }}>
+            Nex Desk Software Agency · nexdesk.agency · hello@nexdesk.agency · +92 300 1234567 · Multan, PK
+          </Text>
+        </View>
+
+        <View style={{ marginBottom: 16 }}>
+          {lines.map((line, idx) => {
+            if (line.startsWith("===") || line.startsWith("---")) return null;
+            if (
+              line.toLowerCase().startsWith("nex desk — master") ||
+              line.toLowerCase().startsWith("master software services") ||
+              line.toLowerCase().startsWith("certificate of project completion") ||
+              line.toLowerCase().startsWith("mutual non-disclosure agreement") ||
+              line.toLowerCase().startsWith("statement of work") ||
+              line.toLowerCase().startsWith("project handover") ||
+              line.toLowerCase().startsWith("scope change order")
+            ) {
+              return null;
+            }
+
+            const isHeading =
+              line.endsWith(":") ||
+              /^[0-9]+\./.test(line) ||
+              (line === line.toUpperCase() && line.length < 45);
+
+            if (isHeading) {
+              return (
+                <Text key={idx} style={[s.h2, { fontSize: 9.5, marginTop: 8, marginBottom: 3, color: C.ink }]} wrap={false}>
+                  {line}
+                </Text>
+              );
+            }
+            return (
+              <Text key={idx} style={{ fontSize: 8.5, lineHeight: 1.4, color: C.ink, marginBottom: 4 }}>
+                {line}
+              </Text>
+            );
+          })}
+        </View>
+
+        <View style={[s.signRow, { marginTop: 16 }]} wrap={false}>
+          <View style={s.signBox}>
+            <Text style={s.label}>Authorized Representative</Text>
+            <Text style={{ marginTop: 8, fontSize: 8.5, color: C.ink }}>Nex Desk Software Agency</Text>
+          </View>
+          <View style={s.signBox}>
+            <Text style={s.label}>Client Acceptance & Sign-Off</Text>
+            <Text style={{ marginTop: 8, fontSize: 8.5, color: C.ink }}>Client Organization</Text>
+          </View>
+        </View>
+
+        <DocFooter number={no} />
+      </Page>
+    </Document>
+  );
+}
+
