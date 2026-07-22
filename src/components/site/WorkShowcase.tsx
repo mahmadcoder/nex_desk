@@ -26,7 +26,7 @@ export default function WorkShowcase({ cases }: { cases: Case[] }) {
   if (!cases.length) return null;
 
   return (
-    <section className="shell py-28">
+    <section className="shell py-14">
       <div className="flex items-end justify-between gap-6">
         <div className="max-w-xl">
           <p className="drawer-label">Selected work</p>

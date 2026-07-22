@@ -1,13 +1,15 @@
 import { createClient } from "@/lib/supabase/server";
 import Hero from "@/components/site/Hero";
 import Marquee from "@/components/site/Marquee";
-import Capabilities from "@/components/site/Capabilities";
+
 import ServicesScroll from "@/components/site/ServicesScroll";
 import WorkShowcase from "@/components/site/WorkShowcase";
 import Difference from "@/components/site/Difference";
 import Process from "@/components/site/Process";
 import TestimonialWall from "@/components/site/TestimonialWall";
 import CTA from "@/components/site/CTA";
+import Studio from "@/components/site/Studio";
+import FaqPreview from "@/components/site/FaqPreview";
 
 export const revalidate = 300;
 
@@ -47,12 +49,13 @@ export default async function Home() {
     <>
       <Hero />
       <Marquee />
-      <Capabilities />
+      <Studio/>
       <ServicesScroll services={services ?? []} />
       <WorkShowcase cases={cases ?? []} />
       <Difference />
       <Process />
       <TestimonialWall quotes={wallQuotes} />
+      <FaqPreview/>
       <CTA />
     </>
   );

@@ -45,7 +45,7 @@ export default function TestimonialWall({ quotes }: { quotes: Quote[] }) {
   if (!featured) return null;
 
   return (
-    <section ref={ref} className="shell py-28">
+    <section ref={ref} className="shell py-14">
       <p className="drawer-label">In their words</p>
 
       <div className="mt-10 grid gap-6 lg:grid-cols-[1fr_1fr]">

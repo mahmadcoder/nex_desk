@@ -15,7 +15,7 @@ const STEPS = [
 
 export default function Process() {
   return (
-    <section className="shell py-16">
+    <section className="shell py-12">
       <p className="drawer-label">How it goes</p>
       <h2 className="mt-6 max-w-2xl text-[var(--text-h2)]">
         Six steps. You always know which one you&apos;re on.

@@ -2,74 +2,51 @@
 
 import { cn } from "@/lib/utils";
 
+/**
+ * New Nex Desk identity.
+ *
+ * The old hand-drawn "N + chevron" is gone. This is a typographic wordmark set
+ * in the display font (so the letterforms are actually good), paired with a
+ * lime block caret — a nod to a text cursor on a desk. Clean, legible, and it
+ * reads instantly as a software studio.
+ */
 
-export function LogoMark({
-  className,
-  animated = false,
-}: {
-  className?: string;
-  animated?: boolean;
-}) {
+/** Square glyph for favicon / app icon: a caret block resting on a desk line. */
+export function LogoMark({ className }: { className?: string }) {
   return (
-    <svg
-      viewBox="0 0 40 40"
-      className={cn("h-8 w-8", className)}
-      fill="none"
-      role="img"
-      aria-label="Nex Desk"
-    >
-      <path
-        d="M8 32V8l14 20V8"
-        stroke="currentColor"
-        strokeWidth="4"
-        strokeLinecap="square"
-        className={animated ? "draw draw-1" : undefined}
-      />
-      <path
-        d="M27 13l7 7-7 7"
-        stroke="var(--color-lime-400)"
-        strokeWidth="4"
-        strokeLinecap="square"
-        strokeLinejoin="miter"
-        className={animated ? "draw draw-2" : undefined}
-      />
-      {animated && (
-        <style>{`
-          .draw { stroke-dasharray: 100; stroke-dashoffset: 100;
-                  animation: nd-draw 900ms cubic-bezier(.16,1,.3,1) forwards; }
-          .draw-2 { animation-delay: 400ms; }
-          @keyframes nd-draw { to { stroke-dashoffset: 0; } }
-          @media (prefers-reduced-motion: reduce) {
-            .draw { animation: none; stroke-dashoffset: 0; }
-          }
-        `}</style>
-      )}
+    <svg viewBox="0 0 40 40" className={cn("h-8 w-8", className)} role="img" aria-label="Nex Desk">
+      <rect width="40" height="40" rx="10" fill="#0B0B0F" />
+      {/* the desk line */}
+      <rect x="9" y="27" width="22" height="2.5" rx="1.25" fill="#F4F1EA" />
+      {/* the caret block sitting on it */}
+      <rect x="16" y="11" width="8" height="13" rx="1.5" fill="#D0FF4E" />
     </svg>
   );
 }
 
-
+/** Mark + wordmark for the header. */
 export function Logo({ className }: { className?: string }) {
   return (
     <span className={cn("inline-flex items-center gap-2.5", className)}>
-      <LogoMark className="h-7 w-7 text-bone-50" />
+      <LogoMark className="h-7 w-7" />
       <span
-        className="text-[1.0625rem] font-medium tracking-[-0.04em]"
+        className="inline-flex items-baseline text-[1.125rem] font-semibold  tracking-[-0.045em]"
         style={{ fontFamily: "var(--font-display)" }}
       >
-        Nex<span className="text-bone-400">Desk</span>
+        Nex Desk
+        <span className="ml-[3px] inline-block h-[0.85em] w-[0.28em] translate-y-[0.06em] bg-lime-400" />
       </span>
     </span>
   );
 }
 
-
+/** Larger square lockup for the corner of documents. */
 export function LogoTile({ className }: { className?: string }) {
   return (
     <svg viewBox="0 0 64 64" className={cn("h-10 w-10", className)} role="img" aria-label="Nex Desk">
       <rect width="64" height="64" rx="14" fill="#0B0B0F" />
-      <path d="M18 46V18l13 19V18" stroke="#F4F1EA" strokeWidth="5" strokeLinecap="square" fill="none" />
-      <path d="M38 26l6 6-6 6" stroke="#D0FF4E" strokeWidth="5" strokeLinecap="square" fill="none" />
+      <rect x="14" y="43" width="36" height="4" rx="2" fill="#F4F1EA" />
+      <rect x="26" y="17" width="12" height="21" rx="2.5" fill="#D0FF4E" />
     </svg>
   );
 }

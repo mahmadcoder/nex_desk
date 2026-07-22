@@ -45,7 +45,7 @@ export default function Preloader() {
   return (
     <div ref={root} className="fixed inset-0 z-[100] flex flex-col justify-between bg-ink-950 p-[var(--gutter)]">
       <div className="pl-fade flex items-center gap-3">
-        <LogoMark animated className="h-10 w-10 text-bone-50" />
+        <LogoMark className="h-10 w-10 text-bone-50" />
         <span className="mono-tag">nex desk</span>
       </div>
       <div className="pl-fade flex items-end justify-between gap-6">

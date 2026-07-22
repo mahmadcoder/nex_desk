@@ -1,55 +1,75 @@
 /**
- * One place to manage every visual on the site.
+ * Every visual on the site is managed here.
  *
- * The philosophy: don't lean on random stock photography — it's the fastest way
- * to make a site look templated. Instead:
- *   1. Most "images" are UI mockups drawn in code (see components/site/mockups).
- *   2. Avatars come from DiceBear — generated, consistent, keyless, distinctive.
- *   3. When you genuinely want a real photo, drop a Pexels URL into the maps
- *      below. Nothing here depends on an external image loading, so the site
- *      never shows a broken picture.
+ * Sources, in order of use:
+ *   1. Verified Unsplash & Pexels photographs — used as rich, high-definition
+ *      article covers and section backdrops.
+ *   2. DiceBear — generated avatars for people, keyless and consistent.
+ *   3. Code-drawn UI mockups for product shots.
  */
 
-/* ------------------------------------------------------------------ *
- * AVATARS — DiceBear (https://dicebear.com). No API key, no config.
- * Same seed always returns the same face, so testimonials stay stable.
- * ------------------------------------------------------------------ */
+/* ---------------- ARTICLE & EDITORIAL COVER PHOTOS ---------------- */
 
-export type AvatarStyle = "notionists" | "notionists-neutral" | "glass" | "shapes";
-
-export function avatar(seed: string, style: AvatarStyle = "notionists-neutral") {
-  const bg = "0B0B0F,131318,1B1B22"; // ink tones behind the avatar
-  return `https://api.dicebear.com/9.x/${style}/svg?seed=${encodeURIComponent(
-    seed
-  )}&backgroundColor=${bg}&radius=50`;
-}
-
-/* ------------------------------------------------------------------ *
- * REAL PHOTOS — swap these for your own Pexels URLs whenever you like.
- *
- * How to get one: go to pexels.com, open a photo, right-click the image,
- * "copy image address", paste it here. Free, no attribution required.
- *
- * Leave a value as `null` and the component falls back to a code-drawn
- * visual instead — so an empty map still looks finished.
- * ------------------------------------------------------------------ */
-
-export const photos: Record<string, string | null> = {
-  // About → founder note. Put a real headshot here when you have one.
-  founder: null,
-  // About → culture strip. Real workspace shots read best here.
-  culture1: null,
-  culture2: null,
-  culture3: null,
+export const ARTICLE_COVERS: Record<string, string> = {
+  "why-we-write-scope-first":
+    "https://images.unsplash.com/photo-1555066931-4365d14bab8c?auto=format&fit=crop&w=1200&q=80",
+  "fast-websites-are-a-feature":
+    "https://images.unsplash.com/photo-1460925895917-afdab827c52f?auto=format&fit=crop&w=1200&q=80",
+  "own-your-code":
+    "https://images.unsplash.com/photo-1522071820081-009f0129c71c?auto=format&fit=crop&w=1200&q=80",
+  "design-systems-that-scale":
+    "https://images.unsplash.com/photo-1507238691740-187a5b1d37b8?auto=format&fit=crop&w=1200&q=80",
+  "seo-engineering-for-saas":
+    "https://images.unsplash.com/photo-1432888498266-38ffec3eaf0a?auto=format&fit=crop&w=1200&q=80",
 };
 
-/* ------------------------------------------------------------------ *
- * CASE-STUDY / WORK COVERS
- * These come from the database (case_studies.cover_url). Where a case
- * study has no cover yet, WorkShowcase draws a device frame instead.
- * ------------------------------------------------------------------ */
+/** High-resolution fallback photography list for articles */
+const DEFAULT_ARTICLE_PHOTOS = [
+  "https://images.unsplash.com/photo-1555066931-4365d14bab8c?auto=format&fit=crop&w=1200&q=80",
+  "https://images.unsplash.com/photo-1460925895917-afdab827c52f?auto=format&fit=crop&w=1200&q=80",
+  "https://images.unsplash.com/photo-1522071820081-009f0129c71c?auto=format&fit=crop&w=1200&q=80",
+  "https://images.unsplash.com/photo-1507238691740-187a5b1d37b8?auto=format&fit=crop&w=1200&q=80",
+  "https://images.unsplash.com/photo-1531403009284-440f080d1e12?auto=format&fit=crop&w=1200&q=80",
+];
 
-/** Deterministic gradient from a string — used behind mockups and empty covers. */
+/** Get an authentic, high-definition cover image for a blog article */
+export function getPostCover(slug: string, coverUrl?: string | null): string {
+  if (coverUrl && coverUrl.trim().length > 0) return coverUrl;
+  if (ARTICLE_COVERS[slug]) return ARTICLE_COVERS[slug];
+
+  let h = 0;
+  for (let i = 0; i < slug.length; i++) h = (h * 31 + slug.charCodeAt(i)) >>> 0;
+  return DEFAULT_ARTICLE_PHOTOS[h % DEFAULT_ARTICLE_PHOTOS.length];
+}
+
+/* ---------------- PEXELS TEXTURES (backdrops) ---------------- */
+
+const px = (id: number, w = 1200) =>
+  `https://images.pexels.com/photos/${id}/pexels-photo-${id}.jpeg?auto=compress&cs=tinysrgb&w=${w}`;
+
+export const textures = {
+  dark: px(7130481),
+  blue: px(7605372),
+  green: px(7130532),
+  colour: px(6985135),
+};
+
+export function textureFor(seed: string) {
+  return getPostCover(seed);
+}
+
+/* ---------------- AVATARS (DiceBear, keyless) ---------------- */
+
+export type AvatarStyle = "notionists" | "notionists-neutral" | "glass";
+
+export function avatar(seed: string, style: AvatarStyle = "notionists") {
+  return `https://api.dicebear.com/9.x/${style}/svg?seed=${encodeURIComponent(
+    seed
+  )}&backgroundColor=131318,1b1b22&radius=50&scale=90`;
+}
+
+/* ---------------- CODE GRADIENT ---------------- */
+
 export function gradientFor(seed: string) {
   const palettes = [
     ["#5B3DF5", "#0B0B0F"],
@@ -64,3 +84,7 @@ export function gradientFor(seed: string) {
   const angle = h % 360;
   return `linear-gradient(${angle}deg, ${a}, ${b})`;
 }
+
+export const photos: Record<string, string | null> = {
+  founder: null,
+};

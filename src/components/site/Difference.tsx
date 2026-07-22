@@ -13,7 +13,7 @@ const ROWS = [
 /** Honest side-by-side. Structure carries the message; no decoration needed. */
 export default function Difference() {
   return (
-    <section className="shell py-28">
+    <section className="shell py-14">
       <div className="max-w-2xl">
         <p className="drawer-label">Why us</p>
         <h2 className="mt-6 text-[var(--text-h2)]">The difference is in the boring parts.</h2>

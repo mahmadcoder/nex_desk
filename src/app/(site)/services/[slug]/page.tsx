@@ -162,7 +162,7 @@ export default async function ServiceDetail({ params }: { params: Promise<{ slug
               }`}
             >
               {p.is_popular && (
-                <span className="mono-tag absolute -top-3 left-7 rounded-full bg-lime-400 px-3 py-1 text-xs text-black font-semibold">
+                <span className="mono-tag absolute -top-3 left-7 rounded-full bg-lime-400 px-3 py-1 text-xs text-lime-950 font-semibold">
                   most chosen
                 </span>
               )}
