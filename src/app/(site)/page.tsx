@@ -1,13 +1,33 @@
-import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import Hero from "@/components/site/Hero";
-import ServicesScroll from "@/components/site/ServicesScroll";
-import Process from "@/components/site/Process";
 import Marquee from "@/components/site/Marquee";
-import Reveal from "@/components/site/Reveal";
+import Capabilities from "@/components/site/Capabilities";
+import ServicesScroll from "@/components/site/ServicesScroll";
+import WorkShowcase from "@/components/site/WorkShowcase";
+import Difference from "@/components/site/Difference";
+import Process from "@/components/site/Process";
+import TestimonialWall from "@/components/site/TestimonialWall";
 import CTA from "@/components/site/CTA";
 
 export const revalidate = 300;
+
+/** Fallback testimonials so the wall looks full before you've added your own. */
+const SAMPLE_QUOTES = [
+  { client_name: "Ayesha Khan", role: "Founder", company: "Lumen Studio", rating: 5,
+    quote: "They shipped in four weeks what two previous agencies couldn't in six months. The staging link from day one meant no surprises." },
+  { client_name: "Daniel Reeve", role: "CEO", company: "Northwind", rating: 5,
+    quote: "The written scope saved us. Everyone knew exactly what was being built and what it cost. No arguments at the end." },
+  { client_name: "Priya Nair", role: "Head of Growth", company: "Vertex", rating: 5,
+    quote: "Our organic traffic tripled in three months. They actually explained what they were doing instead of hiding behind jargon." },
+  { client_name: "Marco Bianchi", role: "Owner", company: "Práctica", rating: 5,
+    quote: "The receipt and agreement PDFs made us look far bigger than we are. Clients take us seriously now." },
+  { client_name: "Sana Malik", role: "Director", company: "Kavi", rating: 5,
+    quote: "Weekly progress emails I never had to ask for. I always knew where the project stood." },
+  { client_name: "Tom Alvarez", role: "Co-founder", company: "Orbit", rating: 5,
+    quote: "We own everything — code, files, accounts. No lock-in, no hostage situation. Rare in this business." },
+  { client_name: "Hina Farooq", role: "Marketing Lead", company: "Fathom", rating: 5,
+    quote: "The ad campaigns hit the cost-per-lead target they promised in the first month. Straight talk, real numbers." },
+];
 
 export default async function Home() {
   const supabase = await createClient();
@@ -16,70 +36,23 @@ export default async function Home() {
     supabase.from("services").select("slug,title,category,short_desc,starting_at")
       .eq("is_active", true).order("sort_order"),
     supabase.from("case_studies").select("slug,title,client_name,industry,cover_url,outcome,metrics")
-      .eq("is_published", true).order("sort_order").limit(4),
-    supabase.from("testimonials").select("client_name,role,company,quote,rating")
       .eq("is_published", true).order("sort_order").limit(3),
+    supabase.from("testimonials").select("client_name,role,company,quote,rating")
+      .eq("is_published", true).order("sort_order").limit(9),
   ]);
+
+  const wallQuotes = quotes?.length ? quotes : SAMPLE_QUOTES;
 
   return (
     <>
       <Hero />
       <Marquee />
+      <Capabilities />
       <ServicesScroll services={services ?? []} />
-
-      {!!cases?.length && (
-        <section className="shell py-16">
-          <div className="flex items-end justify-between gap-6">
-            <div>
-              <p className="drawer-label">Selected work</p>
-              <h2 className="mt-6 max-w-2xl text-[var(--text-h2)]">Things we shipped.</h2>
-            </div>
-            <Link href="/work" className="btn hidden shrink-0 sm:inline-flex">All work</Link>
-          </div>
-
-          <Reveal className="mt-10 grid gap-5 md:grid-cols-2">
-            {cases.map((c) => (
-              <Link key={c.slug} href={`/work/${c.slug}`} className="card group overflow-hidden">
-                <div className="aspect-[16/10] overflow-hidden bg-ink-700">
-                  {c.cover_url && (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={c.cover_url} alt="" className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-[1.03]" />
-                  )}
-                </div>
-                <div className="p-7">
-                  <span className="mono-tag">{c.industry}</span>
-                  <h3 className="mt-3 text-2xl">{c.title}</h3>
-                  <p className="mt-3 text-sm text-bone-400">{c.outcome}</p>
-                </div>
-              </Link>
-            ))}
-          </Reveal>
-        </section>
-      )}
-
+      <WorkShowcase cases={cases ?? []} />
+      <Difference />
       <Process />
-
-      {!!quotes?.length && (
-        <section className="shell py-16">
-          <p className="drawer-label">What clients say</p>
-          <Reveal className="mt-8 grid gap-5 md:grid-cols-3">
-            {quotes.map((t, i) => (
-              <figure key={i} className="card flex flex-col justify-between p-8">
-                <blockquote className="text-lg leading-relaxed text-bone-100">
-                  &ldquo;{t.quote}&rdquo;
-                </blockquote>
-                <figcaption className="mt-8 border-t border-ink-600 pt-5">
-                  <p className="text-sm font-medium">{t.client_name}</p>
-                  <p className="mono-tag mt-1">
-                    {[t.role, t.company].filter(Boolean).join(" · ")}
-                  </p>
-                </figcaption>
-              </figure>
-            ))}
-          </Reveal>
-        </section>
-      )}
-
+      <TestimonialWall quotes={wallQuotes} />
       <CTA />
     </>
   );

@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { createClient, createAdminClient } from "@/lib/supabase/server";
 import { sendEmail } from "@/lib/email/send";
@@ -37,12 +38,23 @@ export async function signIn(_prev: unknown, formData: FormData) {
     password: String(formData.get("password")),
   });
   if (error) return { error: "Those details don't match an account." };
+
+  const cookieStore = await cookies();
+  cookieStore.set("nx_admin_login_at", Date.now().toString(), {
+    path: "/",
+    maxAge: 24 * 60 * 60, // 24 hours
+    httpOnly: true,
+    sameSite: "lax",
+  });
+
   redirect(`/${ADMIN}`);
 }
 
 export async function signOut() {
   const supabase = await createClient();
   await supabase.auth.signOut();
+  const cookieStore = await cookies();
+  cookieStore.delete("nx_admin_login_at");
   redirect(`/${ADMIN}/login`);
 }
 

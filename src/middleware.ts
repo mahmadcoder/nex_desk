@@ -32,6 +32,19 @@ export async function middleware(req: NextRequest) {
       return isLoginPage ? res : notFound(req);
     }
 
+    // Enforce 24-hour admin session limit
+    const loginAtStr = req.cookies.get("nx_admin_login_at")?.value;
+    if (loginAtStr) {
+      const loginTime = parseInt(loginAtStr, 10);
+      const isExpired = isNaN(loginTime) || Date.now() - loginTime > 24 * 60 * 60 * 1000;
+      if (isExpired && !isLoginPage) {
+        await supabase.auth.signOut();
+        const response = NextResponse.redirect(new URL(`/${ADMIN_PATH}/login?expired=1`, req.url));
+        response.cookies.delete("nx_admin_login_at");
+        return response;
+      }
+    }
+
     const { data: profile } = await supabase
       .from("profiles")
       .select("role, is_active")

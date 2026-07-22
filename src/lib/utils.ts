@@ -7,8 +7,8 @@ const SYMBOL: Record<string, string> = {
   PKR: "Rs", USD: "$", GBP: "£", EUR: "€", AED: "AED",
 };
 
-export function money(amount: number, currency = "PKR") {
-  return `${SYMBOL[currency] ?? currency} ${amount.toLocaleString("en-US", {
+export function money(amount: number, currency = "USD") {
+  return `${SYMBOL[currency] ?? currency}${amount.toLocaleString("en-US", {
     minimumFractionDigits: 0,
     maximumFractionDigits: 2,
   })}`;
