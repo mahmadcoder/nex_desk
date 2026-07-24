@@ -42,15 +42,24 @@ export default function Impact() {
   }, []);
 
   return (
-    <section ref={ref} className="border-y border-ink-600 bg-ink-950">
-      <div className="shell grid grid-cols-2 gap-px bg-ink-600 lg:grid-cols-4">
+    <section ref={ref} className="shell py-16">
+      <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
         {STATS.map(([, suffix, label], i) => (
-          <div key={label} className="bg-ink-950 px-6 py-14 text-center">
-            <p className="text-[clamp(2.5rem,6vw,4.5rem)] leading-none tracking-tighter"
-              style={{ fontFamily: "var(--font-display)" }}>
-              {vals[i]}<span className="text-lime-400">{suffix}</span>
+          <div
+            key={label}
+            className="card relative overflow-hidden p-8 text-center border-ink-600/80 bg-ink-900/90 hover:border-lime-400/50 hover:bg-ink-800/80 transition-all duration-300 group"
+          >
+            <div className="absolute inset-0 bg-gradient-to-b from-lime-400/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none" />
+            <p
+              className="text-[clamp(2.5rem,5vw,4rem)] font-medium leading-none tracking-tighter text-bone-50"
+              style={{ fontFamily: "var(--font-display)" }}
+            >
+              {vals[i]}
+              <span className="text-lime-400 font-normal ml-0.5">{suffix}</span>
             </p>
-            <p className="mono-tag mt-4 justify-center">{label}</p>
+            <p className="mono-tag mt-4 text-xs justify-center text-bone-400 group-hover:text-bone-200 transition-colors">
+              {label}
+            </p>
           </div>
         ))}
       </div>

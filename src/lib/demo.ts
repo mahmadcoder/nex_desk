@@ -158,3 +158,123 @@ export const demoPosts: DemoPost[] = [
       "Modern search engine optimization isn't about spamming keywords in footer text — it is an engineering discipline. Search engines prioritize websites that render instantly, use proper HTML5 semantic hierarchy, and provide structured data.\n\n## Technical SEO at the Core\n\nWe bake search engine visibility directly into the codebase:\n- Automated OpenGraph and Twitter Card generation for social sharing\n- Structured JSON-LD schema markup for rich search snippets\n- Dynamic XML sitemaps and clean canonical tag generation\n- Semantic HTML5 structure (`<article>`, `<section>`, `<header>`, `<h1>-<h6>`)\n\nBy treating technical SEO as a foundation rather than a plugin, your site starts indexing faster and ranking for high-intent keywords naturally.",
   },
 ];
+
+export type DemoService = {
+  id?: string;
+  slug: string;
+  title: string;
+  category: string;
+  short_desc: string;
+  long_desc?: string;
+  starting_at?: number;
+  currency?: string;
+  features: string[];
+  duration_note?: string;
+  is_active?: boolean;
+};
+
+export const demoServices: DemoService[] = [
+  {
+    slug: "custom-web-development",
+    title: "Custom Web Applications & Websites",
+    category: "Build & Engineer",
+    short_desc: "High-performance Next.js & React websites built for sub-second speed, conversion, and clean scalability.",
+    long_desc: "We build custom web applications and marketing platforms engineered on open standards: Next.js, React, TypeScript, Supabase, and TailwindCSS. Every build includes responsive design, SEO optimization, and 100% code ownership.",
+    starting_at: 1500,
+    currency: "USD",
+    features: [
+      "Next.js & React Architecture",
+      "Sub-second Load Times (<1s)",
+      "TailwindCSS Design Tokens",
+      "Supabase Backend & Authentication",
+      "100% Code & Asset Ownership",
+    ],
+    duration_note: "2–4 weeks delivery",
+    is_active: true,
+  },
+  {
+    slug: "mobile-apps",
+    title: "iOS & Android Mobile Apps",
+    category: "Build & Engineer",
+    short_desc: "Native-grade cross-platform apps built with React Native for smooth performance on both App Store and Google Play.",
+    long_desc: "Single codebase for iOS and Android with zero compromise on feel or performance. Includes real-time database sync, push notifications, offline storage, and full store deployment.",
+    starting_at: 2500,
+    currency: "USD",
+    features: [
+      "React Native Cross-Platform Codebase",
+      "Push Notifications & Deep Links",
+      "Offline Storage & Real-time Sync",
+      "App Store & Google Play Publishing",
+    ],
+    duration_note: "4–6 weeks delivery",
+    is_active: true,
+  },
+  {
+    slug: "web-design",
+    title: "UI/UX Design Systems & Branding",
+    category: "Design & Identity",
+    short_desc: "Pixel-perfect Figma designs, brand guidelines, and interactive prototypes built to delight users.",
+    long_desc: "Design tokens in Figma that mirror exact CSS variables in code. We deliver high-fidelity wireframes, responsive UI components, user flows, and brand design guidelines.",
+    starting_at: 1200,
+    currency: "USD",
+    features: [
+      "Figma Design Token System",
+      "Responsive Mobile & Desktop Layouts",
+      "Interactive Clicking Prototypes",
+      "Brand Guidelines & Asset Export",
+    ],
+    duration_note: "1–2 weeks delivery",
+    is_active: true,
+  },
+  {
+    slug: "seo",
+    title: "Technical SEO & Conversion Growth",
+    category: "Growth & Optimization",
+    short_desc: "Data-driven SEO overhaul and Lighthouse optimization to rank on search engines and turn traffic into clients.",
+    long_desc: "Technical SEO engineering that search engines reward instantly. We fix structured data, sitemaps, OpenGraph metadata, page speed, and content taxonomy.",
+    starting_at: 800,
+    currency: "USD",
+    features: [
+      "Technical SEO Architecture Audit",
+      "90+ Google Lighthouse Score",
+      "JSON-LD Rich Snippet Schemas",
+      "GA4 Conversion & Event Tracking",
+    ],
+    duration_note: "Ongoing / 2 weeks audit",
+    is_active: true,
+  },
+  {
+    slug: "ai-automation",
+    title: "AI Integration & Workflow Automation",
+    category: "Automation & Systems",
+    short_desc: "Connect OpenAI, custom AI agents, and automated database workflows into your business operations.",
+    long_desc: "Automate repetitive manual workflows with AI. We integrate OpenAI APIs, webhooks, lead scoring, custom admin dashboards, and email dispatchers.",
+    starting_at: 1800,
+    currency: "USD",
+    features: [
+      "OpenAI & Custom LLM Integration",
+      "Automated Email & Lead Workflows",
+      "Custom Admin Dashboard Control",
+      "API & Webhook Pipeline Connections",
+    ],
+    duration_note: "2–3 weeks delivery",
+    is_active: true,
+  },
+  {
+    slug: "ecommerce",
+    title: "Headless E-Commerce Storefronts",
+    category: "Build & Engineer",
+    short_desc: "Ultra-fast online stores with custom frontends and Shopify or Stripe payments for maximum sales.",
+    long_desc: "Convert store visitors into customers with a headless storefront. Instant page loads, 2-step checkout, and seamless inventory management.",
+    starting_at: 2000,
+    currency: "USD",
+    features: [
+      "Headless Shopify / Stripe Integration",
+      "Instant Page Transitions",
+      "Streamlined 2-Step Checkout",
+      "Automated Inventory & Receipts",
+    ],
+    duration_note: "3–5 weeks delivery",
+    is_active: true,
+  },
+];

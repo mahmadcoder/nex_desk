@@ -30,7 +30,13 @@ export async function middleware(req: NextRequest) {
     }
   );
 
-  const { data: { user } } = await supabase.auth.getUser();
+  let user = null;
+  try {
+    const { data } = await supabase.auth.getUser();
+    user = data?.user ?? null;
+  } catch {
+    user = null;
+  }
 
   // ---------- ADMIN ----------
   if (pathname.startsWith(`/${ADMIN_PATH}`)) {

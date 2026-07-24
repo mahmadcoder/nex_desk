@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import { createClient } from "@/lib/supabase/server";
 import Reveal from "@/components/site/Reveal";
 import CTA from "@/components/site/CTA";
+import { demoServices } from "@/lib/demo";
 
 export const metadata: Metadata = {
   title: "Services",
@@ -12,8 +13,10 @@ export const revalidate = 300;
 
 export default async function ServicesPage() {
   const supabase = await createClient();
-  const { data: services } = await supabase
+  const { data: dbServices } = await supabase
     .from("services").select("*").eq("is_active", true).order("sort_order");
+
+  const services = (dbServices && dbServices.length > 0) ? dbServices : (demoServices as any[]);
 
   const grouped = (services ?? []).reduce<Record<string, typeof services>>((acc, s) => {
     (acc[s.category] ||= []).push(s);
