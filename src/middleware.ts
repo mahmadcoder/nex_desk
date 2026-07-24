@@ -43,7 +43,8 @@ export async function middleware(req: NextRequest) {
     const isLoginPage = pathname === `/${ADMIN_PATH}/login`;
 
     if (!user) {
-      return isLoginPage ? res : notFound(req);
+      if (isLoginPage) return res;
+      return NextResponse.redirect(new URL(`/${ADMIN_PATH}/login`, req.url));
     }
 
     // Enforce 24-hour admin session limit & 2-hour inactivity limit
