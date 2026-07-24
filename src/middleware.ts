@@ -1,7 +1,16 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createServerClient } from "@supabase/ssr";
+import { createClient as createRawClient } from "@supabase/supabase-js";
 
 const ADMIN_PATH = process.env.ADMIN_PATH || "nx-control";
+
+function getAdminClient() {
+  return createRawClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    { auth: { persistSession: false, autoRefreshToken: false } }
+  );
+}
 
 export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
@@ -98,12 +107,17 @@ export async function middleware(req: NextRequest) {
     let isStaff = ["owner", "admin", "staff"].includes(userRole);
 
     if (!isStaff && user.id) {
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("role, is_active")
-        .eq("id", user.id)
-        .single();
-      isStaff = !!(profile?.is_active && ["owner", "admin", "staff"].includes(profile.role));
+      try {
+        const adminDb = getAdminClient();
+        const { data: profile } = await adminDb
+          .from("profiles")
+          .select("role, is_active")
+          .eq("id", user.id)
+          .single();
+        isStaff = !!(profile?.is_active && ["owner", "admin", "staff"].includes(profile.role));
+      } catch {
+        isStaff = false;
+      }
     }
 
     if (!isStaff) {
