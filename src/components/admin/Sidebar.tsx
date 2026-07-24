@@ -43,8 +43,8 @@ export default function Sidebar({ base, user }: { base: string; user: { name: st
   }, [open]);
 
   const navContent = (
-    <>
-      <Link href={base} className="mb-8 flex items-center gap-2.5 px-2 pt-2">
+    <div className="flex h-full flex-col min-h-0">
+      <Link href={base} className="mb-6 flex items-center gap-2.5 px-2 pt-2 shrink-0">
         <LogoMark className="h-6 w-6 text-bone-50" />
         <div>
           <p className="text-sm font-medium tracking-tight" style={{ fontFamily: "var(--font-display)" }}>
@@ -54,7 +54,7 @@ export default function Sidebar({ base, user }: { base: string; user: { name: st
         </div>
       </Link>
 
-      <nav className="flex-1 space-y-0.5">
+      <nav className="flex-1 overflow-y-auto min-h-0 space-y-0.5 pr-1">
         {NAV.map(({ href, label, icon: Icon }) => {
           const full = `${base}${href}`;
           const active = href === "" ? path === base : path.startsWith(full);
@@ -74,7 +74,7 @@ export default function Sidebar({ base, user }: { base: string; user: { name: st
         })}
       </nav>
 
-      <div className="border-t border-ink-600 pt-4">
+      <div className="border-t border-ink-600 pt-4 shrink-0 mt-2">
         <div className="px-3 pb-3">
           <p className="truncate text-sm">{user.name}</p>
           <p className="mono-tag text-[0.625rem]">{user.role}</p>
@@ -85,7 +85,7 @@ export default function Sidebar({ base, user }: { base: string; user: { name: st
           </button>
         </form>
       </div>
-    </>
+    </div>
   );
 
   return (
