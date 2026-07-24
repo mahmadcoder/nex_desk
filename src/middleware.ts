@@ -7,6 +7,14 @@ export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
   let res = NextResponse.next({ request: req });
 
+  const isAdmin = pathname.startsWith(`/${ADMIN_PATH}`);
+  const isPortal = pathname.startsWith("/portal");
+
+  // Fast path for public marketing pages — skip Supabase auth network roundtrips
+  if (!isAdmin && !isPortal) {
+    return res;
+  }
+
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,

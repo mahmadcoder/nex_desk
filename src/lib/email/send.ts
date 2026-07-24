@@ -33,8 +33,16 @@ export async function sendEmail(args: SendArgs) {
   const { data: tpl } = await db.from("email_templates")
     .select("*").eq("key", args.templateKey).single();
 
-  const subjectRaw = args.subjectOverride ?? tpl?.subject ?? "A message from Nex Desk";
-  const bodyRaw = args.bodyOverride ?? tpl?.body ?? "";
+  const DEFAULT_TEMPLATES: Record<string, { subject: string; body: string }> = {
+    newsletter_welcome: {
+      subject: "Welcome to Nex Desk — Software Agency",
+      body: "Hi {{client_name}},\n\nThank you for subscribing to the Nex Desk newsletter!\n\nWe share monthly insights on custom software engineering, modern web applications, UI/UX design trends, and tech strategy.\n\nExplore our latest case studies and agency work at {{portal_url}}/work.\n\nWarm regards,\nThe Nex Desk Team",
+    },
+  };
+
+  const fallback = DEFAULT_TEMPLATES[args.templateKey];
+  const subjectRaw = args.subjectOverride ?? tpl?.subject ?? fallback?.subject ?? "A message from Nex Desk";
+  const bodyRaw = args.bodyOverride ?? tpl?.body ?? fallback?.body ?? "";
 
   const vars = { company_name: "Nex Desk", sender_name: "Nex Desk", ...args.vars };
   const subject = fillTemplate(subjectRaw, vars);

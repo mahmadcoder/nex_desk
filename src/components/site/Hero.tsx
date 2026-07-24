@@ -1,21 +1,52 @@
 "use client";
+
 import Link from "next/link";
 import { useEffect, useRef } from "react";
 import { gsap } from "gsap";
 import SplitHeading from "./SplitHeading";
+import Magnetic from "./Magnetic";
+
+const STATS = [
+  { label: "Projects shipped", target: 60, suffix: "+" },
+  { label: "Avg. delivery", target: 4, suffix: " weeks" },
+  { label: "Client retention", target: 82, suffix: "%" },
+  { label: "Time to reply", prefix: "< ", target: 1, suffix: " day" },
+];
 
 export default function Hero() {
   const ref = useRef<HTMLElement>(null);
+  const statRefs = useRef<(HTMLParagraphElement | null)[]>([]);
 
   useEffect(() => {
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+
     const ctx = gsap.context(() => {
+      // 1. Entrance animation
       gsap.fromTo(
         "[data-hero-fade]",
-        { opacity: 0, y: 18 },
-        { opacity: 1, y: 0, duration: 0.9, stagger: 0.08, delay: 0.2, ease: "expo.out" }
+        { opacity: 0, y: 24 },
+        { opacity: 1, y: 0, duration: 1, stagger: 0.12, delay: 0.2, ease: "power3.out" }
       );
+
+      // 2. Count-up stats animation
+      STATS.forEach((stat, i) => {
+        const el = statRefs.current[i];
+        if (!el) return;
+
+        const obj = { val: 0 };
+        gsap.to(obj, {
+          val: stat.target,
+          duration: 2,
+          delay: 0.5 + i * 0.1,
+          ease: "power2.out",
+          onUpdate: () => {
+            const formatted = Math.round(obj.val);
+            el.textContent = `${stat.prefix ?? ""}${formatted}${stat.suffix ?? ""}`;
+          },
+        });
+      });
     }, ref);
+
     return () => ctx.revert();
   }, []);
 
@@ -43,22 +74,25 @@ export default function Hero() {
         </p>
 
         <div data-hero-fade className="flex flex-wrap gap-3 md:justify-end">
-          <Link href="/contact" className="btn btn-primary">Start a project</Link>
-          <Link href="/work" className="btn">See the work</Link>
+          <Magnetic strength={0.25}>
+            <Link href="/contact" className="btn btn-primary">Start a project</Link>
+          </Magnetic>
+          <Magnetic strength={0.25}>
+            <Link href="/work" className="btn">See the work</Link>
+          </Magnetic>
         </div>
       </div>
 
       <div data-hero-fade className="mt-12 grid grid-cols-2 gap-px overflow-hidden rounded-xl border border-ink-600 bg-ink-600 sm:grid-cols-4">
-        {[
-          ["Projects shipped", "60+"],
-          ["Avg. delivery", "4 weeks"],
-          ["Client retention", "82%"],
-          ["Time to first reply", "< 1 day"],
-        ].map(([label, value]) => (
-          <div key={label} className="bg-ink-900 p-6">
-            <p className="mono-tag">{label}</p>
-            <p className="mt-2 text-3xl tracking-tight" style={{ fontFamily: "var(--font-display)" }}>
-              {value}
+        {STATS.map((stat, i) => (
+          <div key={stat.label} className="bg-ink-900 p-6 transition-colors hover:bg-ink-800">
+            <p className="mono-tag">{stat.label}</p>
+            <p
+              ref={(el) => { statRefs.current[i] = el; }}
+              className="mt-2 text-3xl tracking-tight text-bone-50"
+              style={{ fontFamily: "var(--font-display)" }}
+            >
+              {stat.prefix ?? ""}0{stat.suffix ?? ""}
             </p>
           </div>
         ))}

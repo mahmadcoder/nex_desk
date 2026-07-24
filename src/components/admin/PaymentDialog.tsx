@@ -5,6 +5,8 @@ import { toast } from "sonner";
 import { recordPayment } from "@/lib/actions";
 import { money } from "@/lib/utils";
 
+import PaymentProofUpload from "@/components/admin/PaymentProofUpload";
+
 const field = "w-full rounded-lg border border-ink-500 bg-ink-800 px-3 py-2.5 text-sm focus:border-lime-400 focus:outline-none";
 
 const METHODS = [
@@ -25,6 +27,7 @@ export default function PaymentDialog({
     method: "bank_transfer",
     reference: "",
     paid_on: new Date().toISOString().slice(0, 10),
+    proof_url: "",
     note: "",
   });
   const [notify, setNotify] = useState(true);
@@ -87,6 +90,11 @@ export default function PaymentDialog({
             <input className={field} value={f.reference} onChange={(e) => setF({ ...f, reference: e.target.value })}
               placeholder="Appears on the receipt as proof" />
           </div>
+
+          <PaymentProofUpload
+            initialUrl={f.proof_url}
+            onUploadComplete={(url) => setF({ ...f, proof_url: url })}
+          />
 
           <div>
             <label className="mono-tag mb-1.5 block">Internal note</label>

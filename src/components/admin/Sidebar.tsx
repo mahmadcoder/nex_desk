@@ -8,6 +8,7 @@ import { cn } from "@/lib/utils";
 import {
   LayoutDashboard, Inbox, Users, Handshake, FolderKanban,
   Receipt, FileText, Mail, Settings, LogOut, Menu, X,
+  MessageSquareQuote, Briefcase, Layers, BookOpen, HelpCircle, UserCheck
 } from "lucide-react";
 
 const NAV = [
@@ -19,6 +20,12 @@ const NAV = [
   { href: "/invoices", label: "Invoices", icon: Receipt },
   { href: "/documents", label: "Documents", icon: FileText },
   { href: "/emails", label: "Email centre", icon: Mail },
+  { href: "/subscribers", label: "Subscribers & Broadcast", icon: UserCheck },
+  { href: "/testimonials", label: "Testimonials", icon: MessageSquareQuote },
+  { href: "/work", label: "Case Studies / Work", icon: Briefcase },
+  { href: "/services", label: "Services Catalogue", icon: Layers },
+  { href: "/blog", label: "Blog Posts", icon: BookOpen },
+  { href: "/faqs", label: "FAQs", icon: HelpCircle },
   { href: "/settings", label: "Settings", icon: Settings },
 ];
 

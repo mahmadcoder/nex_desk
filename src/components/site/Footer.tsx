@@ -6,6 +6,8 @@ import { Logo } from "@/components/brand/Logo";
 import { ArrowUpRight, MessageSquare, ArrowRight, Check } from "lucide-react";
 import { FaLinkedin, FaInstagram, FaXTwitter, FaGithub } from "react-icons/fa6";
 
+import { toast } from "sonner";
+
 const COMPANY_NAV = [
   { label: "Services", href: "/services" },
   { label: "Selected Work", href: "/work" },
@@ -25,13 +27,30 @@ const SOCIAL_NAV = [
 export default function Footer() {
   const [email, setEmail] = useState("");
   const [subscribed, setSubscribed] = useState(false);
+  const [loading, setLoading] = useState(false);
 
-  const handleSubmit = (e: FormEvent) => {
+  const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
-    if (!email.trim()) return;
-    setSubscribed(true);
-    setEmail("");
-    setTimeout(() => setSubscribed(false), 5000);
+    if (!email.trim() || loading) return;
+    setLoading(true);
+    try {
+      const res = await fetch("/api/subscribe", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: email.trim() }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Subscription failed");
+
+      setSubscribed(true);
+      setEmail("");
+      toast.success(data.message || "Thank you for subscribing!");
+      setTimeout(() => setSubscribed(false), 5000);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to subscribe. Please try again.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (

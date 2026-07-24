@@ -1,12 +1,12 @@
+"use client";
+
+import { useRef } from "react";
+import { gsap } from "gsap";
 import Reveal from "./Reveal";
 
 /**
  * The paper trail.
- *
- * Replaces the old us-vs-them comparison table. Instead of claiming to be
- * organised, this shows the actual artifacts the system produces — agreement,
- * receipt, progress report, handover — as small paper mockups on the same bone
- * stock the real PDFs print on. Proof rather than assertion.
+ * Displays real document mockups with 3D hover response & scroll fan-out.
  */
 
 const PAPER = "#FBFAF6";
@@ -215,6 +215,34 @@ const DOCS = [
 ];
 
 export default function PaperTrail() {
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>, cardIndex: number) => {
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    const card = e.currentTarget;
+    const rect = card.getBoundingClientRect();
+    const x = e.clientX - rect.left - rect.width / 2;
+    const y = e.clientY - rect.top - rect.height / 2;
+
+    gsap.to(card, {
+      rotateY: x * 0.08,
+      rotateX: -y * 0.08,
+      y: -6,
+      duration: 0.4,
+      ease: "power2.out",
+    });
+  };
+
+  const handleMouseLeave = (e: React.MouseEvent<HTMLDivElement>) => {
+    gsap.to(e.currentTarget, {
+      rotateY: 0,
+      rotateX: 0,
+      y: 0,
+      duration: 0.6,
+      ease: "power3.out",
+    });
+  };
+
   return (
     <section className="shell py-28">
       <div className="max-w-2xl">
@@ -227,15 +255,20 @@ export default function PaperTrail() {
         </p>
       </div>
 
-      <Reveal className="mt-16 grid gap-8 sm:grid-cols-2 lg:grid-cols-4 lg:gap-6">
-        {DOCS.map((d) => (
-          <div key={d.title} className="group">
-            <div className={`${d.tilt} transition-transform duration-500 ease-out group-hover:rotate-0 group-hover:-translate-y-2`}>
+      <Reveal direction="up" distance={36} stagger={0.12} className="mt-16 grid gap-8 sm:grid-cols-2 lg:grid-cols-4 lg:gap-6">
+        {DOCS.map((d, i) => (
+          <div
+            key={d.title}
+            className="group [perspective:1000px]"
+            onMouseMove={(e) => handleMouseMove(e, i)}
+            onMouseLeave={handleMouseLeave}
+          >
+            <div className={`${d.tilt} transition-transform duration-500 ease-out group-hover:rotate-0`}>
               {d.art}
             </div>
             <div className="mt-7">
               <span className="mono-tag text-lime-400">{d.when}</span>
-              <h3 className="mt-2 text-xl">{d.title}</h3>
+              <h3 className="mt-2 text-xl font-medium text-bone-50">{d.title}</h3>
               <p className="mt-2 text-sm leading-relaxed text-bone-400">{d.body}</p>
             </div>
           </div>

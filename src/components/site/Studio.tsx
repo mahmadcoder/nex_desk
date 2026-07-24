@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
+import { gsap } from "gsap";
 import TexturePanel from "./mockups/TexturePanel";
 import { BrowserFrame, DashboardMockup, MobileMockup, SeoMockup } from "./mockups";
 import { textures } from "@/lib/images";
@@ -75,7 +76,17 @@ const AREAS = [
 
 export default function Studio() {
   const [active, setActive] = useState(1);
+  const previewRef = useRef<HTMLDivElement>(null);
   const a = AREAS[active];
+
+  useEffect(() => {
+    if (!previewRef.current || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    gsap.fromTo(
+      previewRef.current,
+      { opacity: 0.4, scale: 0.97, y: 8 },
+      { opacity: 1, scale: 1, y: 0, duration: 0.4, ease: "power2.out" }
+    );
+  }, [active]);
 
   return (
     <section className="shell py-14">
@@ -136,15 +147,17 @@ export default function Studio() {
         </div>
 
         {/* preview */}
-        <TexturePanel src={a.tex} className="min-h-[420px] rounded-2xl border border-ink-600" overlay={0.8}>
-          <div className="flex h-full flex-col justify-between gap-8 p-8">
-            <div className="flex items-center gap-2">
-              <span className="h-1.5 w-1.5 rounded-full bg-lime-400" />
-              <span className="mono-tag">{a.label}</span>
+        <div ref={previewRef}>
+          <TexturePanel src={a.tex} className="min-h-[420px] rounded-2xl border border-ink-600" overlay={0.8}>
+            <div className="flex h-full flex-col justify-between gap-8 p-8">
+              <div className="flex items-center gap-2">
+                <span className="h-1.5 w-1.5 rounded-full bg-lime-400" />
+                <span className="mono-tag">{a.label}</span>
+              </div>
+              <div>{a.visual}</div>
             </div>
-            <div>{a.visual}</div>
-          </div>
-        </TexturePanel>
+          </TexturePanel>
+        </div>
       </div>
     </section>
   );

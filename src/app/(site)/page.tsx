@@ -1,4 +1,4 @@
-import { createClient } from "@/lib/supabase/server";
+import { createPublicClient } from "@/lib/supabase/public";
 import Hero from "@/components/site/Hero";
 import Marquee from "@/components/site/Marquee";
 
@@ -32,7 +32,7 @@ const SAMPLE_QUOTES = [
 ];
 
 export default async function Home() {
-  const supabase = await createClient();
+  const supabase = createPublicClient();
 
   const [{ data: services }, { data: cases }, { data: quotes }] = await Promise.all([
     supabase.from("services").select("slug,title,category,short_desc,starting_at")
@@ -49,13 +49,13 @@ export default async function Home() {
     <>
       <Hero />
       <Marquee />
-      <Studio/>
-      <ServicesScroll services={services ?? []} />
+      <Studio />
       <WorkShowcase cases={cases ?? []} />
+      <ServicesScroll services={services ?? []} />
       <Difference />
       <Process />
       <TestimonialWall quotes={wallQuotes} />
-      <FaqPreview/>
+      <FaqPreview />
       <CTA />
     </>
   );

@@ -1,4 +1,4 @@
-import { createClient } from "@/lib/supabase/server";
+import { createPublicClient } from "@/lib/supabase/public";
 
 export const DEFAULT_FAQS = [
   {
@@ -80,7 +80,7 @@ export const DEFAULT_FAQS = [
  * expanding answers inline (native <details>).
  */
 export default async function FaqPreview() {
-  const supabase = await createClient();
+  const supabase = createPublicClient();
   const { data: faqs } = await supabase
     .from("faqs")
     .select("id,question,answer")

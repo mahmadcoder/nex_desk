@@ -340,6 +340,7 @@ export async function recordPayment(data: any, notify = true) {
   if (error) throw error;
 
   if (notify) {
+    // 1. Client Receipt Email
     await sendEmail({
       templateKey: "payment_received",
       to: payment.clients.email,
@@ -354,6 +355,19 @@ export async function recordPayment(data: any, notify = true) {
         sender_name: me.full_name ?? "Nex Desk",
       },
     });
+
+    // 2. Owner Payment Alert Email
+    const { data: settings } = await db.from("settings").select("email").eq("id", 1).single();
+    if (settings?.email) {
+      const proofMsg = payment.proof_url ? `\nPayment Slip URL: ${payment.proof_url}` : "";
+      await sendEmail({
+        templateKey: "internal_payment_received",
+        to: settings.email,
+        subjectOverride: `Payment Received — ${payment.currency} ${Number(payment.amount).toLocaleString()} from ${payment.clients.name}`,
+        bodyOverride: `Payment Confirmation:\n\nClient: ${payment.clients.name} (${payment.clients.email})\nAmount: ${payment.currency} ${Number(payment.amount).toLocaleString()}\nMethod: ${payment.method}\nReference: ${payment.reference || "N/A"}${proofMsg}\nDate: ${payment.paid_on}`,
+        vars: {},
+      });
+    }
   }
 
   await audit(me.id, "payment.record", "payments", payment.id, { amount: payment.amount });
