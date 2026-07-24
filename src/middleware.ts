@@ -47,7 +47,7 @@ export async function middleware(req: NextRequest) {
       return NextResponse.redirect(new URL(`/${ADMIN_PATH}/login`, req.url));
     }
 
-    // Enforce 24-hour admin session limit & 2-hour inactivity limit
+    // Enforce 24-hour admin session limit & 2-hour inactivity limit and then login again
     const loginAtStr = req.cookies.get("nx_admin_login_at")?.value;
     const lastActivityStr = req.cookies.get("nx_admin_last_activity")?.value;
     const now = Date.now();
