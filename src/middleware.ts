@@ -106,9 +106,12 @@ export async function middleware(req: NextRequest) {
       isStaff = !!(profile?.is_active && ["owner", "admin", "staff"].includes(profile.role));
     }
 
-    if (!isStaff && !isLoginPage) return notFound(req);
+    if (!isStaff) {
+      if (isLoginPage) return res;
+      return NextResponse.redirect(new URL(`/${ADMIN_PATH}/login`, req.url));
+    }
 
-    if (isLoginPage) {
+    if (isLoginPage && isStaff) {
       return NextResponse.redirect(new URL(`/${ADMIN_PATH}`, req.url));
     }
     return res;
