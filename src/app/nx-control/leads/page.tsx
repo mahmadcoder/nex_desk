@@ -2,6 +2,7 @@ import { createAdminClient } from "@/lib/supabase/server";
 import { PageHead, Badge, Table, Empty } from "@/components/admin/ui";
 import LeadRow from "@/components/admin/LeadRow";
 
+export const metadata = { title: "Leads" };
 export const dynamic = "force-dynamic";
 
 export default async function LeadsPage() {

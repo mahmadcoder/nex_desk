@@ -4,6 +4,7 @@ import { money } from "@/lib/utils";
 import DocButton from "@/components/admin/DocButton";
 import PaymentDialog from "@/components/admin/PaymentDialog";
 
+export const metadata = { title: "Invoices & Payments" };
 export const dynamic = "force-dynamic";
 
 export default async function InvoicesPage() {

@@ -5,6 +5,8 @@ import { toast } from "sonner";
 import { sendClientEmail } from "@/lib/actions";
 import { fillTemplate } from "@/lib/utils";
 
+import CustomSelect from "@/components/ui/CustomSelect";
+
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 const field = "w-full rounded-lg border border-ink-500 bg-ink-800 px-3 py-2.5 text-sm focus:border-lime-400 focus:outline-none";
@@ -61,17 +63,31 @@ export default function EmailComposer({
     }
   }
 
+  const clientOptions = [
+    { value: "", label: "Pick a client…" },
+    ...clients.map((c) => ({ value: c.id, label: `${c.name} — ${c.email}` })),
+  ];
+
+  const templateOptions = [
+    { value: "", label: "Write from scratch" },
+    ...templates.map((t) => ({
+      value: t.key,
+      label: t.name,
+      badge: t.attach_doc ? "+pdf" : undefined,
+    })),
+  ];
+
   return (
     <div className="grid gap-6 lg:grid-cols-[260px_1fr]">
       <aside className="card h-fit p-4">
         <p className="mono-tag mb-3">Templates</p>
-        <div className="max-h-[520px] space-y-0.5 overflow-y-auto">
+        <div className="max-h-[520px] space-y-0.5 overflow-y-auto custom-admin-scrollbar">
           {templates.map((t) => (
             <button
               key={t.key}
               onClick={() => pick(t.key)}
               className={`w-full rounded-lg px-3 py-2 text-left text-sm transition-colors ${
-                key === t.key ? "bg-ink-700 text-bone-50" : "text-bone-400 hover:bg-ink-700/50"
+                key === t.key ? "bg-ink-700 text-bone-50 font-medium" : "text-bone-400 hover:bg-ink-700/50"
               }`}
             >
               {t.name}
@@ -87,19 +103,21 @@ export default function EmailComposer({
         <div className="grid gap-4 sm:grid-cols-2">
           <div>
             <label className="mono-tag mb-1.5 block">Send to</label>
-            <select className={field} value={clientId} onChange={(e) => setClientId(e.target.value)}>
-              <option value="">Pick a client…</option>
-              {clients.map((c) => (
-                <option key={c.id} value={c.id}>{c.name} — {c.email}</option>
-              ))}
-            </select>
+            <CustomSelect
+              options={clientOptions}
+              value={clientId}
+              onChange={(val) => setClientId(val)}
+              placeholder="Pick a client…"
+            />
           </div>
           <div>
             <label className="mono-tag mb-1.5 block">Template</label>
-            <select className={field} value={key} onChange={(e) => pick(e.target.value)}>
-              <option value="">Write from scratch</option>
-              {templates.map((t) => <option key={t.key} value={t.key}>{t.name}</option>)}
-            </select>
+            <CustomSelect
+              options={templateOptions}
+              value={key}
+              onChange={(val) => pick(val)}
+              placeholder="Write from scratch"
+            />
           </div>
         </div>
 

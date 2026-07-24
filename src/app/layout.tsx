@@ -5,8 +5,8 @@ import "./globals.css";
 export const metadata: Metadata = {
   metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || "https://nexdesk.com"),
   title: {
-    default: "Nex Desk — software agency",
-    template: "%s · Nex Desk",
+    default: "Nex Desk — Software Agency",
+    template: "%s | Nex Desk",
   },
   description:
     "We build websites, apps and growth systems that ship. Web development, design, SEO, paid ads and AI automation.",

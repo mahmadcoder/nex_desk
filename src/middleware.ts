@@ -40,29 +40,66 @@ export async function middleware(req: NextRequest) {
       return isLoginPage ? res : notFound(req);
     }
 
-    // Enforce 24-hour admin session limit
+    // Enforce 24-hour admin session limit & 2-hour inactivity limit
     const loginAtStr = req.cookies.get("nx_admin_login_at")?.value;
-    if (loginAtStr) {
+    const lastActivityStr = req.cookies.get("nx_admin_last_activity")?.value;
+    const now = Date.now();
+
+    if (!loginAtStr) {
+      if (!isLoginPage) {
+        // If user is authenticated but has no session clock cookie, initialize 24-hour clock now
+        res.cookies.set("nx_admin_login_at", now.toString(), {
+          path: "/",
+          maxAge: 24 * 60 * 60,
+          httpOnly: true,
+          sameSite: "lax",
+        });
+        res.cookies.set("nx_admin_last_activity", now.toString(), {
+          path: "/",
+          maxAge: 24 * 60 * 60,
+          httpOnly: true,
+          sameSite: "lax",
+        });
+      }
+    } else {
       const loginTime = parseInt(loginAtStr, 10);
-      const isExpired = isNaN(loginTime) || Date.now() - loginTime > 24 * 60 * 60 * 1000;
-      if (isExpired && !isLoginPage) {
+      const lastActivityTime = lastActivityStr ? parseInt(lastActivityStr, 10) : loginTime;
+
+      const is24hExpired = isNaN(loginTime) || now - loginTime > 24 * 60 * 60 * 1000;
+      const isInactiveExpired = isNaN(lastActivityTime) || now - lastActivityTime > 2 * 60 * 60 * 1000; // 2 hours inactivity
+
+      if ((is24hExpired || isInactiveExpired) && !isLoginPage) {
         await supabase.auth.signOut();
         const response = NextResponse.redirect(new URL(`/${ADMIN_PATH}/login?expired=1`, req.url));
         response.cookies.delete("nx_admin_login_at");
+        response.cookies.delete("nx_admin_last_activity");
         return response;
+      }
+
+      if (!isLoginPage) {
+        // Update activity timestamp on active navigation
+        res.cookies.set("nx_admin_last_activity", now.toString(), {
+          path: "/",
+          maxAge: 24 * 60 * 60,
+          httpOnly: true,
+          sameSite: "lax",
+        });
       }
     }
 
-    const { data: profile } = await supabase
-      .from("profiles")
-      .select("role, is_active")
-      .eq("id", user.id)
-      .single();
+    const userRole = user.user_metadata?.role;
+    let isStaff = ["owner", "admin", "staff"].includes(userRole);
 
-    const isStaff =
-      profile?.is_active && ["owner", "admin", "staff"].includes(profile.role);
+    if (!isStaff && user.id) {
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("role, is_active")
+        .eq("id", user.id)
+        .single();
+      isStaff = !!(profile?.is_active && ["owner", "admin", "staff"].includes(profile.role));
+    }
 
-    if (!isStaff) return notFound(req);
+    if (!isStaff && !isLoginPage) return notFound(req);
 
     if (isLoginPage) {
       return NextResponse.redirect(new URL(`/${ADMIN_PATH}`, req.url));

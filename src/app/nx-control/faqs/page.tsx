@@ -1,6 +1,7 @@
 import { createAdminClient } from "@/lib/supabase/server";
 import FaqsClient from "@/components/admin/FaqsClient";
 
+export const metadata = { title: "Frequently Asked Questions" };
 export const dynamic = "force-dynamic";
 
 export default async function FaqsPage() {

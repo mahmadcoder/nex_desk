@@ -1,6 +1,7 @@
 import { createAdminClient } from "@/lib/supabase/server";
 import ServicesClient from "@/components/admin/ServicesClient";
 
+export const metadata = { title: "Services Catalogue" };
 export const dynamic = "force-dynamic";
 
 export default async function ServicesPage() {

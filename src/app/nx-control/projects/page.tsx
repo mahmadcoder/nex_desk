@@ -3,6 +3,7 @@ import { createAdminClient } from "@/lib/supabase/server";
 import { PageHead, Badge, Table, Empty } from "@/components/admin/ui";
 
 const BASE = `/${process.env.ADMIN_PATH || "nx-control"}`;
+export const metadata = { title: "Projects" };
 export const dynamic = "force-dynamic";
 
 export default async function ProjectsPage() {

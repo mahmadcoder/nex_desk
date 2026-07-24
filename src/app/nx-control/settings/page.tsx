@@ -2,6 +2,7 @@ import { createAdminClient } from "@/lib/supabase/server";
 import { PageHead } from "@/components/admin/ui";
 import SettingsForm from "@/components/admin/SettingsForm";
 
+export const metadata = { title: "Agency Settings" };
 export const dynamic = "force-dynamic";
 
 export default async function SettingsPage() {

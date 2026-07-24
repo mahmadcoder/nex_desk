@@ -11,22 +11,37 @@ import {
   MessageSquareQuote, Briefcase, Layers, BookOpen, HelpCircle, UserCheck
 } from "lucide-react";
 
-const NAV = [
-  { href: "", label: "Dashboard", icon: LayoutDashboard },
-  { href: "/leads", label: "Leads", icon: Inbox },
-  { href: "/clients", label: "Clients", icon: Users },
-  { href: "/deals", label: "Deals", icon: Handshake },
-  { href: "/projects", label: "Projects", icon: FolderKanban },
-  { href: "/invoices", label: "Invoices", icon: Receipt },
-  { href: "/documents", label: "Documents", icon: FileText },
-  { href: "/emails", label: "Email centre", icon: Mail },
-  { href: "/subscribers", label: "Subscribers & Broadcast", icon: UserCheck },
-  { href: "/testimonials", label: "Testimonials", icon: MessageSquareQuote },
-  { href: "/work", label: "Case Studies / Work", icon: Briefcase },
-  { href: "/services", label: "Services Catalogue", icon: Layers },
-  { href: "/blog", label: "Blog Posts", icon: BookOpen },
-  { href: "/faqs", label: "FAQs", icon: HelpCircle },
-  { href: "/settings", label: "Settings", icon: Settings },
+const NAV_SECTIONS = [
+  {
+    title: "CRM & REVENUE",
+    items: [
+      { href: "", label: "Dashboard", icon: LayoutDashboard },
+      { href: "/leads", label: "Leads", icon: Inbox },
+      { href: "/clients", label: "Clients", icon: Users },
+      { href: "/deals", label: "Deals", icon: Handshake },
+      { href: "/projects", label: "Projects", icon: FolderKanban },
+      { href: "/invoices", label: "Invoices", icon: Receipt },
+      { href: "/documents", label: "Documents", icon: FileText },
+      { href: "/emails", label: "Email Centre", icon: Mail },
+    ],
+  },
+  {
+    title: "CMS & MARKETING",
+    items: [
+      { href: "/subscribers", label: "Subscribers & Broadcast", icon: UserCheck },
+      { href: "/testimonials", label: "Testimonials", icon: MessageSquareQuote },
+      { href: "/work", label: "Case Studies / Work", icon: Briefcase },
+      { href: "/services", label: "Services Catalogue", icon: Layers },
+      { href: "/blog", label: "Blog Posts", icon: BookOpen },
+      { href: "/faqs", label: "FAQs", icon: HelpCircle },
+    ],
+  },
+  {
+    title: "SETTINGS",
+    items: [
+      { href: "/settings", label: "Settings", icon: Settings },
+    ],
+  },
 ];
 
 export default function Sidebar({ base, user }: { base: string; user: { name: string; role: string } }) {
@@ -44,7 +59,7 @@ export default function Sidebar({ base, user }: { base: string; user: { name: st
 
   const navContent = (
     <div className="flex h-full flex-col min-h-0">
-      <Link href={base} className="mb-6 flex items-center gap-2.5 px-2 pt-2 shrink-0">
+      <Link href={base} className="mb-5 flex items-center gap-2.5 px-2 pt-2 shrink-0">
         <LogoMark className="h-6 w-6 text-bone-50" />
         <div>
           <p className="text-sm font-medium tracking-tight" style={{ fontFamily: "var(--font-display)" }}>
@@ -54,34 +69,45 @@ export default function Sidebar({ base, user }: { base: string; user: { name: st
         </div>
       </Link>
 
-      <nav className="flex-1 overflow-y-auto min-h-0 space-y-0.5 pr-1">
-        {NAV.map(({ href, label, icon: Icon }) => {
-          const full = `${base}${href}`;
-          const active = href === "" ? path === base : path.startsWith(full);
-          return (
-            <Link
-              key={href}
-              href={full}
-              className={cn(
-                "flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors",
-                active ? "bg-ink-800 text-bone-50" : "text-bone-400 hover:bg-ink-800/60 hover:text-bone-200"
-              )}
-            >
-              <Icon size={16} strokeWidth={1.75} className={active ? "text-lime-400" : ""} />
-              {label}
-            </Link>
-          );
-        })}
+      <nav className="flex-1 overflow-y-auto min-h-0 space-y-5 pr-1.5 custom-admin-scrollbar">
+        {NAV_SECTIONS.map((section) => (
+          <div key={section.title} className="space-y-1">
+            <p className="px-3 text-[10px] font-mono font-semibold tracking-wider text-bone-500 uppercase">
+              {section.title}
+            </p>
+            <div className="space-y-0.5">
+              {section.items.map(({ href, label, icon: Icon }) => {
+                const full = `${base}${href}`;
+                const active = href === "" ? path === base : path.startsWith(full);
+                return (
+                  <Link
+                    key={href}
+                    href={full}
+                    className={cn(
+                      "flex items-center gap-2.5 rounded-lg px-3 py-2 text-xs font-medium transition-all duration-150",
+                      active
+                        ? "bg-lime-400/10 text-lime-400 font-semibold border border-lime-400/20 shadow-sm"
+                        : "text-bone-400 hover:bg-ink-800 hover:text-bone-100"
+                    )}
+                  >
+                    <Icon size={15} strokeWidth={1.75} className={active ? "text-lime-400" : "text-bone-400"} />
+                    <span className="truncate">{label}</span>
+                  </Link>
+                );
+              })}
+            </div>
+          </div>
+        ))}
       </nav>
 
-      <div className="border-t border-ink-600 pt-4 shrink-0 mt-2">
-        <div className="px-3 pb-3">
-          <p className="truncate text-sm">{user.name}</p>
-          <p className="mono-tag text-[0.625rem]">{user.role}</p>
+      <div className="border-t border-ink-600/80 pt-3 shrink-0 mt-2">
+        <div className="px-3 pb-2">
+          <p className="truncate text-xs font-medium text-bone-200">{user.name}</p>
+          <p className="mono-tag text-[0.625rem] capitalize text-lime-400/80">{user.role}</p>
         </div>
         <form action={signOut}>
-          <button className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm text-bone-400 hover:bg-ink-800/60 hover:text-bone-200">
-            <LogOut size={16} strokeWidth={1.75} /> Sign out
+          <button className="flex w-full items-center gap-2.5 rounded-md px-3 py-1.5 text-xs text-bone-400 hover:bg-ink-800/60 hover:text-rose-400 transition-colors">
+            <LogOut size={15} strokeWidth={1.75} /> Sign out
           </button>
         </form>
       </div>

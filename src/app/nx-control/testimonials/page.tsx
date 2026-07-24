@@ -1,6 +1,7 @@
 import { createAdminClient } from "@/lib/supabase/server";
 import TestimonialsClient from "@/components/admin/TestimonialsClient";
 
+export const metadata = { title: "Testimonials" };
 export const dynamic = "force-dynamic";
 
 export default async function TestimonialsPage() {

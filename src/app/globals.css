@@ -189,3 +189,50 @@ h1, h2, h3, h4 {
 }
 .admin h1, .admin h2, .admin h3 { letter-spacing: -0.02em; line-height: 1.2; }
 .admin .card { border-radius: 10px; }
+
+/* Global Custom Ultra-Sleek Dark Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #26262F;
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #8A877F;
+}
+
+::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #26262F transparent;
+}
+
+.custom-admin-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: #26262F transparent;
+}
+.custom-admin-scrollbar::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+.custom-admin-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+.custom-admin-scrollbar::-webkit-scrollbar-thumb {
+  background: #26262F;
+  border-radius: 9999px;
+}
+.custom-admin-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #8A877F;
+}

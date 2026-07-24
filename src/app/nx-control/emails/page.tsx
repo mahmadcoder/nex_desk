@@ -2,6 +2,7 @@ import { createAdminClient } from "@/lib/supabase/server";
 import { PageHead, Badge, Table } from "@/components/admin/ui";
 import EmailComposer from "@/components/admin/EmailComposer";
 
+export const metadata = { title: "Email Centre" };
 export const dynamic = "force-dynamic";
 
 export default async function EmailsPage() {

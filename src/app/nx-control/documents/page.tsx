@@ -2,6 +2,7 @@ import { createAdminClient } from "@/lib/supabase/server";
 import { PageHead } from "@/components/admin/ui";
 import DocumentTemplatesHub from "@/components/admin/DocumentTemplatesHub";
 
+export const metadata = { title: "Documents" };
 export const dynamic = "force-dynamic";
 
 export default async function DocumentsPage() {

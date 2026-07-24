@@ -1,6 +1,7 @@
 import { createAdminClient } from "@/lib/supabase/server";
 import BlogClient from "@/components/admin/BlogClient";
 
+export const metadata = { title: "Blog Posts" };
 export const dynamic = "force-dynamic";
 
 export default async function BlogPage() {

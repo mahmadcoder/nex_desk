@@ -6,6 +6,7 @@ import DashboardCurrencyTabs from "@/components/admin/DashboardCurrencyTabs";
 import { getLiveExchangeRates, convertCurrency } from "@/lib/currency";
 
 const BASE = `/${process.env.ADMIN_PATH || "nx-control"}`;
+export const metadata = { title: "Control" };
 export const dynamic = "force-dynamic";
 
 export default async function Dashboard({

@@ -7,6 +7,8 @@ import { money } from "@/lib/utils";
 
 import PaymentProofUpload from "@/components/admin/PaymentProofUpload";
 
+import CustomSelect from "@/components/ui/CustomSelect";
+
 const field = "w-full rounded-lg border border-ink-500 bg-ink-800 px-3 py-2.5 text-sm focus:border-lime-400 focus:outline-none";
 
 const METHODS = [
@@ -80,9 +82,11 @@ export default function PaymentDialog({
 
           <div>
             <label className="mono-tag mb-1.5 block">Method</label>
-            <select className={field} value={f.method} onChange={(e) => setF({ ...f, method: e.target.value })}>
-              {METHODS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
-            </select>
+            <CustomSelect
+              options={METHODS.map(([v, l]) => ({ value: v, label: l }))}
+              value={f.method}
+              onChange={(val) => setF({ ...f, method: val })}
+            />
           </div>
 
           <div>

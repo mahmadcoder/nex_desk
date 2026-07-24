@@ -4,6 +4,7 @@ import { PageHead, Badge, Table, Empty } from "@/components/admin/ui";
 import { money } from "@/lib/utils";
 
 const BASE = `/${process.env.ADMIN_PATH || "nx-control"}`;
+export const metadata = { title: "Deals" };
 export const dynamic = "force-dynamic";
 
 export default async function DealsPage() {

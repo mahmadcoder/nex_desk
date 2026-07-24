@@ -5,6 +5,7 @@ import ClientDialog from "@/components/admin/ClientDialog";
 import { PlatformIcon } from "@/components/brand/PlatformIcons";
 
 const BASE = `/${process.env.ADMIN_PATH || "nx-control"}`;
+export const metadata = { title: "Clients" };
 export const dynamic = "force-dynamic";
 
 export default async function ClientsPage() {

@@ -39,22 +39,40 @@ export function convertCurrency(
   return Math.round(converted * 100) / 100;
 }
 
+let cachedRates: Record<string, number> | null = null;
+let lastFetchTime = 0;
+
 /**
- * Fetch live exchange rates from public API with fallback
+ * Fetch live exchange rates from public API with fast timeout & in-memory cache
  */
 export async function getLiveExchangeRates(): Promise<Record<string, number>> {
+  const now = Date.now();
+  if (cachedRates && now - lastFetchTime < 3600 * 1000) {
+    return cachedRates;
+  }
+
   try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 1500);
+
     const res = await fetch("https://open.er-api.com/v6/latest/USD", {
-      next: { revalidate: 3600 }, // cache 1 hour
+      signal: controller.signal,
+      next: { revalidate: 3600 },
     });
+    clearTimeout(timeoutId);
+
     if (res.ok) {
       const data = await res.json();
       if (data?.rates) {
-        return { ...DEFAULT_RATES, ...data.rates };
+        const newRates = { ...DEFAULT_RATES, ...data.rates };
+        cachedRates = newRates;
+        lastFetchTime = now;
+        return newRates;
       }
     }
-  } catch (e) {
-    console.error("Exchange rates fetch error:", e);
+  } catch {
+    // If external fetch times out or fails, instantly return fallback
   }
-  return DEFAULT_RATES;
+
+  return cachedRates ?? DEFAULT_RATES;
 }
