@@ -31,10 +31,12 @@ const SAMPLE_QUOTES = [
     quote: "The ad campaigns hit the cost-per-lead target they promised in the first month. Straight talk, real numbers." },
 ];
 
+import { demoServices } from "@/lib/demo";
+
 export default async function Home() {
   const supabase = createPublicClient();
 
-  const [{ data: services }, { data: cases }, { data: quotes }] = await Promise.all([
+  const [{ data: dbServices }, { data: cases }, { data: quotes }] = await Promise.all([
     supabase.from("services").select("slug,title,category,short_desc,starting_at")
       .eq("is_active", true).order("sort_order"),
     supabase.from("case_studies").select("slug,title,client_name,industry,cover_url,outcome,metrics")
@@ -43,6 +45,7 @@ export default async function Home() {
       .eq("is_published", true).order("sort_order").limit(9),
   ]);
 
+  const services = (dbServices && dbServices.length > 0) ? dbServices : (demoServices as any[]);
   const wallQuotes = quotes?.length ? quotes : SAMPLE_QUOTES;
 
   return (
@@ -51,7 +54,7 @@ export default async function Home() {
       <Marquee />
       <Studio />
       <WorkShowcase cases={cases ?? []} />
-      <ServicesScroll services={services ?? []} />
+      <ServicesScroll services={services} />
       <Difference />
       <Process />
       <TestimonialWall quotes={wallQuotes} />
