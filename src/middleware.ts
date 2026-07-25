@@ -51,6 +51,11 @@ export async function middleware(req: NextRequest) {
   if (pathname.startsWith(`/${ADMIN_PATH}`)) {
     const isLoginPage = pathname === `/${ADMIN_PATH}/login`;
 
+    if (isLoginPage && req.cookies.has("nx_admin_login_at")) {
+      res.cookies.delete("nx_admin_login_at");
+      res.cookies.delete("nx_admin_last_activity");
+    }
+
     if (!user) {
       if (isLoginPage) return res;
       return NextResponse.redirect(new URL(`/${ADMIN_PATH}/login`, req.url));

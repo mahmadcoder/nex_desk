@@ -40,7 +40,14 @@ export async function signIn(_prev: unknown, formData: FormData) {
   if (error) return { error: "Those details don't match an account." };
 
   const cookieStore = await cookies();
-  cookieStore.set("nx_admin_login_at", Date.now().toString(), {
+  const now = Date.now().toString();
+  cookieStore.set("nx_admin_login_at", now, {
+    path: "/",
+    maxAge: 24 * 60 * 60, // 24 hours
+    httpOnly: true,
+    sameSite: "lax",
+  });
+  cookieStore.set("nx_admin_last_activity", now, {
     path: "/",
     maxAge: 24 * 60 * 60, // 24 hours
     httpOnly: true,
@@ -55,6 +62,7 @@ export async function signOut() {
   await supabase.auth.signOut();
   const cookieStore = await cookies();
   cookieStore.delete("nx_admin_login_at");
+  cookieStore.delete("nx_admin_last_activity");
   redirect(`/${ADMIN}/login`);
 }
 
