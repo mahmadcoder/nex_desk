@@ -36,11 +36,18 @@ export default async function Portal() {
     ...(client.client_permissions as Record<string, boolean> || {}),
   };
 
-  const [{ data: projects }, { data: invoices }, { data: docs }] = await Promise.all([
+  const [{ data: projects }, { data: invoices }, { data: docs }, { data: assignedAssignments }] = await Promise.all([
     db.from("projects").select("*").eq("client_id", client.id).order("created_at", { ascending: false }),
     db.from("invoices").select("*").eq("client_id", client.id).order("issue_date", { ascending: false }),
     db.from("documents").select("*").eq("client_id", client.id).order("created_at", { ascending: false }),
+    db.from("client_employee_assignments").select("*, employees(id, full_name, email, job_title, seniority, avatar_url, skills)").eq("client_id", client.id),
   ]);
+
+  const assignedTeam = Array.from(
+    new Map(
+      (assignedAssignments ?? []).map((a) => a.employees).filter(Boolean).map((e: any) => [e.id, e])
+    ).values()
+  );
 
   const withUrls = await Promise.all(
     (docs ?? []).map(async (d) => {
@@ -97,6 +104,40 @@ export default async function Portal() {
             <p className={`text-2xl font-mono ${balanceOwed > 0 ? "text-amber-400" : "text-bone-200"}`}>
               {money(balanceOwed, currency)}
             </p>
+          </div>
+        </section>
+      )}
+
+      {/* Assigned Dedicated Team */}
+      {!!assignedTeam.length && (
+        <section className="mt-8 card p-6 border-ink-600 bg-ink-900/60">
+          <div className="border-b border-ink-600 pb-3 mb-4">
+            <span className="mono-tag text-xs text-lime-400">Assigned Agency Team</span>
+            <h2 className="text-lg font-medium text-bone-50">Your Dedicated Agency Specialists</h2>
+            <p className="text-xs text-bone-400 mt-0.5">The team members assigned directly to manage and deliver your projects.</p>
+          </div>
+
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {assignedTeam.map((emp: any) => (
+              <div key={emp.id} className="card p-4 bg-ink-800/80 border-ink-700 flex items-center gap-3.5">
+                <div className="h-12 w-12 rounded-full overflow-hidden border border-lime-400/30 bg-ink-700 shrink-0">
+                  {emp.avatar_url ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={emp.avatar_url} alt={emp.full_name} className="h-full w-full object-cover" />
+                  ) : (
+                    <div className="grid h-full w-full place-items-center text-sm font-semibold text-lime-400 bg-lime-400/10">
+                      {emp.full_name.slice(0, 2).toUpperCase()}
+                    </div>
+                  )}
+                </div>
+
+                <div>
+                  <h3 className="text-sm font-semibold text-bone-50">{emp.full_name}</h3>
+                  <p className="text-xs text-lime-400 font-medium">{emp.job_title}</p>
+                  <span className="mono-tag text-[9px] text-bone-400 mt-0.5 block">{emp.seniority}</span>
+                </div>
+              </div>
+            ))}
           </div>
         </section>
       )}

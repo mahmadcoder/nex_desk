@@ -414,17 +414,19 @@ export async function toggleMilestone(id: string, done: boolean) {
 export async function sendClientEmail(args: {
   templateKey: string; to: string; clientId?: string; projectId?: string;
   subject: string; body: string; attach?: { type: DocType; id: string };
+  language?: "en" | "ar" | "fr" | "de" | "es";
 }) {
   const me = await requireStaff();
   const res = await sendEmail({
     templateKey: args.templateKey,
     to: args.to,
-    subjectOverride: args.subject,
-    bodyOverride: args.body,
     clientId: args.clientId,
     projectId: args.projectId,
-    attach: args.attach,
     actorId: me.id,
+    subjectOverride: args.subject,
+    bodyOverride: args.body,
+    attach: args.attach,
+    language: args.language ?? "en",
     vars: {},
   });
   revalidatePath(`/${ADMIN}/emails`);

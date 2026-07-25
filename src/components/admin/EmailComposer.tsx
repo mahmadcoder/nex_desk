@@ -41,6 +41,16 @@ export default function EmailComposer({
     }
   }
 
+  const [language, setLanguage] = useState<"en" | "ar" | "fr" | "de" | "es">("en");
+
+  const languageOptions = [
+    { value: "en", label: "English 🇬🇧" },
+    { value: "ar", label: "Arabic 🇸🇦 (العربية)" },
+    { value: "fr", label: "French 🇫🇷 (Français)" },
+    { value: "de", label: "German 🇩🇪 (Deutsch)" },
+    { value: "es", label: "Spanish 🇪🇸 (Español)" },
+  ];
+
   async function send() {
     if (!client) return toast.error("Pick who this is going to.");
     if (!subject.trim()) return toast.error("The subject line is empty.");
@@ -52,6 +62,7 @@ export default function EmailComposer({
         clientId: client.id,
         subject,
         body,
+        language,
       });
       if (!res.ok) throw new Error(res.error);
       toast.success(`Sent to ${client.email}.`);
@@ -100,7 +111,7 @@ export default function EmailComposer({
       </aside>
 
       <div className="card p-6">
-        <div className="grid gap-4 sm:grid-cols-2">
+        <div className="grid gap-4 sm:grid-cols-3">
           <div>
             <label className="mono-tag mb-1.5 block">Send to</label>
             <CustomSelect
@@ -119,6 +130,15 @@ export default function EmailComposer({
               placeholder="Write from scratch"
             />
           </div>
+          <div>
+            <label className="mono-tag mb-1.5 block">Email Language</label>
+            <CustomSelect
+              options={languageOptions}
+              value={language}
+              onChange={(val: any) => setLanguage(val)}
+              placeholder="English 🇬🇧"
+            />
+          </div>
         </div>
 
         {template?.description && (
@@ -127,13 +147,29 @@ export default function EmailComposer({
 
         <div className="mt-5">
           <label className="mono-tag mb-1.5 block">Subject</label>
-          <input className={field} value={subject} onChange={(e) => setSubject(e.target.value)} />
+          <input
+            dir={language === "ar" ? "rtl" : "ltr"}
+            className={`${field} ${language === "ar" ? "text-right font-arabic" : ""}`}
+            value={subject}
+            onChange={(e) => setSubject(e.target.value)}
+          />
         </div>
 
         <div className="mt-4">
-          <label className="mono-tag mb-1.5 block">Message</label>
-          <textarea className={`${field} min-h-72 resize-y leading-relaxed`}
-            value={body} onChange={(e) => setBody(e.target.value)} />
+          <div className="flex items-center justify-between mb-1.5">
+            <label className="mono-tag block">Message</label>
+            {language === "ar" && (
+              <span className="mono-tag text-[10px] text-lime-400 bg-lime-400/10 px-2 py-0.5 rounded">
+                RTL Mode Active (العربية)
+              </span>
+            )}
+          </div>
+          <textarea
+            dir={language === "ar" ? "rtl" : "ltr"}
+            className={`${field} min-h-72 resize-y leading-relaxed ${language === "ar" ? "text-right font-arabic" : ""}`}
+            value={body}
+            onChange={(e) => setBody(e.target.value)}
+          />
           <p className="mt-1.5 text-xs text-bone-400">
             Variables like {"{{client_name}}"} are already filled in for the client you picked. Edit freely before sending.
           </p>

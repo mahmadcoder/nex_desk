@@ -18,6 +18,7 @@ const NAV_SECTIONS = [
       { href: "", label: "Dashboard", icon: LayoutDashboard },
       { href: "/leads", label: "Leads", icon: Inbox },
       { href: "/clients", label: "Clients", icon: Users },
+      { href: "/employees", label: "Employees & Staff", icon: UserCheck },
       { href: "/deals", label: "Deals", icon: Handshake },
       { href: "/projects", label: "Projects", icon: FolderKanban },
       { href: "/invoices", label: "Invoices", icon: Receipt },

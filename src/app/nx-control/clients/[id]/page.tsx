@@ -33,6 +33,8 @@ function getClientTenure(createdAt: string) {
   return `${years} years`;
 }
 
+import ClientTeamAssignments from "@/components/admin/ClientTeamAssignments";
+
 export default async function ClientDetail({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const db = createAdminClient();
@@ -40,12 +42,22 @@ export default async function ClientDetail({ params }: { params: Promise<{ id: s
   const { data: client } = await db.from("clients").select("*").eq("id", id).single();
   if (!client) notFound();
 
-  const [{ data: projects }, { data: invoices }, { data: docs }, { data: emails }, { data: deals }] = await Promise.all([
+  const [
+    { data: projects },
+    { data: invoices },
+    { data: docs },
+    { data: emails },
+    { data: deals },
+    { data: assignedEmployees },
+    { data: allEmployees },
+  ] = await Promise.all([
     db.from("projects").select("*").eq("client_id", id).order("created_at", { ascending: false }),
     db.from("invoices").select("*").eq("client_id", id).order("issue_date", { ascending: false }),
     db.from("documents").select("*").eq("client_id", id).order("created_at", { ascending: false }),
     db.from("email_log").select("subject, status, sent_at").eq("client_id", id).order("sent_at", { ascending: false }).limit(8),
     db.from("deals").select("id, title, status, service_slugs, total, currency").eq("client_id", id),
+    db.from("client_employee_assignments").select("*, employees(id, full_name, email, job_title, seniority, avatar_url)").eq("client_id", id),
+    db.from("employees").select("id, full_name, email, job_title, seniority"),
   ]);
 
   const billed = (invoices ?? []).reduce((s, i) => s + Number(i.total), 0);
@@ -149,6 +161,13 @@ export default async function ClientDetail({ params }: { params: Promise<{ id: s
 
       {/* Credentials & Access Control */}
       <ClientManagerCard client={client} />
+
+      {/* Assigned Agency Team Members */}
+      <ClientTeamAssignments
+        clientId={id}
+        assignedEmployees={assignedEmployees ?? []}
+        allEmployees={allEmployees ?? []}
+      />
 
       {/* Projects & Invoices */}
       <div className="mt-8 grid gap-6 lg:grid-cols-2">
