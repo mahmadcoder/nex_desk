@@ -1,9 +1,12 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect, Suspense } from "react";
+import { useSearchParams } from "next/navigation";
 import { toast } from "sonner";
+import { Sparkles, CheckCircle2 } from "lucide-react";
 
 const SERVICES = [
   ["web-development", "Web development"],
+  ["custom-web-development", "Custom Web Development"],
   ["web-design", "Web design"],
   ["seo", "SEO"],
   ["paid-ads", "Paid ads"],
@@ -21,7 +24,8 @@ const TIMELINES = ["ASAP", "2–4 weeks", "1–3 months", "Just exploring"];
 const field =
   "w-full rounded-lg border border-ink-500 bg-ink-800 px-4 py-3 text-sm text-bone-50 placeholder:text-bone-600 focus:border-lime-400 focus:outline-none";
 
-export default function ContactForm() {
+function ContactFormContent() {
+  const searchParams = useSearchParams();
   const [step, setStep] = useState(0);
   const [busy, setBusy] = useState(false);
   const [sent, setSent] = useState(false);
@@ -29,6 +33,35 @@ export default function ContactForm() {
     name: "", email: "", phone: "", company: "", city: "", country: "Pakistan",
     service_slugs: [] as string[], budget_range: "", timeline: "", message: "",
   });
+  const [selectedPkgInfo, setSelectedPkgInfo] = useState<{
+    serviceSlug: string;
+    tierName: string;
+    price: string;
+  } | null>(null);
+
+  useEffect(() => {
+    const serviceParam = searchParams.get("service");
+    const packageParam = searchParams.get("package");
+    const tierNameParam = searchParams.get("tier_name");
+    const priceParam = searchParams.get("price");
+
+    if (serviceParam) {
+      const matchSlug = SERVICES.find(([s]) => s === serviceParam || serviceParam.includes(s))?.[0] || serviceParam;
+      setForm((f) => ({
+        ...f,
+        service_slugs: Array.from(new Set([...f.service_slugs, matchSlug])),
+        message: f.message || (tierNameParam ? `Inquiry for ${tierNameParam} package (${priceParam ?? "Custom"})` : ""),
+      }));
+
+      if (tierNameParam || packageParam) {
+        setSelectedPkgInfo({
+          serviceSlug: matchSlug,
+          tierName: tierNameParam ?? packageParam ?? "Custom Package",
+          price: priceParam ?? "Custom Quote",
+        });
+      }
+    }
+  }, [searchParams]);
 
   const set = (k: string, v: unknown) => setForm((f) => ({ ...f, [k]: v }));
 
@@ -75,6 +108,27 @@ export default function ContactForm() {
 
   return (
     <div className="card p-8 sm:p-10">
+      {selectedPkgInfo && (
+        <div className="mb-6 rounded-xl bg-lime-400/10 border border-lime-400/30 p-4 flex items-center justify-between gap-3 text-xs text-lime-400">
+          <div className="flex items-center gap-2">
+            <Sparkles size={16} className="shrink-0" />
+            <div>
+              <span className="font-semibold text-bone-50 text-sm block">
+                Pre-selected Package: {selectedPkgInfo.tierName}
+              </span>
+              <span>Price: <strong>{selectedPkgInfo.price}</strong> · Service pre-filled below</span>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => setSelectedPkgInfo(null)}
+            className="text-bone-400 hover:text-bone-100 underline text-[11px]"
+          >
+            Clear
+          </button>
+        </div>
+      )}
+
       <div className="mb-8 flex gap-2">
         {[0, 1, 2].map((i) => (
           <span
@@ -99,7 +153,7 @@ export default function ContactForm() {
                   onClick={() => toggleService(slug)}
                   className={`rounded-full border px-4 py-2 text-sm transition-colors ${
                     on
-                      ? "border-lime-400 bg-lime-400 text-lime-950"
+                      ? "border-lime-400 bg-lime-400 text-lime-950 font-medium"
                       : "border-ink-500 text-bone-200 hover:border-ink-600"
                   }`}
                 >
@@ -217,5 +271,13 @@ export default function ContactForm() {
         )}
       </div>
     </div>
+  );
+}
+
+export default function ContactForm() {
+  return (
+    <Suspense fallback={<div className="card p-10 text-center text-bone-400">Loading form...</div>}>
+      <ContactFormContent />
+    </Suspense>
   );
 }

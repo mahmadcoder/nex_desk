@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import Reveal from "@/components/site/Reveal";
 import CTA from "@/components/site/CTA";
 import { money } from "@/lib/utils";
+import { Check } from "lucide-react";
 
 export const metadata: Metadata = { title: "Pricing" };
 export const revalidate = 300;
@@ -63,13 +64,19 @@ const TIERS = [
   },
 ];
 
+import { demoServices } from "@/lib/demo";
+
 export default async function PricingPage() {
   const supabase = await createClient();
-  const { data: services } = await supabase
+  const { data: dbServices } = await supabase
     .from("services")
     .select("slug,title,category,short_desc,starting_at,currency,duration_note,features")
     .eq("is_active", true)
     .order("sort_order");
+
+  const services = (dbServices && dbServices.length > 0)
+    ? dbServices
+    : (demoServices.filter((s) => (s as any).is_active !== false) as any[]);
 
   const grouped = (services ?? []).reduce<Record<string, typeof services>>((acc, s) => {
     (acc[s.category] ||= []).push(s);
@@ -118,8 +125,10 @@ export default async function PricingPage() {
               <ul className="mt-6 flex-1 space-y-2.5">
                 {t.features.map((f) => (
                   <li key={f} className="flex gap-2.5 text-sm text-bone-200">
-                    <span className="mt-0.5 text-lime-400">✓</span>
-                    {f}
+                    <span className="h-4 w-4 rounded-full bg-lime-400/10 text-lime-400 border border-lime-400/30 flex items-center justify-center shrink-0 mt-0.5">
+                      <Check size={11} />
+                    </span>
+                    <span>{f}</span>
                   </li>
                 ))}
               </ul>

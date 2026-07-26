@@ -75,16 +75,12 @@ export default function CTA() {
 
           {/* buttons */}
           <div className="relative mt-10 flex flex-wrap items-center justify-center gap-3">
-            <Magnetic strength={0.25}>
-              <Link href="/contact" className="btn btn-primary">
-                Start a project
-              </Link>
-            </Magnetic>
-            <Magnetic strength={0.25}>
-              <Link href="/pricing" className="btn">
-                See pricing
-              </Link>
-            </Magnetic>
+            <Link href="/contact" className="btn btn-primary cursor-pointer">
+              Start a project
+            </Link>
+            <Link href="/pricing" className="btn cursor-pointer">
+              See pricing
+            </Link>
           </div>
         </div>
       </Reveal>

@@ -4,6 +4,10 @@ import type { Metadata } from "next";
 import { createClient } from "@/lib/supabase/server";
 import CTA from "@/components/site/CTA";
 import { demoServices } from "@/lib/demo";
+import ServicePricingTiers from "@/components/site/ServicePricingTiers";
+import ServiceProcessRoadmap from "@/components/site/ServiceProcessRoadmap";
+import ServiceFaqAccordion from "@/components/site/ServiceFaqAccordion";
+import { Check, ShieldCheck, Clock, Award, ArrowRight, ArrowLeft, Layers, Sparkles } from "lucide-react";
 
 export const revalidate = 300;
 
@@ -16,11 +20,11 @@ export async function generateMetadata(
     .select("title,short_desc,seo_title,seo_desc").eq("slug", slug).single();
   if (!data) {
     const demo = demoServices.find((s) => s.slug === slug);
-    if (demo) return { title: demo.title, description: demo.short_desc };
-    return { title: "Service" };
+    if (demo) return { title: `${demo.title} — Nex Desk Agency`, description: demo.short_desc };
+    return { title: "Service — Nex Desk Agency" };
   }
   return {
-    title: data.seo_title ?? data.title,
+    title: `${data.seo_title ?? data.title} — Nex Desk Agency`,
     description: data.seo_desc ?? data.short_desc ?? undefined,
   };
 }
@@ -31,109 +35,251 @@ export default async function ServiceDetail({ params }: { params: Promise<{ slug
 
   const { data: dbService } = await supabase.from("services").select("*").eq("slug", slug).single();
   const service = dbService || (demoServices.find((s) => s.slug === slug) as any);
-  if (!service) notFound();
+  if (!service || service.is_active === false) notFound();
 
-  const [{ data: packages }, { data: others }] = await Promise.all([
-    service.id ? supabase.from("packages").select("*").eq("service_id", service.id).order("sort_order") : Promise.resolve({ data: null }),
-    supabase.from("services").select("slug,title,short_desc")
-      .eq("category", service.category).neq("slug", slug).limit(3),
-  ]);
+  const { data: others } = await supabase
+    .from("services")
+    .select("slug,title,short_desc,category")
+    .eq("is_active", true)
+    .neq("slug", slug)
+    .limit(3);
+
+  const fallbackOthers = others?.length
+    ? others
+    : demoServices.filter((s) => s.slug !== slug && s.is_active !== false).slice(0, 3);
 
   return (
     <>
-      <section className="shell py-16">
-        <Link href="/services" className="mono-tag hover:text-bone-50">← all services</Link>
-        <p className="drawer-label mt-7">{service.category}</p>
-        <h1 className="mt-6 max-w-4xl text-[var(--text-h1)]">{service.title}</h1>
-        <p className="mt-6 max-w-2xl text-lg text-bone-200">{service.short_desc}</p>
+      {/* ── Glassmorphism Hero Banner ── */}
+      <section className="relative overflow-hidden bg-ink-900 py-12 lg:py-16">
+        {/* Glow backdrop gradient */}
+        <div className="pointer-events-none absolute left-1/2 top-0 -translate-x-1/2 h-96 w-full max-w-7xl bg-radial-glow opacity-30 blur-3xl" />
 
-        <div className="mt-8 flex flex-wrap gap-x-12 gap-y-4 border-y border-ink-600 py-6">
-          <div>
-            <p className="mono-tag">Starting at</p>
-            <p className="mt-1 text-xl">
-              {service.starting_at ? `$${Number(service.starting_at).toLocaleString()}` : "On request"}
+        <div className="shell relative z-10">
+          <Link
+            href="/services"
+            className="mono-tag text-xs text-bone-400 hover:text-lime-400 transition-colors inline-flex items-center gap-1.5 mb-6"
+          >
+            <ArrowLeft size={13} /> back to all services
+          </Link>
+
+          <div className="max-w-4xl">
+            <div className="flex flex-wrap items-center gap-3 mb-4">
+              <span className="mono-tag text-xs bg-lime-400/10 text-lime-400 px-3 py-1 rounded-full border border-lime-400/20 font-medium flex items-center gap-1.5">
+                <span className="h-2 w-2 rounded-full bg-lime-400 animate-pulse" />
+                {service.category}
+              </span>
+              <span className="mono-tag text-xs text-bone-400 border border-ink-600 px-2.5 py-1 rounded-full">
+                Guaranteed Delivery
+              </span>
+            </div>
+
+            <h1 className="text-3xl sm:text-5xl font-bold tracking-tight text-bone-50 leading-[1.15]">
+              {service.title}
+            </h1>
+
+            <p className="mt-5 text-base sm:text-lg text-bone-200 leading-relaxed max-w-3xl">
+              {service.short_desc}
             </p>
-            {service.scope_note && (
-              <p className="mt-1 text-xs text-bone-400">{service.scope_note} · Exact price depends on scope</p>
-            )}
-          </div>
-          <div>
-            <p className="mono-tag">Typical timeline</p>
-            <p className="mt-1 text-xl">{service.duration_note ?? "Varies"}</p>
+
+            {/* Quick Hero Key Stats */}
+            <div className="mt-8 grid gap-4 sm:grid-cols-3 py-5">
+              <div className="flex items-center gap-3.5">
+                <div className="h-10 w-10 rounded-xl bg-lime-400/10 border border-lime-400/20 text-lime-400 flex items-center justify-center shrink-0">
+                  <Sparkles size={18} />
+                </div>
+                <div>
+                  <p className="mono-tag text-[10px]">Starting Investment</p>
+                  <p className="text-base sm:text-lg font-bold text-bone-50 mt-0.5">
+                    {service.starting_at ? `$${Number(service.starting_at).toLocaleString()}` : "Custom Quote"}
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-3.5">
+                <div className="h-10 w-10 rounded-xl bg-sky-400/10 border border-sky-400/20 text-sky-400 flex items-center justify-center shrink-0">
+                  <Clock size={18} />
+                </div>
+                <div>
+                  <p className="mono-tag text-[10px]">Estimated Timeline</p>
+                  <p className="text-base sm:text-lg font-bold text-bone-50 mt-0.5">
+                    {service.duration_note || "2–4 weeks delivery"}
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-3.5">
+                <div className="h-10 w-10 rounded-xl bg-emerald-400/10 border border-emerald-400/20 text-emerald-400 flex items-center justify-center shrink-0">
+                  <ShieldCheck size={18} />
+                </div>
+                <div>
+                  <p className="mono-tag text-[10px]">Code & IP Ownership</p>
+                  <p className="text-base sm:text-lg font-bold text-bone-50 mt-0.5">100% Full Ownership</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Hero CTA Action */}
+            <div className="mt-7 flex flex-wrap items-center gap-3.5">
+              <a href="#pricing-tiers" className="btn btn-primary h-11 px-6 text-xs font-semibold cursor-pointer">
+                Explore Pricing Tiers ↓
+              </a>
+              <Link
+                href={`/contact?service=${encodeURIComponent(service.slug)}`}
+                className="btn h-11 px-6 text-xs text-bone-200 border-ink-600 bg-ink-800 hover:text-bone-50 cursor-pointer"
+              >
+                Book a Free Discovery Call
+              </Link>
+            </div>
           </div>
         </div>
       </section>
 
-      <section className="shell grid gap-16 pb-16 lg:grid-cols-[1.4fr_1fr]">
-        <div>
-          <h2 className="text-[var(--text-h3)]">What&apos;s included</h2>
-          <ul className="mt-8 divide-y divide-ink-600 border-y border-ink-600">
-            {(service.features ?? []).map((f: string) => (
-              <li key={f} className="flex gap-4 py-4">
-                <span className="text-lime-400">/</span>
-                <span>{f}</span>
-              </li>
-            ))}
-          </ul>
-          {service.long_desc && (
-            <div className="mt-10 whitespace-pre-line leading-relaxed text-bone-200">
-              {service.long_desc}
-            </div>
-          )}
-        </div>
+      {/* ── Deliverables & What's Included ── */}
+      <section className="shell py-16">
+        <div className="grid gap-12 lg:grid-cols-[1.2fr_1fr] items-start">
+          <div className="space-y-4">
+            <span className="mono-tag text-lime-400 bg-lime-400/10 px-3 py-1 rounded-full border border-lime-400/20 inline-flex items-center gap-1.5">
+              <Layers size={13} /> Complete Package Scope
+            </span>
+            <h2 className="text-2xl sm:text-3xl font-semibold text-bone-50 pt-1">
+              What&apos;s Included in {service.title}
+            </h2>
+            <p className="text-sm sm:text-base text-bone-300 leading-relaxed pt-2 pb-2">
+              {service.long_desc ||
+                `Every ${service.title} project is built on modern open standards to ensure zero tech debt, sub-second load performance, and seamless future scalability.`}
+            </p>
 
-        <aside className="space-y-4">
-          {(packages ?? []).map((p) => (
-            <div key={p.id} className={`card p-7 ${p.is_popular ? "border-lime-400/50" : ""}`}>
-              {p.is_popular && (
-                <span className="mono-tag rounded-full bg-lime-400 px-3 py-1 text-lime-950">
-                  most picked
+            {/* Feature Checklist */}
+            <div className="grid gap-3 sm:grid-cols-2 pt-3">
+              {(service.features ?? [
+                "Next.js & React Modern Architecture",
+                "Sub-second Load Times (<1s)",
+                "TailwindCSS Design Tokens & Theme",
+                "Supabase Database & Authentication",
+                "100% Code & Asset Copyright",
+                "Complimentary Warranty & Maintenance",
+              ]).map((feature: string) => (
+                <div
+                  key={feature}
+                  className="flex items-start gap-3 card p-4 border-ink-600/80 bg-ink-900/60 hover:border-lime-400/30 transition-colors"
+                >
+                  <span className="h-5 w-5 rounded-full bg-lime-400/10 text-lime-400 border border-lime-400/30 flex items-center justify-center shrink-0 mt-0.5">
+                    <Check size={12} />
+                  </span>
+                  <span className="text-xs font-medium text-bone-100 leading-snug">{feature}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Side Highlight Card */}
+          <div className="card p-8 border-lime-400/40 bg-ink-900/90 relative overflow-hidden space-y-5">
+            <div className="flex items-center gap-3">
+              <div className="h-10 w-10 rounded-xl bg-lime-400/10 text-lime-400 border border-lime-400/30 flex items-center justify-center">
+                <Award size={20} />
+              </div>
+              <div>
+                <p className="mono-tag text-[10px] text-lime-400">The Nex Desk Advantage</p>
+                <h3 className="text-lg font-semibold text-bone-50">Fixed Price Guarantee</h3>
+              </div>
+            </div>
+
+            <p className="text-xs text-bone-300 leading-relaxed">
+              We operate on fixed-fee written quotes. No surprise hourly billing, no scope inflation. You get a dedicated team and clear weekly milestones.
+            </p>
+
+            <ul className="space-y-2.5 text-xs text-bone-200 pt-2">
+              <li className="flex items-center gap-2.5">
+                <span className="h-4 w-4 rounded-full bg-lime-400/10 text-lime-400 border border-lime-400/30 flex items-center justify-center shrink-0">
+                  <Check size={11} />
                 </span>
-              )}
-              <h3 className="mt-4 text-xl">{p.name}</h3>
-              <p className="mt-2 text-3xl tracking-tight" style={{ fontFamily: "var(--font-display)" }}>
-                ${Number(p.price).toLocaleString()}
-              </p>
-              <ul className="mt-5 space-y-2">
-                {(p.features ?? []).map((f: string) => (
-                  <li key={f} className="text-sm text-bone-400">{f}</li>
-                ))}
-              </ul>
-              <Link href="/contact" className="btn btn-primary mt-6 w-full justify-center">
-                Get a quote
-              </Link>
-            </div>
-          ))}
+                <span>Direct senior engineer & designer communication</span>
+              </li>
+              <li className="flex items-center gap-2.5">
+                <span className="h-4 w-4 rounded-full bg-lime-400/10 text-lime-400 border border-lime-400/30 flex items-center justify-center shrink-0">
+                  <Check size={11} />
+                </span>
+                <span>Weekly staging demo links & progress reports</span>
+              </li>
+              <li className="flex items-center gap-2.5">
+                <span className="h-4 w-4 rounded-full bg-lime-400/10 text-lime-400 border border-lime-400/30 flex items-center justify-center shrink-0">
+                  <Check size={11} />
+                </span>
+                <span>Post-launch maintenance & bug warranty</span>
+              </li>
+            </ul>
 
-          {!packages?.length && (
-            <div className="card p-7">
-              <h3 className="text-xl">Every project is quoted</h3>
-              <p className="mt-3 text-sm text-bone-400">
-                Tell us the scope and you get a fixed written price within a day. No hourly surprises.
-              </p>
-              <Link href="/contact" className="btn btn-primary mt-6 w-full justify-center">
-                Get a quote
-              </Link>
-            </div>
-          )}
-
-          {!!others?.length && (
-            <div className="card p-7">
-              <p className="mono-tag">Often paired with</p>
-              <ul className="mt-4 space-y-3">
-                {others.map((o) => (
-                  <li key={o.slug}>
-                    <Link href={`/services/${o.slug}`} className="text-sm hover:text-lime-400">
-                      {o.title} →
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
-        </aside>
+            <Link
+              href={`/contact?service=${encodeURIComponent(service.slug)}`}
+              className="btn btn-primary w-full justify-center h-10 text-xs font-semibold mt-4 cursor-pointer"
+            >
+              Start Your Project Now →
+            </Link>
+          </div>
+        </div>
       </section>
 
+      {/* ── 3-Tier Pricing Comparison Matrix ── */}
+      <section className="shell py-16">
+        <ServicePricingTiers
+          serviceSlug={service.slug}
+          serviceTitle={service.title}
+          tiers={service.pricing_tiers}
+          startingAt={service.starting_at}
+          currency={service.currency}
+        />
+      </section>
+
+      {/* ── 4-Phase Delivery Process ── */}
+      <section className="shell py-16">
+        <ServiceProcessRoadmap steps={service.process_steps} />
+      </section>
+
+      {/* ── Service FAQ Accordion ── */}
+      <section className="shell py-16">
+        <ServiceFaqAccordion faqs={service.faqs} serviceTitle={service.title} />
+      </section>
+
+      {/* ── Related Services Catalog ── */}
+      {!!fallbackOthers?.length && (
+        <section className="shell py-16">
+          <div className="flex items-center justify-between mb-8">
+            <div>
+              <span className="mono-tag text-xs text-lime-400">Related Capabilities</span>
+              <h2 className="text-xl sm:text-2xl font-semibold text-bone-50 mt-1">Frequently paired services</h2>
+            </div>
+            <Link href="/services" className="mono-tag text-xs text-bone-400 hover:text-lime-400 transition-colors flex items-center gap-1 cursor-pointer">
+              View all 16 services →
+            </Link>
+          </div>
+
+          <div className="grid gap-6 sm:grid-cols-3">
+            {fallbackOthers.map((o) => (
+              <Link
+                key={o.slug}
+                href={`/services/${o.slug}`}
+                className="card p-6 sm:p-7 border-ink-600 bg-ink-900/60 hover:border-lime-400/50 hover:bg-ink-900 transition-all duration-200 flex flex-col justify-between cursor-pointer group"
+              >
+                <div>
+                  <span className="mono-tag text-[10px] text-lime-400 block mb-2">{o.category}</span>
+                  <h3 className="text-base font-semibold text-bone-50 group-hover:text-lime-400 transition-colors flex items-center justify-between leading-snug">
+                    {o.title}
+                    <ArrowRight size={15} className="opacity-0 group-hover:opacity-100 transition-opacity text-lime-400 shrink-0 ml-1" />
+                  </h3>
+                  <p className="text-xs text-bone-300 leading-relaxed mt-3">{o.short_desc}</p>
+                </div>
+
+                <div className="mt-5 pt-3 border-t border-ink-800 text-[11px] font-mono text-lime-400/80 group-hover:text-lime-400 transition-colors flex items-center gap-1">
+                  Explore service →
+                </div>
+              </Link>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {/* Bottom Conversion CTA */}
       <CTA />
     </>
   );

@@ -50,6 +50,10 @@
 
 * { box-sizing: border-box; }
 
+a, button, [role="button"], .cursor-pointer {
+  cursor: pointer;
+}
+
 html {
   background: var(--color-ink-950);
   color-scheme: dark;

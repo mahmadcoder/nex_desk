@@ -69,6 +69,20 @@ export async function saveService(id: string | null, data: Record<string, unknow
   if (res.error) throw res.error;
   revalidatePath(`/${ADMIN}/services`);
   revalidatePath("/services");
+  revalidatePath("/pricing");
+  revalidatePath("/");
+  return res.data;
+}
+
+export async function toggleServiceActive(id: string, is_active: boolean) {
+  await requireStaff();
+  const db = createAdminClient();
+  const res = await db.from("services").update({ is_active }).eq("id", id).select().single();
+  if (res.error) throw res.error;
+  revalidatePath(`/${ADMIN}/services`);
+  revalidatePath("/services");
+  revalidatePath("/pricing");
+  revalidatePath("/");
   return res.data;
 }
 
@@ -78,6 +92,89 @@ export async function deleteService(id: string) {
   await db.from("services").delete().eq("id", id);
   revalidatePath(`/${ADMIN}/services`);
   revalidatePath("/services");
+  revalidatePath("/pricing");
+  revalidatePath("/");
+}
+
+export async function seedDefaultServices() {
+  await requireStaff();
+  const { demoServices } = await import("@/lib/demo");
+  const db = createAdminClient();
+
+  const toInsert = demoServices.map((s, idx) => ({
+    slug: s.slug,
+    title: s.title,
+    category: s.category,
+    short_desc: s.short_desc,
+    starting_at: s.starting_at,
+    currency: s.currency || "USD",
+    is_featured: (s as any).is_featured ?? true,
+    is_active: true,
+    sort_order: idx + 1,
+    pricing_tiers: [
+      {
+        key: "basic",
+        name: "Starter Package",
+        price: s.starting_at || 1500,
+        price_label: s.starting_at ? `$${s.starting_at.toLocaleString()}` : "$1,500",
+        short_desc: "Essential build for startups & single core product launch.",
+        delivery_time: "1–2 weeks delivery",
+        features: [
+          "Core feature build & responsive design",
+          "Sub-second page load performance",
+          "Mobile & Desktop optimization",
+          "100% Code & Asset ownership",
+          "2 weeks post-launch support",
+        ],
+        is_popular: false,
+        cta_text: "Select Starter Package",
+      },
+      {
+        key: "standard",
+        name: "Growth Package",
+        price: (s.starting_at || 1500) * 2,
+        price_label: `$${((s.starting_at || 1500) * 2).toLocaleString()}`,
+        short_desc: "Complete production application with advanced features & integrations.",
+        delivery_time: "2–4 weeks delivery",
+        features: [
+          "Everything in Starter Package",
+          "Custom database & authentication integration",
+          "Advanced admin control panel & dashboard",
+          "GA4 Analytics & SEO optimization",
+          "Priority API & webhook pipelines",
+          "30 days dedicated warranty support",
+        ],
+        is_popular: true,
+        cta_text: "Select Growth Package",
+      },
+      {
+        key: "enterprise",
+        name: "Enterprise Architecture",
+        price: null,
+        price_label: "Custom Quote",
+        short_desc: "Tailored multi-team architecture, custom SLA, and dedicated engineering squad.",
+        delivery_time: "Custom timeline",
+        features: [
+          "Everything in Growth Package",
+          "Dedicated senior lead engineer & designer",
+          "Multi-tenant & high-availability DB setup",
+          "Security audit & SOC2 compliance prep",
+          "Custom SLA & 24/7 emergency retainer",
+        ],
+        is_popular: false,
+        cta_text: "Request Enterprise Quote",
+      },
+    ],
+  }));
+
+  const { error } = await db.from("services").upsert(toInsert, { onConflict: "slug" });
+  if (error) throw error;
+
+  revalidatePath(`/${ADMIN}/services`);
+  revalidatePath("/services");
+  revalidatePath("/pricing");
+  revalidatePath("/");
+  return { success: true, count: toInsert.length };
 }
 
 // ---------------- BLOG POSTS ----------------

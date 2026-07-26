@@ -45,7 +45,9 @@ export default async function Home() {
       .eq("is_published", true).order("sort_order").limit(9),
   ]);
 
-  const services = (dbServices && dbServices.length > 0) ? dbServices : (demoServices as any[]);
+  const services = (dbServices && dbServices.length > 0)
+    ? dbServices
+    : (demoServices.filter((s) => s.is_active !== false) as any[]);
   const wallQuotes = quotes?.length ? quotes : SAMPLE_QUOTES;
 
   return (

@@ -74,12 +74,8 @@ export default function Hero() {
         </p>
 
         <div data-hero-fade className="flex flex-wrap gap-3 md:justify-end">
-          <Magnetic strength={0.25}>
-            <Link href="/contact" className="btn btn-primary">Start a project</Link>
-          </Magnetic>
-          <Magnetic strength={0.25}>
-            <Link href="/work" className="btn">See the work</Link>
-          </Magnetic>
+          <Link href="/contact" className="btn btn-primary cursor-pointer">Start a project</Link>
+          <Link href="/work" className="btn cursor-pointer">See the work</Link>
         </div>
       </div>
 
