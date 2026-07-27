@@ -27,6 +27,18 @@ export async function saveTestimonial(id: string | null, data: Record<string, un
   if (res.error) throw res.error;
   revalidatePath(`/${ADMIN}/testimonials`);
   revalidatePath("/");
+  revalidatePath("/about");
+  return res.data;
+}
+
+export async function toggleTestimonialPublished(id: string, is_published: boolean) {
+  await requireStaff();
+  const db = createAdminClient();
+  const res = await db.from("testimonials").update({ is_published }).eq("id", id).select().single();
+  if (res.error) throw res.error;
+  revalidatePath(`/${ADMIN}/testimonials`);
+  revalidatePath("/");
+  revalidatePath("/about");
   return res.data;
 }
 
@@ -36,6 +48,33 @@ export async function deleteTestimonial(id: string) {
   await db.from("testimonials").delete().eq("id", id);
   revalidatePath(`/${ADMIN}/testimonials`);
   revalidatePath("/");
+  revalidatePath("/about");
+}
+
+export async function seedDefaultTestimonials() {
+  await requireStaff();
+  const db = createAdminClient();
+  const SAMPLE_QUOTES = [
+    { client_name: "Ayesha Khan", role: "Founder", company: "Lumen Studio", rating: 5, is_published: true, sort_order: 1, quote: "They shipped in four weeks what two previous agencies couldn't in six months. The staging link from day one meant no surprises." },
+    { client_name: "Daniel Reeve", role: "CEO", company: "Northwind", rating: 5, is_published: true, sort_order: 2, quote: "The written scope saved us. Everyone knew exactly what was being built and what it cost. No arguments at the end." },
+    { client_name: "Priya Nair", role: "Head of Growth", company: "Vertex", rating: 5, is_published: true, sort_order: 3, quote: "Our organic traffic tripled in three months. They actually explained what they were doing instead of hiding behind jargon." },
+    { client_name: "Marco Bianchi", role: "Owner", company: "Práctica", rating: 5, is_published: true, sort_order: 4, quote: "The receipt and agreement PDFs made us look far bigger than we are. Clients take us seriously now." },
+    { client_name: "Sana Malik", role: "Director", company: "Kavi", rating: 5, is_published: true, sort_order: 5, quote: "Weekly progress emails I never had to ask for. I always knew where the project stood." },
+    { client_name: "Tom Alvarez", role: "Co-founder", company: "Orbit", rating: 5, is_published: true, sort_order: 6, quote: "We own everything — code, files, accounts. No lock-in, no hostage situation. Rare in this business." },
+    { client_name: "Hina Farooq", role: "Marketing Lead", company: "Fathom", rating: 5, is_published: true, sort_order: 7, quote: "The ad campaigns hit the cost-per-lead target they promised in the first month. Straight talk, real numbers." },
+  ];
+
+  const { error } = await db.from("testimonials").upsert(SAMPLE_QUOTES, { onConflict: "client_name" });
+  if (error) {
+    // If upsert on client_name isn't unique constraint, fallback to insert
+    const { error: insertErr } = await db.from("testimonials").insert(SAMPLE_QUOTES);
+    if (insertErr) throw insertErr;
+  }
+
+  revalidatePath(`/${ADMIN}/testimonials`);
+  revalidatePath("/");
+  revalidatePath("/about");
+  return { success: true, count: SAMPLE_QUOTES.length };
 }
 
 // ---------------- CASE STUDIES / WORK ----------------
@@ -48,6 +87,18 @@ export async function saveCaseStudy(id: string | null, data: Record<string, unkn
   if (res.error) throw res.error;
   revalidatePath(`/${ADMIN}/work`);
   revalidatePath("/work");
+  revalidatePath("/");
+  return res.data;
+}
+
+export async function toggleCaseStudyPublished(id: string, is_published: boolean) {
+  await requireStaff();
+  const db = createAdminClient();
+  const res = await db.from("case_studies").update({ is_published }).eq("id", id).select().single();
+  if (res.error) throw res.error;
+  revalidatePath(`/${ADMIN}/work`);
+  revalidatePath("/work");
+  revalidatePath("/");
   return res.data;
 }
 
@@ -57,6 +108,64 @@ export async function deleteCaseStudy(id: string) {
   await db.from("case_studies").delete().eq("id", id);
   revalidatePath(`/${ADMIN}/work`);
   revalidatePath("/work");
+  revalidatePath("/");
+}
+
+export async function seedDefaultCaseStudies() {
+  await requireStaff();
+  const db = createAdminClient();
+  const DEFAULT_STUDIES = [
+    {
+      slug: "northwind-saas",
+      title: "SaaS Multi-Tenant Platform Overhaul",
+      client_name: "Northwind Inc.",
+      industry: "B2B Software",
+      cover_url: "https://images.unsplash.com/photo-1551288049-bebda4e38f71?auto=format&fit=crop&w=1200&q=80",
+      outcome: "Scaled platform to 45,000 monthly active users with 99.99% uptime and sub-200ms API response time.",
+      metrics: [{ label: "User Growth", value: "+240%" }, { label: "Page Load Speed", value: "0.4s" }],
+      tech_stack: ["Next.js", "TypeScript", "TailwindCSS", "Supabase", "Stripe"],
+      live_url: "https://example.com",
+      is_featured: true,
+      is_published: true,
+      sort_order: 1,
+    },
+    {
+      slug: "lumen-brand-design",
+      title: "Lumen Studio E-Commerce & Brand Identity",
+      client_name: "Lumen Studio",
+      industry: "Design & E-Commerce",
+      cover_url: "https://images.unsplash.com/photo-1460925895917-afdab827c52f?auto=format&fit=crop&w=1200&q=80",
+      outcome: "Designed pixel-perfect design system and custom Shopify storefront boosting checkout conversions by 38%.",
+      metrics: [{ label: "Checkout Conversion", value: "+38%" }, { label: "Lighthouse Score", value: "98/100" }],
+      tech_stack: ["Shopify", "React", "TailwindCSS", "Figma"],
+      live_url: "https://example.com",
+      is_featured: true,
+      is_published: true,
+      sort_order: 2,
+    },
+    {
+      slug: "vertex-seo-growth",
+      title: "Vertex Organic Traffic Engine",
+      client_name: "Vertex Analytics",
+      industry: "Fintech",
+      cover_url: "https://images.unsplash.com/photo-1504868584819-f8e8b4b6d7e3?auto=format&fit=crop&w=1200&q=80",
+      outcome: "Technical SEO optimization and content architecture engine generating 120,000+ organic monthly visitors.",
+      metrics: [{ label: "Organic Visitors", value: "120K/mo" }, { label: "Domain Rating", value: "68 DR" }],
+      tech_stack: ["Next.js", "GA4", "Search Console", "Ahrefs"],
+      live_url: "https://example.com",
+      is_featured: true,
+      is_published: true,
+      sort_order: 3,
+    },
+  ];
+
+  const { error } = await db.from("case_studies").upsert(DEFAULT_STUDIES, { onConflict: "slug" });
+  if (error) throw error;
+
+  revalidatePath(`/${ADMIN}/work`);
+  revalidatePath("/work");
+  revalidatePath("/");
+  return { success: true, count: DEFAULT_STUDIES.length };
 }
 
 // ---------------- SERVICES ----------------
@@ -207,6 +316,18 @@ export async function saveFaq(id: string | null, data: Record<string, unknown>) 
     : await db.from("faqs").insert(data).select().single();
   if (res.error) throw res.error;
   revalidatePath(`/${ADMIN}/faqs`);
+  revalidatePath("/");
+  revalidatePath("/faq");
+  return res.data;
+}
+
+export async function toggleFaqActive(id: string, is_active: boolean) {
+  await requireStaff();
+  const db = createAdminClient();
+  const res = await db.from("faqs").update({ is_active }).eq("id", id).select().single();
+  if (res.error) throw res.error;
+  revalidatePath(`/${ADMIN}/faqs`);
+  revalidatePath("/");
   revalidatePath("/faq");
   return res.data;
 }
@@ -216,7 +337,34 @@ export async function deleteFaq(id: string) {
   const db = createAdminClient();
   await db.from("faqs").delete().eq("id", id);
   revalidatePath(`/${ADMIN}/faqs`);
+  revalidatePath("/");
   revalidatePath("/faq");
+}
+
+export async function seedDefaultFaqs() {
+  await requireStaff();
+  const db = createAdminClient();
+  const DEFAULT_FAQS = [
+    { question: "How do we start?", category: "General", sort_order: 1, is_active: true, answer: "Send us a message with what you need. We reply within one working day, get on a short call, then send a written proposal with scope, price and timeline. Once you approve it, we lock the deal and send a signed agreement PDF by email." },
+    { question: "What do you need from me to begin?", category: "General", sort_order: 2, is_active: true, answer: "Your logo and brand files if you have them, your content or a rough draft of it, access to your domain and hosting, and one dedicated point of contact on your side who can approve deliverables." },
+    { question: "How fast can you complete my project?", category: "Delivery", sort_order: 3, is_active: true, answer: "Most website and branding projects ship within 2 to 4 weeks. Custom web applications and mobile apps take 6 to 12 weeks depending on scope. We lock exact timeline milestones in writing before starting." },
+    { question: "How does payment work?", category: "Pricing", sort_order: 4, is_active: true, answer: "Typically 50% advance to start and 50% on delivery. Larger projects can be split across key milestones. Every payment receives an automated invoice and receipt PDF with clear references." },
+    { question: "What if I need something outside the agreed scope?", category: "Scope", sort_order: 5, is_active: true, answer: "We issue a clear change order detailing the additional cost and timeline impact. Nothing is added silently and nothing is billed without your explicit written approval." },
+    { question: "Do I own the code and design files?", category: "Ownership", sort_order: 6, is_active: true, answer: "Yes. Full ownership of all source code, Figma design files, graphics, and account credentials transfers entirely to you once the final payment clears." },
+    { question: "What technologies do you use?", category: "Technical", sort_order: 7, is_active: true, answer: "We build modern, high-performance applications using Next.js, React, React Native, TypeScript, Tailwind CSS, Node.js, and Supabase — guaranteeing 90+ Lighthouse speed scores and clean maintainable code." },
+    { question: "What happens after launch?", category: "Support", sort_order: 8, is_active: true, answer: "You get 30 days of free post-launch support for bug fixes. After that, an optional monthly retainer covers regular updates, backups, security monitoring, and allocated development hours." },
+  ];
+
+  const { error } = await db.from("faqs").upsert(DEFAULT_FAQS, { onConflict: "question" });
+  if (error) {
+    const { error: insertErr } = await db.from("faqs").insert(DEFAULT_FAQS);
+    if (insertErr) throw insertErr;
+  }
+
+  revalidatePath(`/${ADMIN}/faqs`);
+  revalidatePath("/");
+  revalidatePath("/faq");
+  return { success: true, count: DEFAULT_FAQS.length };
 }
 
 // ---------------- EMPLOYEES & JOB TITLES ----------------

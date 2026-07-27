@@ -7,36 +7,12 @@ import { saveService, deleteService, toggleServiceActive, seedDefaultServices } 
 import { Plus, Trash2, Edit3, Eye, EyeOff, RefreshCw, DollarSign, Layers } from "lucide-react";
 import { PageHead } from "@/components/admin/ui";
 
-interface PricingTier {
-  key: string;
-  name: string;
-  price: number | null;
-  price_label: string;
-  short_desc: string;
-  delivery_time: string;
-  features: string[];
-  is_popular?: boolean;
-  cta_text: string;
-}
+import { IService } from "@/types/cms";
 
-interface Service {
-  id: string;
-  slug: string;
-  title: string;
-  category: string;
-  short_desc: string | null;
-  starting_at: number | null;
-  currency: string | null;
-  is_featured: boolean;
-  is_active: boolean;
-  sort_order: number;
-  pricing_tiers?: PricingTier[];
-}
-
-export default function ServicesClient({ services }: { services: Service[] }) {
+export default function ServicesClient({ services }: { services: IService[] }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
-  const [editing, setEditing] = useState<Partial<Service> | null>(null);
+  const [editing, setEditing] = useState<Partial<IService> | null>(null);
 
   const handleToggleActive = (id: string, currentStatus: boolean) => {
     startTransition(async () => {

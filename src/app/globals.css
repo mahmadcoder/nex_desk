@@ -266,3 +266,59 @@ h1, h2, h3, h4 {
 .ticker-group:hover .animate-ticker-right {
   animation-play-state: paused;
 }
+
+/* Skeleton Loading Shimmer */
+@keyframes nd-shimmer {
+  0%   { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+.nd-skeleton {
+  background: linear-gradient(90deg, var(--color-ink-800) 25%, var(--color-ink-700) 37%, var(--color-ink-800) 63%);
+  background-size: 200% 100%;
+  animation: nd-shimmer 1.4s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) { .nd-skeleton { animation: none; } }
+
+/* Cookie Banner Slide-up */
+@keyframes cookieSlideUp {
+  0%   { transform: translateY(100%); opacity: 0; }
+  100% { transform: translateY(0); opacity: 1; }
+}
+.cookie-slide-up {
+  animation: cookieSlideUp 0.5s var(--ease-out-expo) forwards;
+}
+
+/* Blog Image Hover */
+.blog-img-hover {
+  overflow: hidden;
+}
+.blog-img-hover img {
+  transition: transform 0.6s var(--ease-out-expo), filter 0.6s var(--ease-out-expo);
+}
+.group:hover .blog-img-hover img {
+  transform: scale(1.06);
+  filter: brightness(1.15);
+}
+.blog-img-hover::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to top, rgba(208,255,78,0.08), transparent 60%);
+  opacity: 0;
+  transition: opacity 0.5s ease;
+  pointer-events: none;
+  z-index: 1;
+}
+.group:hover .blog-img-hover::after {
+  opacity: 1;
+}
+
+/* Blog Mosaic Pulse */
+@keyframes mosaicPulse {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.55; }
+}
+.mosaic-pulse {
+  animation: mosaicPulse 3s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) { .mosaic-pulse { animation: none; } }

@@ -18,8 +18,8 @@ export default async function WorkPage() {
     .eq("is_published", true)
     .order("sort_order");
 
-  // Use real case studies if available; otherwise show demo cases.
-  const cases: any[] = dbCases?.length ? dbCases : demoCases;
+  // Use real case studies if available; otherwise show active demo cases.
+  const cases: any[] = dbCases?.length ? dbCases : demoCases.filter((c) => (c as any).is_published !== false);
 
   return (
     <>

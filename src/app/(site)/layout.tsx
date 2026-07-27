@@ -2,6 +2,8 @@ import Header from "@/components/site/Header";
 import Footer from "@/components/site/Footer";
 import DeskGrid from "@/components/site/DeskGrid";
 import SmoothScroll from "@/components/site/SmoothScroll";
+import CookieBanner from "@/components/site/CookieBanner";
+import ExitNudge from "@/components/site/ExitNudge";
 
 export default function SiteLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -11,6 +13,8 @@ export default function SiteLayout({ children }: { children: React.ReactNode }) 
       <Header />
       <main className="relative z-10 pt-[72px]">{children}</main>
       <Footer />
+      <CookieBanner />
+      <ExitNudge />
     </>
   );
 }

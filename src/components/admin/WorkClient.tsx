@@ -3,42 +3,45 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { saveCaseStudy, deleteCaseStudy } from "@/lib/actions/cms";
-import { Plus, Trash2, Edit3, X, Tag } from "lucide-react";
+import { saveCaseStudy, deleteCaseStudy, toggleCaseStudyPublished, seedDefaultCaseStudies } from "@/lib/actions/cms";
+import { Plus, Trash2, Edit3, X, Tag, Eye, EyeOff, RefreshCw } from "lucide-react";
 import { PageHead } from "@/components/admin/ui";
 import ImageUpload from "@/components/admin/ImageUpload";
 
-interface Metric {
-  label: string;
-  value: string;
-}
+import { ICaseStudy } from "@/types/cms";
 
-interface CaseStudy {
-  id: string;
-  slug: string;
-  title: string;
-  client_name: string | null;
-  industry: string | null;
-  cover_url: string | null;
-  challenge: string | null;
-  solution: string | null;
-  outcome: string | null;
-  metrics: Metric[] | null;
-  tech_stack: string[] | null;
-  services: string[] | null;
-  live_url: string | null;
-  is_featured: boolean;
-  is_published: boolean;
-  sort_order: number;
-}
-
-export default function WorkClient({ caseStudies }: { caseStudies: CaseStudy[] }) {
+export default function WorkClient({ caseStudies }: { caseStudies: ICaseStudy[] }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
-  const [editing, setEditing] = useState<Partial<CaseStudy> | null>(null);
+  const [editing, setEditing] = useState<Partial<ICaseStudy> | null>(null);
 
   const [techInput, setTechInput] = useState("");
   const [serviceInput, setServiceInput] = useState("");
+
+  const handleTogglePublished = (id: string, currentStatus: boolean) => {
+    startTransition(async () => {
+      try {
+        await toggleCaseStudyPublished(id, !currentStatus);
+        toast.success(!currentStatus ? "Project published live on website." : "Project hidden from website.");
+        router.refresh();
+      } catch {
+        toast.error("Failed to update status.");
+      }
+    });
+  };
+
+  const handleSeed = () => {
+    if (!confirm("Seed default portfolio projects into Supabase database?")) return;
+    startTransition(async () => {
+      try {
+        const res = await seedDefaultCaseStudies();
+        toast.success(`Successfully seeded ${res.count} projects into database!`);
+        router.refresh();
+      } catch (err: any) {
+        toast.error(err.message || "Failed to seed case studies.");
+      }
+    });
+  };
 
   const handleSave = () => {
     if (!editing?.title || !editing?.slug) {
@@ -75,7 +78,7 @@ export default function WorkClient({ caseStudies }: { caseStudies: CaseStudy[] }
   };
 
   const handleDelete = (id: string) => {
-    if (!confirm("Delete this case study?")) return;
+    if (!confirm("Delete this case study? It will be removed from database and live site.")) return;
     startTransition(async () => {
       try {
         await deleteCaseStudy(id);
@@ -132,55 +135,80 @@ export default function WorkClient({ caseStudies }: { caseStudies: CaseStudy[] }
   };
 
   return (
-    <div>
+    <div className="space-y-6">
       <PageHead
         title={`Case Studies & Work (${caseStudies.length})`}
-        sub="Manage agency portfolio projects, metrics, tech stack, and case study detail pages."
+        sub="Manage agency portfolio projects, metrics, tech stack, and homepage showcase items."
         action={
-          <button
-            onClick={() =>
-              setEditing({
-                title: "",
-                slug: "",
-                client_name: "",
-                industry: "",
-                cover_url: "",
-                challenge: "",
-                solution: "",
-                outcome: "",
-                metrics: [],
-                tech_stack: [],
-                services: [],
-                live_url: "",
-                is_featured: false,
-                is_published: true,
-                sort_order: 0,
-              })
-            }
-            className="btn btn-primary h-9 px-4 text-xs flex items-center gap-2"
-          >
-            <Plus size={14} /> Add Case Study
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={handleSeed}
+              disabled={pending}
+              className="btn bg-ink-800 text-bone-200 hover:text-bone-50 border-ink-600 h-9 px-3 text-xs flex items-center gap-1.5 cursor-pointer"
+            >
+              <RefreshCw size={13} className={pending ? "animate-spin" : ""} /> Seed Projects to DB
+            </button>
+            <button
+              onClick={() =>
+                setEditing({
+                  title: "",
+                  slug: "",
+                  client_name: "",
+                  industry: "Web Application",
+                  cover_url: "",
+                  challenge: "",
+                  solution: "",
+                  outcome: "",
+                  metrics: [],
+                  tech_stack: [],
+                  services: [],
+                  live_url: "",
+                  is_featured: true,
+                  is_published: true,
+                  sort_order: caseStudies.length + 1,
+                })
+              }
+              className="btn btn-primary h-9 px-4 text-xs flex items-center gap-2 cursor-pointer"
+            >
+              <Plus size={14} /> Add Case Study
+            </button>
+          </div>
         }
       />
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 mt-6">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {caseStudies.map((c) => (
-          <div key={c.id} className="card p-5 border-ink-600 flex flex-col justify-between space-y-4">
+          <div
+            key={c.id}
+            className={`card p-5 border-ink-600 flex flex-col justify-between space-y-4 transition-opacity ${
+              c.is_published ? "bg-ink-900/80 border-ink-600" : "bg-ink-950/60 border-ink-700/50 opacity-65"
+            }`}
+          >
             <div>
-              <div className="flex items-center justify-between">
-                <span className="mono-tag text-[10px] text-lime-400 bg-lime-400/10 px-2 py-0.5 rounded">
+              <div className="flex items-center justify-between gap-2">
+                <span className="mono-tag text-[10px] text-lime-400 bg-lime-400/10 px-2.5 py-0.5 rounded-full border border-lime-400/20">
                   {c.industry || "Case Study"}
                 </span>
-                {c.is_published ? (
-                  <span className="text-[10px] text-lime-400 border border-lime-500/20 px-2 py-0.5 rounded-full">
-                    Published
-                  </span>
-                ) : (
-                  <span className="text-[10px] text-bone-500 border border-ink-600 px-2 py-0.5 rounded-full">
-                    Draft
-                  </span>
-                )}
+
+                <button
+                  onClick={() => handleTogglePublished(c.id, c.is_published)}
+                  disabled={pending}
+                  className={`mono-tag text-[10px] px-2 py-0.5 rounded-full font-medium flex items-center gap-1 cursor-pointer transition-colors ${
+                    c.is_published
+                      ? "bg-emerald-400/10 text-emerald-400 border border-emerald-400/30 hover:bg-emerald-400/20"
+                      : "bg-rose-400/10 text-rose-400 border border-rose-400/30 hover:bg-rose-400/20"
+                  }`}
+                >
+                  {c.is_published ? (
+                    <>
+                      <Eye size={11} /> Published
+                    </>
+                  ) : (
+                    <>
+                      <EyeOff size={11} /> Hidden
+                    </>
+                  )}
+                </button>
               </div>
 
               {c.cover_url && (
@@ -188,18 +216,18 @@ export default function WorkClient({ caseStudies }: { caseStudies: CaseStudy[] }
                 <img
                   src={c.cover_url}
                   alt={c.title}
-                  className="mt-3 h-32 w-full rounded-lg object-cover border border-ink-700"
+                  className="mt-3 h-36 w-full rounded-lg object-cover border border-ink-700"
                 />
               )}
 
               <h3 className="mt-3 text-base font-semibold text-bone-50">{c.title}</h3>
               {c.client_name && <p className="text-xs text-bone-400 mt-0.5">Client: {c.client_name}</p>}
-              {c.outcome && <p className="mt-2 text-xs text-bone-300 line-clamp-2">{c.outcome}</p>}
+              {c.outcome && <p className="mt-2 text-xs text-bone-300 line-clamp-2 leading-relaxed">{c.outcome}</p>}
 
               {!!(c.tech_stack ?? []).length && (
                 <div className="mt-3 flex flex-wrap gap-1">
                   {(c.tech_stack ?? []).slice(0, 4).map((t) => (
-                    <span key={t} className="text-[10px] bg-ink-800 text-bone-400 px-2 py-0.5 rounded">
+                    <span key={t} className="text-[10px] bg-ink-800 text-bone-400 px-2 py-0.5 rounded border border-ink-700/60">
                       {t}
                     </span>
                   ))}
@@ -215,13 +243,15 @@ export default function WorkClient({ caseStudies }: { caseStudies: CaseStudy[] }
               <div className="flex items-center gap-1">
                 <button
                   onClick={() => setEditing(c)}
-                  className="p-1.5 rounded text-bone-400 hover:text-lime-400 hover:bg-ink-800"
+                  className="p-1.5 rounded text-bone-400 hover:text-lime-400 hover:bg-ink-800 cursor-pointer"
+                  title="Edit project"
                 >
                   <Edit3 size={14} />
                 </button>
                 <button
                   onClick={() => handleDelete(c.id)}
-                  className="p-1.5 rounded text-bone-400 hover:text-rose-400 hover:bg-ink-800"
+                  className="p-1.5 rounded text-bone-400 hover:text-rose-400 hover:bg-ink-800 cursor-pointer"
+                  title="Delete project"
                 >
                   <Trash2 size={14} />
                 </button>
@@ -233,8 +263,8 @@ export default function WorkClient({ caseStudies }: { caseStudies: CaseStudy[] }
 
       {editing && (
         <div className="fixed inset-0 z-50 grid place-items-center bg-ink-950/80 p-4 overflow-y-auto" onClick={() => setEditing(null)}>
-          <div className="card w-full max-w-2xl p-6 sm:p-8 bg-ink-900 border-ink-600 my-8 space-y-4" onClick={(e) => e.stopPropagation()}>
-            <h2 className="text-lg font-semibold text-bone-50 mb-4">
+          <div className="card w-full max-w-2xl p-6 sm:p-8 bg-ink-900 border-ink-600 my-8 space-y-4 max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+            <h2 className="text-lg font-semibold text-bone-50 mb-4 border-b border-ink-700/80 pb-3">
               {editing.id ? "Edit Case Study" : "New Case Study"}
             </h2>
 
@@ -290,7 +320,7 @@ export default function WorkClient({ caseStudies }: { caseStudies: CaseStudy[] }
               <div>
                 <label className="mono-tag text-xs mb-1 block">Live Project URL</label>
                 <input
-                  className="w-full rounded-lg border border-ink-500 bg-ink-800 px-3 py-2 text-sm text-bone-50 focus:border-lime-400 focus:outline-none"
+                  className="w-full rounded-lg border border-ink-500 bg-ink-800 px-3 py-2 text-sm text-bone-50 focus:border-lime-400 focus:outline-none font-mono text-xs"
                   placeholder="https://..."
                   value={editing.live_url ?? ""}
                   onChange={(e) => setEditing({ ...editing, live_url: e.target.value })}
@@ -299,10 +329,10 @@ export default function WorkClient({ caseStudies }: { caseStudies: CaseStudy[] }
             </div>
 
             <div>
-              <label className="mono-tag text-xs mb-1 block">Key Outcome / Subtitle</label>
+              <label className="mono-tag text-xs mb-1 block">Key Outcome / Subtitle Summary</label>
               <input
                 className="w-full rounded-lg border border-ink-500 bg-ink-800 px-3 py-2 text-sm text-bone-50 focus:border-lime-400 focus:outline-none"
-                placeholder="e.g. Scaled platform to 100k daily active users with sub-second response times."
+                placeholder="e.g. Scaled platform to 45,000 MAU with 99.99% uptime."
                 value={editing.outcome ?? ""}
                 onChange={(e) => setEditing({ ...editing, outcome: e.target.value })}
               />
@@ -314,12 +344,12 @@ export default function WorkClient({ caseStudies }: { caseStudies: CaseStudy[] }
               <div className="flex items-center gap-2 mb-2">
                 <input
                   className="flex-1 rounded-lg border border-ink-500 bg-ink-800 px-3 py-1.5 text-xs text-bone-50 focus:border-lime-400 focus:outline-none"
-                  placeholder="Type a technology (e.g. Next.js, Supabase, Tailwind) & press Add"
+                  placeholder="Type tech (e.g. Next.js, Supabase) & press Add"
                   value={techInput}
                   onChange={(e) => setTechInput(e.target.value)}
                   onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), addTechTag())}
                 />
-                <button type="button" onClick={addTechTag} className="btn btn-primary h-8 px-3 text-xs">
+                <button type="button" onClick={addTechTag} className="btn btn-primary h-8 px-3 text-xs cursor-pointer">
                   Add Tag
                 </button>
               </div>
@@ -336,38 +366,11 @@ export default function WorkClient({ caseStudies }: { caseStudies: CaseStudy[] }
               </div>
             </div>
 
-            {/* Services Tags Builder */}
-            <div>
-              <label className="mono-tag text-xs mb-1 block">Services Provided</label>
-              <div className="flex items-center gap-2 mb-2">
-                <input
-                  className="flex-1 rounded-lg border border-ink-500 bg-ink-800 px-3 py-1.5 text-xs text-bone-50 focus:border-lime-400 focus:outline-none"
-                  placeholder="Type a service (e.g. Web Development, UI/UX Design) & press Add"
-                  value={serviceInput}
-                  onChange={(e) => setServiceInput(e.target.value)}
-                  onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), addServiceTag())}
-                />
-                <button type="button" onClick={addServiceTag} className="btn btn-primary h-8 px-3 text-xs">
-                  Add Service
-                </button>
-              </div>
-              <div className="flex flex-wrap gap-1.5">
-                {(editing.services || []).map((s) => (
-                  <span key={s} className="inline-flex items-center gap-1.5 rounded-full border border-ink-600 bg-ink-800 px-3 py-1 text-xs text-bone-200">
-                    {s}
-                    <button type="button" onClick={() => removeServiceTag(s)} className="text-bone-400 hover:text-rose-400">
-                      <X size={12} />
-                    </button>
-                  </span>
-                ))}
-              </div>
-            </div>
-
             {/* Metrics Builder */}
             <div>
               <div className="flex items-center justify-between mb-1.5">
                 <label className="mono-tag text-xs">Project Key Metrics</label>
-                <button type="button" onClick={addMetric} className="text-xs text-lime-400 hover:underline">
+                <button type="button" onClick={addMetric} className="text-xs text-lime-400 hover:underline cursor-pointer">
                   + Add Metric Pair
                 </button>
               </div>
@@ -376,13 +379,13 @@ export default function WorkClient({ caseStudies }: { caseStudies: CaseStudy[] }
                   <div key={idx} className="flex items-center gap-2">
                     <input
                       className="flex-1 rounded-lg border border-ink-500 bg-ink-800 px-3 py-1.5 text-xs text-bone-50 focus:border-lime-400 focus:outline-none"
-                      placeholder="Metric Value (e.g. +140%)"
+                      placeholder="Metric Value (e.g. +240%)"
                       value={m.value}
                       onChange={(e) => updateMetric(idx, "value", e.target.value)}
                     />
                     <input
                       className="flex-1 rounded-lg border border-ink-500 bg-ink-800 px-3 py-1.5 text-xs text-bone-50 focus:border-lime-400 focus:outline-none"
-                      placeholder="Metric Label (e.g. Conversion Rate)"
+                      placeholder="Metric Label (e.g. Revenue Growth)"
                       value={m.label}
                       onChange={(e) => updateMetric(idx, "label", e.target.value)}
                     />
@@ -394,53 +397,33 @@ export default function WorkClient({ caseStudies }: { caseStudies: CaseStudy[] }
               </div>
             </div>
 
-            <div>
-              <label className="mono-tag text-xs mb-1 block">The Challenge</label>
-              <textarea
-                rows={3}
-                className="w-full rounded-lg border border-ink-500 bg-ink-800 p-2.5 text-xs text-bone-50 focus:border-lime-400 focus:outline-none"
-                value={editing.challenge ?? ""}
-                onChange={(e) => setEditing({ ...editing, challenge: e.target.value })}
-              />
-            </div>
-
-            <div>
-              <label className="mono-tag text-xs mb-1 block">Our Solution</label>
-              <textarea
-                rows={3}
-                className="w-full rounded-lg border border-ink-500 bg-ink-800 p-2.5 text-xs text-bone-50 focus:border-lime-400 focus:outline-none"
-                value={editing.solution ?? ""}
-                onChange={(e) => setEditing({ ...editing, solution: e.target.value })}
-              />
-            </div>
-
             <div className="flex items-center gap-6 pt-2">
-              <label className="flex items-center gap-2 cursor-pointer text-xs text-bone-300">
+              <label className="flex items-center gap-2 cursor-pointer text-xs text-bone-200">
                 <input
                   type="checkbox"
                   checked={editing.is_published ?? true}
                   onChange={(e) => setEditing({ ...editing, is_published: e.target.checked })}
-                  className="accent-[color:var(--color-lime-400)]"
+                  className="accent-[color:var(--color-lime-400)] h-4 w-4"
                 />
-                <span>Publish publicly</span>
+                <span className="font-medium">Publish Live on Website</span>
               </label>
 
-              <label className="flex items-center gap-2 cursor-pointer text-xs text-bone-300">
+              <label className="flex items-center gap-2 cursor-pointer text-xs text-bone-200">
                 <input
                   type="checkbox"
-                  checked={editing.is_featured ?? false}
+                  checked={editing.is_featured ?? true}
                   onChange={(e) => setEditing({ ...editing, is_featured: e.target.checked })}
-                  className="accent-[color:var(--color-lime-400)]"
+                  className="accent-[color:var(--color-lime-400)] h-4 w-4"
                 />
-                <span>Feature on Homepage</span>
+                <span className="font-medium">Feature on Homepage</span>
               </label>
             </div>
 
-            <div className="mt-6 flex justify-end gap-2 border-t border-ink-700/60 pt-4">
-              <button className="btn h-9 px-4 text-xs" onClick={() => setEditing(null)} disabled={pending}>
+            <div className="mt-6 flex justify-end gap-2 border-t border-ink-700/80 pt-4">
+              <button className="btn h-9 px-4 text-xs cursor-pointer" onClick={() => setEditing(null)} disabled={pending}>
                 Cancel
               </button>
-              <button className="btn btn-primary h-9 px-4 text-xs" onClick={handleSave} disabled={pending}>
+              <button className="btn btn-primary h-9 px-4 text-xs cursor-pointer" onClick={handleSave} disabled={pending}>
                 {pending ? "Saving..." : "Save Case Study"}
               </button>
             </div>

@@ -3,25 +3,41 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { saveTestimonial, deleteTestimonial } from "@/lib/actions/cms";
-import { Plus, Trash2, Edit3, Star, CheckCircle, XCircle } from "lucide-react";
+import { saveTestimonial, deleteTestimonial, toggleTestimonialPublished, seedDefaultTestimonials } from "@/lib/actions/cms";
+import { Plus, Trash2, Edit3, Star, Eye, EyeOff, RefreshCw } from "lucide-react";
+import { PageHead } from "@/components/admin/ui";
 
-interface Testimonial {
-  id: string;
-  client_name: string;
-  role: string | null;
-  company: string | null;
-  avatar_url: string | null;
-  quote: string;
-  rating: number | null;
-  is_published: boolean;
-  sort_order: number;
-}
+import { ITestimonial } from "@/types/cms";
 
-export default function TestimonialsClient({ testimonials }: { testimonials: Testimonial[] }) {
+export default function TestimonialsClient({ testimonials }: { testimonials: ITestimonial[] }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
-  const [editing, setEditing] = useState<Partial<Testimonial> | null>(null);
+  const [editing, setEditing] = useState<Partial<ITestimonial> | null>(null);
+
+  const handleTogglePublished = (id: string, currentStatus: boolean) => {
+    startTransition(async () => {
+      try {
+        await toggleTestimonialPublished(id, !currentStatus);
+        toast.success(!currentStatus ? "Testimonial published live." : "Testimonial hidden from website.");
+        router.refresh();
+      } catch {
+        toast.error("Failed to update status.");
+      }
+    });
+  };
+
+  const handleSeed = () => {
+    if (!confirm("Seed default client testimonials into Supabase database?")) return;
+    startTransition(async () => {
+      try {
+        const res = await seedDefaultTestimonials();
+        toast.success(`Successfully seeded ${res.count} testimonials into database!`);
+        router.refresh();
+      } catch (err: any) {
+        toast.error(err.message || "Failed to seed testimonials.");
+      }
+    });
+  };
 
   const handleSave = () => {
     if (!editing?.client_name || !editing?.quote) {
@@ -65,52 +81,75 @@ export default function TestimonialsClient({ testimonials }: { testimonials: Tes
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between border-b border-ink-600 pb-6">
-        <div>
-          <span className="mono-tag text-lime-400">CMS Content</span>
-          <h1 className="mt-1 text-2xl font-semibold text-bone-50">Client Testimonials ({testimonials.length})</h1>
-          <p className="mt-1 text-xs text-bone-400">Manage client reviews displayed on the website homepage</p>
-        </div>
-
-        <button
-          onClick={() =>
-            setEditing({
-              client_name: "",
-              role: "",
-              company: "",
-              avatar_url: "",
-              quote: "",
-              rating: 5,
-              is_published: true,
-              sort_order: 0,
-            })
-          }
-          className="btn btn-primary h-9 px-4 text-xs flex items-center gap-2"
-        >
-          <Plus size={14} /> Add Testimonial
-        </button>
-      </div>
+      <PageHead
+        title={`Client Testimonials (${testimonials.length})`}
+        sub="Manage client reviews and star ratings displayed on the website Testimonial Wall."
+        action={
+          <div className="flex items-center gap-2">
+            <button
+              onClick={handleSeed}
+              disabled={pending}
+              className="btn bg-ink-800 text-bone-200 hover:text-bone-50 border-ink-600 h-9 px-3 text-xs flex items-center gap-1.5 cursor-pointer"
+            >
+              <RefreshCw size={13} className={pending ? "animate-spin" : ""} /> Seed Testimonials to DB
+            </button>
+            <button
+              onClick={() =>
+                setEditing({
+                  client_name: "",
+                  role: "",
+                  company: "",
+                  avatar_url: "",
+                  quote: "",
+                  rating: 5,
+                  is_published: true,
+                  sort_order: testimonials.length + 1,
+                })
+              }
+              className="btn btn-primary h-9 px-4 text-xs flex items-center gap-2 cursor-pointer"
+            >
+              <Plus size={14} /> Add Testimonial
+            </button>
+          </div>
+        }
+      />
 
       {/* Grid of Testimonials */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {testimonials.map((t) => (
-          <div key={t.id} className="card p-5 border-ink-600 flex flex-col justify-between space-y-4">
+          <div
+            key={t.id}
+            className={`card p-5 border-ink-600 flex flex-col justify-between space-y-4 transition-opacity ${
+              t.is_published ? "bg-ink-900/80 border-ink-600" : "bg-ink-950/60 border-ink-700/50 opacity-65"
+            }`}
+          >
             <div>
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between gap-2">
                 <div className="flex items-center gap-1 text-amber-400">
                   {Array.from({ length: t.rating ?? 5 }).map((_, i) => (
                     <Star key={i} size={14} fill="currentColor" />
                   ))}
                 </div>
-                {t.is_published ? (
-                  <span className="mono-tag text-[10px] text-lime-400 bg-lime-400/10 px-2 py-0.5 rounded">
-                    Published
-                  </span>
-                ) : (
-                  <span className="mono-tag text-[10px] text-bone-500 bg-ink-800 px-2 py-0.5 rounded">
-                    Draft
-                  </span>
-                )}
+
+                <button
+                  onClick={() => handleTogglePublished(t.id, t.is_published)}
+                  disabled={pending}
+                  className={`mono-tag text-[10px] px-2 py-0.5 rounded-full font-medium flex items-center gap-1 cursor-pointer transition-colors ${
+                    t.is_published
+                      ? "bg-emerald-400/10 text-emerald-400 border border-emerald-400/30 hover:bg-emerald-400/20"
+                      : "bg-rose-400/10 text-rose-400 border border-rose-400/30 hover:bg-rose-400/20"
+                  }`}
+                >
+                  {t.is_published ? (
+                    <>
+                      <Eye size={11} /> Published
+                    </>
+                  ) : (
+                    <>
+                      <EyeOff size={11} /> Hidden
+                    </>
+                  )}
+                </button>
               </div>
 
               <p className="mt-3 text-xs text-bone-200 italic leading-relaxed">&ldquo;{t.quote}&rdquo;</p>
@@ -127,13 +166,15 @@ export default function TestimonialsClient({ testimonials }: { testimonials: Tes
               <div className="flex items-center gap-1">
                 <button
                   onClick={() => setEditing(t)}
-                  className="p-1.5 rounded text-bone-400 hover:text-lime-400 hover:bg-ink-800 transition-colors"
+                  className="p-1.5 rounded text-bone-400 hover:text-lime-400 hover:bg-ink-800 transition-colors cursor-pointer"
+                  title="Edit testimonial"
                 >
                   <Edit3 size={14} />
                 </button>
                 <button
                   onClick={() => handleDelete(t.id)}
-                  className="p-1.5 rounded text-bone-400 hover:text-rose-400 hover:bg-ink-800 transition-colors"
+                  className="p-1.5 rounded text-bone-400 hover:text-rose-400 hover:bg-ink-800 transition-colors cursor-pointer"
+                  title="Delete testimonial"
                 >
                   <Trash2 size={14} />
                 </button>
@@ -147,7 +188,7 @@ export default function TestimonialsClient({ testimonials }: { testimonials: Tes
       {editing && (
         <div className="fixed inset-0 z-50 grid place-items-center bg-ink-950/80 p-4" onClick={() => setEditing(null)}>
           <div className="card w-full max-w-lg p-6 bg-ink-900 border-ink-600" onClick={(e) => e.stopPropagation()}>
-            <h2 className="text-lg font-semibold text-bone-50 mb-4">
+            <h2 className="text-lg font-semibold text-bone-50 mb-4 border-b border-ink-700/80 pb-3">
               {editing.id ? "Edit Testimonial" : "New Testimonial"}
             </h2>
 
@@ -205,24 +246,24 @@ export default function TestimonialsClient({ testimonials }: { testimonials: Tes
                   />
                 </div>
                 <div className="flex items-center pt-5">
-                  <label className="flex items-center gap-2 cursor-pointer text-xs text-bone-300">
+                  <label className="flex items-center gap-2 cursor-pointer text-xs text-bone-200">
                     <input
                       type="checkbox"
                       checked={editing.is_published ?? true}
                       onChange={(e) => setEditing({ ...editing, is_published: e.target.checked })}
-                      className="accent-[color:var(--color-lime-400)]"
+                      className="accent-[color:var(--color-lime-400)] h-4 w-4"
                     />
-                    <span>Publish publicly on website</span>
+                    <span className="font-medium">Publish Live on Website</span>
                   </label>
                 </div>
               </div>
             </div>
 
-            <div className="mt-6 flex justify-end gap-2">
-              <button className="btn h-9 px-4 text-xs" onClick={() => setEditing(null)} disabled={pending}>
+            <div className="mt-6 flex justify-end gap-2 border-t border-ink-700/80 pt-4">
+              <button className="btn h-9 px-4 text-xs cursor-pointer" onClick={() => setEditing(null)} disabled={pending}>
                 Cancel
               </button>
-              <button className="btn btn-primary h-9 px-4 text-xs" onClick={handleSave} disabled={pending}>
+              <button className="btn btn-primary h-9 px-4 text-xs cursor-pointer" onClick={handleSave} disabled={pending}>
                 {pending ? "Saving..." : "Save Testimonial"}
               </button>
             </div>

@@ -30,19 +30,45 @@ export default async function BlogPage() {
   return (
     <>
       <section className="shell py-24">
-        <p className="drawer-label">Blog</p>
-        <h1 className="mt-8 max-w-2xl text-[var(--text-h1)]">Notes from the desk.</h1>
-        <p className="mt-6 max-w-xl text-lg text-bone-200">
-          How we work, what we&apos;ve learned, and the occasional strong opinion about
-          shipping software.
-        </p>
+        <div className="flex items-center justify-between gap-8">
+          <div className="min-w-0">
+            <p className="drawer-label">Blog</p>
+            <h1 className="mt-8 text-[clamp(3.5rem,10vw,7rem)] font-semibold leading-[1] tracking-[-0.04em]">Insights &amp; Ideas</h1>
+            <p className="mt-6 max-w-xl text-lg text-bone-200">
+              Strategy, craft, and lessons from building digital products that
+              actually ship.
+            </p>
+          </div>
+
+          {/* Lime Grid Mosaic */}
+          <div className="hidden lg:block shrink-0 select-none" aria-hidden="true">
+            <div className="grid grid-cols-5 gap-2.5" style={{ width: 260 }}>
+              {[
+                0,    0,    0,    0.10, 0.18,
+                0,    0,    0.14, 0.32, 0.50,
+                0,    0.10, 0.28, 0.65, 1.00,
+                0.08, 0.22, 0.55, 1.00, 0.60,
+                0,    0.14, 0.38, 0.70, 0,
+              ].map((op, i) => (
+                <div
+                  key={i}
+                  className={`aspect-square rounded-[5px]${op > 0.25 ? " mosaic-pulse" : ""}`}
+                  style={{
+                    background: op ? `rgba(208,255,78,${op})` : "transparent",
+                    animationDelay: op > 0.25 ? `${(i % 7) * 0.4}s` : undefined,
+                  }}
+                />
+              ))}
+            </div>
+          </div>
+        </div>
       </section>
 
       {/* featured */}
       <section className="shell">
         <Reveal>
           <Link href={`/blog/${featured.slug}`} className="card group grid overflow-hidden lg:grid-cols-2">
-            <TexturePanel src={getPostCover(featured.slug, featured.cover_url)} className="min-h-[280px]" overlay={0.3}>
+            <TexturePanel src={getPostCover(featured.slug, featured.cover_url)} className="blog-img-hover min-h-[280px]" overlay={0.3}>
               <div className="flex h-full items-end p-8">
                 <span className="mono-tag rounded-full bg-lime-400 px-3 py-1 text-lime-950">featured</span>
               </div>
@@ -69,7 +95,7 @@ export default async function BlogPage() {
         <Reveal className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
           {rest.map((p) => (
             <Link key={p.slug} href={`/blog/${p.slug}`} className="card group flex flex-col overflow-hidden hover:border-lime-400/40">
-              <TexturePanel src={getPostCover(p.slug, p.cover_url)} className="h-48" overlay={0.3} />
+              <TexturePanel src={getPostCover(p.slug, p.cover_url)} className="blog-img-hover h-48" overlay={0.3} />
               <div className="flex flex-1 flex-col p-6">
                 <div className="flex flex-wrap gap-2">
                   {(p.tags ?? []).slice(0, 2).map((t: string) => (
