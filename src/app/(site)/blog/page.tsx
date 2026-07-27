@@ -5,10 +5,10 @@ import Reveal from "@/components/site/Reveal";
 import CTA from "@/components/site/CTA";
 import TexturePanel from "@/components/site/mockups/TexturePanel";
 import { getPostCover } from "@/lib/images";
-import { demoPosts } from "@/lib/demo";
+import { demoPosts } from "@/lib/agencyData";
 import { Clock } from "lucide-react";
 
-export const metadata: Metadata = { title: "Journal" };
+export const metadata: Metadata = { title: "Blog" };
 export const revalidate = 300;
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -30,7 +30,7 @@ export default async function BlogPage() {
   return (
     <>
       <section className="shell py-24">
-        <p className="drawer-label">Journal</p>
+        <p className="drawer-label">Blog</p>
         <h1 className="mt-8 max-w-2xl text-[var(--text-h1)]">Notes from the desk.</h1>
         <p className="mt-6 max-w-xl text-lg text-bone-200">
           How we work, what we&apos;ve learned, and the occasional strong opinion about

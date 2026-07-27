@@ -1,3 +1,6 @@
+import type { DemoCase, DemoPost, DemoService, DemoQuote } from "@/types/agency";
+export type { DemoCase, DemoPost, DemoService, DemoQuote };
+
 /**
  * Sample content so the Work and Journal pages look finished immediately,
  * before you've added anything in the admin panel. As soon as you publish real
@@ -6,21 +9,6 @@
  * The detail pages fall back to these when a slug isn't found in the database,
  * so every sample card is fully clickable.
  */
-
-export type DemoCase = {
-  slug: string;
-  title: string;
-  client_name: string;
-  industry: string;
-  year: string;
-  outcome: string;
-  challenge: string;
-  solution: string;
-  services: string[];
-  tech_stack: string[];
-  metrics: { label: string; value: string }[];
-  live_url?: string;
-};
 
 export const demoCases: DemoCase[] = [
   {
@@ -85,17 +73,6 @@ export const demoCases: DemoCase[] = [
   },
 ];
 
-export type DemoPost = {
-  slug: string;
-  title: string;
-  excerpt: string;
-  tags: string[];
-  read_minutes: number;
-  published_at: string;
-  content: string;
-  cover_url?: string;
-};
-
 export const demoPosts: DemoPost[] = [
   {
     slug: "why-we-write-scope-first",
@@ -158,20 +135,6 @@ export const demoPosts: DemoPost[] = [
       "Modern search engine optimization isn't about spamming keywords in footer text — it is an engineering discipline. Search engines prioritize websites that render instantly, use proper HTML5 semantic hierarchy, and provide structured data.\n\n## Technical SEO at the Core\n\nWe bake search engine visibility directly into the codebase:\n- Automated OpenGraph and Twitter Card generation for social sharing\n- Structured JSON-LD schema markup for rich search snippets\n- Dynamic XML sitemaps and clean canonical tag generation\n- Semantic HTML5 structure (`<article>`, `<section>`, `<header>`, `<h1>-<h6>`)\n\nBy treating technical SEO as a foundation rather than a plugin, your site starts indexing faster and ranking for high-intent keywords naturally.",
   },
 ];
-
-export type DemoService = {
-  id?: string;
-  slug: string;
-  title: string;
-  category: string;
-  short_desc: string;
-  long_desc?: string;
-  starting_at?: number;
-  currency?: string;
-  features: string[];
-  duration_note?: string;
-  is_active?: boolean;
-};
 
 export const demoServices: DemoService[] = [
   {
@@ -462,4 +425,21 @@ export const demoServices: DemoService[] = [
     duration_note: "1 week delivery",
     is_active: true,
   },
+];
+
+export const demoQuotes: DemoQuote[] = [
+  { client_name: "Ayesha Khan", role: "Founder", company: "Lumen Studio", rating: 5,
+    quote: "They shipped in four weeks what two previous agencies couldn't in six months. The staging link from day one meant no surprises." },
+  { client_name: "Daniel Reeve", role: "CEO", company: "Northwind", rating: 5,
+    quote: "The written scope saved us. Everyone knew exactly what was being built and what it cost. No arguments at the end." },
+  { client_name: "Priya Nair", role: "Head of Growth", company: "Vertex", rating: 5,
+    quote: "Our organic traffic tripled in three months. They actually explained what they were doing instead of hiding behind jargon." },
+  { client_name: "Marco Bianchi", role: "Owner", company: "Práctica", rating: 5,
+    quote: "The receipt and agreement PDFs made us look far bigger than we are. Clients take us seriously now." },
+  { client_name: "Sana Malik", role: "Director", company: "Kavi", rating: 5,
+    quote: "Weekly progress emails I never had to ask for. I always knew where the project stood." },
+  { client_name: "Tom Alvarez", role: "Co-founder", company: "Orbit", rating: 5,
+    quote: "We own everything — code, files, accounts. No lock-in, no hostage situation. Rare in this business." },
+  { client_name: "Hina Farooq", role: "Marketing Lead", company: "Fathom", rating: 5,
+    quote: "The ad campaigns hit the cost-per-lead target they promised in the first month. Straight talk, real numbers." },
 ];

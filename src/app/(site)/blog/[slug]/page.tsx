@@ -5,7 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import CTA from "@/components/site/CTA";
 import TexturePanel from "@/components/site/mockups/TexturePanel";
 import { avatar, getPostCover } from "@/lib/images";
-import { demoPosts } from "@/lib/demo";
+import { demoPosts } from "@/lib/agencyData";
 import { Clock, Calendar } from "lucide-react";
 
 export const revalidate = 300;
@@ -57,7 +57,7 @@ export default async function PostPage({
       {/* Article Header */}
       <article className="shell max-w-3xl pt-20">
         <Link href="/blog" className="mono-tag hover:text-bone-50">
-          ← journal
+          ← blog
         </Link>
 
         {/* Tags with proper spacing */}

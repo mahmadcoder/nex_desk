@@ -2,39 +2,17 @@
 
 import { Layers, Lightbulb, Code2, Rocket, CheckCircle2 } from "lucide-react";
 
-export type ProcessStep = {
-  step_no: string;
-  title: string;
-  description: string;
-};
+import type { ProcessStep } from "@/types/site";
+export type { ProcessStep };
+
+import { SERVICE_FALLBACK_PROCESS } from "@/config/siteContent";
 
 export default function ServiceProcessRoadmap({
   steps,
 }: {
   steps?: ProcessStep[];
 }) {
-  const defaultSteps: ProcessStep[] = [
-    {
-      step_no: "01",
-      title: "Discovery & System Architecture",
-      description: "We analyze your project scope, wireframe application flows, map database schemas, and define tech stack milestones.",
-    },
-    {
-      step_no: "02",
-      title: "UI/UX & High-Fidelity Prototyping",
-      description: "Our designers build clickable Figma design tokens, responsive layouts, and interactive component libraries for your review.",
-    },
-    {
-      step_no: "03",
-      title: "Full-Stack Production Engineering",
-      description: "We code high-performance Next.js, Supabase, and TypeScript features with sub-second page speed and security controls.",
-    },
-    {
-      step_no: "04",
-      title: "QA Testing, Deployment & Handoff",
-      description: "Rigorous testing, SSL setup, Vercel deployment, and 100% repository ownership handoff with post-launch support.",
-    },
-  ];
+  const defaultSteps: ProcessStep[] = SERVICE_FALLBACK_PROCESS;
 
   const activeSteps = steps && steps.length >= 4 ? steps : defaultSteps;
 

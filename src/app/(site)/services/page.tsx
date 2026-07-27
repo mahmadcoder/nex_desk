@@ -3,8 +3,7 @@ import type { Metadata } from "next";
 import { createClient } from "@/lib/supabase/server";
 import Reveal from "@/components/site/Reveal";
 import CTA from "@/components/site/CTA";
-import { demoServices } from "@/lib/demo";
-import { Check } from "lucide-react";
+import { demoServices } from "@/lib/agencyData";
 
 export const metadata: Metadata = {
   title: "Services",
@@ -46,13 +45,10 @@ export default async function ServicesPage() {
                 <div>
                   <h2 className="text-2xl">{s.title}</h2>
                   <p className="mt-3 text-sm leading-relaxed text-bone-400">{s.short_desc}</p>
-                  <ul className="mt-6 space-y-2">
+                  <ul className="mt-6 space-y-1.5">
                     {(s.features ?? []).slice(0, 4).map((f: string) => (
-                      <li key={f} className="text-xs text-bone-200 flex items-center gap-2">
-                        <span className="h-4 w-4 rounded-full bg-lime-400/10 text-lime-400 border border-lime-400/30 flex items-center justify-center shrink-0">
-                          <Check size={11} />
-                        </span>
-                        <span>{f}</span>
+                      <li key={f} className="mono-tag flex gap-2">
+                        <span className="text-lime-400">/</span>{f}
                       </li>
                     ))}
                   </ul>

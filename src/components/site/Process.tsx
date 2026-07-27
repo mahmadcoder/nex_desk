@@ -1,21 +1,10 @@
 "use client";
 
 import Reveal from "./Reveal";
-
-/**
- * Numbered because this genuinely is a sequence — each step gates the next,
- * and the client needs to know where they are in it.
- */
-const STEPS = [
-  ["Talk", "A call to work out what you actually need, which is often not what you first asked for."],
-  ["Quote", "A written proposal with scope, price, timeline and what is excluded. No verbal estimates."],
-  ["Lock", "You approve, we send a signed agreement PDF and take the advance. Work starts when it clears."],
-  ["Build", "Weekly progress emails and a staging link. You can see it as it happens, not at the end."],
-  ["Ship", "Launch, handover document, all credentials transferred. You own everything."],
-  ["Stay", "One month free support, then an optional retainer for updates and monitoring."],
-];
+import { HOMEPAGE_PROCESS_STEPS } from "@/config/siteContent";
 
 export default function Process() {
+  const STEPS = HOMEPAGE_PROCESS_STEPS;
   return (
     <section className="shell py-12">
       <p className="drawer-label">How it goes</p>

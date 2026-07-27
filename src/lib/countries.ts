@@ -1,13 +1,5 @@
-export type CountryData = {
-  code: string;
-  name: string;
-  flag: string;
-  flagUrl: string;
-  dialCode: string;
-  digits: number;
-  currency: string;
-  cities: string[];
-};
+import type { CountryData, CurrencyData } from "@/types/countries";
+export type { CountryData, CurrencyData };
 
 export const COUNTRIES: CountryData[] = [
   {

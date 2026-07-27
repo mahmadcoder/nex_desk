@@ -98,7 +98,7 @@ export default function AboutPage() {
       </section>
 
       {/* team */}
-      <section className="shell border-t border-ink-600 py-20">
+      <section className="shell  py-20">
         <p className="drawer-label">The team</p>
         <h2 className="mt-6 max-w-2xl text-[var(--text-h2)]">The people at the desk.</h2>
         <Reveal className="mt-12 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
@@ -112,17 +112,14 @@ export default function AboutPage() {
             </div>
           ))}
         </Reveal>
-        <p className="mono-tag mt-6">
-          swap these for your real team — photos and names live in about/page.tsx
-        </p>
       </section>
 
       {/* timeline */}
-      <section className="shell border-t border-ink-600 py-20">
+      <section className="shell py-20">
         <p className="drawer-label">How we got here</p>
         <Reveal className="mt-12 grid gap-px overflow-hidden rounded-xl border border-ink-600 bg-ink-600 md:grid-cols-4">
           {TIMELINE.map(([t, b], i) => (
-            <div key={t} className="bg-ink-900 p-7">
+            <div key={t} className="bg-ink-900 p-7 transition-colors hover:bg-ink-800">
               <span className="mono-tag text-lime-400">{String(i + 1).padStart(2, "0")}</span>
               <h3 className="mt-4 text-lg">{t}</h3>
               <p className="mt-3 text-sm leading-relaxed text-bone-400">{b}</p>
@@ -132,7 +129,7 @@ export default function AboutPage() {
       </section>
 
       {/* tech */}
-      <section className="shell border-t border-ink-600 py-20">
+      <section className="shell py-20">
         <p className="drawer-label">Our stack</p>
         <h2 className="mt-6 max-w-2xl text-[var(--text-h2)]">Tools we reach for.</h2>
         <div className="mt-10 flex flex-wrap gap-3">

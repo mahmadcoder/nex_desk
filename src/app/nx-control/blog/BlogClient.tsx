@@ -66,7 +66,7 @@ export default function BlogClient({ posts }: { posts: Post[] }) {
     <div className="space-y-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between border-b border-ink-600 pb-6">
         <div>
-          <span className="mono-tag text-lime-400">Journal & Articles</span>
+          <span className="mono-tag text-lime-400">Blog & Articles</span>
           <h1 className="mt-1 text-2xl font-semibold text-bone-50">Blog Posts ({posts.length})</h1>
           <p className="mt-1 text-xs text-bone-400">Write, edit, and publish engineering articles and agency updates</p>
         </div>

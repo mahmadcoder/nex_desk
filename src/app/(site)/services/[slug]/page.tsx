@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { createClient } from "@/lib/supabase/server";
 import CTA from "@/components/site/CTA";
-import { demoServices } from "@/lib/demo";
+import { demoServices } from "@/lib/agencyData";
 import ServicePricingTiers from "@/components/site/ServicePricingTiers";
 import ServiceProcessRoadmap from "@/components/site/ServiceProcessRoadmap";
 import ServiceFaqAccordion from "@/components/site/ServiceFaqAccordion";

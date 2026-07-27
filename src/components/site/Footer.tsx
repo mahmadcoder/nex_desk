@@ -13,7 +13,7 @@ const COMPANY_NAV = [
   { label: "Selected Work", href: "/work" },
   { label: "Pricing", href: "/pricing" },
   { label: "About Studio", href: "/about" },
-  { label: "Journal", href: "/blog" },
+  { label: "Blog", href: "/blog" },
   { label: "Contact Us", href: "/contact" },
 ];
 
@@ -54,7 +54,7 @@ export default function Footer() {
   };
 
   return (
-    <footer className="relative z-10 mt-12 border-t border-ink-700/60 bg-ink-950/90 backdrop-blur-xl">
+    <footer className="relative z-10 mt-12">
       <div className="shell pt-12 pb-20 lg:pt-16 lg:pb-24">
         {/* Top Hero Section: Headline */}
         <div className="max-w-4xl">

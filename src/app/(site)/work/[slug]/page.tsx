@@ -6,7 +6,7 @@ import CTA from "@/components/site/CTA";
 import TexturePanel from "@/components/site/mockups/TexturePanel";
 import { BrowserFrame, DashboardMockup } from "@/components/site/mockups";
 import { textureFor } from "@/lib/images";
-import { demoCases } from "@/lib/demo";
+import { demoCases } from "@/lib/agencyData";
 import { Calendar, Building2, Tag, Globe, ArrowUpRight } from "lucide-react";
 
 export const revalidate = 300;
@@ -95,7 +95,7 @@ export default async function CaseDetail({ params }: { params: Promise<{ slug: s
         <section className="shell py-20">
           <div className="grid gap-px overflow-hidden rounded-xl border border-ink-600 bg-ink-600 sm:grid-cols-3">
             {(c.metrics as any[]).map((m) => (
-              <div key={m.label} className="bg-ink-950 p-8 text-center">
+              <div key={m.label} className="bg-ink-900 p-8 text-center transition-colors hover:bg-ink-800">
                 <p className="text-[clamp(2.5rem,5vw,4rem)] leading-none tracking-tighter"
                   style={{ fontFamily: "var(--font-display)" }}>
                   {m.value}

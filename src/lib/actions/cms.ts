@@ -98,7 +98,7 @@ export async function deleteService(id: string) {
 
 export async function seedDefaultServices() {
   await requireStaff();
-  const { demoServices } = await import("@/lib/demo");
+  const { demoServices } = await import("@/lib/agencyData");
   const db = createAdminClient();
 
   const toInsert = demoServices.map((s, idx) => ({

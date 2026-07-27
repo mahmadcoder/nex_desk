@@ -3,17 +3,10 @@
 import Link from "next/link";
 import { Check, Zap, Sparkles, ShieldCheck } from "lucide-react";
 
-export type PricingTier = {
-  key: "basic" | "standard" | "enterprise";
-  name: string;
-  price: number | null;
-  price_label: string;
-  short_desc: string;
-  delivery_time: string;
-  features: string[];
-  is_popular?: boolean;
-  cta_text: string;
-};
+import type { PricingTier } from "@/types/site";
+export type { PricingTier };
+
+import { getServiceFallbackTiers } from "@/config/siteContent";
 
 export default function ServicePricingTiers({
   serviceSlug,
@@ -29,60 +22,7 @@ export default function ServicePricingTiers({
   currency?: string;
 }) {
   // Standard fallback tiers if custom ones are not provided
-  const defaultTiers: PricingTier[] = [
-    {
-      key: "basic",
-      name: "Starter Package",
-      price: startingAt ? startingAt : 1500,
-      price_label: startingAt ? `$${startingAt.toLocaleString()}` : "$1,500",
-      short_desc: "Essential build for startups & single core product launch.",
-      delivery_time: "1–2 weeks delivery",
-      features: [
-        "Core feature build & responsive design",
-        "Sub-second page load performance",
-        "Mobile & Desktop optimization",
-        "100% Code & Asset ownership",
-        "2 weeks post-launch support",
-      ],
-      is_popular: false,
-      cta_text: "Select Starter Package",
-    },
-    {
-      key: "standard",
-      name: "Growth Package",
-      price: startingAt ? startingAt * 2 : 3500,
-      price_label: startingAt ? `$${(startingAt * 2.2).toLocaleString()}` : "$3,500",
-      short_desc: "Complete production application with advanced features & integrations.",
-      delivery_time: "2–4 weeks delivery",
-      features: [
-        "Everything in Starter Package",
-        "Custom database & authentication integration",
-        "Advanced admin control panel & dashboard",
-        "GA4 Analytics & SEO optimization",
-        "Priority API & webhook pipelines",
-        "30 days dedicated warranty support",
-      ],
-      is_popular: true,
-      cta_text: "Select Growth Package",
-    },
-    {
-      key: "enterprise",
-      name: "Enterprise Architecture",
-      price: null,
-      price_label: "Custom Quote",
-      short_desc: "Tailored multi-team architecture, custom SLA, and dedicated engineering squad.",
-      delivery_time: "Custom timeline",
-      features: [
-        "Everything in Growth Package",
-        "Dedicated senior lead engineer & designer",
-        "Multi-tenant & high-availability DB setup",
-        "Security audit & SOC2 compliance prep",
-        "Custom SLA & 24/7 emergency retainer",
-      ],
-      is_popular: false,
-      cta_text: "Request Enterprise Quote",
-    },
-  ];
+  const defaultTiers: PricingTier[] = getServiceFallbackTiers(startingAt);
 
   const activeTiers = tiers && tiers.length >= 3 ? tiers : defaultTiers;
 

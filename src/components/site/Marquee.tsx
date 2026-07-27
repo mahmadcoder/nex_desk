@@ -2,11 +2,9 @@
 import { useEffect, useRef } from "react";
 import { gsap } from "gsap";
 
-const STACK = [
-  "Next.js", "React", "TypeScript", "Node", "Supabase", "Postgres", "Tailwind",
-  "GSAP", "React Native", "Flutter", "Shopify", "WooCommerce", "Figma",
-  "Google Ads", "Meta Ads", "GA4", "Vercel", "AWS", "OpenAI", "n8n", "WordPress", "SEO",
-];
+import { MARQUEE_STACK } from "@/config/siteContent";
+
+const STACK = MARQUEE_STACK;
 
 export default function Marquee() {
   const ref = useRef<HTMLDivElement>(null);

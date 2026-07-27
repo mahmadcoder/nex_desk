@@ -13,21 +13,10 @@ export default function CTA() {
       <Reveal direction="zoom" distance={24}>
         <div className="relative overflow-hidden rounded-3xl bg-ink-900 px-8 py-20 text-center sm:px-16">
 
-          {/* subtle grid texture overlay */}
+          {/* lime glow blob — subtle ambient light */}
           <div
             aria-hidden
-            className="pointer-events-none absolute inset-0 opacity-[0.04]"
-            style={{
-              backgroundImage:
-                "linear-gradient(var(--color-bone-400) 1px, transparent 1px), linear-gradient(90deg, var(--color-bone-400) 1px, transparent 1px)",
-              backgroundSize: "40px 40px",
-            }}
-          />
-
-          {/* lime glow blob */}
-          <div
-            aria-hidden
-            className="pointer-events-none absolute left-1/2 top-0 h-56 w-96 -translate-x-1/2 -translate-y-1/2 rounded-full bg-lime-400 opacity-[0.14] blur-3xl animate-pulse"
+            className="pointer-events-none absolute left-1/2 top-0 h-44 w-80 -translate-x-1/2 -translate-y-1/2 rounded-full bg-lime-400 opacity-[0.06] blur-[90px] animate-pulse"
           />
 
           {/* label */}

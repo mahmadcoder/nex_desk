@@ -14,13 +14,10 @@ import { textures } from "@/lib/images";
  * a single studio that covers the whole journey, not four disconnected cards.
  */
 
-const AREAS = [
-  {
-    key: "design",
-    label: "Strategy & design",
-    line: "Brand, UX and interfaces designed around what your customer is trying to do.",
-    points: ["Brand & identity systems", "UX research and flows", "High-fidelity UI in Figma"],
-    href: "/services/web-design",
+import { STUDIO_DISCIPLINES } from "@/config/siteContent";
+
+const VISUAL_CONFIG: Record<string, { tex: string; visual: React.ReactNode }> = {
+  design: {
     tex: textures.blue,
     visual: (
       <BrowserFrame url="figma.com/nexdesk">
@@ -33,12 +30,7 @@ const AREAS = [
       </BrowserFrame>
     ),
   },
-  {
-    key: "build",
-    label: "Web & app build",
-    line: "Fast, secure sites, web apps and mobile apps built to your exact spec.",
-    points: ["Next.js & React web apps", "iOS / Android from one codebase", "Custom CMS & admin panels"],
-    href: "/services/web-development",
+  build: {
     tex: textures.dark,
     visual: (
       <BrowserFrame url="app.yourbrand.com">
@@ -46,12 +38,7 @@ const AREAS = [
       </BrowserFrame>
     ),
   },
-  {
-    key: "launch",
-    label: "Launch & handover",
-    line: "Deployment, domains and a handover pack that transfers everything to you.",
-    points: ["CI/CD & cloud setup", "Signed agreement & handover PDFs", "You own all the code"],
-    href: "/services/hosting-devops",
+  launch: {
     tex: textures.green,
     visual: (
       <div className="grid place-items-center rounded-xl border border-ink-600 p-8" style={{ background: "var(--color-ink-800)" }}>
@@ -59,12 +46,7 @@ const AREAS = [
       </div>
     ),
   },
-  {
-    key: "grow",
-    label: "Growth & SEO",
-    line: "Once it's live, the SEO, ads and analytics that actually move the numbers.",
-    points: ["Technical & local SEO", "Google / Meta ad campaigns", "GA4, funnels & CRO"],
-    href: "/services/seo",
+  grow: {
     tex: textures.blue,
     visual: (
       <div className="overflow-hidden rounded-xl border border-ink-600">
@@ -72,7 +54,13 @@ const AREAS = [
       </div>
     ),
   },
-];
+};
+
+const AREAS = STUDIO_DISCIPLINES.map((item) => ({
+  ...item,
+  tex: VISUAL_CONFIG[item.key]?.tex ?? textures.dark,
+  visual: VISUAL_CONFIG[item.key]?.visual ?? null,
+}));
 
 export default function Studio() {
   const [active, setActive] = useState(1);
@@ -103,7 +91,7 @@ export default function Studio() {
 
       <div className="mt-14 grid gap-6 lg:grid-cols-[0.9fr_1.1fr]">
         {/* selector */}
-        <div className="flex flex-col divide-y divide-ink-600 border-y border-ink-600">
+        <div className="flex flex-col divide-y divide-ink-600 border-t border-ink-600">
           {AREAS.map((area, i) => {
             const on = i === active;
             return (

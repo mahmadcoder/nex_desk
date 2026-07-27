@@ -1,9 +1,9 @@
 "use client";
 
-export type ServiceFaq = {
-  question: string;
-  answer: string;
-};
+import type { ServiceFaq } from "@/types/site";
+export type { ServiceFaq };
+
+import { getServiceFallbackFaqs } from "@/config/siteContent";
 
 export default function ServiceFaqAccordion({
   faqs,
@@ -12,24 +12,7 @@ export default function ServiceFaqAccordion({
   faqs?: ServiceFaq[];
   serviceTitle: string;
 }) {
-  const defaultFaqs: ServiceFaq[] = [
-    {
-      question: `How long does delivery take for ${serviceTitle}?`,
-      answer: `Most ${serviceTitle} projects ship within 2 to 4 weeks depending on scope, features, and integrations. We set clear weekly milestones so you see live progress every step of the way.`,
-    },
-    {
-      question: "Do I get 100% code ownership and asset copyright?",
-      answer: "Yes. Full ownership of all source code, Figma design files, graphics, and account credentials transfers entirely to you once the final payment clears.",
-    },
-    {
-      question: "What happens after the project launches?",
-      answer: "Every project includes 30 days of complimentary post-launch support for bug fixes. After that, an optional monthly retainer covers regular updates, security monitoring, and allocated development hours.",
-    },
-    {
-      question: "Can I upgrade my package or request custom features during development?",
-      answer: "Absolutely. We are agile and flexible. You can request scope additions at any time, and we provide transparent written estimates before building extra features.",
-    },
-  ];
+  const defaultFaqs: ServiceFaq[] = getServiceFallbackFaqs(serviceTitle);
 
   const activeFaqs = faqs && faqs.length > 0 ? faqs : defaultFaqs;
 

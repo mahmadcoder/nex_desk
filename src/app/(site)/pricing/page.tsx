@@ -64,7 +64,7 @@ const TIERS = [
   },
 ];
 
-import { demoServices } from "@/lib/demo";
+import { demoServices } from "@/lib/agencyData";
 
 export default async function PricingPage() {
   const supabase = await createClient();
@@ -95,10 +95,27 @@ export default async function PricingPage() {
           Every price here is a starting point. Your exact quote depends on scope — and
           you get it in writing, as a fixed number, before any work begins.
         </p>
+
+        {/* trust badges */}
+        <div className="mt-8 flex flex-wrap gap-2.5">
+          {[
+            "✓ 100% Code Ownership",
+            "✓ 50/50 Milestone Split",
+            "✓ Zero Hidden Fees",
+            "✓ 90+ Lighthouse Speed Guarantee",
+          ].map((pill) => (
+            <span
+              key={pill}
+              className="mono-tag rounded-lg bg-ink-800/80 border border-ink-600 px-3 py-1.5 text-bone-200 text-xs"
+            >
+              {pill}
+            </span>
+          ))}
+        </div>
       </section>
 
       {/* signature tiers */}
-      <section className="shell pb-8">
+      <section className="shell pb-12">
         <Reveal className="grid gap-5 lg:grid-cols-3">
           {TIERS.map((t) => (
             <div
@@ -142,32 +159,30 @@ export default async function PricingPage() {
             </div>
           ))}
         </Reveal>
-
-        <p className="mono-tag mt-6 text-center">
-          all tiers tailored to your exact requirements · priced in USD (invoices payable in USD, EUR, GBP or AED)
-        </p>
       </section>
 
-      {/* per-service starting prices, as cards not a table */}
+      {/* per-service starting prices */}
       {Object.entries(grouped).map(([category, items]) => (
-        <section key={category} className="shell border-t border-ink-600 py-14">
+        <section key={category} className="shell py-10">
           <p className="drawer-label">{category}</p>
-          <Reveal className="mt-8 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+          <Reveal className="mt-6 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
             {items!.map((s) => (
               <Link
                 key={s.slug}
                 href={`/services/${s.slug}`}
-                className="card group flex items-center justify-between gap-4 p-5 hover:border-lime-400/40"
+                className="card group flex items-start justify-between gap-4 p-6 transition-all duration-200 hover:border-lime-400/40 hover:bg-ink-800/90"
               >
-                <div className="min-w-0">
-                  <h3 className="truncate text-lg">{s.title}</h3>
-                  <p className="mono-tag mt-1">{s.duration_note}</p>
+                <div className="min-w-0 flex-1">
+                  <h3 className="text-lg font-medium leading-snug text-bone-50 group-hover:text-lime-400 transition-colors">
+                    {s.title}
+                  </h3>
+                  <p className="mono-tag mt-2.5">{s.duration_note}</p>
                 </div>
-                <div className="shrink-0 text-right">
-                  <p className="text-sm" style={{ fontFamily: "var(--font-mono)" }}>
+                <div className="shrink-0 text-right pt-0.5">
+                  <p className="text-sm font-semibold text-bone-50" style={{ fontFamily: "var(--font-mono)" }}>
                     {s.starting_at ? `from ${money(Number(s.starting_at), s.currency ?? "USD")}` : "on request"}
                   </p>
-                  <span className="mono-tag text-lime-400 transition-transform group-hover:translate-x-0.5">
+                  <span className="mono-tag inline-block mt-2 text-lime-400 transition-transform group-hover:translate-x-1">
                     details →
                   </span>
                 </div>
@@ -176,23 +191,6 @@ export default async function PricingPage() {
           </Reveal>
         </section>
       ))}
-
-      {/* reassurance band */}
-      <section className="shell py-16">
-        <div className="grid gap-5 md:grid-cols-3">
-          {[
-            ["50 / 50", "Standard split", "Half to start, half on delivery. Bigger builds split across milestones."],
-            ["No surprises", "Change orders", "Anything outside scope is quoted and approved before we touch it."],
-            ["You own it", "Full handover", "Source code, design files and accounts transfer to you on final payment."],
-          ].map(([big, label, body]) => (
-            <div key={label} className="card p-7">
-              <p className="text-2xl tracking-tight" style={{ fontFamily: "var(--font-display)" }}>{big}</p>
-              <p className="mono-tag mt-2">{label}</p>
-              <p className="mt-3 text-sm text-bone-400">{body}</p>
-            </div>
-          ))}
-        </div>
-      </section>
 
       <CTA />
     </>
