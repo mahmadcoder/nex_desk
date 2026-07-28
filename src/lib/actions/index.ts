@@ -153,6 +153,13 @@ export async function updateClientPermissions(id: string, permissions: Record<st
   revalidatePath(`/${ADMIN}/clients/${id}`);
 }
 
+export async function getClientEmailByToken(token: string) {
+  if (!token) return null;
+  const db = createAdminClient();
+  const { data } = await db.from("clients").select("email").eq("portal_access_token", token).maybeSingle();
+  return data?.email || null;
+}
+
 export async function ensureClientPortalAccount(clientId: string, customPassword?: string) {
   const me = await requireStaff();
   const db = createAdminClient();
@@ -197,13 +204,48 @@ export async function ensureClientPortalAccount(clientId: string, customPassword
     }
   }
 
-  const token = client.portal_access_token || Math.random().toString(36).substring(2) + Date.now().toString(36);
+  const token = client.portal_access_token || "nd_tok_" + Math.random().toString(36).substring(2) + Date.now().toString(36);
 
   const { data: updated } = await db.from("clients").update({
     profile_id: profileId,
     portal_password_preview: password,
     portal_access_token: token,
   }).eq("id", clientId).select().single();
+
+  // Send Welcome & Credentials Email to Client AND Notice to Admin
+  try {
+    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://nex-desk-tech.vercel.app";
+    const portalUrl = `${siteUrl}/portal/login?key=${token}`;
+    const adminEmail = process.env.GMAIL_USER || "ahmadsadiq.dev@gmail.com";
+
+    // 1. Welcome Email to Client
+    await sendEmail({
+      templateKey: "client_welcome",
+      to: client.email,
+      vars: {
+        client_name: client.name,
+        client_email: client.email,
+        client_password: password,
+        portal_url: portalUrl,
+      },
+      bodyOverride: `Hi ${client.name},\n\nWelcome to Nex Desk! Your Client Portal account has been created.\n\nYou can log in to view project milestones, deliverables, invoices, and documents at any time:\n\n• Portal Link: ${portalUrl}\n• Email: ${client.email}\n• Password: ${password}\n\nWarm regards,\nThe Nex Desk Team`,
+      subjectOverride: `Welcome to Nex Desk — Your Client Portal Credentials`,
+    });
+
+    // 2. Notification Email to Admin
+    await sendEmail({
+      templateKey: "admin_client_created_notice",
+      to: adminEmail,
+      vars: {
+        client_name: client.name,
+        client_email: client.email,
+      },
+      bodyOverride: `Hello Admin,\n\nA new client account has been created on Nex Desk:\n\n• Name: ${client.name}\n• Email: ${client.email}\n• Company: ${client.company || "N/A"}\n• Date: ${new Date().toLocaleString()}\n\nYou can manage this client from your Admin Control Center.`,
+      subjectOverride: `New Client Created: ${client.name}`,
+    });
+  } catch (emailErr) {
+    console.error("Error sending client welcome emails:", emailErr);
+  }
 
   await audit(me.id, "client.credentials", "clients", clientId, { email: client.email });
   revalidatePath(`/${ADMIN}/clients`);

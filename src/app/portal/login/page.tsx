@@ -7,6 +7,8 @@ import { toast } from "sonner";
 import { Logo } from "@/components/brand/Logo";
 import { Eye, EyeOff } from "lucide-react";
 
+import { getClientEmailByToken } from "@/lib/actions";
+
 const field =
   "w-full rounded-lg border border-ink-500 bg-ink-800 px-4 py-3 text-sm text-bone-50 placeholder:text-bone-600 focus:border-lime-400 focus:outline-none transition-colors";
 
@@ -19,8 +21,15 @@ function PortalLoginForm() {
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
-    const queryEmail = searchParams.get("email");
-    if (queryEmail) setEmail(queryEmail);
+    const queryKey = searchParams.get("key");
+    if (queryKey) {
+      getClientEmailByToken(queryKey).then((resolved) => {
+        if (resolved) setEmail(resolved);
+      });
+    } else {
+      const queryEmail = searchParams.get("email");
+      if (queryEmail) setEmail(queryEmail);
+    }
 
     if (searchParams.get("logged_out") === "1") {
       toast.success("Successfully logged out.");

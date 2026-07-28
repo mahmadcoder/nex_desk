@@ -4,7 +4,8 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { ensureClientPortalAccount, updateClientPermissions, deleteClient } from "@/lib/actions";
-import { Key, Copy, Eye, EyeOff, Shield, Trash2, CheckSquare, Square } from "lucide-react";
+import { Key, Copy, Eye, EyeOff, Shield, Trash2, CheckSquare, Square, Edit3 } from "lucide-react";
+import ClientDialog from "@/components/admin/ClientDialog";
 
 type ClientPermissions = {
   show_financials?: boolean;
@@ -43,9 +44,10 @@ export default function ClientManagerCard({
 
   const [perms, setPerms] = useState<ClientPermissions>(defaultPerms);
 
+  const tokenParam = client.portal_access_token ? `key=${client.portal_access_token}` : `email=${encodeURIComponent(client.email)}`;
   const portalLink = typeof window !== "undefined"
-    ? `${window.location.origin}/portal/login?email=${encodeURIComponent(client.email)}`
-    : `/portal/login?email=${encodeURIComponent(client.email)}`;
+    ? `${window.location.origin}/portal/login?${tokenParam}`
+    : `/portal/login?${tokenParam}`;
 
   const copyLink = () => {
     navigator.clipboard.writeText(portalLink);
@@ -110,6 +112,14 @@ export default function ClientManagerCard({
         </div>
 
         <div className="flex flex-wrap gap-2">
+          <ClientDialog
+            clientToEdit={client}
+            trigger={
+              <button className="btn h-9 text-xs border-ink-600 bg-ink-800 hover:text-lime-400 cursor-pointer">
+                <Edit3 className="mr-1.5 h-3.5 w-3.5" /> Edit Client
+              </button>
+            }
+          />
           <button className="btn h-9 text-xs" onClick={copyCredentials}>
             <Copy className="mr-1.5 h-3.5 w-3.5" /> Copy Credentials
           </button>

@@ -30,8 +30,28 @@ export const PLATFORMS = [
   { id: "other", label: "Other (Type Custom Platform…)" },
 ];
 
-export default function ClientDialog() {
-  const [open, setOpen] = useState(false);
+export default function ClientDialog({
+  clientToEdit,
+  trigger,
+  isOpen: externalIsOpen,
+  onClose: externalOnClose,
+}: {
+  clientToEdit?: any;
+  trigger?: React.ReactNode;
+  isOpen?: boolean;
+  onClose?: () => void;
+}) {
+  const [internalOpen, setInternalOpen] = useState(false);
+  const isControlled = externalIsOpen !== undefined;
+  const open = isControlled ? externalIsOpen : internalOpen;
+  const setOpen = (val: boolean) => {
+    if (isControlled) {
+      if (!val && externalOnClose) externalOnClose();
+    } else {
+      setInternalOpen(val);
+    }
+  };
+
   const [pending, start] = useTransition();
   const router = useRouter();
 
@@ -60,6 +80,26 @@ export default function ClientDialog() {
     source: "website",
     custom_source: "",
   });
+
+  useEffect(() => {
+    if (clientToEdit) {
+      const matchCountry = COUNTRIES.find((c) => c.name.toLowerCase() === (clientToEdit.country || "").toLowerCase()) || defaultCountry;
+      setSelectedCountry(matchCountry);
+      setF({
+        name: clientToEdit.name || "",
+        email: clientToEdit.email || "",
+        phone: clientToEdit.phone || "",
+        company: clientToEdit.company || "",
+        city: clientToEdit.city || "",
+        country: clientToEdit.country || matchCountry.name,
+        address: clientToEdit.address || "",
+        tax_id: clientToEdit.tax_id || "",
+        preferred_currency: clientToEdit.preferred_currency || matchCountry.currency,
+        source: clientToEdit.source || "website",
+        custom_source: "",
+      });
+    }
+  }, [clientToEdit]);
 
   const set = (k: string, v: string) => setF((p) => ({ ...p, [k]: v }));
 
@@ -159,22 +199,28 @@ export default function ClientDialog() {
 
     start(async () => {
       try {
-        await saveClient(null, payload);
-        toast.success(`${f.name} added successfully! Portal credentials generated.`);
+        await saveClient(clientToEdit?.id || null, payload);
+        toast.success(
+          clientToEdit?.id
+            ? `Updated ${f.name}'s details successfully!`
+            : `${f.name} added successfully! Portal credentials emailed.`
+        );
         setOpen(false);
-        setF({
-          name: "",
-          email: "",
-          phone: "",
-          company: "",
-          city: "",
-          country: defaultCountry.name,
-          address: "",
-          tax_id: "",
-          preferred_currency: defaultCountry.currency,
-          source: "website",
-          custom_source: "",
-        });
+        if (!clientToEdit?.id) {
+          setF({
+            name: "",
+            email: "",
+            phone: "",
+            company: "",
+            city: "",
+            country: defaultCountry.name,
+            address: "",
+            tax_id: "",
+            preferred_currency: defaultCountry.currency,
+            source: "website",
+            custom_source: "",
+          });
+        }
         router.refresh();
       } catch {
         toast.error("Couldn't save that client. Please check details.");
@@ -183,6 +229,9 @@ export default function ClientDialog() {
   };
 
   if (!open) {
+    if (trigger) {
+      return <span onClick={() => setOpen(true)}>{trigger}</span>;
+    }
     return (
       <button className="btn btn-primary h-10 px-4 cursor-pointer hover:cursor-pointer" onClick={() => setOpen(true)}>
         + Add client
@@ -203,7 +252,9 @@ export default function ClientDialog() {
         {/* Top Header with Close Icon */}
         <div className="flex items-start justify-between border-b border-ink-600 pb-4">
           <div>
-            <h2 className="text-xl font-semibold text-bone-50">Add New Client</h2>
+            <h2 className="text-xl font-semibold text-bone-50">
+              {clientToEdit?.id ? `Edit ${clientToEdit.name}` : "Add New Client"}
+            </h2>
             <p className="mt-1 text-xs text-bone-400">
               Details here appear on official agreements, invoices, and automated email communications.
             </p>

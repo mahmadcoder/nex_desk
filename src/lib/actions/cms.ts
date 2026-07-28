@@ -497,6 +497,20 @@ export async function uploadClientSignedDocument(data: {
 
   if (error) throw new Error(error.message || "Failed to upload document.");
 
+  try {
+    const adminEmail = process.env.GMAIL_USER || "ahmadsadiq.dev@gmail.com";
+    const { data: clientObj } = await db.from("clients").select("name, email").eq("id", data.clientId).maybeSingle();
+    await sendEmail({
+      templateKey: "admin_document_uploaded_notice",
+      to: adminEmail,
+      vars: { client_name: clientObj?.name || "Client", doc_title: data.title },
+      bodyOverride: `Hello Admin,\n\nClient "${clientObj?.name || "A client"}" (${clientObj?.email || ""}) has uploaded a signed document:\n\n• Title: ${data.title}\n• Document Type: ${data.documentType || "Signed Agreement"}\n• Date: ${new Date().toLocaleString()}\n\nYou can view and download this document from your Admin Document Center (/nx-control/documents).`,
+      subjectOverride: `Signed Document Uploaded: ${data.title} by ${clientObj?.name || "Client"}`,
+    });
+  } catch (emailErr) {
+    console.error("Error sending document upload notice email:", emailErr);
+  }
+
   revalidatePath("/portal");
   revalidatePath(`/${ADMIN}/documents`);
   revalidatePath(`/${ADMIN}/clients/${data.clientId}`);
@@ -529,6 +543,22 @@ export async function submitDailyWorkLog(data: {
   }).select().single();
 
   if (error) throw new Error(error.message || "Failed to submit daily work log.");
+
+  try {
+    const adminEmail = process.env.GMAIL_USER || "ahmadsadiq.dev@gmail.com";
+    await sendEmail({
+      templateKey: "admin_work_log_notice",
+      to: adminEmail,
+      vars: {
+        employee_name: data.employee_name || "Staff Member",
+        project_title: data.project_title || "General Task",
+      },
+      bodyOverride: `Hello Admin,\n\nA new Daily Work Log has been submitted:\n\n• Staff Member: ${data.employee_name || "N/A"}\n• Assigned Project: ${data.project_title || "N/A"}\n• Work Date: ${data.work_date}\n• Hours Spent: ${data.hours_spent} hrs\n• Tasks Completed:\n${data.tasks_completed}${data.blockers ? `\n\n• Blockers / Assistance Needed:\n${data.blockers}` : ""}\n\nYou can review all daily logs at /nx-control/daily-logs.`,
+      subjectOverride: `Daily Work Log Submitted by ${data.employee_name || "Staff Member"} (${data.work_date})`,
+    });
+  } catch (emailErr) {
+    console.error("Error sending work log notice email:", emailErr);
+  }
 
   revalidatePath(`/${ADMIN}/daily-logs`);
   revalidatePath(`/${ADMIN}/employees`);

@@ -41,16 +41,20 @@ export async function POST(req: Request) {
       },
     });
 
-    // 2. Send Notification Email to Owner
-    const { data: settings } = await db.from("settings").select("email").eq("id", 1).single();
-    if (settings?.email) {
+    // 2. Send Notification Email to Admin / Owner
+    const { data: settings } = await db.from("settings").select("email").eq("id", 1).maybeSingle();
+    const adminEmail = settings?.email || process.env.GMAIL_USER || "ahmadsadiq.dev@gmail.com";
+
+    try {
       await sendEmail({
         templateKey: "internal_new_subscriber",
-        to: settings.email,
-        subjectOverride: `New Newsletter Subscriber — ${email}`,
-        bodyOverride: `Great news! Someone just subscribed to the Nex Desk newsletter.\n\nSubscriber Email: ${email}\nSubscribed at: ${new Date().toLocaleString()}\nSource: Website Footer`,
+        to: adminEmail,
+        subjectOverride: `New Newsletter Subscriber: ${email}`,
+        bodyOverride: `Great news!\n\nA new user/client just subscribed to the Nex Desk newsletter:\n\n• Subscriber Email: ${email}\n• Subscribed At: ${new Date().toLocaleString()}\n• Source: Website Footer / Agency Site\n\nYou can view all subscribers from your Admin Control Center (/nx-control/subscribers).`,
         vars: {},
       });
+    } catch (adminEmailErr) {
+      console.error("Error sending admin subscriber notice email:", adminEmailErr);
     }
 
     return NextResponse.json({ ok: true, message: "Thank you for subscribing! Check your inbox for confirmation." });
