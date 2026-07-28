@@ -7,6 +7,7 @@ import { createClient, createAdminClient } from "@/lib/supabase/server";
 import { sendEmail } from "@/lib/email/send";
 import type { DocType } from "@/lib/pdf/generate";
 import { getLiveExchangeRates, convertCurrency, DEFAULT_RATES } from "@/lib/currency";
+import { getSiteBaseUrl } from "@/lib/utils";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
@@ -213,8 +214,9 @@ export async function ensureClientPortalAccount(clientId: string, customPassword
   }).eq("id", clientId).select().single();
 
   // Send Welcome & Credentials Email to Client AND Notice to Admin
+  // Send Welcome & Credentials Email to Client AND Notice to Admin
   try {
-    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://nex-desk-tech.vercel.app";
+    const siteUrl = getSiteBaseUrl();
     const portalUrl = `${siteUrl}/portal/login?key=${token}`;
     const adminEmail = process.env.GMAIL_USER || "ahmadsadiq.dev@gmail.com";
 
@@ -228,7 +230,7 @@ export async function ensureClientPortalAccount(clientId: string, customPassword
         client_password: password,
         portal_url: portalUrl,
       },
-      bodyOverride: `Hi ${client.name},\n\nWelcome to Nex Desk! Your Client Portal account has been created.\n\nYou can log in to view project milestones, deliverables, invoices, and documents at any time:\n\n• Portal Link: ${portalUrl}\n• Email: ${client.email}\n• Password: ${password}\n\nWarm regards,\nThe Nex Desk Team`,
+      bodyOverride: `Dear ${client.name},\n\nWelcome to Nex Desk Software Agency. Your Client Portal account is now active.\n\nThrough your portal, you can monitor project progress, review deliverables, download contracts & invoices, and communicate with your assigned engineering team:\n\n• Portal Access Link: ${portalUrl}\n• Registered Email: ${client.email}\n• Secure Password: ${password}\n\nClick the button below or link above to log in directly to your client dashboard.\n\nWarm regards,\nThe Nex Desk Leadership Team`,
       subjectOverride: `Welcome to Nex Desk — Your Client Portal Credentials`,
     });
 
@@ -240,8 +242,8 @@ export async function ensureClientPortalAccount(clientId: string, customPassword
         client_name: client.name,
         client_email: client.email,
       },
-      bodyOverride: `Hello Admin,\n\nA new client account has been created on Nex Desk:\n\n• Name: ${client.name}\n• Email: ${client.email}\n• Company: ${client.company || "N/A"}\n• Date: ${new Date().toLocaleString()}\n\nYou can manage this client from your Admin Control Center.`,
-      subjectOverride: `New Client Created: ${client.name}`,
+      bodyOverride: `Hello Admin,\n\nA new client account has been created on Nex Desk:\n\n• Name: ${client.name}\n• Email: ${client.email}\n• Company: ${client.company || "N/A"}\n• Date: ${new Date().toLocaleString()}\n\nYou can manage this client from your Admin Control Center (${siteUrl}/nx-control/clients/${clientId}).`,
+      subjectOverride: `New Client Account Provisioned: ${client.name}`,
     });
   } catch (emailErr) {
     console.error("Error sending client welcome emails:", emailErr);
@@ -319,7 +321,7 @@ export async function lockDeal(dealData: any, options: { sendEmail: boolean } = 
 
 
   if (options.sendEmail) {
-    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://nexdesk.com";
+    const siteUrl = getSiteBaseUrl();
     const portalUrl = `${siteUrl}/portal/login`;
     const passwordMsg = clientAcc?.portal_password_preview
       ? `\n\nYour Portal Credentials:\nEmail: ${deal.clients.email}\nPassword: ${clientAcc.portal_password_preview}\nLogin link: ${portalUrl}`

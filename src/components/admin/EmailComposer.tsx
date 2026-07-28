@@ -3,7 +3,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { sendClientEmail } from "@/lib/actions";
-import { fillTemplate } from "@/lib/utils";
+import { fillTemplate, getSiteBaseUrl } from "@/lib/utils";
 
 import CustomSelect from "@/components/ui/CustomSelect";
 
@@ -28,7 +28,7 @@ export default function EmailComposer({
     client_name: client?.name ?? "there",
     company_name: client?.company ?? "",
     project_name: "your project",
-    portal_url: `${process.env.NEXT_PUBLIC_SITE_URL ?? ""}/portal`,
+    portal_url: `${getSiteBaseUrl()}/portal`,
     sender_name: "Nex Desk",
   };
 

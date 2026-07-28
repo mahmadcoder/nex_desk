@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { createAdminClient } from "@/lib/supabase/server";
 import { sendEmail } from "@/lib/email/send";
+import { getSiteBaseUrl } from "@/lib/utils";
 
 const schema = z.object({
   name: z.string().min(2),
@@ -35,7 +36,7 @@ export async function POST(req: Request) {
       to: lead.email,
       vars: {
         client_name: lead.name.split(" ")[0],
-        portal_url: process.env.NEXT_PUBLIC_SITE_URL ?? "",
+        portal_url: `${getSiteBaseUrl()}/contact`,
       },
     });
 

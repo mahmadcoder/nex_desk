@@ -122,37 +122,128 @@ export async function sendEmail(args: SendArgs) {
   }
 }
 
-/** Plain, readable HTML that survives Gmail, Outlook and Apple Mail with RTL support for Arabic. */
+import { getSiteBaseUrl } from "@/lib/utils";
+
+/** Ultra-premium HTML email layout with dark glassmorphism, responsive CTA buttons, and executive typography. */
 function renderHtml(subject: string, body: string, lang: string = "en") {
   const isRtl = lang === "ar";
   const dirAttr = isRtl ? 'dir="rtl"' : 'dir="ltr"';
   const alignStyle = isRtl ? 'text-align:right' : 'text-align:left';
+  const siteUrl = getSiteBaseUrl();
 
+  // Process body into structured HTML cards, paragraphs, and CTA buttons
   const paragraphs = body
     .split("\n\n")
-    .map((p) => `<p style="margin:0 0 16px;white-space:pre-line;${alignStyle}">${escapeHtml(p)}</p>`)
+    .map((block) => {
+      const trimmed = block.trim();
+      if (!trimmed) return "";
+
+      // Check if block contains key-value bullets like "• Email: ..."
+      if (trimmed.includes("• ") || trimmed.startsWith("- ")) {
+        const items = trimmed
+          .split("\n")
+          .map((line) => {
+            const cleanLine = line.replace(/^[•\-]\s*/, "").trim();
+            if (cleanLine.includes("http://") || cleanLine.includes("https://")) {
+              const urlMatch = cleanLine.match(/(https?:\/\/[^\s]+)/);
+              if (urlMatch) {
+                const url = urlMatch[0];
+                const label = cleanLine.split(":")[0]?.trim() || "Access Link";
+                return `<div style="margin-bottom:12px;"><span style="color:#A09E96;font-size:12px;display:block;margin-bottom:4px;font-family:-apple-system,BlinkMacSystemFont,Inter,sans-serif;">${escapeHtml(label)}:</span><a href="${url}" target="_blank" style="display:inline-block;background:#D0FF4E;color:#09090D;font-weight:700;padding:12px 24px;border-radius:8px;text-decoration:none;font-size:13px;font-family:-apple-system,BlinkMacSystemFont,Inter,sans-serif;">Access Portal Dashboard &rarr;</a></div>`;
+              }
+            }
+            if (cleanLine.includes(":")) {
+              const parts = cleanLine.split(":");
+              const key = parts[0].trim();
+              const val = parts.slice(1).join(":").trim();
+              return `<div style="margin-bottom:8px;"><span style="color:#8A877F;font-size:12px;display:inline-block;min-width:110px;">${escapeHtml(key)}:</span><strong style="color:#F4F1EA;font-size:13px;font-family:ui-monospace,monospace;">${escapeHtml(val)}</strong></div>`;
+            }
+            return `<div style="margin-bottom:6px;color:#D0FF4E;font-size:13px;">&bull; ${escapeHtml(cleanLine)}</div>`;
+          })
+          .join("");
+
+        return `<div style="background:#13131A;border:1px solid #242432;border-radius:10px;padding:18px 20px;margin:20px 0;${alignStyle}">${items}</div>`;
+      }
+
+      // Check if block contains standalone URL link
+      if ((trimmed.includes("http://") || trimmed.includes("https://")) && !trimmed.includes("<a")) {
+        const urlMatch = trimmed.match(/(https?:\/\/[^\s]+)/);
+        if (urlMatch) {
+          const url = urlMatch[0];
+          const textBefore = trimmed.replace(url, "").trim();
+          return `${textBefore ? `<p style="margin:0 0 14px;white-space:pre-line;color:#D4D0C5;font-size:14px;line-height:1.6;${alignStyle}">${escapeHtml(textBefore)}</p>` : ""}<div style="margin:20px 0;${alignStyle}"><a href="${url}" target="_blank" style="display:inline-block;background:#D0FF4E;color:#09090D;font-weight:700;padding:13px 28px;border-radius:8px;text-decoration:none;font-size:14px;letter-spacing:-0.2px;box-shadow:0 4px 16px rgba(208,255,78,0.25);">Click Here to Continue &rarr;</a></div>`;
+        }
+      }
+
+      return `<p style="margin:0 0 16px;white-space:pre-line;color:#D4D0C5;font-size:14px;line-height:1.65;${alignStyle}">${escapeHtml(trimmed)}</p>`;
+    })
     .join("");
 
   return `<!DOCTYPE html>
-<html ${dirAttr}><body style="margin:0;padding:0;background:#F4F1EA;${alignStyle}">
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#F4F1EA;padding:32px 16px" ${dirAttr}>
-<tr><td align="center">
-  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;background:#FFFFFF;border:1px solid #E4E0D4;border-radius:12px;overflow:hidden;${alignStyle}" ${dirAttr}>
-    <tr><td style="background:#0B0B0F;padding:20px 28px;${alignStyle}">
-      <span style="color:#F4F1EA;font:500 17px/1 -apple-system,Segoe UI,Inter,sans-serif;letter-spacing:-.4px">Nex</span><span style="color:#8A877F;font:500 17px/1 -apple-system,Segoe UI,Inter,sans-serif;letter-spacing:-.4px">Desk</span>
-      <span style="float:${isRtl ? 'left' : 'right'};color:#D0FF4E;font:400 11px/1.6 ui-monospace,monospace;letter-spacing:1.5px;text-transform:uppercase">software agency</span>
-    </td></tr>
-    <tr><td style="padding:32px 28px;color:#1B1B22;font:400 15px/1.65 -apple-system,Segoe UI,Inter,sans-serif;${alignStyle}">
-      <h1 style="margin:0 0 20px;font-size:20px;font-weight:500;letter-spacing:-.3px;color:#0B0B0F;${alignStyle}">${escapeHtml(subject)}</h1>
-      ${paragraphs}
-    </td></tr>
-    <tr><td style="padding:18px 28px;border-top:1px solid #E4E0D4;color:#75736C;font:400 12px/1.6 -apple-system,Segoe UI,Inter,sans-serif;${alignStyle}">
-      Nex Desk · <a href="mailto:ahmadsadiq.dev@gmail.com" style="color:#75736C">ahmadsadiq.dev@gmail.com</a> ·
-      <a href="${process.env.NEXT_PUBLIC_SITE_URL ?? "#"}" style="color:#75736C">nexdesk.agency</a>
-    </td></tr>
+<html ${dirAttr}>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>${escapeHtml(subject)}</title>
+</head>
+<body style="margin:0;padding:0;background:#09090D;color:#F4F1EA;font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Inter,sans-serif;${alignStyle}">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#09090D;padding:40px 16px;" ${dirAttr}>
+    <tr>
+      <td align="center">
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:580px;background:#0F0F16;border:1px solid #1E1E2C;border-radius:16px;overflow:hidden;box-shadow:0 20px 40px rgba(0,0,0,0.6);${alignStyle}" ${dirAttr}>
+          
+          <!-- Executive Brand Header -->
+          <tr>
+            <td style="background:#09090D;padding:24px 32px;border-bottom:1px solid #1E1E2C;${alignStyle}">
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+                <tr>
+                  <td align="${isRtl ? "right" : "left"}">
+                    <span style="font-size:22px;font-weight:800;letter-spacing:-0.5px;color:#FFFFFF;font-family:-apple-system,BlinkMacSystemFont,Inter,sans-serif;">
+                      Nex<span style="color:#D0FF4E;">Desk</span>
+                    </span>
+                  </td>
+                  <td align="${isRtl ? "left" : "right"}">
+                    <span style="background:rgba(208,255,78,0.12);color:#D0FF4E;border:1px solid rgba(208,255,78,0.25);font-size:10px;font-weight:700;padding:5px 12px;border-radius:20px;text-transform:uppercase;letter-spacing:1.2px;font-family:ui-monospace,monospace;">
+                      SOFTWARE AGENCY
+                    </span>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+          <!-- Main Email Content Body -->
+          <tr>
+            <td style="padding:36px 32px;${alignStyle}">
+              <h1 style="margin:0 0 24px;font-size:22px;font-weight:700;letter-spacing:-0.4px;color:#FFFFFF;line-height:1.3;${alignStyle}">
+                ${escapeHtml(subject)}
+              </h1>
+              ${paragraphs}
+            </td>
+          </tr>
+
+          <!-- Sleek Agency Footer -->
+          <tr>
+            <td style="padding:22px 32px;background:#09090D;border-top:1px solid #1E1E2C;color:#75736C;font-size:12px;line-height:1.6;${alignStyle}">
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+                <tr>
+                  <td align="${isRtl ? "right" : "left"}" style="color:#8A877F;">
+                    &copy; ${new Date().getFullYear()} Nex Desk Software Agency. All rights reserved.
+                  </td>
+                  <td align="${isRtl ? "left" : "right"}">
+                    <a href="${siteUrl}" target="_blank" style="color:#D0FF4E;text-decoration:none;font-weight:600;">nexdesk.agency &rarr;</a>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+        </table>
+      </td>
+    </tr>
   </table>
-</td></tr></table>
-</body></html>`;
+</body>
+</html>`;
 }
 
 const escapeHtml = (s: string) =>
