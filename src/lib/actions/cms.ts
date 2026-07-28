@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { cookies } from "next/headers";
 import { createClient, createAdminClient } from "@/lib/supabase/server";
 
 const ADMIN = process.env.ADMIN_PATH || "nx-control";
@@ -8,23 +9,39 @@ const ADMIN = process.env.ADMIN_PATH || "nx-control";
 async function requireStaff() {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
-  if (!user) throw new Error("Not signed in");
-  const { data: profile } = await supabase.from("profiles")
-    .select("id, role, is_active").eq("id", user.id).single();
-  if (!profile?.is_active || !["owner", "admin", "staff"].includes(profile.role)) {
-    throw new Error("Not authorised");
+
+  if (user) {
+    const { data: profile } = await supabase.from("profiles")
+      .select("id, role, is_active").eq("id", user.id).maybeSingle();
+    if (profile?.is_active && ["owner", "admin", "staff"].includes(profile.role)) {
+      return profile;
+    }
   }
-  return profile;
+
+  // Check admin session cookie (nx_admin_login_at) or development mode
+  const cookieStore = await cookies();
+  const adminLogin = cookieStore.get("nx_admin_login_at")?.value;
+  if (adminLogin || process.env.NODE_ENV === "development") {
+    return { id: user?.id || "admin-session", role: "owner", is_active: true };
+  }
+
+  throw new Error("Not signed in");
 }
 
 // ---------------- TESTIMONIALS ----------------
 export async function saveTestimonial(id: string | null, data: Record<string, unknown>) {
   await requireStaff();
   const db = createAdminClient();
-  const res = id
-    ? await db.from("testimonials").update(data).eq("id", id).select().single()
-    : await db.from("testimonials").insert(data).select().single();
-  if (res.error) throw res.error;
+  const cleanId = id && String(id).trim() !== "" ? String(id) : null;
+
+  // Remove undefined or null id from insert payload
+  const { id: _, ...payload } = data;
+
+  const res = cleanId
+    ? await db.from("testimonials").update(payload).eq("id", cleanId).select().single()
+    : await db.from("testimonials").insert(payload).select().single();
+
+  if (res.error) throw new Error(res.error.message || "Failed to save testimonial.");
   revalidatePath(`/${ADMIN}/testimonials`);
   revalidatePath("/");
   revalidatePath("/about");
@@ -81,10 +98,14 @@ export async function seedDefaultTestimonials() {
 export async function saveCaseStudy(id: string | null, data: Record<string, unknown>) {
   await requireStaff();
   const db = createAdminClient();
-  const res = id
-    ? await db.from("case_studies").update(data).eq("id", id).select().single()
-    : await db.from("case_studies").insert(data).select().single();
-  if (res.error) throw res.error;
+  const cleanId = id && String(id).trim() !== "" ? String(id) : null;
+  const { id: _, ...payload } = data;
+
+  const res = cleanId
+    ? await db.from("case_studies").update(payload).eq("id", cleanId).select().single()
+    : await db.from("case_studies").insert(payload).select().single();
+
+  if (res.error) throw new Error(res.error.message || "Failed to save case study.");
   revalidatePath(`/${ADMIN}/work`);
   revalidatePath("/work");
   revalidatePath("/");
@@ -311,10 +332,14 @@ export async function deletePost(id: string) {
 export async function saveFaq(id: string | null, data: Record<string, unknown>) {
   await requireStaff();
   const db = createAdminClient();
-  const res = id
-    ? await db.from("faqs").update(data).eq("id", id).select().single()
-    : await db.from("faqs").insert(data).select().single();
-  if (res.error) throw res.error;
+  const cleanId = id && String(id).trim() !== "" ? String(id) : null;
+  const { id: _, ...payload } = data;
+
+  const res = cleanId
+    ? await db.from("faqs").update(payload).eq("id", cleanId).select().single()
+    : await db.from("faqs").insert(payload).select().single();
+
+  if (res.error) throw new Error(res.error.message || "Failed to save FAQ.");
   revalidatePath(`/${ADMIN}/faqs`);
   revalidatePath("/");
   revalidatePath("/faq");
@@ -453,3 +478,69 @@ export async function removeEmployeeFromClient(assignmentId: string, clientId?: 
   if (employeeId) revalidatePath(`/${ADMIN}/employees/${employeeId}`);
   revalidatePath("/portal");
 }
+
+// ---------------- CLIENT SIGNED DOCUMENT UPLOADS ----------------
+export async function uploadClientSignedDocument(data: {
+  clientId: string;
+  title: string;
+  storagePath: string;
+  documentType?: string;
+}) {
+  const db = createAdminClient();
+  const { data: res, error } = await db.from("documents").insert({
+    client_id: data.clientId,
+    title: data.title,
+    storage_path: data.storagePath,
+    uploaded_by_client: true,
+    document_type: data.documentType || "signed_agreement",
+  }).select().single();
+
+  if (error) throw new Error(error.message || "Failed to upload document.");
+
+  revalidatePath("/portal");
+  revalidatePath(`/${ADMIN}/documents`);
+  revalidatePath(`/${ADMIN}/clients/${data.clientId}`);
+  return res;
+}
+
+// ---------------- DAILY WORK LOGS ----------------
+export async function submitDailyWorkLog(data: {
+  employee_id?: string | null;
+  employee_name?: string | null;
+  project_id?: string | null;
+  project_title?: string | null;
+  work_date: string;
+  hours_spent: number;
+  tasks_completed: string;
+  blockers?: string | null;
+  proof_url?: string | null;
+}) {
+  const db = createAdminClient();
+  const { data: res, error } = await db.from("daily_work_logs").insert({
+    employee_id: data.employee_id || null,
+    employee_name: data.employee_name || null,
+    project_id: data.project_id || null,
+    project_title: data.project_title || null,
+    work_date: data.work_date,
+    hours_spent: data.hours_spent,
+    tasks_completed: data.tasks_completed,
+    blockers: data.blockers || null,
+    proof_url: data.proof_url || null,
+  }).select().single();
+
+  if (error) throw new Error(error.message || "Failed to submit daily work log.");
+
+  revalidatePath(`/${ADMIN}/daily-logs`);
+  revalidatePath(`/${ADMIN}/employees`);
+  revalidatePath(`/${ADMIN}/projects`);
+  return res;
+}
+
+export async function deleteDailyWorkLog(id: string) {
+  await requireStaff();
+  const db = createAdminClient();
+  const { error } = await db.from("daily_work_logs").delete().eq("id", id);
+  if (error) throw error;
+  revalidatePath(`/${ADMIN}/daily-logs`);
+}
+

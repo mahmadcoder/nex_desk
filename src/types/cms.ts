@@ -70,3 +70,28 @@ export interface IService {
   sort_order: number;
   pricing_tiers?: IPricingTier[];
 }
+
+export interface IDailyWorkLog {
+  id: string;
+  employee_id: string | null;
+  employee_name: string | null;
+  project_id: string | null;
+  project_title: string | null;
+  work_date: string;
+  hours_spent: number;
+  tasks_completed: string;
+  blockers?: string | null;
+  proof_url?: string | null;
+  created_at: string;
+}
+
+export interface IDocument {
+  id: string;
+  client_id: string | null;
+  title: string;
+  storage_path: string;
+  uploaded_by_client?: boolean;
+  document_type?: string;
+  created_at: string;
+  url?: string | null;
+}

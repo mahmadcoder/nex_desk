@@ -3,26 +3,43 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { saveTestimonial, deleteTestimonial } from "@/lib/actions/cms";
-import { Plus, Trash2, Edit3, Star } from "lucide-react";
+import { saveTestimonial, deleteTestimonial, toggleTestimonialPublished, seedDefaultTestimonials } from "@/lib/actions/cms";
+import { Plus, Trash2, Edit3, Star, Eye, EyeOff, RefreshCw, X } from "lucide-react";
 import { PageHead } from "@/components/admin/ui";
+import { ITestimonial } from "@/types/cms";
+import ConfirmModal from "@/components/admin/ConfirmModal";
 
-interface Testimonial {
-  id: string;
-  client_name: string;
-  role: string | null;
-  company: string | null;
-  avatar_url: string | null;
-  quote: string;
-  rating: number | null;
-  is_published: boolean;
-  sort_order: number;
-}
-
-export default function TestimonialsClient({ testimonials }: { testimonials: Testimonial[] }) {
+export default function TestimonialsClient({ testimonials }: { testimonials: ITestimonial[] }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
-  const [editing, setEditing] = useState<Partial<Testimonial> | null>(null);
+  const [editing, setEditing] = useState<Partial<ITestimonial> | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [seedingConfirm, setSeedingConfirm] = useState(false);
+
+  const handleTogglePublished = (id: string, currentStatus: boolean) => {
+    startTransition(async () => {
+      try {
+        await toggleTestimonialPublished(id, !currentStatus);
+        toast.success(!currentStatus ? "Testimonial published live." : "Testimonial hidden from website.");
+        router.refresh();
+      } catch {
+        toast.error("Failed to update status.");
+      }
+    });
+  };
+
+  const handleSeed = () => {
+    setSeedingConfirm(false);
+    startTransition(async () => {
+      try {
+        const res = await seedDefaultTestimonials();
+        toast.success(`Successfully seeded ${res.count} testimonials into database!`);
+        router.refresh();
+      } catch (err: any) {
+        toast.error(err.message || "Failed to seed testimonials.");
+      }
+    });
+  };
 
   const handleSave = () => {
     if (!editing?.client_name || !editing?.quote) {
@@ -45,18 +62,20 @@ export default function TestimonialsClient({ testimonials }: { testimonials: Tes
         toast.success(editing.id ? "Testimonial updated." : "Testimonial created.");
         setEditing(null);
         router.refresh();
-      } catch {
-        toast.error("Failed to save testimonial.");
+      } catch (err: any) {
+        toast.error(err?.message || "Failed to save testimonial.");
       }
     });
   };
 
-  const handleDelete = (id: string) => {
-    if (!confirm("Are you sure you want to delete this testimonial?")) return;
+  const handleDelete = () => {
+    if (!deletingId) return;
+    const targetId = deletingId;
     startTransition(async () => {
       try {
-        await deleteTestimonial(id);
+        await deleteTestimonial(targetId);
         toast.success("Testimonial deleted.");
+        setDeletingId(null);
         router.refresh();
       } catch {
         toast.error("Failed to delete testimonial.");
@@ -65,50 +84,76 @@ export default function TestimonialsClient({ testimonials }: { testimonials: Tes
   };
 
   return (
-    <div>
+    <div className="space-y-6">
       <PageHead
         title={`Client Testimonials (${testimonials.length})`}
-        sub="Manage client reviews displayed on the website homepage."
+        sub="Manage client reviews and star ratings displayed on the website Testimonial Wall."
         action={
-          <button
-            onClick={() =>
-              setEditing({
-                client_name: "",
-                role: "",
-                company: "",
-                avatar_url: "",
-                quote: "",
-                rating: 5,
-                is_published: true,
-                sort_order: 0,
-              })
-            }
-            className="btn btn-primary h-9 px-4 text-xs flex items-center gap-2"
-          >
-            <Plus size={14} /> Add Testimonial
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setSeedingConfirm(true)}
+              disabled={pending}
+              className="btn bg-ink-800 text-bone-200 hover:text-bone-50 border-ink-600 h-9 px-3 text-xs flex items-center gap-1.5 cursor-pointer"
+            >
+              <RefreshCw size={13} className={pending ? "animate-spin" : ""} /> Seed Testimonials to DB
+            </button>
+            <button
+              onClick={() =>
+                setEditing({
+                  client_name: "",
+                  role: "",
+                  company: "",
+                  avatar_url: "",
+                  quote: "",
+                  rating: 5,
+                  is_published: true,
+                  sort_order: testimonials.length + 1,
+                })
+              }
+              className="btn btn-primary h-9 px-4 text-xs flex items-center gap-2 cursor-pointer"
+            >
+              <Plus size={14} /> Add Testimonial
+            </button>
+          </div>
         }
       />
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 mt-6">
+      {/* Grid of Testimonials */}
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {testimonials.map((t) => (
-          <div key={t.id} className="card p-5 border-ink-600 flex flex-col justify-between space-y-4">
+          <div
+            key={t.id}
+            className={`card p-5 border-ink-600 flex flex-col justify-between space-y-4 transition-opacity ${
+              t.is_published ? "bg-ink-900/80 border-ink-600" : "bg-ink-950/60 border-ink-700/50 opacity-65"
+            }`}
+          >
             <div>
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between gap-2">
                 <div className="flex items-center gap-1 text-amber-400">
                   {Array.from({ length: t.rating ?? 5 }).map((_, i) => (
                     <Star key={i} size={14} fill="currentColor" />
                   ))}
                 </div>
-                {t.is_published ? (
-                  <span className="mono-tag text-[10px] text-lime-400 bg-lime-400/10 px-2 py-0.5 rounded">
-                    Published
-                  </span>
-                ) : (
-                  <span className="mono-tag text-[10px] text-bone-500 bg-ink-800 px-2 py-0.5 rounded">
-                    Draft
-                  </span>
-                )}
+
+                <button
+                  onClick={() => handleTogglePublished(t.id, t.is_published)}
+                  disabled={pending}
+                  className={`mono-tag text-[10px] px-2 py-0.5 rounded-full font-medium flex items-center gap-1 cursor-pointer transition-colors ${
+                    t.is_published
+                      ? "bg-emerald-400/10 text-emerald-400 border border-emerald-400/30 hover:bg-emerald-400/20"
+                      : "bg-rose-400/10 text-rose-400 border border-rose-400/30 hover:bg-rose-400/20"
+                  }`}
+                >
+                  {t.is_published ? (
+                    <>
+                      <Eye size={11} /> Published
+                    </>
+                  ) : (
+                    <>
+                      <EyeOff size={11} /> Hidden
+                    </>
+                  )}
+                </button>
               </div>
 
               <p className="mt-3 text-xs text-bone-200 italic leading-relaxed">&ldquo;{t.quote}&rdquo;</p>
@@ -125,13 +170,15 @@ export default function TestimonialsClient({ testimonials }: { testimonials: Tes
               <div className="flex items-center gap-1">
                 <button
                   onClick={() => setEditing(t)}
-                  className="p-1.5 rounded text-bone-400 hover:text-lime-400 hover:bg-ink-800 transition-colors"
+                  className="p-1.5 rounded text-bone-400 hover:text-lime-400 hover:bg-ink-800 transition-colors cursor-pointer"
+                  title="Edit testimonial"
                 >
                   <Edit3 size={14} />
                 </button>
                 <button
-                  onClick={() => handleDelete(t.id)}
-                  className="p-1.5 rounded text-bone-400 hover:text-rose-400 hover:bg-ink-800 transition-colors"
+                  onClick={() => setDeletingId(t.id)}
+                  className="p-1.5 rounded text-bone-400 hover:text-rose-400 hover:bg-ink-800 transition-colors cursor-pointer"
+                  title="Delete testimonial"
                 >
                   <Trash2 size={14} />
                 </button>
@@ -141,12 +188,23 @@ export default function TestimonialsClient({ testimonials }: { testimonials: Tes
         ))}
       </div>
 
+      {/* Edit Modal */}
       {editing && (
-        <div className="fixed inset-0 z-50 grid place-items-center bg-ink-950/80 p-4" onClick={() => setEditing(null)}>
-          <div className="card w-full max-w-lg p-6 bg-ink-900 border-ink-600" onClick={(e) => e.stopPropagation()}>
-            <h2 className="text-lg font-semibold text-bone-50 mb-4">
-              {editing.id ? "Edit Testimonial" : "New Testimonial"}
-            </h2>
+        <div className="fixed inset-0 z-50 grid place-items-center bg-ink-950/80 backdrop-blur-xs p-4 animate-in fade-in duration-200">
+          <div className="card w-full max-w-lg p-6 bg-ink-900 border-ink-600 relative space-y-4 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between border-b border-ink-700/80 pb-3">
+              <h2 className="text-lg font-semibold text-bone-50">
+                {editing.id ? "Edit Testimonial" : "New Testimonial"}
+              </h2>
+              <button
+                type="button"
+                onClick={() => setEditing(null)}
+                className="p-1.5 rounded-lg text-bone-400 hover:text-bone-50 hover:bg-ink-800 transition-colors cursor-pointer"
+                title="Close"
+              >
+                <X size={18} />
+              </button>
+            </div>
 
             <div className="space-y-3">
               <div>
@@ -202,30 +260,53 @@ export default function TestimonialsClient({ testimonials }: { testimonials: Tes
                   />
                 </div>
                 <div className="flex items-center pt-5">
-                  <label className="flex items-center gap-2 cursor-pointer text-xs text-bone-300">
+                  <label className="flex items-center gap-2 cursor-pointer text-xs text-bone-200">
                     <input
                       type="checkbox"
                       checked={editing.is_published ?? true}
                       onChange={(e) => setEditing({ ...editing, is_published: e.target.checked })}
-                      className="accent-[color:var(--color-lime-400)]"
+                      className="accent-[color:var(--color-lime-400)] h-4 w-4"
                     />
-                    <span>Publish publicly on website</span>
+                    <span className="font-medium">Publish Live on Website</span>
                   </label>
                 </div>
               </div>
             </div>
 
-            <div className="mt-6 flex justify-end gap-2">
-              <button className="btn h-9 px-4 text-xs" onClick={() => setEditing(null)} disabled={pending}>
+            <div className="mt-6 flex justify-end gap-2 border-t border-ink-700/80 pt-4">
+              <button className="btn h-9 px-4 text-xs cursor-pointer" onClick={() => setEditing(null)} disabled={pending}>
                 Cancel
               </button>
-              <button className="btn btn-primary h-9 px-4 text-xs" onClick={handleSave} disabled={pending}>
+              <button className="btn btn-primary h-9 px-4 text-xs cursor-pointer" onClick={handleSave} disabled={pending}>
                 {pending ? "Saving..." : "Save Testimonial"}
               </button>
             </div>
           </div>
         </div>
       )}
+
+      {/* Delete Confirmation Modal */}
+      <ConfirmModal
+        isOpen={Boolean(deletingId)}
+        title="Delete Testimonial?"
+        description="Are you sure you want to delete this testimonial? It will be removed from your database and website."
+        confirmText="Delete Testimonial"
+        pending={pending}
+        onConfirm={handleDelete}
+        onClose={() => setDeletingId(null)}
+      />
+
+      {/* Seed Confirmation Modal */}
+      <ConfirmModal
+        isOpen={seedingConfirm}
+        title="Seed Default Testimonials to Database?"
+        description="This will insert default client testimonials into your Supabase database."
+        confirmText="Seed Testimonials"
+        isDanger={false}
+        pending={pending}
+        onConfirm={handleSeed}
+        onClose={() => setSeedingConfirm(false)}
+      />
     </div>
   );
 }

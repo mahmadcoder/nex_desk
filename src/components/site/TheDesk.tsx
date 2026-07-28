@@ -4,16 +4,6 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { gsap } from "gsap";
 
-/**
- * The actual desk.
- *
- * The site is called Nex Desk, so here is a real (illustrated, top-down) desk
- * built in SVG. Each object is a doorway — the monitor to the work, the
- * notebook to how we work, the phone to contact, the mug is just a mug (its
- * steam drifts). Hovering an object lifts it and reveals a label; the live
- * Islamabad time shows on the phone. Everything is drawn in code, so nothing
- * loads and nothing breaks. Reduced-motion users get a calm, static desk.
- */
 
 import { DESK_HOTSPOTS, DeskHotspotId } from "@/config/siteContent";
 
@@ -84,8 +74,8 @@ export default function TheDesk() {
                 {active.label} →
               </Link>
             ) : (
-              <p className="mono-tag max-w-xs">
-                hover the desk — the screen, the notebook, the phone each lead somewhere
+              <p className="mono-tag max-w-sm text-bone-300">
+                ⚡ Explore the desk — hover elements to discover our work, methodology & team
               </p>
             )}
           </div>

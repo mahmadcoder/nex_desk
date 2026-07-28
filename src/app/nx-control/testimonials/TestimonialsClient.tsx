@@ -4,7 +4,7 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { saveTestimonial, deleteTestimonial, toggleTestimonialPublished, seedDefaultTestimonials } from "@/lib/actions/cms";
-import { Plus, Trash2, Edit3, Star, Eye, EyeOff, RefreshCw } from "lucide-react";
+import { Plus, Trash2, Edit3, Star, Eye, EyeOff, RefreshCw, X } from "lucide-react";
 import { PageHead } from "@/components/admin/ui";
 
 import { ITestimonial } from "@/types/cms";
@@ -186,11 +186,21 @@ export default function TestimonialsClient({ testimonials }: { testimonials: ITe
 
       {/* Edit Modal */}
       {editing && (
-        <div className="fixed inset-0 z-50 grid place-items-center bg-ink-950/80 p-4" onClick={() => setEditing(null)}>
-          <div className="card w-full max-w-lg p-6 bg-ink-900 border-ink-600" onClick={(e) => e.stopPropagation()}>
-            <h2 className="text-lg font-semibold text-bone-50 mb-4 border-b border-ink-700/80 pb-3">
-              {editing.id ? "Edit Testimonial" : "New Testimonial"}
-            </h2>
+        <div className="fixed inset-0 z-50 grid place-items-center bg-ink-950/80 backdrop-blur-xs p-4 animate-in fade-in duration-200">
+          <div className="card w-full max-w-lg p-6 bg-ink-900 border-ink-600 relative space-y-4 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between border-b border-ink-700/80 pb-3">
+              <h2 className="text-lg font-semibold text-bone-50">
+                {editing.id ? "Edit Testimonial" : "New Testimonial"}
+              </h2>
+              <button
+                type="button"
+                onClick={() => setEditing(null)}
+                className="p-1.5 rounded-lg text-bone-400 hover:text-bone-50 hover:bg-ink-800 transition-colors cursor-pointer"
+                title="Close"
+              >
+                <X size={18} />
+              </button>
+            </div>
 
             <div className="space-y-3">
               <div>

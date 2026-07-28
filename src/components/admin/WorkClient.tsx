@@ -7,13 +7,15 @@ import { saveCaseStudy, deleteCaseStudy, toggleCaseStudyPublished, seedDefaultCa
 import { Plus, Trash2, Edit3, X, Tag, Eye, EyeOff, RefreshCw } from "lucide-react";
 import { PageHead } from "@/components/admin/ui";
 import ImageUpload from "@/components/admin/ImageUpload";
-
 import { ICaseStudy } from "@/types/cms";
+import ConfirmModal from "@/components/admin/ConfirmModal";
 
 export default function WorkClient({ caseStudies }: { caseStudies: ICaseStudy[] }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [editing, setEditing] = useState<Partial<ICaseStudy> | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [seedingConfirm, setSeedingConfirm] = useState(false);
 
   const [techInput, setTechInput] = useState("");
   const [serviceInput, setServiceInput] = useState("");
@@ -31,7 +33,7 @@ export default function WorkClient({ caseStudies }: { caseStudies: ICaseStudy[] 
   };
 
   const handleSeed = () => {
-    if (!confirm("Seed default portfolio projects into Supabase database?")) return;
+    setSeedingConfirm(false);
     startTransition(async () => {
       try {
         const res = await seedDefaultCaseStudies();
@@ -77,12 +79,14 @@ export default function WorkClient({ caseStudies }: { caseStudies: ICaseStudy[] 
     });
   };
 
-  const handleDelete = (id: string) => {
-    if (!confirm("Delete this case study? It will be removed from database and live site.")) return;
+  const handleDelete = () => {
+    if (!deletingId) return;
+    const targetId = deletingId;
     startTransition(async () => {
       try {
-        await deleteCaseStudy(id);
+        await deleteCaseStudy(targetId);
         toast.success("Case study deleted.");
+        setDeletingId(null);
         router.refresh();
       } catch {
         toast.error("Failed to delete case study.");
@@ -142,7 +146,7 @@ export default function WorkClient({ caseStudies }: { caseStudies: ICaseStudy[] 
         action={
           <div className="flex items-center gap-2">
             <button
-              onClick={handleSeed}
+              onClick={() => setSeedingConfirm(true)}
               disabled={pending}
               className="btn bg-ink-800 text-bone-200 hover:text-bone-50 border-ink-600 h-9 px-3 text-xs flex items-center gap-1.5 cursor-pointer"
             >
@@ -249,7 +253,7 @@ export default function WorkClient({ caseStudies }: { caseStudies: ICaseStudy[] 
                   <Edit3 size={14} />
                 </button>
                 <button
-                  onClick={() => handleDelete(c.id)}
+                  onClick={() => setDeletingId(c.id)}
                   className="p-1.5 rounded text-bone-400 hover:text-rose-400 hover:bg-ink-800 cursor-pointer"
                   title="Delete project"
                 >
@@ -262,11 +266,21 @@ export default function WorkClient({ caseStudies }: { caseStudies: ICaseStudy[] 
       </div>
 
       {editing && (
-        <div className="fixed inset-0 z-50 grid place-items-center bg-ink-950/80 p-4 overflow-y-auto" onClick={() => setEditing(null)}>
-          <div className="card w-full max-w-2xl p-6 sm:p-8 bg-ink-900 border-ink-600 my-8 space-y-4 max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
-            <h2 className="text-lg font-semibold text-bone-50 mb-4 border-b border-ink-700/80 pb-3">
-              {editing.id ? "Edit Case Study" : "New Case Study"}
-            </h2>
+        <div className="fixed inset-0 z-50 grid place-items-center bg-ink-950/80 backdrop-blur-xs p-4 overflow-y-auto animate-in fade-in duration-200">
+          <div className="card w-full max-w-2xl p-6 sm:p-8 bg-ink-900 border-ink-600 my-8 space-y-4 max-h-[90vh] overflow-y-auto shadow-2xl relative" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between border-b border-ink-700/80 pb-3">
+              <h2 className="text-lg font-semibold text-bone-50">
+                {editing.id ? "Edit Case Study" : "New Case Study"}
+              </h2>
+              <button
+                type="button"
+                onClick={() => setEditing(null)}
+                className="p-1.5 rounded-lg text-bone-400 hover:text-bone-50 hover:bg-ink-800 transition-colors cursor-pointer"
+                title="Close"
+              >
+                <X size={18} />
+              </button>
+            </div>
 
             <ImageUpload
               label="Case Study Cover Image"
@@ -430,6 +444,29 @@ export default function WorkClient({ caseStudies }: { caseStudies: ICaseStudy[] 
           </div>
         </div>
       )}
+
+      {/* Delete Confirmation Modal */}
+      <ConfirmModal
+        isOpen={Boolean(deletingId)}
+        title="Delete Case Study Project?"
+        description="Are you sure you want to delete this case study? It will be permanently removed from your portfolio and live website."
+        confirmText="Delete Project"
+        pending={pending}
+        onConfirm={handleDelete}
+        onClose={() => setDeletingId(null)}
+      />
+
+      {/* Seed Confirmation Modal */}
+      <ConfirmModal
+        isOpen={seedingConfirm}
+        title="Seed Default Case Studies to Database?"
+        description="This will insert default portfolio projects into your Supabase database."
+        confirmText="Seed Projects"
+        isDanger={false}
+        pending={pending}
+        onConfirm={handleSeed}
+        onClose={() => setSeedingConfirm(false)}
+      />
     </div>
   );
 }

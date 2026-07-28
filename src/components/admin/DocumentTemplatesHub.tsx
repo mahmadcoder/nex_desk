@@ -364,9 +364,18 @@ export default function DocumentTemplatesHub({
             <Table head={["Document Title", "Type", "Client", "File Size", "Created Date", ""]}>
               {clientDocs.map((d) => (
                 <tr key={d.id} className="hover:bg-ink-700/30">
-                  <td className="px-5 py-3 font-medium text-bone-100">{d.title}</td>
+                  <td className="px-5 py-3 font-medium text-bone-100">
+                    <div className="flex items-center gap-2">
+                      <span>{d.title}</span>
+                      {d.uploaded_by_client && (
+                        <span className="mono-tag text-[9px] text-emerald-400 bg-emerald-400/10 px-2 py-0.5 rounded border border-emerald-400/30">
+                          Client Signed
+                        </span>
+                      )}
+                    </div>
+                  </td>
                   <td className="px-5 py-3">
-                    <Badge>{d.type}</Badge>
+                    <Badge>{d.uploaded_by_client ? "signed_agreement" : (d.type || d.document_type || "general")}</Badge>
                   </td>
                   <td className="px-5 py-3 text-bone-400 font-medium">
                     {(d.clients as any)?.name ?? "—"}

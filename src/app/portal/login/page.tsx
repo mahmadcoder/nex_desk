@@ -21,6 +21,10 @@ function PortalLoginForm() {
   useEffect(() => {
     const queryEmail = searchParams.get("email");
     if (queryEmail) setEmail(queryEmail);
+
+    if (searchParams.get("logged_out") === "1") {
+      toast.success("Successfully logged out.");
+    }
   }, [searchParams]);
 
   async function handleLogin(e: React.FormEvent) {

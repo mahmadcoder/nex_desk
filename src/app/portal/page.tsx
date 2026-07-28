@@ -4,6 +4,8 @@ import { createClient, createAdminClient } from "@/lib/supabase/server";
 import { money } from "@/lib/utils";
 import { Badge, Stat } from "@/components/admin/ui";
 import { ExternalLink, CheckCircle, Circle, DollarSign, Calendar, FileText, Download } from "lucide-react";
+import ClientDocumentUploader from "@/components/portal/ClientDocumentUploader";
+import ClientPortalSignOutButton from "@/components/portal/ClientPortalSignOutButton";
 
 export const dynamic = "force-dynamic";
 
@@ -85,6 +87,7 @@ export default async function Portal() {
           <span className="mono-tag bg-ink-800 px-3 py-1.5 rounded border border-ink-600 text-bone-200">
             Currency: <strong className="text-lime-400">{currency}</strong>
           </span>
+          <ClientPortalSignOutButton />
         </div>
       </div>
 
@@ -257,37 +260,48 @@ export default async function Portal() {
         )}
 
         {perms.show_files && (
-          <section className="card p-6">
-            <div className="border-b border-ink-600 pb-4">
-              <h2 className="text-lg font-medium text-bone-50 flex items-center gap-2">
-                <FileText className="h-4 w-4 text-lime-400" /> Shared Documents & PDF Assets
-              </h2>
-            </div>
+          <div className="space-y-6">
+            <ClientDocumentUploader clientId={client.id} />
 
-            <ul className="mt-4 divide-y divide-ink-600">
-              {withUrls.map((d) => (
-                <li key={d.id} className="flex items-center justify-between gap-4 py-3.5 text-sm">
-                  <div className="min-w-0">
-                    <p className="truncate text-bone-100">{d.title}</p>
-                    <p className="mono-tag text-xs text-bone-400">{new Date(d.created_at).toLocaleDateString("en-GB")}</p>
-                  </div>
-                  {d.url && (
-                    <a
-                      href={d.url}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="mono-tag flex items-center gap-1 text-lime-400 hover:underline shrink-0"
-                    >
-                      <Download className="h-3.5 w-3.5" /> Download PDF
-                    </a>
-                  )}
-                </li>
-              ))}
-              {!withUrls.length && (
-                <li className="py-6 text-center text-sm text-bone-400">No documents uploaded yet.</li>
-              )}
-            </ul>
-          </section>
+            <section className="card p-6">
+              <div className="border-b border-ink-600 pb-4">
+                <h2 className="text-lg font-medium text-bone-50 flex items-center gap-2">
+                  <FileText className="h-4 w-4 text-lime-400" /> Shared Documents & PDF Assets
+                </h2>
+              </div>
+
+              <ul className="mt-4 divide-y divide-ink-600">
+                {withUrls.map((d) => (
+                  <li key={d.id} className="flex items-center justify-between gap-4 py-3.5 text-sm">
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2">
+                        <p className="truncate text-bone-100 font-medium">{d.title}</p>
+                        {d.uploaded_by_client && (
+                          <span className="mono-tag text-[9px] text-emerald-400 bg-emerald-400/10 px-2 py-0.5 rounded border border-emerald-400/30">
+                            Client Signed
+                          </span>
+                        )}
+                      </div>
+                      <p className="mono-tag text-xs text-bone-400">{new Date(d.created_at).toLocaleDateString("en-GB")}</p>
+                    </div>
+                    {d.url && (
+                      <a
+                        href={d.url}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="mono-tag flex items-center gap-1 text-lime-400 hover:underline shrink-0"
+                      >
+                        <Download className="h-3.5 w-3.5" /> Download PDF
+                      </a>
+                    )}
+                  </li>
+                ))}
+                {!withUrls.length && (
+                  <li className="py-6 text-center text-sm text-bone-400">No documents uploaded yet.</li>
+                )}
+              </ul>
+            </section>
+          </div>
         )}
       </div>
 

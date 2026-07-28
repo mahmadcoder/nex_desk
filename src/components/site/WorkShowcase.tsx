@@ -18,9 +18,6 @@ type Case = {
   metrics?: { label: string; value: string }[] | null;
 };
 
-/**
- * Featured work presented inside device frames with interactive hover scale and parallax response.
- */
 export default function WorkShowcase({ cases }: { cases: Case[] }) {
   if (!cases.length) return null;
 
