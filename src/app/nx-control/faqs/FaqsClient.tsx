@@ -100,11 +100,11 @@ export default function FaqsClient({ faqs }: { faqs: IFaq[] }) {
         title={`Frequently Asked Questions (${faqs.length})`}
         sub="Manage client questions and answers displayed on the website FAQ sections."
         action={
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2 shrink-0 sm:w-auto w-full">
             <button
               onClick={() => setSeedingConfirm(true)}
               disabled={pending}
-              className="btn bg-ink-800 text-bone-200 hover:text-bone-50 border-ink-600 h-9 px-3 text-xs flex items-center gap-1.5 cursor-pointer"
+              className="btn bg-ink-800 text-bone-200 hover:text-bone-50 border-ink-600 min-h-[36px] h-auto py-2 px-3 text-xs flex items-center gap-1.5 cursor-pointer whitespace-nowrap shrink-0"
             >
               <RefreshCw size={13} className={pending ? "animate-spin" : ""} /> Seed FAQs to DB
             </button>
@@ -119,7 +119,7 @@ export default function FaqsClient({ faqs }: { faqs: IFaq[] }) {
                   is_active: true,
                 });
               }}
-              className="btn btn-primary h-9 px-4 text-xs flex items-center gap-2 cursor-pointer"
+              className="btn btn-primary min-h-[36px] h-auto py-2 px-4 text-xs flex items-center gap-2 cursor-pointer whitespace-nowrap shrink-0"
             >
               <Plus size={14} /> Add FAQ
             </button>
@@ -192,9 +192,9 @@ export default function FaqsClient({ faqs }: { faqs: IFaq[] }) {
       </div>
 
       {editing && (
-        <div className="fixed inset-0 z-50 grid place-items-center bg-ink-950/80 backdrop-blur-xs p-4 animate-in fade-in duration-200">
+        <div className="fixed inset-0 z-50 grid place-items-center bg-ink-950/80 backdrop-blur-xs p-4 overflow-y-auto animate-in fade-in duration-200">
           <div
-            className="card w-full max-w-lg p-6 bg-ink-900 border-ink-600 relative space-y-4 shadow-2xl"
+            className="card w-full max-w-lg p-6 bg-ink-900 border-ink-600 relative space-y-4 shadow-2xl my-auto max-h-[90vh] overflow-y-auto custom-admin-scrollbar"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Header with Title and X Close Icon */}

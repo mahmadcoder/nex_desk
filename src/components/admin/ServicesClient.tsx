@@ -4,7 +4,7 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { saveService, deleteService, toggleServiceActive, seedDefaultServices } from "@/lib/actions/cms";
-import { Plus, Trash2, Edit3, Eye, EyeOff, RefreshCw, DollarSign, Layers } from "lucide-react";
+import { Plus, Trash2, Edit3, Eye, EyeOff, RefreshCw, DollarSign, Layers, X } from "lucide-react";
 import { PageHead } from "@/components/admin/ui";
 
 import { IService } from "@/types/cms";
@@ -140,11 +140,11 @@ export default function ServicesClient({ services }: { services: IService[] }) {
         title={`Agency Services (${services.length})`}
         sub="Manage service offerings, active status, starting prices, and tier packages."
         action={
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2 shrink-0 sm:w-auto w-full">
             <button
               onClick={handleSeed}
               disabled={pending}
-              className="btn bg-ink-800 text-bone-200 hover:text-bone-50 border-ink-600 h-9 px-3 text-xs flex items-center gap-1.5 cursor-pointer"
+              className="btn bg-ink-800 text-bone-200 hover:text-bone-50 border-ink-600 min-h-[36px] h-auto py-2 px-3 text-xs flex items-center gap-1.5 cursor-pointer whitespace-nowrap shrink-0"
             >
               <RefreshCw size={13} className={pending ? "animate-spin" : ""} /> Seed 16 Services to DB
             </button>
@@ -162,7 +162,7 @@ export default function ServicesClient({ services }: { services: IService[] }) {
                   sort_order: services.length + 1,
                 })
               }
-              className="btn btn-primary h-9 px-4 text-xs flex items-center gap-2 cursor-pointer"
+              className="btn btn-primary min-h-[36px] h-auto py-2 px-4 text-xs flex items-center gap-2 cursor-pointer whitespace-nowrap shrink-0"
             >
               <Plus size={14} /> Add Service
             </button>
@@ -240,13 +240,20 @@ export default function ServicesClient({ services }: { services: IService[] }) {
       </div>
 
       {editing && (
-        <div className="fixed inset-0 z-50 grid place-items-center bg-ink-950/80 p-4 overflow-y-auto" onClick={() => setEditing(null)}>
-          <div className="card w-full max-w-xl p-6 bg-ink-900 border-ink-600 my-8 max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
-            <div className="flex items-center justify-between mb-4 border-b border-ink-700/80 pb-3">
+        <div className="fixed inset-0 z-50 grid place-items-center bg-ink-950/80 backdrop-blur-xs p-4 overflow-y-auto animate-in fade-in duration-200">
+          <div className="card w-full max-w-xl p-5 sm:p-7 relative bg-ink-900 border-ink-600 my-auto max-h-[90vh] overflow-y-auto custom-admin-scrollbar space-y-4 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between border-b border-ink-700/80 pb-3">
               <h2 className="text-lg font-semibold text-bone-50">
                 {editing.id ? `Edit ${editing.title}` : "New Agency Service"}
               </h2>
-              <span className="mono-tag text-[10px] text-lime-400">Real-time DB Sync</span>
+              <button
+                type="button"
+                onClick={() => setEditing(null)}
+                className="p-1.5 rounded-lg text-bone-400 hover:text-bone-50 hover:bg-ink-800 transition-colors cursor-pointer"
+                title="Close"
+              >
+                <X size={18} />
+              </button>
             </div>
 
             <div className="space-y-4">

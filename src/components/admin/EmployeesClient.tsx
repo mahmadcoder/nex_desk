@@ -7,7 +7,7 @@ import { toast } from "sonner";
 import {
   Users, UserPlus, Search, MapPin, GraduationCap, DollarSign,
   Briefcase, Award, Trash2, Edit3, Plus, ChevronRight, Layers,
-  ExternalLink, Mail, Phone, Calendar
+  ExternalLink, Mail, Phone, Calendar, X
 } from "lucide-react";
 import ImageUpload from "@/components/admin/ImageUpload";
 import CustomSelect from "@/components/ui/CustomSelect";
@@ -414,8 +414,8 @@ export default function EmployeesClient({
 
       {/* Add / Edit Employee Modal */}
       {editing && (
-        <div className="fixed inset-0 z-50 grid place-items-center bg-ink-950/80 p-4 overflow-y-auto" onClick={() => setEditing(null)}>
-          <div className="card w-full max-w-2xl p-6 bg-ink-900 border-ink-600 my-8 space-y-4" onClick={(e) => e.stopPropagation()}>
+        <div className="fixed inset-0 z-50 grid place-items-center bg-ink-950/80 backdrop-blur-xs p-4 overflow-y-auto animate-in fade-in duration-200">
+          <div className="card w-full max-w-2xl p-5 sm:p-7 bg-ink-900 border-ink-600 relative space-y-4 shadow-2xl my-auto max-h-[90vh] overflow-y-auto custom-admin-scrollbar" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between border-b border-ink-700 pb-3">
               <div>
                 <span className="mono-tag text-xs text-lime-400">Staff Profile Engine</span>
@@ -423,7 +423,9 @@ export default function EmployeesClient({
                   {editing.id ? `Edit ${editing.full_name}` : "Hiring / Add New Employee"}
                 </h2>
               </div>
-              <button className="text-bone-400 hover:text-bone-50 text-sm" onClick={() => setEditing(null)}>✕</button>
+              <button type="button" className="p-1.5 rounded-lg text-bone-400 hover:text-bone-50 hover:bg-ink-800 transition-colors cursor-pointer" onClick={() => setEditing(null)}>
+                <X size={18} />
+              </button>
             </div>
 
             <div className="space-y-4">
@@ -437,7 +439,7 @@ export default function EmployeesClient({
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid sm:grid-cols-2 gap-3">
                 <div>
                   <label className="mono-tag text-xs mb-1 block">Full Name *</label>
                   <input

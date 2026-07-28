@@ -194,11 +194,10 @@ export default function ClientDialog() {
 
   return (
     <div
-      className="fixed inset-0 z-50 grid place-items-center bg-ink-950/80 p-4 backdrop-blur-sm overflow-y-auto"
-      onClick={() => setOpen(false)}
+      className="fixed inset-0 z-50 grid place-items-center bg-ink-950/80 p-4 backdrop-blur-sm overflow-y-auto animate-in fade-in duration-200"
     >
       <div
-        className="card w-full max-w-xl p-6 md:p-7 relative bg-ink-900 border-ink-600 shadow-2xl my-8"
+        className="card w-full max-w-xl p-5 sm:p-7 relative bg-ink-900 border-ink-600 shadow-2xl my-auto max-h-[90vh] overflow-y-auto custom-admin-scrollbar"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Top Header with Close Icon */}

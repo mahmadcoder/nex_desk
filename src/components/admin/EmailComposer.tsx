@@ -175,7 +175,7 @@ export default function EmailComposer({
           </p>
         </div>
 
-        <div className="mt-6 flex items-center justify-between border-t border-ink-600 pt-5">
+        <div className="mt-6 flex flex-wrap items-center justify-between gap-3 border-t border-ink-600 pt-5">
           <p className="text-xs text-bone-400">
             {template?.attach_doc
               ? `This template normally carries a ${String(template.attach_doc).replace(/_/g, " ")} PDF — attach it from the relevant project or invoice screen.`

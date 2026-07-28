@@ -144,11 +144,11 @@ export default function WorkClient({ caseStudies }: { caseStudies: ICaseStudy[] 
         title={`Case Studies & Work (${caseStudies.length})`}
         sub="Manage agency portfolio projects, metrics, tech stack, and homepage showcase items."
         action={
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2 shrink-0 sm:w-auto w-full">
             <button
               onClick={() => setSeedingConfirm(true)}
               disabled={pending}
-              className="btn bg-ink-800 text-bone-200 hover:text-bone-50 border-ink-600 h-9 px-3 text-xs flex items-center gap-1.5 cursor-pointer"
+              className="btn bg-ink-800 text-bone-200 hover:text-bone-50 border-ink-600 min-h-[36px] h-auto py-2 px-3 text-xs flex items-center gap-1.5 cursor-pointer whitespace-nowrap shrink-0"
             >
               <RefreshCw size={13} className={pending ? "animate-spin" : ""} /> Seed Projects to DB
             </button>
@@ -172,7 +172,7 @@ export default function WorkClient({ caseStudies }: { caseStudies: ICaseStudy[] 
                   sort_order: caseStudies.length + 1,
                 })
               }
-              className="btn btn-primary h-9 px-4 text-xs flex items-center gap-2 cursor-pointer"
+              className="btn btn-primary min-h-[36px] h-auto py-2 px-4 text-xs flex items-center gap-2 cursor-pointer whitespace-nowrap shrink-0"
             >
               <Plus size={14} /> Add Case Study
             </button>
@@ -302,7 +302,7 @@ export default function WorkClient({ caseStudies }: { caseStudies: ICaseStudy[] 
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid sm:grid-cols-2 gap-3">
               <div>
                 <label className="mono-tag text-xs mb-1 block">URL Slug *</label>
                 <input
@@ -321,7 +321,7 @@ export default function WorkClient({ caseStudies }: { caseStudies: ICaseStudy[] 
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid sm:grid-cols-2 gap-3">
               <div>
                 <label className="mono-tag text-xs mb-1 block">Industry</label>
                 <input

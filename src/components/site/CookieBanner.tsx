@@ -3,18 +3,6 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 
-/**
- * Cookie consent — sleek bottom bar that matches the site's premium aesthetic.
- *
- * The choice lives in localStorage on the visitor's own device — no database,
- * no round-trip, nothing stored about them until they say yes. Decline actually
- * means decline: it writes "denied" and never loads analytics.
- *
- * Right now the site only sets essential auth cookies, so this is really a
- * courtesy notice. The moment you add GA4 or any tracking, gate it behind
- * `hasAnalyticsConsent()` (exported below) and this banner becomes a real
- * consent gate with no further changes.
- */
 
 const KEY = "nd-cookie-consent"; // "granted" | "denied"
 
@@ -56,8 +44,7 @@ export default function CookieBanner() {
         <div className="flex items-start gap-3 sm:items-center">
           <span className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-lime-400 sm:mt-0" />
           <p className="text-sm leading-relaxed text-bone-200">
-            This site uses essential cookies to keep things running smooth.
-            Analytics stay off unless you opt&nbsp;in.{" "}
+            We use cookies to run this site and improve your experience. You can accept or decline non-essential cookies.{" "}
             <Link
               href="/privacy"
               className="text-bone-400 underline decoration-ink-500 underline-offset-2 transition-colors hover:text-lime-400"

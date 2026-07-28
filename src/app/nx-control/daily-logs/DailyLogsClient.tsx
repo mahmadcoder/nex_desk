@@ -248,9 +248,9 @@ export default function DailyLogsClient({
 
       {/* Add Work Log Modal */}
       {showAddModal && (
-        <div className="fixed inset-0 z-50 grid place-items-center bg-ink-950/80 backdrop-blur-xs p-4 animate-in fade-in duration-200">
+        <div className="fixed inset-0 z-50 grid place-items-center bg-ink-950/80 backdrop-blur-xs p-4 overflow-y-auto animate-in fade-in duration-200">
           <div
-            className="card w-full max-w-lg p-6 bg-ink-900 border-ink-600 relative space-y-4 shadow-2xl"
+            className="card w-full max-w-2xl p-6 sm:p-7 bg-ink-900 border-ink-600 relative space-y-4 shadow-2xl my-auto max-h-[90vh] overflow-y-auto custom-admin-scrollbar"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between border-b border-ink-700/80 pb-3">
@@ -272,39 +272,41 @@ export default function DailyLogsClient({
               </div>
             )}
 
-            <div className="space-y-3.5">
-              <div>
-                <label className="mono-tag text-xs mb-1 block">Employee / Staff Member *</label>
-                {employeeOptions.length > 0 ? (
-                  <CustomSelect
-                    options={employeeOptions}
-                    value={selectedEmployeeId}
-                    onChange={(val) => setSelectedEmployeeId(val)}
-                  />
-                ) : (
-                  <input
-                    className="w-full rounded-lg border border-ink-500 bg-ink-800 px-3 py-2 text-sm text-bone-50"
-                    placeholder="Type employee name..."
-                    onChange={(e) => setSelectedEmployeeId(e.target.value)}
-                  />
-                )}
-              </div>
+            <div className="space-y-4">
+              <div className="grid sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="mono-tag text-xs mb-1 block">Employee / Staff Member *</label>
+                  {employeeOptions.length > 0 ? (
+                    <CustomSelect
+                      options={employeeOptions}
+                      value={selectedEmployeeId}
+                      onChange={(val) => setSelectedEmployeeId(val)}
+                    />
+                  ) : (
+                    <input
+                      className="w-full rounded-lg border border-ink-500 bg-ink-800 px-3 py-2 text-sm text-bone-50"
+                      placeholder="Type employee name..."
+                      onChange={(e) => setSelectedEmployeeId(e.target.value)}
+                    />
+                  )}
+                </div>
 
-              <div>
-                <label className="mono-tag text-xs mb-1 block">Assigned Project *</label>
-                {projectOptions.length > 0 ? (
-                  <CustomSelect
-                    options={projectOptions}
-                    value={selectedProjectId}
-                    onChange={(val) => setSelectedProjectId(val)}
-                  />
-                ) : (
-                  <input
-                    className="w-full rounded-lg border border-ink-500 bg-ink-800 px-3 py-2 text-sm text-bone-50"
-                    placeholder="Type project title..."
-                    onChange={(e) => setSelectedProjectId(e.target.value)}
-                  />
-                )}
+                <div>
+                  <label className="mono-tag text-xs mb-1 block">Assigned Project *</label>
+                  {projectOptions.length > 0 ? (
+                    <CustomSelect
+                      options={projectOptions}
+                      value={selectedProjectId}
+                      onChange={(val) => setSelectedProjectId(val)}
+                    />
+                  ) : (
+                    <input
+                      className="w-full rounded-lg border border-ink-500 bg-ink-800 px-3 py-2 text-sm text-bone-50"
+                      placeholder="Type project title..."
+                      onChange={(e) => setSelectedProjectId(e.target.value)}
+                    />
+                  )}
+                </div>
               </div>
 
               <div className="grid grid-cols-2 gap-3">
