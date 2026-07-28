@@ -142,7 +142,7 @@ export async function deleteClient(id: string) {
   await db.from("clients").delete().eq("id", id);
   await audit(me.id, "client.delete", "clients", id);
   revalidatePath(`/${ADMIN}/clients`);
-  redirect(`/${ADMIN}/clients`);
+  return { success: true };
 }
 
 export async function updateClientPermissions(id: string, permissions: Record<string, boolean>) {

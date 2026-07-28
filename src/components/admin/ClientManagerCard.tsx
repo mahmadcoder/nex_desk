@@ -91,9 +91,14 @@ export default function ClientManagerCard({
     start(async () => {
       try {
         await deleteClient(client.id);
-        toast.success(`Deleted ${client.name}.`);
+        toast.success(`Deleted client ${client.name} successfully.`);
+        const adminPath = process.env.NEXT_PUBLIC_ADMIN_PATH || "nx-control";
+        router.push(`/${adminPath}/clients`);
+        router.refresh();
       } catch (e: any) {
-        toast.error(e.message || "Failed to delete client.");
+        if (e?.message !== "NEXT_REDIRECT") {
+          toast.error(e?.message || "Failed to delete client.");
+        }
       }
     });
   };

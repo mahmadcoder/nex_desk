@@ -479,6 +479,15 @@ export async function removeEmployeeFromClient(assignmentId: string, clientId?: 
   revalidatePath("/portal");
 }
 
+export async function updateAssignedEmployee(assignmentId: string, newEmployeeId: string, clientId?: string) {
+  await requireStaff();
+  const db = createAdminClient();
+  const { error } = await db.from("client_employee_assignments").update({ employee_id: newEmployeeId }).eq("id", assignmentId);
+  if (error) throw error;
+  if (clientId) revalidatePath(`/${ADMIN}/clients/${clientId}`);
+  revalidatePath("/portal");
+}
+
 // ---------------- CLIENT SIGNED DOCUMENT UPLOADS ----------------
 export async function uploadClientSignedDocument(data: {
   clientId: string;

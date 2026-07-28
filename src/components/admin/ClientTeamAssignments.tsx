@@ -2,10 +2,14 @@
 
 import { useState, useTransition } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { Users, Plus, Trash2, ExternalLink, ShieldCheck, Mail } from "lucide-react";
+import { Users, Plus, Trash2, Edit3, ExternalLink, X } from "lucide-react";
 import CustomSelect from "@/components/ui/CustomSelect";
-import { assignEmployeeToClient, removeEmployeeFromClient } from "@/lib/actions/cms";
+import ConfirmModal from "@/components/admin/ConfirmModal";
+import { assignEmployeeToClient, removeEmployeeFromClient, updateAssignedEmployee } from "@/lib/actions/cms";
+
+/* eslint-disable @typescript-eslint/no-explicit-any */
 
 interface Props {
   clientId: string;
@@ -18,9 +22,13 @@ export default function ClientTeamAssignments({
   assignedEmployees,
   allEmployees,
 }: Props) {
+  const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [selectedEmployeeId, setSelectedEmployeeId] = useState("");
-  const [showModal, setShowModal] = useState(false);
+  const [showAssignModal, setShowAssignModal] = useState(false);
+  const [editingAssignment, setEditingAssignment] = useState<{ id: string; empId: string; name: string } | null>(null);
+  const [editEmployeeId, setEditEmployeeId] = useState("");
+  const [unassigningItem, setUnassigningItem] = useState<{ id: string; name: string } | null>(null);
 
   const handleAssign = () => {
     if (!selectedEmployeeId) return toast.error("Select an employee to assign.");
@@ -30,22 +38,40 @@ export default function ClientTeamAssignments({
         await assignEmployeeToClient(clientId, selectedEmployeeId);
         toast.success("Assigned team member to client.");
         setSelectedEmployeeId("");
-        setShowModal(false);
-        window.location.reload();
+        setShowAssignModal(false);
+        router.refresh();
       } catch {
         toast.error("Failed to assign employee.");
       }
     });
   };
 
-  const handleRemove = (assignmentId: string, name: string) => {
-    if (!confirm(`Unassign ${name} from this client?`)) return;
+  const handleUpdate = () => {
+    if (!editingAssignment) return;
+    if (!editEmployeeId) return toast.error("Select a replacement team member.");
 
     startTransition(async () => {
       try {
-        await removeEmployeeFromClient(assignmentId, clientId, undefined);
-        toast.success("Unassigned employee.");
-        window.location.reload();
+        await updateAssignedEmployee(editingAssignment.id, editEmployeeId, clientId);
+        toast.success(`Replaced assigned staff with new team member.`);
+        setEditingAssignment(null);
+        setEditEmployeeId("");
+        router.refresh();
+      } catch {
+        toast.error("Failed to update assigned employee.");
+      }
+    });
+  };
+
+  const handleUnassignConfirm = () => {
+    if (!unassigningItem) return;
+
+    startTransition(async () => {
+      try {
+        await removeEmployeeFromClient(unassigningItem.id, clientId, undefined);
+        toast.success(`Unassigned ${unassigningItem.name}.`);
+        setUnassigningItem(null);
+        router.refresh();
       } catch {
         toast.error("Failed to unassign employee.");
       }
@@ -53,7 +79,7 @@ export default function ClientTeamAssignments({
   };
 
   const employeeOptions = [
-    { value: "", label: "Select team member to assign…" },
+    { value: "", label: "Select team member…" },
     ...allEmployees.map((e) => ({
       value: e.id,
       label: `${e.full_name} (${e.job_title} — ${e.seniority})`,
@@ -71,8 +97,8 @@ export default function ClientTeamAssignments({
           <p className="text-xs text-bone-400">These team members will also be visible to the client in their portal.</p>
         </div>
         <button
-          onClick={() => setShowModal(true)}
-          className="btn btn-primary h-8 px-3 text-xs flex items-center gap-1.5"
+          onClick={() => setShowAssignModal(true)}
+          className="btn btn-primary h-8 px-3 text-xs flex items-center gap-1.5 cursor-pointer"
         >
           <Plus size={13} /> Assign Employee
         </button>
@@ -111,13 +137,25 @@ export default function ClientTeamAssignments({
                 </div>
               </div>
 
-              <button
-                onClick={() => handleRemove(a.id, emp.full_name)}
-                className="p-1.5 rounded text-bone-400 hover:text-rose-400 hover:bg-ink-700 transition-colors"
-                title="Unassign employee"
-              >
-                <Trash2 size={13} />
-              </button>
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={() => {
+                    setEditingAssignment({ id: a.id, empId: emp.id, name: emp.full_name });
+                    setEditEmployeeId(emp.id);
+                  }}
+                  className="p-1.5 rounded text-bone-400 hover:text-lime-400 hover:bg-ink-700 transition-colors cursor-pointer"
+                  title="Update / Replace Staff Member"
+                >
+                  <Edit3 size={13} />
+                </button>
+                <button
+                  onClick={() => setUnassigningItem({ id: a.id, name: emp.full_name })}
+                  className="p-1.5 rounded text-bone-400 hover:text-rose-400 hover:bg-ink-700 transition-colors cursor-pointer"
+                  title="Unassign employee"
+                >
+                  <Trash2 size={13} />
+                </button>
+              </div>
             </div>
           );
         })}
@@ -131,13 +169,11 @@ export default function ClientTeamAssignments({
         )}
       </div>
 
-      {showModal && (
-        <div
-          className="fixed inset-0 z-50 grid place-items-center bg-ink-950/80 p-4"
-          onClick={() => setShowModal(false)}
-        >
+      {/* Assign Modal */}
+      {showAssignModal && (
+        <div className="fixed inset-0 z-50 grid place-items-center bg-ink-950/80 backdrop-blur-xs p-4 overflow-y-auto animate-in fade-in duration-200">
           <div
-            className="card w-full max-w-md p-6 bg-ink-900 border-ink-600 space-y-4"
+            className="card w-full max-w-md p-6 bg-ink-900 border-ink-600 space-y-4 my-auto shadow-2xl relative"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between border-b border-ink-700 pb-3">
@@ -146,10 +182,11 @@ export default function ClientTeamAssignments({
                 <h3 className="text-base font-semibold text-bone-50">Assign Employee to Client</h3>
               </div>
               <button
-                className="text-bone-400 hover:text-bone-50 text-sm"
-                onClick={() => setShowModal(false)}
+                type="button"
+                className="p-1 rounded text-bone-400 hover:text-bone-50 hover:bg-ink-800 cursor-pointer"
+                onClick={() => setShowAssignModal(false)}
               >
-                ✕
+                <X size={18} />
               </button>
             </div>
 
@@ -165,14 +202,14 @@ export default function ClientTeamAssignments({
 
             <div className="flex justify-end gap-2 border-t border-ink-700 pt-3">
               <button
-                className="btn h-8 px-3 text-xs"
-                onClick={() => setShowModal(false)}
+                className="btn h-8 px-3 text-xs cursor-pointer"
+                onClick={() => setShowAssignModal(false)}
                 disabled={pending}
               >
                 Cancel
               </button>
               <button
-                className="btn btn-primary h-8 px-4 text-xs"
+                className="btn btn-primary h-8 px-4 text-xs cursor-pointer"
                 onClick={handleAssign}
                 disabled={pending}
               >
@@ -182,6 +219,73 @@ export default function ClientTeamAssignments({
           </div>
         </div>
       )}
+
+      {/* Update / Replace Staff Modal */}
+      {editingAssignment && (
+        <div className="fixed inset-0 z-50 grid place-items-center bg-ink-950/80 backdrop-blur-xs p-4 overflow-y-auto animate-in fade-in duration-200">
+          <div
+            className="card w-full max-w-md p-6 bg-ink-900 border-ink-600 space-y-4 my-auto shadow-2xl relative"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between border-b border-ink-700 pb-3">
+              <div>
+                <span className="mono-tag text-xs text-lime-400">Staff Re-allocation</span>
+                <h3 className="text-base font-semibold text-bone-50">Update / Replace Assigned Staff</h3>
+              </div>
+              <button
+                type="button"
+                className="p-1 rounded text-bone-400 hover:text-bone-50 hover:bg-ink-800 cursor-pointer"
+                onClick={() => setEditingAssignment(null)}
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <p className="text-xs text-bone-300">
+              Currently assigned: <strong className="text-bone-50">{editingAssignment.name}</strong>. Select a replacement employee below:
+            </p>
+
+            <div>
+              <label className="mono-tag text-xs mb-1.5 block">Select Replacement Employee</label>
+              <CustomSelect
+                options={employeeOptions}
+                value={editEmployeeId}
+                onChange={(val) => setEditEmployeeId(val)}
+                placeholder="Select replacement team member…"
+              />
+            </div>
+
+            <div className="flex justify-end gap-2 border-t border-ink-700 pt-3">
+              <button
+                className="btn h-8 px-3 text-xs cursor-pointer"
+                onClick={() => setEditingAssignment(null)}
+                disabled={pending}
+              >
+                Cancel
+              </button>
+              <button
+                className="btn btn-primary h-8 px-4 text-xs cursor-pointer"
+                onClick={handleUpdate}
+                disabled={pending}
+              >
+                {pending ? "Updating..." : "Update Staff Assignment →"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Unassign Confirmation Modal */}
+      <ConfirmModal
+        isOpen={Boolean(unassigningItem)}
+        title="Unassign Team Member?"
+        description={`Are you sure you want to unassign ${unassigningItem?.name || "this employee"} from this client? They will no longer appear on the client's portal.`}
+        confirmText="Unassign Staff"
+        isDanger={true}
+        pending={pending}
+        onConfirm={handleUnassignConfirm}
+        onClose={() => setUnassigningItem(null)}
+      />
     </div>
   );
 }
