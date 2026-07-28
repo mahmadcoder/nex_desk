@@ -438,7 +438,7 @@ export default function WorkClient({ caseStudies }: { caseStudies: ICaseStudy[] 
                 Cancel
               </button>
               <button className="btn btn-primary h-9 px-4 text-xs cursor-pointer" onClick={handleSave} disabled={pending}>
-                {pending ? "Saving..." : "Save Case Study"}
+                {pending ? "Saving..." : editing.id ? "Update Case Study" : "Save Case Study"}
               </button>
             </div>
           </div>

@@ -230,7 +230,7 @@ export default function ClientDialog({
 
   if (!open) {
     if (trigger) {
-      return <span onClick={() => setOpen(true)}>{trigger}</span>;
+      return <span onClick={() => setOpen(true)} className="inline-flex items-center">{trigger}</span>;
     }
     return (
       <button className="btn btn-primary h-10 px-4 cursor-pointer hover:cursor-pointer" onClick={() => setOpen(true)}>
@@ -243,10 +243,10 @@ export default function ClientDialog({
 
   return (
     <div
-      className="fixed inset-0 z-50 grid place-items-center bg-ink-950/80 p-4 backdrop-blur-sm overflow-y-auto animate-in fade-in duration-200"
+      className="fixed inset-0 z-50 grid place-items-center bg-ink-950/80 p-4 backdrop-blur-sm overflow-y-auto animate-in fade-in duration-200 text-left"
     >
       <div
-        className="card w-full max-w-xl p-5 sm:p-7 relative bg-ink-900 border-ink-600 shadow-2xl my-auto max-h-[90vh] overflow-y-auto custom-admin-scrollbar"
+        className="card w-full max-w-xl p-5 sm:p-7 relative bg-ink-900 border-ink-600 shadow-2xl my-auto max-h-[90vh] overflow-y-auto custom-admin-scrollbar text-left"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Top Header with Close Icon */}
@@ -586,7 +586,11 @@ export default function ClientDialog({
             onClick={save}
             disabled={pending}
           >
-            {pending ? "Saving & Generating Credentials…" : "Add Client & Create Portal"}
+            {pending
+              ? "Saving…"
+              : clientToEdit?.id
+              ? "Update Client"
+              : "Add Client & Create Portal"}
           </button>
         </div>
       </div>

@@ -321,7 +321,7 @@ export default function BlogClient({ posts }: { posts: Post[] }) {
                 Cancel
               </button>
               <button className="btn btn-primary h-9 px-4 text-xs" onClick={handleSave} disabled={pending}>
-                {pending ? "Saving..." : "Save Article"}
+                {pending ? "Saving..." : editing.id ? "Update Article" : "Save Article"}
               </button>
             </div>
           </div>

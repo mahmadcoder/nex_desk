@@ -48,14 +48,14 @@ export default async function ClientsPage() {
                   {c.preferred_currency || "PKR"} {billed.toLocaleString()}
                 </td>
                 <td className="px-5 py-3 text-right">
-                  <div className="flex items-center justify-end gap-3">
+                  <div className="inline-flex items-center justify-end gap-3">
                     <ClientDialog
                       clientToEdit={c}
                       trigger={
-                        <button className="mono-tag hover:text-lime-400 cursor-pointer">edit</button>
+                        <button type="button" className="mono-tag hover:text-lime-400 cursor-pointer inline-flex items-center">edit</button>
                       }
                     />
-                    <Link href={`${BASE}/clients/${c.id}`} className="mono-tag hover:text-lime-400">open →</Link>
+                    <Link href={`${BASE}/clients/${c.id}`} className="mono-tag hover:text-lime-400 inline-flex items-center">open →</Link>
                   </div>
                 </td>
               </tr>

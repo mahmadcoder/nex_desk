@@ -367,7 +367,7 @@ export default function ServicesClient({ services }: { services: IService[] }) {
                 Cancel
               </button>
               <button className="btn btn-primary h-9 px-4 text-xs cursor-pointer" onClick={handleSave} disabled={pending}>
-                {pending ? "Saving..." : "Save Service & Prices"}
+                {pending ? "Saving..." : editing.id ? "Update Service" : "Save Service & Prices"}
               </button>
             </div>
           </div>

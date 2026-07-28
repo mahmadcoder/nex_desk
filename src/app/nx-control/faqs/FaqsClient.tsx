@@ -289,7 +289,7 @@ export default function FaqsClient({ faqs }: { faqs: IFaq[] }) {
                 onClick={handleSave}
                 disabled={pending}
               >
-                {pending ? "Saving..." : "Save FAQ"}
+                {pending ? "Saving..." : editing.id ? "Update FAQ" : "Save FAQ"}
               </button>
             </div>
           </div>

@@ -603,7 +603,7 @@ export default function EmployeesClient({
                 Cancel
               </button>
               <button className="btn btn-primary h-9 px-4 text-xs" onClick={handleSave} disabled={pending}>
-                {pending ? "Saving..." : editing.id ? "Save Changes" : "Hire Employee →"}
+                {pending ? "Saving..." : editing.id ? "Update Employee" : "Hire Employee →"}
               </button>
             </div>
           </div>

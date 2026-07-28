@@ -274,7 +274,7 @@ export default function TestimonialsClient({ testimonials }: { testimonials: ITe
                 Cancel
               </button>
               <button className="btn btn-primary h-9 px-4 text-xs cursor-pointer" onClick={handleSave} disabled={pending}>
-                {pending ? "Saving..." : "Save Testimonial"}
+                {pending ? "Saving..." : editing.id ? "Update Testimonial" : "Save Testimonial"}
               </button>
             </div>
           </div>
