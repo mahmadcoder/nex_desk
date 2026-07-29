@@ -466,7 +466,7 @@ export async function assignEmployeeToClient(clientId: string, employeeId: strin
     }
 
     // Verify client exists in database
-    const { data: clientObj } = await db.from("clients").select("id, name").eq("id", clientId).maybeSingle();
+    const { data: clientObj } = await db.from("clients").select("id, profile_id, name").eq("id", clientId).maybeSingle();
     if (!clientObj) {
       return { success: false, error: "Selected client does not exist in the database." };
     }
@@ -489,16 +489,29 @@ export async function assignEmployeeToClient(clientId: string, employeeId: strin
       return { success: true, message: "Client is already assigned to this staff member." };
     }
 
-    const { error } = await db.from("client_employee_assignments").insert({
+    // Insert assignment
+    let { error } = await db.from("client_employee_assignments").insert({
       client_id: clientId,
       employee_id: employeeId,
       project_id: projectId ?? null,
     });
 
+    // Fallback: If foreign key constraint 23503 fails and profile_id is present, try matching profile_id
+    if (error && error.code === "23503" && clientObj.profile_id) {
+      const retry = await db.from("client_employee_assignments").insert({
+        client_id: clientObj.profile_id,
+        employee_id: employeeId,
+        project_id: projectId ?? null,
+      });
+      if (!retry.error) {
+        error = null;
+      }
+    }
+
     if (error) {
       console.error("assignEmployeeToClient insert error:", error);
       if (error.code === "23503") {
-        return { success: false, error: "Database reference mismatch: Unable to link this client to staff member." };
+        return { success: false, error: `Client '${clientObj.name}' is missing a valid database foreign key link. Please open and save the client profile in Clients tab to fix.` };
       }
       return { success: false, error: error.message };
     }
