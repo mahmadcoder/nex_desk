@@ -457,51 +457,91 @@ export async function deleteJobTitle(id: string) {
 }
 
 export async function assignEmployeeToClient(clientId: string, employeeId: string, projectId?: string) {
-  await requireStaff();
-  const db = createAdminClient();
+  try {
+    await requireStaff();
+    const db = createAdminClient();
 
-  // Check if assignment already exists to prevent 500 unique constraint errors
-  const { data: existing } = await db
-    .from("client_employee_assignments")
-    .select("id")
-    .eq("client_id", clientId)
-    .eq("employee_id", employeeId)
-    .maybeSingle();
+    if (!clientId || !employeeId) {
+      return { success: false, error: "Invalid client or employee ID." };
+    }
 
-  if (existing) {
-    return existing;
+    // Check if assignment already exists
+    const { data: existing } = await db
+      .from("client_employee_assignments")
+      .select("id")
+      .eq("client_id", clientId)
+      .eq("employee_id", employeeId)
+      .maybeSingle();
+
+    if (!existing) {
+      const { error } = await db.from("client_employee_assignments").insert({
+        client_id: clientId,
+        employee_id: employeeId,
+        project_id: projectId ?? null,
+      });
+
+      if (error) {
+        console.error("assignEmployeeToClient insert error:", error);
+        return { success: false, error: error.message };
+      }
+    }
+
+    try {
+      if (clientId) revalidatePath(`/${ADMIN}/clients/${clientId}`);
+      if (employeeId) revalidatePath(`/${ADMIN}/employees/${employeeId}`);
+      revalidatePath("/portal");
+    } catch (rErr) {
+      console.error("revalidatePath notice:", rErr);
+    }
+
+    return { success: true };
+  } catch (err: any) {
+    console.error("assignEmployeeToClient top error:", err);
+    return { success: false, error: err.message || "Failed to assign employee to client." };
   }
-
-  const { data, error } = await db.from("client_employee_assignments").insert({
-    client_id: clientId,
-    employee_id: employeeId,
-    project_id: projectId ?? null,
-  }).select().single();
-
-  if (error) throw new Error(error.message || "Failed to assign employee to client.");
-
-  revalidatePath(`/${ADMIN}/clients/${clientId}`);
-  revalidatePath(`/${ADMIN}/employees/${employeeId}`);
-  revalidatePath("/portal");
-  return data;
 }
 
 export async function removeEmployeeFromClient(assignmentId: string, clientId?: string, employeeId?: string) {
-  await requireStaff();
-  const db = createAdminClient();
-  await db.from("client_employee_assignments").delete().eq("id", assignmentId);
-  if (clientId) revalidatePath(`/${ADMIN}/clients/${clientId}`);
-  if (employeeId) revalidatePath(`/${ADMIN}/employees/${employeeId}`);
-  revalidatePath("/portal");
+  try {
+    await requireStaff();
+    const db = createAdminClient();
+    const { error } = await db.from("client_employee_assignments").delete().eq("id", assignmentId);
+    if (error) return { success: false, error: error.message };
+
+    try {
+      if (clientId) revalidatePath(`/${ADMIN}/clients/${clientId}`);
+      if (employeeId) revalidatePath(`/${ADMIN}/employees/${employeeId}`);
+      revalidatePath("/portal");
+    } catch (rErr) {
+      console.error("revalidatePath notice:", rErr);
+    }
+
+    return { success: true };
+  } catch (err: any) {
+    console.error("removeEmployeeFromClient error:", err);
+    return { success: false, error: err.message || "Failed to remove assignment." };
+  }
 }
 
 export async function updateAssignedEmployee(assignmentId: string, newEmployeeId: string, clientId?: string) {
-  await requireStaff();
-  const db = createAdminClient();
-  const { error } = await db.from("client_employee_assignments").update({ employee_id: newEmployeeId }).eq("id", assignmentId);
-  if (error) throw error;
-  if (clientId) revalidatePath(`/${ADMIN}/clients/${clientId}`);
-  revalidatePath("/portal");
+  try {
+    await requireStaff();
+    const db = createAdminClient();
+    const { error } = await db.from("client_employee_assignments").update({ employee_id: newEmployeeId }).eq("id", assignmentId);
+    if (error) return { success: false, error: error.message };
+
+    try {
+      if (clientId) revalidatePath(`/${ADMIN}/clients/${clientId}`);
+      revalidatePath("/portal");
+    } catch (rErr) {
+      console.error("revalidatePath notice:", rErr);
+    }
+
+    return { success: true };
+  } catch (err: any) {
+    console.error("updateAssignedEmployee error:", err);
+    return { success: false, error: err.message || "Failed to update assigned staff." };
+  }
 }
 
 // ---------------- CLIENT SIGNED DOCUMENT UPLOADS ----------------

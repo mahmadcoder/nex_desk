@@ -28,14 +28,14 @@ export default function EmployeeClientAssignments({
     if (!selectedClientId) return toast.error("Select a client to assign.");
 
     startTransition(async () => {
-      try {
-        await assignEmployeeToClient(selectedClientId, employee.id);
+      const res = await assignEmployeeToClient(selectedClientId, employee.id);
+      if (res && res.error) {
+        toast.error(res.error);
+      } else {
         toast.success("Assigned employee to client successfully.");
         setSelectedClientId("");
         setShowAssignModal(false);
         router.refresh();
-      } catch (err: any) {
-        toast.error(err.message || "Failed to assign client.");
       }
     });
   };
@@ -44,12 +44,12 @@ export default function EmployeeClientAssignments({
     if (!confirm(`Unassign ${employee.full_name} from ${clientName}?`)) return;
 
     startTransition(async () => {
-      try {
-        await removeEmployeeFromClient(assignmentId, undefined, employee.id);
+      const res = await removeEmployeeFromClient(assignmentId, undefined, employee.id);
+      if (res && res.error) {
+        toast.error(res.error);
+      } else {
         toast.success("Removed assignment.");
-        window.location.reload();
-      } catch {
-        toast.error("Failed to remove assignment.");
+        router.refresh();
       }
     });
   };

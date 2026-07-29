@@ -34,14 +34,14 @@ export default function ClientTeamAssignments({
     if (!selectedEmployeeId) return toast.error("Select an employee to assign.");
 
     startTransition(async () => {
-      try {
-        await assignEmployeeToClient(clientId, selectedEmployeeId);
+      const res = await assignEmployeeToClient(clientId, selectedEmployeeId);
+      if (res && res.error) {
+        toast.error(res.error);
+      } else {
         toast.success("Assigned team member to client.");
         setSelectedEmployeeId("");
         setShowAssignModal(false);
         router.refresh();
-      } catch {
-        toast.error("Failed to assign employee.");
       }
     });
   };
@@ -51,14 +51,14 @@ export default function ClientTeamAssignments({
     if (!editEmployeeId) return toast.error("Select a replacement team member.");
 
     startTransition(async () => {
-      try {
-        await updateAssignedEmployee(editingAssignment.id, editEmployeeId, clientId);
+      const res = await updateAssignedEmployee(editingAssignment.id, editEmployeeId, clientId);
+      if (res && res.error) {
+        toast.error(res.error);
+      } else {
         toast.success(`Replaced assigned staff with new team member.`);
         setEditingAssignment(null);
         setEditEmployeeId("");
         router.refresh();
-      } catch {
-        toast.error("Failed to update assigned employee.");
       }
     });
   };
@@ -67,13 +67,13 @@ export default function ClientTeamAssignments({
     if (!unassigningItem) return;
 
     startTransition(async () => {
-      try {
-        await removeEmployeeFromClient(unassigningItem.id, clientId, undefined);
+      const res = await removeEmployeeFromClient(unassigningItem.id, clientId, undefined);
+      if (res && res.error) {
+        toast.error(res.error);
+      } else {
         toast.success(`Unassigned ${unassigningItem.name}.`);
         setUnassigningItem(null);
         router.refresh();
-      } catch {
-        toast.error("Failed to unassign employee.");
       }
     });
   };
