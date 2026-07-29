@@ -112,27 +112,29 @@ function PortalLoginForm() {
 
 export default function PortalLogin() {
   return (
-    <div className="mx-auto max-w-sm py-16 px-4">
-      <div className="flex justify-center mb-8">
-        <Logo />
-      </div>
-
-      <div className="card p-8">
-        <div className="mb-6">
-          <p className="mono-tag text-lime-400">Client Portal</p>
-          <h1 className="mt-2 text-2xl font-semibold text-bone-50">Client Sign In</h1>
-          <p className="mt-1 text-sm text-bone-400">
-            Enter the login credentials sent to your email upon locking your project.
-          </p>
+    <div className="min-h-[75vh] flex flex-col justify-center items-center py-6 px-4">
+      <div className="w-full max-w-sm">
+        <div className="flex justify-center mb-6">
+          <Logo />
         </div>
 
-        <Suspense fallback={<div className="py-8 text-center text-xs text-bone-400">Loading login form…</div>}>
-          <PortalLoginForm />
-        </Suspense>
+        <div className="card p-8 shadow-2xl">
+          <div className="mb-6">
+            <p className="mono-tag text-lime-400">Client Portal</p>
+            <h1 className="mt-2 text-2xl font-semibold text-bone-50">Client Sign In</h1>
+            <p className="mt-1 text-sm text-bone-400">
+              Enter the login credentials sent to your email upon locking your project.
+            </p>
+          </div>
 
-        <p className="mt-6 text-center text-xs text-bone-500">
-          Need help logging in? Contact your Nex Desk project lead.
-        </p>
+          <Suspense fallback={<div className="py-8 text-center text-xs text-bone-400">Loading login form…</div>}>
+            <PortalLoginForm />
+          </Suspense>
+
+          <p className="mt-6 text-center text-xs text-bone-500">
+            Need help logging in? Contact your Nex Desk project lead.
+          </p>
+        </div>
       </div>
     </div>
   );

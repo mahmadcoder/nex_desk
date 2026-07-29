@@ -9,20 +9,20 @@ Font.register({
 });
 
 export const C = {
-  ink: "#0A0E17",
-  ink700: "#2E3D5A",
-  bone: "#F1F5F9",
+  ink: "#0B0B0F",
+  ink700: "#252530",
+  bone: "#F4F1EA",
   lime: "#D0FF4E",
   limeText: "#2A3A00",
-  line: "#E2E8F0",
-  muted: "#64748B",
+  line: "#E4E0D4",
+  muted: "#75736C",
   ok: "#1D9E75",
   warn: "#BA7517",
 };
 
 /** Documents print on bone, not white — same warm paper the brand uses on screen. */
 export const s = StyleSheet.create({
-  page: { backgroundColor: "#F8FAFC", padding: 44, fontFamily: "Inter", fontSize: 9.5, color: C.ink, lineHeight: 1.55 },
+  page: { backgroundColor: "#F4F1EA", padding: 44, fontFamily: "Inter", fontSize: 9.5, color: C.ink, lineHeight: 1.55 },
 
   headerBar: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start", paddingBottom: 18, borderBottomWidth: 1.5, borderBottomColor: C.ink },
   brandBlock: { flexDirection: "row", alignItems: "center", gap: 8 },

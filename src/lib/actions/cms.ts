@@ -403,26 +403,22 @@ export async function saveEmployee(id: string | null, data: Record<string, unkno
     : await db.from("employees").insert(data).select().single();
   if (res.error) throw res.error;
 
-  // Send Joining Email on new employee creation
+  // Send Joining Email on new employee creation in non-blocking background task
   if (!id && res.data?.email) {
-    try {
-      await sendEmail({
-        templateKey: "employee_joining",
-        language,
-        to: String(res.data.email),
-        vars: {
-          employee_name: String(res.data.full_name ?? "Team Member"),
-          job_title: String(res.data.job_title ?? "Specialist"),
-          seniority: String(res.data.seniority ?? "Senior"),
-          city: String(res.data.city ?? "Remote"),
-          country: String(res.data.country ?? "Global"),
-          joining_date: String(res.data.joining_date ?? new Date().toISOString().slice(0, 10)),
-        },
-        actorId: staff.id,
-      });
-    } catch {
-      /* email failed silently */
-    }
+    sendEmail({
+      templateKey: "employee_joining",
+      language,
+      to: String(res.data.email),
+      vars: {
+        employee_name: String(res.data.full_name ?? "Team Member"),
+        job_title: String(res.data.job_title ?? "Specialist"),
+        seniority: String(res.data.seniority ?? "Senior"),
+        city: String(res.data.city ?? "Remote"),
+        country: String(res.data.country ?? "Global"),
+        joining_date: String(res.data.joining_date ?? new Date().toISOString().slice(0, 10)),
+      },
+      actorId: staff.id,
+    }).catch((emailErr) => console.error("Employee joining email failed in background:", emailErr));
   }
 
   revalidatePath(`/${ADMIN}/employees`);
@@ -506,19 +502,16 @@ export async function uploadClientSignedDocument(data: {
 
   if (error) throw new Error(error.message || "Failed to upload document.");
 
-  try {
-    const adminEmail = process.env.GMAIL_USER || "ahmadsadiq.dev@gmail.com";
-    const { data: clientObj } = await db.from("clients").select("name, email").eq("id", data.clientId).maybeSingle();
-    await sendEmail({
+  const adminEmail = process.env.GMAIL_USER || "ahmadsadiq.dev@gmail.com";
+  db.from("clients").select("name, email").eq("id", data.clientId).maybeSingle().then(({ data: clientObj }) => {
+    sendEmail({
       templateKey: "admin_document_uploaded_notice",
       to: adminEmail,
       vars: { client_name: clientObj?.name || "Client", doc_title: data.title },
       bodyOverride: `Hello Admin,\n\nClient "${clientObj?.name || "A client"}" (${clientObj?.email || ""}) has uploaded a signed document:\n\n• Title: ${data.title}\n• Document Type: ${data.documentType || "Signed Agreement"}\n• Date: ${new Date().toLocaleString()}\n\nYou can view and download this document from your Admin Document Center (/nx-control/documents).`,
       subjectOverride: `Signed Document Uploaded: ${data.title} by ${clientObj?.name || "Client"}`,
-    });
-  } catch (emailErr) {
-    console.error("Error sending document upload notice email:", emailErr);
-  }
+    }).catch((emailErr) => console.error("Error sending document upload notice email:", emailErr));
+  });
 
   revalidatePath("/portal");
   revalidatePath(`/${ADMIN}/documents`);
@@ -553,21 +546,17 @@ export async function submitDailyWorkLog(data: {
 
   if (error) throw new Error(error.message || "Failed to submit daily work log.");
 
-  try {
-    const adminEmail = process.env.GMAIL_USER || "ahmadsadiq.dev@gmail.com";
-    await sendEmail({
-      templateKey: "admin_work_log_notice",
-      to: adminEmail,
-      vars: {
-        employee_name: data.employee_name || "Staff Member",
-        project_title: data.project_title || "General Task",
-      },
-      bodyOverride: `Hello Admin,\n\nA new Daily Work Log has been submitted:\n\n• Staff Member: ${data.employee_name || "N/A"}\n• Assigned Project: ${data.project_title || "N/A"}\n• Work Date: ${data.work_date}\n• Hours Spent: ${data.hours_spent} hrs\n• Tasks Completed:\n${data.tasks_completed}${data.blockers ? `\n\n• Blockers / Assistance Needed:\n${data.blockers}` : ""}\n\nYou can review all daily logs at /nx-control/daily-logs.`,
-      subjectOverride: `Daily Work Log Submitted by ${data.employee_name || "Staff Member"} (${data.work_date})`,
-    });
-  } catch (emailErr) {
-    console.error("Error sending work log notice email:", emailErr);
-  }
+  const adminEmail = process.env.GMAIL_USER || "ahmadsadiq.dev@gmail.com";
+  sendEmail({
+    templateKey: "admin_work_log_notice",
+    to: adminEmail,
+    vars: {
+      employee_name: data.employee_name || "Staff Member",
+      project_title: data.project_title || "General Task",
+    },
+    bodyOverride: `Hello Admin,\n\nA new Daily Work Log has been submitted:\n\n• Staff Member: ${data.employee_name || "N/A"}\n• Assigned Project: ${data.project_title || "N/A"}\n• Work Date: ${data.work_date}\n• Hours Spent: ${data.hours_spent} hrs\n• Tasks Completed:\n${data.tasks_completed}${data.blockers ? `\n\n• Blockers / Assistance Needed:\n${data.blockers}` : ""}\n\nYou can review all daily logs at /nx-control/daily-logs.`,
+    subjectOverride: `Daily Work Log Submitted by ${data.employee_name || "Staff Member"} (${data.work_date})`,
+  }).catch((emailErr) => console.error("Error sending work log notice email:", emailErr));
 
   revalidatePath(`/${ADMIN}/daily-logs`);
   revalidatePath(`/${ADMIN}/employees`);

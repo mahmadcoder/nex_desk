@@ -216,20 +216,20 @@ function renderHtml(subject: string, body: string, lang: string = "en") {
   const alignStyle = isRtl ? 'text-align:right' : 'text-align:left';
   const siteUrl = getSiteBaseUrl();
 
-  /* ── Brand palette tokens ── */
+  /* ── Official NexDesk Brand palette tokens ── */
   const C = {
-    pageBg:   "#070A10",
-    cardBg:   "#0E1320",
-    cardBorder: "#1A2236",
-    headerBg: "#0A0E17",
-    lime:     "#D0FF4E",
-    limeDark: "#2A3A00",
-    text:     "#F1F5F9",
-    textSub:  "#CBD5E1",
-    textMuted:"#8492A6",
-    divider:  "#1A2236",
-    infoBg:   "#111827",
-    infoBorder:"#243049",
+    pageBg:     "#08080B",
+    cardBg:     "#131318",
+    cardBorder: "#26262F",
+    headerBg:   "#0B0B0F",
+    lime:       "#D0FF4E",
+    limeDark:   "#2A3A00",
+    text:       "#F4F1EA",
+    textSub:    "#C9C5BB",
+    textMuted:  "#8A877F",
+    divider:    "#26262F",
+    infoBg:     "#1B1B22",
+    infoBorder: "#26262F",
   };
 
   // Process body into structured HTML cards, paragraphs, and CTA buttons

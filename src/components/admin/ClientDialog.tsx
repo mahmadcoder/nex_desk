@@ -275,7 +275,7 @@ export default function ClientDialog({
             <label className={labelStyle}>Full Name *</label>
             <input
               className={field}
-              placeholder="e.g. Ali Ahmed"
+              placeholder="e.g. Alex Morgan"
               value={f.name}
               onChange={(e) => set("name", e.target.value)}
               required
