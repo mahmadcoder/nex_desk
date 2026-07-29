@@ -465,6 +465,18 @@ export async function assignEmployeeToClient(clientId: string, employeeId: strin
       return { success: false, error: "Invalid client or employee ID." };
     }
 
+    // Verify client exists in database
+    const { data: clientObj } = await db.from("clients").select("id, name").eq("id", clientId).maybeSingle();
+    if (!clientObj) {
+      return { success: false, error: "Selected client does not exist in the database." };
+    }
+
+    // Verify employee exists in database
+    const { data: empObj } = await db.from("employees").select("id, full_name").eq("id", employeeId).maybeSingle();
+    if (!empObj) {
+      return { success: false, error: "Selected employee does not exist in the database." };
+    }
+
     // Check if assignment already exists
     const { data: existing } = await db
       .from("client_employee_assignments")
@@ -473,17 +485,22 @@ export async function assignEmployeeToClient(clientId: string, employeeId: strin
       .eq("employee_id", employeeId)
       .maybeSingle();
 
-    if (!existing) {
-      const { error } = await db.from("client_employee_assignments").insert({
-        client_id: clientId,
-        employee_id: employeeId,
-        project_id: projectId ?? null,
-      });
+    if (existing) {
+      return { success: true, message: "Client is already assigned to this staff member." };
+    }
 
-      if (error) {
-        console.error("assignEmployeeToClient insert error:", error);
-        return { success: false, error: error.message };
+    const { error } = await db.from("client_employee_assignments").insert({
+      client_id: clientId,
+      employee_id: employeeId,
+      project_id: projectId ?? null,
+    });
+
+    if (error) {
+      console.error("assignEmployeeToClient insert error:", error);
+      if (error.code === "23503") {
+        return { success: false, error: "Database reference mismatch: Unable to link this client to staff member." };
       }
+      return { success: false, error: error.message };
     }
 
     try {
