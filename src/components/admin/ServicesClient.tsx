@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { saveService, deleteService, toggleServiceActive, seedDefaultServices } from "@/lib/actions/cms";
 import { Plus, Trash2, Edit3, Eye, EyeOff, RefreshCw, DollarSign, Layers, X } from "lucide-react";
 import { PageHead } from "@/components/admin/ui";
+import ConfirmModal from "@/components/admin/ConfirmModal";
 
 import { IService } from "@/types/cms";
 
@@ -26,15 +27,32 @@ export default function ServicesClient({ services }: { services: IService[] }) {
     });
   };
 
-  const handleSeed = () => {
-    if (!confirm("Seed all 16 default agency services into Supabase database?")) return;
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [showSeedModal, setShowSeedModal] = useState(false);
+
+  const confirmSeed = () => {
     startTransition(async () => {
       try {
         const res = await seedDefaultServices();
         toast.success(`Successfully seeded ${res.count} services into database!`);
+        setShowSeedModal(false);
         router.refresh();
       } catch (err: any) {
         toast.error(err.message || "Failed to seed services.");
+      }
+    });
+  };
+
+  const confirmDelete = () => {
+    if (!deletingId) return;
+    startTransition(async () => {
+      try {
+        await deleteService(deletingId);
+        toast.success("Service deleted.");
+        setDeletingId(null);
+        router.refresh();
+      } catch {
+        toast.error("Failed to delete service.");
       }
     });
   };
@@ -121,19 +139,6 @@ export default function ServicesClient({ services }: { services: IService[] }) {
     });
   };
 
-  const handleDelete = (id: string) => {
-    if (!confirm("Delete this service? It will be removed from database and public site.")) return;
-    startTransition(async () => {
-      try {
-        await deleteService(id);
-        toast.success("Service deleted.");
-        router.refresh();
-      } catch {
-        toast.error("Failed to delete service.");
-      }
-    });
-  };
-
   return (
     <div className="space-y-6">
       <PageHead
@@ -142,7 +147,7 @@ export default function ServicesClient({ services }: { services: IService[] }) {
         action={
           <div className="flex flex-wrap items-center gap-2 shrink-0 sm:w-auto w-full">
             <button
-              onClick={handleSeed}
+              onClick={() => setShowSeedModal(true)}
               disabled={pending}
               className="btn bg-ink-800 text-bone-200 hover:text-bone-50 border-ink-600 min-h-[36px] h-auto py-2 px-3 text-xs flex items-center gap-1.5 cursor-pointer whitespace-nowrap shrink-0"
             >
@@ -227,7 +232,7 @@ export default function ServicesClient({ services }: { services: IService[] }) {
                   <Edit3 size={14} />
                 </button>
                 <button
-                  onClick={() => handleDelete(s.id)}
+                  onClick={() => setDeletingId(s.id)}
                   className="p-1.5 rounded text-bone-400 hover:text-rose-400 hover:bg-ink-800 cursor-pointer"
                   title="Delete service"
                 >
@@ -373,6 +378,30 @@ export default function ServicesClient({ services }: { services: IService[] }) {
           </div>
         </div>
       )}
+
+      {/* Confirm Delete Service Modal */}
+      <ConfirmModal
+        isOpen={!!deletingId}
+        title="Delete Service Offering"
+        description="Are you sure you want to delete this service? It will be permanently removed from the database and public website."
+        confirmText="Delete Service"
+        isDanger={true}
+        pending={pending}
+        onConfirm={confirmDelete}
+        onClose={() => setDeletingId(null)}
+      />
+
+      {/* Confirm Seed Services Modal */}
+      <ConfirmModal
+        isOpen={showSeedModal}
+        title="Seed Default Agency Services"
+        description="Are you sure you want to seed all 16 default agency services into the database?"
+        confirmText="Seed 16 Services"
+        isDanger={false}
+        pending={pending}
+        onConfirm={confirmSeed}
+        onClose={() => setShowSeedModal(false)}
+      />
     </div>
   );
 }

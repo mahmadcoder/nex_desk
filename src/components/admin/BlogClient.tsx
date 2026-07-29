@@ -7,6 +7,7 @@ import { savePost, deletePost } from "@/lib/actions/cms";
 import { Plus, Trash2, Edit3, X, Tag } from "lucide-react";
 import { PageHead } from "@/components/admin/ui";
 import ImageUpload from "@/components/admin/ImageUpload";
+import ConfirmModal from "@/components/admin/ConfirmModal";
 
 interface Post {
   id: string;
@@ -60,12 +61,15 @@ export default function BlogClient({ posts }: { posts: Post[] }) {
     });
   };
 
-  const handleDelete = (id: string) => {
-    if (!confirm("Delete this blog post?")) return;
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+
+  const confirmDelete = () => {
+    if (!deletingId) return;
     startTransition(async () => {
       try {
-        await deletePost(id);
+        await deletePost(deletingId);
         toast.success("Blog post deleted.");
+        setDeletingId(null);
         router.refresh();
       } catch {
         toast.error("Failed to delete blog post.");
@@ -167,7 +171,7 @@ export default function BlogClient({ posts }: { posts: Post[] }) {
                   <Edit3 size={14} />
                 </button>
                 <button
-                  onClick={() => handleDelete(p.id)}
+                  onClick={() => setDeletingId(p.id)}
                   className="p-1.5 rounded text-bone-400 hover:text-rose-400 hover:bg-ink-800"
                 >
                   <Trash2 size={14} />
@@ -327,6 +331,18 @@ export default function BlogClient({ posts }: { posts: Post[] }) {
           </div>
         </div>
       )}
+
+      {/* Confirm Delete Blog Post Modal */}
+      <ConfirmModal
+        isOpen={!!deletingId}
+        title="Delete Blog Article"
+        description="Are you sure you want to delete this blog post? It will be permanently removed from the website."
+        confirmText="Delete Article"
+        isDanger={true}
+        pending={pending}
+        onConfirm={confirmDelete}
+        onClose={() => setDeletingId(null)}
+      />
     </div>
   );
 }

@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { saveService, deleteService } from "@/lib/actions/cms";
 import { Plus, Trash2, Edit3, DollarSign, Layers } from "lucide-react";
+import ConfirmModal from "@/components/admin/ConfirmModal";
 
 interface Service {
   id: string;
@@ -52,12 +53,15 @@ export default function ServicesClient({ services }: { services: Service[] }) {
     });
   };
 
-  const handleDelete = (id: string) => {
-    if (!confirm("Delete this service?")) return;
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+
+  const confirmDelete = () => {
+    if (!deletingId) return;
     startTransition(async () => {
       try {
-        await deleteService(id);
+        await deleteService(deletingId);
         toast.success("Service deleted.");
+        setDeletingId(null);
         router.refresh();
       } catch {
         toast.error("Failed to delete service.");
@@ -121,7 +125,7 @@ export default function ServicesClient({ services }: { services: Service[] }) {
                   <Edit3 size={14} />
                 </button>
                 <button
-                  onClick={() => handleDelete(s.id)}
+                  onClick={() => setDeletingId(s.id)}
                   className="p-1.5 rounded text-bone-400 hover:text-rose-400 hover:bg-ink-800"
                 >
                   <Trash2 size={14} />
@@ -226,6 +230,18 @@ export default function ServicesClient({ services }: { services: Service[] }) {
           </div>
         </div>
       )}
+
+      {/* Confirm Delete Modal */}
+      <ConfirmModal
+        isOpen={!!deletingId}
+        title="Delete Service"
+        description="Are you sure you want to delete this service offering? It will be removed from your agency catalogue."
+        confirmText="Delete Service"
+        isDanger={true}
+        pending={pending}
+        onConfirm={confirmDelete}
+        onClose={() => setDeletingId(null)}
+      />
     </div>
   );
 }

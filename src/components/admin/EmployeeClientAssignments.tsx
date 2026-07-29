@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Users, Plus, Trash2, ExternalLink, Briefcase, Building } from "lucide-react";
 import CustomSelect from "@/components/ui/CustomSelect";
+import ConfirmModal from "@/components/admin/ConfirmModal";
 import { assignEmployeeToClient, removeEmployeeFromClient } from "@/lib/actions/cms";
 
 interface Props {
@@ -40,15 +41,18 @@ export default function EmployeeClientAssignments({
     });
   };
 
-  const handleRemove = (assignmentId: string, clientName: string) => {
-    if (!confirm(`Unassign ${employee.full_name} from ${clientName}?`)) return;
+  const [unassignTarget, setUnassignTarget] = useState<{ id: string; clientName: string } | null>(null);
+
+  const confirmUnassign = () => {
+    if (!unassignTarget) return;
 
     startTransition(async () => {
-      const res = await removeEmployeeFromClient(assignmentId, undefined, employee.id);
+      const res = await removeEmployeeFromClient(unassignTarget.id, undefined, employee.id);
       if (res && res.error) {
         toast.error(res.error);
       } else {
         toast.success("Removed assignment.");
+        setUnassignTarget(null);
         router.refresh();
       }
     });
@@ -107,7 +111,7 @@ export default function EmployeeClientAssignments({
             </div>
 
             <button
-              onClick={() => handleRemove(a.id, a.clients?.name ?? "client")}
+              onClick={() => setUnassignTarget({ id: a.id, clientName: a.clients?.name ?? "client" })}
               className="p-1.5 rounded text-bone-400 hover:text-rose-400 hover:bg-ink-700 transition-colors"
               title="Remove assignment"
             >
@@ -179,6 +183,18 @@ export default function EmployeeClientAssignments({
           </div>
         </div>
       )}
+
+      {/* Confirm Unassign Modal */}
+      <ConfirmModal
+        isOpen={!!unassignTarget}
+        title="Unassign Client"
+        description={`Are you sure you want to unassign ${employee.full_name} from ${unassignTarget?.clientName}?`}
+        confirmText="Unassign Staff"
+        isDanger={true}
+        pending={pending}
+        onConfirm={confirmUnassign}
+        onClose={() => setUnassignTarget(null)}
+      />
     </div>
   );
 }

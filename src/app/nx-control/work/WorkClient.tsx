@@ -4,7 +4,9 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { saveCaseStudy, deleteCaseStudy } from "@/lib/actions/cms";
-import { Plus, Trash2, Edit3, ExternalLink, Sparkles, Layers } from "lucide-react";
+import { Plus, Trash2, Edit3, X, ExternalLink } from "lucide-react";
+import { PageHead } from "@/components/admin/ui";
+import ConfirmModal from "@/components/admin/ConfirmModal";
 
 interface CaseStudy {
   id: string;
@@ -58,12 +60,15 @@ export default function WorkClient({ caseStudies }: { caseStudies: CaseStudy[] }
     });
   };
 
-  const handleDelete = (id: string) => {
-    if (!confirm("Delete this case study?")) return;
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+
+  const confirmDelete = () => {
+    if (!deletingId) return;
     startTransition(async () => {
       try {
-        await deleteCaseStudy(id);
+        await deleteCaseStudy(deletingId);
         toast.success("Case study deleted.");
+        setDeletingId(null);
         router.refresh();
       } catch {
         toast.error("Failed to delete case study.");
@@ -137,7 +142,7 @@ export default function WorkClient({ caseStudies }: { caseStudies: CaseStudy[] }
                   <Edit3 size={14} />
                 </button>
                 <button
-                  onClick={() => handleDelete(c.id)}
+                  onClick={() => setDeletingId(c.id)}
                   className="p-1.5 rounded text-bone-400 hover:text-rose-400 hover:bg-ink-800"
                 >
                   <Trash2 size={14} />
@@ -263,6 +268,18 @@ export default function WorkClient({ caseStudies }: { caseStudies: CaseStudy[] }
           </div>
         </div>
       )}
+
+      {/* Confirm Delete Modal */}
+      <ConfirmModal
+        isOpen={!!deletingId}
+        title="Delete Case Study"
+        description="Are you sure you want to delete this case study project? It will be removed from your portfolio."
+        confirmText="Delete Case Study"
+        isDanger={true}
+        pending={pending}
+        onConfirm={confirmDelete}
+        onClose={() => setDeletingId(null)}
+      />
     </div>
   );
 }

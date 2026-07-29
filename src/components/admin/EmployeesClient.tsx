@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import ImageUpload from "@/components/admin/ImageUpload";
 import CustomSelect from "@/components/ui/CustomSelect";
+import ConfirmModal from "@/components/admin/ConfirmModal";
 import { saveEmployee, deleteEmployee, saveJobTitle, deleteJobTitle } from "@/lib/actions/cms";
 import { checkEmailExists } from "@/lib/actions";
 
@@ -122,12 +123,15 @@ export default function EmployeesClient({
     });
   };
 
-  const handleDelete = (id: string, name: string) => {
-    if (!confirm(`Are you sure you want to remove ${name} from the agency?`)) return;
+  const [deletingEmployee, setDeletingEmployee] = useState<{ id: string; name: string } | null>(null);
+
+  const confirmDeleteEmployee = () => {
+    if (!deletingEmployee) return;
     startTransition(async () => {
       try {
-        await deleteEmployee(id);
-        toast.success(`${name} has been removed.`);
+        await deleteEmployee(deletingEmployee.id);
+        toast.success(`${deletingEmployee.name} has been removed.`);
+        setDeletingEmployee(null);
         window.location.reload();
       } catch {
         toast.error("Failed to remove employee.");
@@ -394,7 +398,7 @@ export default function EmployeesClient({
                   <Edit3 size={14} />
                 </button>
                 <button
-                  onClick={() => handleDelete(e.id, e.full_name)}
+                  onClick={() => setDeletingEmployee({ id: e.id, name: e.full_name })}
                   className="p-1.5 rounded text-bone-400 hover:text-rose-400 hover:bg-ink-800"
                   title="Delete employee"
                 >
@@ -687,6 +691,18 @@ export default function EmployeesClient({
           </div>
         </div>
       )}
+
+      {/* Confirm Delete Employee Modal */}
+      <ConfirmModal
+        isOpen={!!deletingEmployee}
+        title="Remove Team Member"
+        description={`Are you sure you want to remove ${deletingEmployee?.name} from the agency? Their profile and client assignments will be deleted.`}
+        confirmText="Delete Employee"
+        isDanger={true}
+        pending={pending}
+        onConfirm={confirmDeleteEmployee}
+        onClose={() => setDeletingEmployee(null)}
+      />
     </div>
   );
 }
