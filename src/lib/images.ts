@@ -72,11 +72,11 @@ export function avatar(seed: string, style: AvatarStyle = "notionists") {
 
 export function gradientFor(seed: string) {
   const palettes = [
-    ["#5B3DF5", "#0B0B0F"],
-    ["#D0FF4E", "#1B1B22"],
-    ["#2A3A00", "#0B0B0F"],
+    ["#5B3DF5", "#0A0E17"],
+    ["#D0FF4E", "#1A2236"],
+    ["#2A3A00", "#0A0E17"],
     ["#5B3DF5", "#D0FF4E"],
-    ["#131318", "#5B3DF5"],
+    ["#111827", "#5B3DF5"],
   ];
   let h = 0;
   for (let i = 0; i < seed.length; i++) h = (h * 31 + seed.charCodeAt(i)) >>> 0;

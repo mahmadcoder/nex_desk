@@ -85,11 +85,11 @@ export default function TheDesk() {
         <div ref={root} className="relative">
           <svg viewBox="0 0 520 400" className="w-full" role="img" aria-label="An illustrated desk. Explore the objects on it.">
             {/* desk surface */}
-            <rect x="20" y="40" width="480" height="330" rx="18" fill="#131318" stroke="#26262F" />
+            <rect x="20" y="40" width="480" height="330" rx="18" fill="#111827" stroke="#243049" />
             {/* faint grid on the desk */}
             <defs>
               <pattern id="deskgrid" width="26" height="26" patternUnits="userSpaceOnUse">
-                <path d="M26 0H0V26" fill="none" stroke="#F4F1EA" strokeOpacity="0.05" strokeWidth="0.5" />
+                <path d="M26 0H0V26" fill="none" stroke="#F1F5F9" strokeOpacity="0.05" strokeWidth="0.5" />
               </pattern>
             </defs>
             <rect x="20" y="40" width="480" height="330" rx="18" fill="url(#deskgrid)" />
@@ -102,18 +102,18 @@ export default function TheDesk() {
               onClick={() => (window.location.href = "/work")}
               style={{ transform: hot === "monitor" ? "translateY(-6px)" : "translateY(0)", transition: "transform .3s" }}
             >
-              <rect x="150" y="70" width="220" height="140" rx="10" fill="#0B0B0F" stroke={hot === "monitor" ? "#D0FF4E" : "#33333E"} strokeWidth={hot === "monitor" ? 2 : 1} />
+              <rect x="150" y="70" width="220" height="140" rx="10" fill="#0A0E17" stroke={hot === "monitor" ? "#D0FF4E" : "#2E3D5A"} strokeWidth={hot === "monitor" ? 2 : 1} />
               {/* tiny site on screen */}
-              <rect x="164" y="84" width="192" height="14" rx="3" fill="#1B1B22" />
-              <circle cx="172" cy="91" r="2" fill="#33333E" />
-              <rect x="164" y="106" width="120" height="10" rx="2" fill="#26262F" />
-              <rect x="164" y="122" width="90" height="8" rx="2" fill="#1B1B22" />
+              <rect x="164" y="84" width="192" height="14" rx="3" fill="#1A2236" />
+              <circle cx="172" cy="91" r="2" fill="#2E3D5A" />
+              <rect x="164" y="106" width="120" height="10" rx="2" fill="#243049" />
+              <rect x="164" y="122" width="90" height="8" rx="2" fill="#1A2236" />
               <rect x="164" y="150" width="70" height="24" rx="6" fill="#D0FF4E" />
-              <rect x="300" y="150" width="56" height="24" rx="6" fill="#1B1B22" />
+              <rect x="300" y="150" width="56" height="24" rx="6" fill="#1A2236" />
               <rect className="screen-caret" x="258" y="122" width="3" height="8" fill="#D0FF4E" />
               {/* stand */}
-              <rect x="250" y="210" width="20" height="26" fill="#26262F" />
-              <rect x="228" y="234" width="64" height="8" rx="4" fill="#33333E" />
+              <rect x="250" y="210" width="20" height="26" fill="#243049" />
+              <rect x="228" y="234" width="64" height="8" rx="4" fill="#2E3D5A" />
             </g>
 
             {/* ---- NOTEBOOK ---- */}
@@ -124,12 +124,12 @@ export default function TheDesk() {
               onClick={() => (window.location.href = "/about")}
               style={{ transform: hot === "notebook" ? "translateY(-6px)" : "translateY(0)", transition: "transform .3s" }}
             >
-              <rect x="60" y="250" width="150" height="104" rx="8" transform="rotate(-6 135 302)" fill="#F4F1EA" stroke={hot === "notebook" ? "#D0FF4E" : "#DEDACE"} strokeWidth={hot === "notebook" ? 2 : 1} />
+              <rect x="60" y="250" width="150" height="104" rx="8" transform="rotate(-6 135 302)" fill="#F1F5F9" stroke={hot === "notebook" ? "#D0FF4E" : "#E2E8F0"} strokeWidth={hot === "notebook" ? 2 : 1} />
               <g transform="rotate(-6 135 302)" opacity="0.5">
-                <line x1="74" y1="272" x2="196" y2="272" stroke="#C9C5BB" strokeWidth="1" />
-                <line x1="74" y1="286" x2="196" y2="286" stroke="#C9C5BB" strokeWidth="1" />
-                <line x1="74" y1="300" x2="170" y2="300" stroke="#C9C5BB" strokeWidth="1" />
-                <rect x="150" y="312" width="40" height="26" rx="3" fill="none" stroke="#8A877F" strokeWidth="1" />
+                <line x1="74" y1="272" x2="196" y2="272" stroke="#CBD5E1" strokeWidth="1" />
+                <line x1="74" y1="286" x2="196" y2="286" stroke="#CBD5E1" strokeWidth="1" />
+                <line x1="74" y1="300" x2="170" y2="300" stroke="#CBD5E1" strokeWidth="1" />
+                <rect x="150" y="312" width="40" height="26" rx="3" fill="none" stroke="#8492A6" strokeWidth="1" />
                 <path d="M150 325 L170 318 L190 330" fill="none" stroke="#5B3DF5" strokeWidth="1.5" />
               </g>
             </g>
@@ -142,29 +142,29 @@ export default function TheDesk() {
               onClick={() => (window.location.href = "/contact")}
               style={{ transform: hot === "phone" ? "translateY(-6px)" : "translateY(0)", transition: "transform .3s" }}
             >
-              <rect x="392" y="250" width="70" height="112" rx="12" transform="rotate(8 427 306)" fill="#0B0B0F" stroke={hot === "phone" ? "#D0FF4E" : "#33333E"} strokeWidth={hot === "phone" ? 2 : 1} />
+              <rect x="392" y="250" width="70" height="112" rx="12" transform="rotate(8 427 306)" fill="#0A0E17" stroke={hot === "phone" ? "#D0FF4E" : "#2E3D5A"} strokeWidth={hot === "phone" ? 2 : 1} />
               <g transform="rotate(8 427 306)">
-                <text x="427" y="298" textAnchor="middle" fill="#F4F1EA" fontSize="18" fontFamily="monospace">{time}</text>
-                <text x="427" y="314" textAnchor="middle" fill="#8A877F" fontSize="7" fontFamily="monospace" letterSpacing="1">ISLAMABAD</text>
+                <text x="427" y="298" textAnchor="middle" fill="#F1F5F9" fontSize="18" fontFamily="monospace">{time}</text>
+                <text x="427" y="314" textAnchor="middle" fill="#8492A6" fontSize="7" fontFamily="monospace" letterSpacing="1">ISLAMABAD</text>
                 <circle cx="427" cy="336" r="3" fill="#D0FF4E" />
               </g>
             </g>
 
             {/* ---- MUG (just a mug) ---- */}
             <g>
-              <g className="steam" stroke="#8A877F" strokeWidth="2" fill="none" strokeLinecap="round" opacity="0.5">
+              <g className="steam" stroke="#8492A6" strokeWidth="2" fill="none" strokeLinecap="round" opacity="0.5">
                 <path d="M96 150 q6 -8 0 -16" />
                 <path d="M108 150 q6 -8 0 -16" />
               </g>
-              <rect x="82" y="150" width="42" height="40" rx="6" fill="#1B1B22" stroke="#33333E" />
-              <path d="M124 158 q14 0 14 12 t-14 12" fill="none" stroke="#33333E" strokeWidth="3" />
-              <ellipse cx="103" cy="150" rx="21" ry="5" fill="#0B0B0F" stroke="#33333E" />
+              <rect x="82" y="150" width="42" height="40" rx="6" fill="#1A2236" stroke="#2E3D5A" />
+              <path d="M124 158 q14 0 14 12 t-14 12" fill="none" stroke="#2E3D5A" strokeWidth="3" />
+              <ellipse cx="103" cy="150" rx="21" ry="5" fill="#0A0E17" stroke="#2E3D5A" />
               <ellipse cx="103" cy="150" rx="14" ry="3" fill="#2A1A0E" />
             </g>
 
             {/* ---- PEN ---- */}
             <rect x="250" y="300" width="120" height="7" rx="3.5" transform="rotate(-14 310 303)" fill="#D0FF4E" />
-            <rect x="352" y="300" width="16" height="7" rx="2" transform="rotate(-14 310 303)" fill="#0B0B0F" />
+            <rect x="352" y="300" width="16" height="7" rx="2" transform="rotate(-14 310 303)" fill="#0A0E17" />
           </svg>
         </div>
       </div>

@@ -34,7 +34,7 @@ export default function DocumentTemplatesHub({
   const [customText, setCustomText] = useState("");
   const [loadingPdfId, setLoadingPdfId] = useState<string | null>(null);
 
-  const categories = ["All", "Agreements", "Contracts", "Letters", "Proposals"];
+  const categories = ["All", "Agreements", "Contracts", "Letters", "Proposals", "Onboarding"];
 
   const filteredTemplates = useMemo(() => {
     return AGENCY_TEMPLATES.filter((t) => {

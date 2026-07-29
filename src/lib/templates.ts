@@ -265,4 +265,209 @@ Estimated Duration: 3–6 weeks from deposit date.
 Nex Desk (hello@nexdesk.com) · nexdesk.agency
 `,
   },
+  {
+    id: "client_intake",
+    title: "Client Intake Questionnaire",
+    category: "Onboarding",
+    badge: "Intake Form",
+    iconName: "ClipboardList",
+    description:
+      "Pre-project questionnaire sent to new clients to gather essential project details, brand assets, references, and technical requirements before work begins.",
+    textContent: `============================================================
+NEX DESK — CLIENT INTAKE QUESTIONNAIRE
+============================================================
+
+Date: {{DATE}}
+Client: {{CLIENT_NAME}} / {{CLIENT_COMPANY}}
+Project: {{PROJECT_NAME}}
+
+Thank you for choosing Nex Desk. Please complete this short questionnaire so we can hit the ground running. It should take about 5 minutes.
+
+------------------------------------------------------------
+SECTION 1: PROJECT OVERVIEW
+------------------------------------------------------------
+
+1.1 Describe your project in 2-3 sentences:
+[Your answer here]
+
+1.2 What is the primary goal of this project?
+(e.g., generate leads, sell products, replace existing system, build internal tool)
+[Your answer here]
+
+1.3 Who is the target audience / end user?
+[Your answer here]
+
+1.4 Do you have a deadline or launch date in mind?
+[Your answer here]
+
+------------------------------------------------------------
+SECTION 2: BRAND & DESIGN
+------------------------------------------------------------
+
+2.1 Do you have existing brand guidelines? (logo files, colour palette, fonts)
+[ ] Yes — I will share them   [ ] No — I need help with branding
+
+2.2 Share 2-3 websites or apps whose design you admire:
+1. [URL]
+2. [URL]
+3. [URL]
+
+2.3 Any design styles or elements you specifically want to avoid?
+[Your answer here]
+
+------------------------------------------------------------
+SECTION 3: CONTENT & ASSETS
+------------------------------------------------------------
+
+3.1 Do you have the content ready? (text, images, product data)
+[ ] Yes, fully ready   [ ] Partially ready   [ ] Not yet — I need help
+
+3.2 Will you need copywriting or content creation services?
+[ ] Yes   [ ] No
+
+3.3 Do you have professional photographs or product images?
+[ ] Yes   [ ] No — I'll need stock or custom images
+
+------------------------------------------------------------
+SECTION 4: TECHNICAL REQUIREMENTS
+------------------------------------------------------------
+
+4.1 Do you have an existing website or app?
+[ ] Yes — URL: [           ]   [ ] No — this is new
+
+4.2 Do you already own a domain name?
+[ ] Yes — Domain: [           ]   [ ] No — I need one
+
+4.3 Do you have existing hosting?
+[ ] Yes — Provider: [           ]   [ ] No
+
+4.4 Any third-party integrations required?
+(e.g., payment gateway, CRM, email marketing, booking system)
+[Your answer here]
+
+------------------------------------------------------------
+SECTION 5: COMMUNICATION & APPROVALS
+------------------------------------------------------------
+
+5.1 Who is the primary point of contact for approvals?
+Name: [           ]
+Email: [           ]
+Phone/WhatsApp: [           ]
+
+5.2 Preferred communication channel:
+[ ] Email   [ ] WhatsApp   [ ] Both
+
+5.3 Any additional notes or special requirements:
+[Your answer here]
+
+------------------------------------------------------------
+
+Please return this completed form to hello@nexdesk.com or share it via your Client Portal.
+
+Nex Desk Software Agency
+nexdesk.agency
+`,
+  },
+  {
+    id: "welcome_pack",
+    title: "Client Welcome Pack",
+    category: "Onboarding",
+    badge: "Welcome Document",
+    iconName: "Heart",
+    description:
+      "Professional welcome document sent to new clients outlining working relationship, communication guidelines, what to expect, and key policies.",
+    textContent: `============================================================
+NEX DESK — CLIENT WELCOME PACK
+============================================================
+
+Prepared for: {{CLIENT_NAME}} / {{CLIENT_COMPANY}}
+Date: {{DATE}}
+
+Welcome to Nex Desk. This document outlines everything you need to know about working with us. Keep it handy — it answers most questions before they come up.
+
+------------------------------------------------------------
+1. YOUR DEDICATED TEAM
+------------------------------------------------------------
+
+Your project is managed by a dedicated team at Nex Desk. You will have a single point of contact for all communication. You'll meet your assigned team in your Client Portal.
+
+------------------------------------------------------------
+2. COMMUNICATION
+------------------------------------------------------------
+
+Primary Channel: Email (hello@nexdesk.com)
+Quick Questions: WhatsApp
+Working Hours: Monday – Saturday, 10am – 7pm PKT
+Response Time: All messages receive a reply within 1 working day
+
+We are available across timezones for international clients. For urgent matters outside working hours, WhatsApp is the fastest way to reach us.
+
+------------------------------------------------------------
+3. WHAT HAPPENS NEXT
+------------------------------------------------------------
+
+Step 1: Complete your Client Intake Questionnaire (attached separately)
+Step 2: We review your responses and prepare a detailed project outline
+Step 3: You receive a staging link within the first week of development
+Step 4: Weekly progress updates via email + live portal tracking
+Step 5: Final delivery, handover documentation, and sign-off
+
+------------------------------------------------------------
+4. REVISIONS & FEEDBACK
+------------------------------------------------------------
+
+Your agreement includes 2 full rounds of revisions per deliverable.
+Additional revision rounds are billed at the hourly rate specified in your contract.
+
+Feedback Process:
+- We send deliverables for your review via the Client Portal
+- You provide consolidated feedback within 5 working days
+- We implement revisions and re-submit for approval
+
+Tip: Collecting all feedback into one round (rather than multiple small requests) keeps the project on track and within scope.
+
+------------------------------------------------------------
+5. PAYMENTS
+------------------------------------------------------------
+
+Standard Schedule: 50% deposit before work begins, 50% on final delivery.
+Milestone Splits: Available for larger projects (specified in your agreement).
+Payment Methods: Bank Transfer, Wise, Stripe, or agreed gateway.
+Invoice Format: You will receive professional PDF invoices via email.
+
+Late Payment: Invoices are due within the timeframe stated. A late payment fee may apply as outlined in your agreement. We believe transparency prevents issues — please communicate early if there's a delay.
+
+------------------------------------------------------------
+6. YOUR CLIENT PORTAL
+------------------------------------------------------------
+
+Your Client Portal (portal link provided separately) gives you:
+- Real-time project progress and milestone tracking
+- Invoice history and payment status
+- Document library (agreements, receipts, reports)
+- Assigned team members and contact information
+- File upload for sharing brand assets and signed documents
+
+We update the portal every 2-3 business days during active development.
+
+------------------------------------------------------------
+7. OWNERSHIP & CONFIDENTIALITY
+------------------------------------------------------------
+
+Code Ownership: Full ownership of all custom source code, design files, and assets transfers to you upon 100% payment completion.
+
+Confidentiality: All project details, business information, and credentials are treated as strictly confidential under our mutual NDA.
+
+------------------------------------------------------------
+
+Questions? Reply to this email or message us on WhatsApp.
+We're genuinely glad to have you as a client.
+
+Ahmad Sadiq
+Founder & Lead Engineer
+Nex Desk Software Agency
+nexdesk.agency
+`,
+  },
 ];
+

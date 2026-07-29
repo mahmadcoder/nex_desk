@@ -9,10 +9,10 @@ import Reveal from "./Reveal";
  * Displays real document mockups with 3D hover response & scroll fan-out.
  */
 
-const PAPER = "#FBFAF6";
-const INK = "#0B0B0F";
-const RULE = "#DEDACE";
-const MUTED = "#75736C";
+const PAPER = "#F8FAFC";
+const INK = "#0A0E17";
+const RULE = "#E2E8F0";
+const MUTED = "#64748B";
 const LIME = "#D0FF4E";
 
 function Line({ w = "100%" }: { w?: string }) {

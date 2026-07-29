@@ -11,12 +11,12 @@ export default function CTA() {
   return (
     <section className="shell py-10">
       <Reveal direction="zoom" distance={24}>
-        <div className="relative overflow-hidden rounded-3xl bg-ink-900 px-8 py-20 text-center sm:px-16">
+        <div className="relative overflow-hidden rounded-3xl border border-ink-600/40 bg-ink-800/60 backdrop-blur-xl px-8 py-20 text-center sm:px-16">
 
           {/* lime glow blob — subtle ambient light */}
           <div
             aria-hidden
-            className="pointer-events-none absolute left-1/2 top-0 h-44 w-80 -translate-x-1/2 -translate-y-1/2 rounded-full bg-lime-400 opacity-[0.06] blur-[90px] animate-pulse"
+            className="pointer-events-none absolute left-1/2 top-0 h-52 w-96 -translate-x-1/2 -translate-y-1/2 rounded-full bg-lime-400 opacity-[0.07] blur-[100px]"
           />
 
           {/* label */}
@@ -55,7 +55,7 @@ export default function CTA() {
             ].map((stat) => (
               <span
                 key={stat}
-                className="rounded-full border border-ink-600 bg-ink-950 px-4 py-1.5 text-xs font-medium tracking-wide text-bone-300"
+                className="rounded-full border border-ink-500/60 bg-ink-900/80 px-4 py-1.5 text-xs font-medium tracking-wide text-bone-300 backdrop-blur-sm"
               >
                 {stat}
               </span>

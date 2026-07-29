@@ -39,9 +39,9 @@ export default function Header() {
         "fixed inset-x-0 top-0 z-50 border-b",
         open ? "" : "transition-all duration-300",
         open
-          ? "border-ink-600 bg-ink-950"
+          ? "border-ink-600 bg-ink-950/95 backdrop-blur-xl"
           : solid
-          ? "border-ink-600 bg-ink-900/80 backdrop-blur-xl"
+          ? "border-ink-600/60 bg-ink-900/75 backdrop-blur-xl saturate-[1.2]"
           : "border-transparent bg-transparent"
       )}
     >
@@ -91,7 +91,7 @@ export default function Header() {
       </div>
 
       {open && (
-        <div className="fixed inset-0 top-[72px] z-40 bg-ink-950 px-[var(--gutter)] pt-10 md:hidden">
+        <div className="fixed inset-0 top-[72px] z-40 bg-ink-950/98 backdrop-blur-2xl px-[var(--gutter)] pt-10 md:hidden">
           <nav className="flex flex-col gap-2">
             {NAV.map((n) => (
               <Link

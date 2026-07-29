@@ -9,20 +9,20 @@ Font.register({
 });
 
 export const C = {
-  ink: "#0B0B0F",
-  ink700: "#3A3A44",
-  bone: "#F4F1EA",
+  ink: "#0A0E17",
+  ink700: "#2E3D5A",
+  bone: "#F1F5F9",
   lime: "#D0FF4E",
   limeText: "#2A3A00",
-  line: "#DEDACE",
-  muted: "#75736C",
+  line: "#E2E8F0",
+  muted: "#64748B",
   ok: "#1D9E75",
   warn: "#BA7517",
 };
 
 /** Documents print on bone, not white — same warm paper the brand uses on screen. */
 export const s = StyleSheet.create({
-  page: { backgroundColor: "#FBFAF6", padding: 44, fontFamily: "Inter", fontSize: 9.5, color: C.ink, lineHeight: 1.55 },
+  page: { backgroundColor: "#F8FAFC", padding: 44, fontFamily: "Inter", fontSize: 9.5, color: C.ink, lineHeight: 1.55 },
 
   headerBar: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start", paddingBottom: 18, borderBottomWidth: 1.5, borderBottomColor: C.ink },
   brandBlock: { flexDirection: "row", alignItems: "center", gap: 8 },
@@ -42,7 +42,7 @@ export const s = StyleSheet.create({
   rule: { height: 1, backgroundColor: C.line, marginVertical: 14 },
 
   table: { borderWidth: 1, borderColor: C.line, borderRadius: 4, overflow: "hidden", marginTop: 8 },
-  th: { flexDirection: "row", backgroundColor: "#F1EEE4", paddingVertical: 7, paddingHorizontal: 10 },
+  th: { flexDirection: "row", backgroundColor: "#EFF6FF", paddingVertical: 7, paddingHorizontal: 10 },
   tr: { flexDirection: "row", paddingVertical: 8, paddingHorizontal: 10, borderTopWidth: 1, borderTopColor: C.line },
   thText: { fontSize: 7.5, letterSpacing: 1.2, textTransform: "uppercase", color: C.muted },
 
@@ -52,7 +52,7 @@ export const s = StyleSheet.create({
   grandText: { fontSize: 13, fontWeight: 500 },
 
   badge: { backgroundColor: C.lime, color: C.limeText, paddingVertical: 4, paddingHorizontal: 9, borderRadius: 3, fontSize: 8, fontWeight: 500, letterSpacing: 0.6, textTransform: "uppercase" },
-  callout: { backgroundColor: "#F1EEE4", borderLeftWidth: 2.5, borderLeftColor: C.lime, padding: 12, marginTop: 14 },
+  callout: { backgroundColor: "#F0FDF4", borderLeftWidth: 2.5, borderLeftColor: C.lime, padding: 12, marginTop: 14 },
 
   terms: { fontSize: 8, color: C.muted, lineHeight: 1.7 },
   signRow: { flexDirection: "row", gap: 40, marginTop: 34 },

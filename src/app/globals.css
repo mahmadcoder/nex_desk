@@ -3,18 +3,21 @@
 
 
 @theme {
-  --color-ink-950: #08080B;   /* deepest — page base */
-  --color-ink-900: #0B0B0F;   /* default background */
-  --color-ink-800: #131318;   /* raised card */
-  --color-ink-700: #1B1B22;   /* hover / input */
-  --color-ink-600: #26262F;   /* border strong */
-  --color-ink-500: #33333E;   /* border */
+  /* ── Deep navy-charcoal palette (replaces flat black) ── */
+  --color-ink-950: #070A10;   /* deepest — page base (navy-black, not pure black) */
+  --color-ink-900: #0A0E17;   /* default background */
+  --color-ink-800: #111827;   /* raised card */
+  --color-ink-700: #1A2236;   /* hover / input */
+  --color-ink-600: #243049;   /* border strong */
+  --color-ink-500: #2E3D5A;   /* border */
 
-  --color-bone-50:  #F4F1EA;  /* primary text, warm not white */
-  --color-bone-200: #C9C5BB;  /* secondary */
-  --color-bone-400: #8A877F;  /* muted */
-  --color-bone-600: #5A5852;  /* faint / grid lines */
+  /* ── Warm bone text tones (slightly refined) ── */
+  --color-bone-50:  #F1F5F9;  /* primary text — warm bright white */
+  --color-bone-200: #CBD5E1;  /* secondary */
+  --color-bone-400: #8492A6;  /* muted */
+  --color-bone-600: #4A5568;  /* faint / grid lines */
 
+  /* ── Official lime accent (kept, slightly refined glow) ── */
   --color-lime-400: #D0FF4E;  /* the one loud colour */
   --color-lime-500: #B9E63C;
   --color-lime-950: #2A3A00;  /* text on lime */
@@ -96,8 +99,8 @@ h1, h2, h3, h4 {
   z-index: 0;
   pointer-events: none;
   background-image:
-    linear-gradient(to right,  color-mix(in oklab, var(--color-bone-600) 18%, transparent) 0.5px, transparent 0.5px),
-    linear-gradient(to bottom, color-mix(in oklab, var(--color-bone-600) 18%, transparent) 0.5px, transparent 0.5px);
+    linear-gradient(to right,  color-mix(in oklab, var(--color-bone-600) 12%, transparent) 0.5px, transparent 0.5px),
+    linear-gradient(to bottom, color-mix(in oklab, var(--color-bone-600) 12%, transparent) 0.5px, transparent 0.5px);
   background-size: var(--grid-cell) var(--grid-cell);
   mask-image: radial-gradient(ellipse 90% 70% at 50% 30%, #000 30%, transparent 100%);
 }
@@ -117,6 +120,7 @@ h1, h2, h3, h4 {
   content: "";
   width: 6px; height: 6px;
   background: var(--color-lime-400);
+  border-radius: 1px;
 }
 
 
@@ -142,23 +146,59 @@ h1, h2, h3, h4 {
   font-weight: 500;
   border: 0.5px solid var(--color-ink-500);
   color: var(--color-bone-50);
-  background: transparent;
+  background: var(--color-ink-800);
   cursor: pointer;
-  transition: background var(--dur-fast), color var(--dur-fast), border-color var(--dur-fast);
+  transition: background var(--dur-fast), color var(--dur-fast), border-color var(--dur-fast), box-shadow var(--dur-fast);
+  backdrop-filter: blur(8px);
 }
-.btn:hover { background: var(--color-ink-800); border-color: var(--color-ink-600); }
+.btn:hover {
+  background: var(--color-ink-700);
+  border-color: var(--color-ink-500);
+  box-shadow: 0 2px 12px rgba(0,0,0,0.3);
+}
 
 .btn-primary {
   background: var(--color-lime-400);
   color: var(--color-lime-950);
   border-color: var(--color-lime-400);
+  box-shadow: 0 2px 16px rgba(208, 255, 78, 0.2);
 }
-.btn-primary:hover { background: var(--color-lime-500); border-color: var(--color-lime-500); }
+.btn-primary:hover {
+  background: var(--color-lime-500);
+  border-color: var(--color-lime-500);
+  box-shadow: 0 4px 24px rgba(208, 255, 78, 0.3);
+}
 
 .card {
   background: var(--color-ink-800);
   border: 0.5px solid var(--color-ink-600);
   border-radius: 14px;
+  backdrop-filter: blur(12px);
+}
+
+/* ── Glassmorphism cards ── */
+.glass-card {
+  background: rgba(17, 24, 39, 0.6);
+  border: 0.5px solid rgba(36, 48, 73, 0.6);
+  border-radius: 14px;
+  backdrop-filter: blur(20px) saturate(1.2);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+}
+
+.glass-subtle {
+  background: rgba(17, 24, 39, 0.4);
+  border: 0.5px solid rgba(36, 48, 73, 0.4);
+  border-radius: 10px;
+  backdrop-filter: blur(12px);
+}
+
+/* ── Premium accent glow ── */
+.lime-glow {
+  box-shadow: 0 0 20px rgba(208, 255, 78, 0.15), 0 0 60px rgba(208, 255, 78, 0.05);
+}
+
+.lime-glow-strong {
+  box-shadow: 0 0 30px rgba(208, 255, 78, 0.25), 0 0 80px rgba(208, 255, 78, 0.1);
 }
 
 @utility mono-tag {
@@ -205,12 +245,12 @@ h1, h2, h3, h4 {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #26262F;
+  background: var(--color-ink-600);
   border-radius: 9999px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #8A877F;
+  background: var(--color-bone-400);
 }
 
 ::-webkit-scrollbar-corner {
@@ -219,12 +259,12 @@ h1, h2, h3, h4 {
 
 * {
   scrollbar-width: thin;
-  scrollbar-color: #26262F transparent;
+  scrollbar-color: var(--color-ink-600) transparent;
 }
 
 .custom-admin-scrollbar {
   scrollbar-width: thin;
-  scrollbar-color: #26262F transparent;
+  scrollbar-color: var(--color-ink-600) transparent;
 }
 .custom-admin-scrollbar::-webkit-scrollbar {
   width: 5px;
@@ -234,11 +274,11 @@ h1, h2, h3, h4 {
   background: transparent;
 }
 .custom-admin-scrollbar::-webkit-scrollbar-thumb {
-  background: #26262F;
+  background: var(--color-ink-600);
   border-radius: 9999px;
 }
 .custom-admin-scrollbar::-webkit-scrollbar-thumb:hover {
-  background: #8A877F;
+  background: var(--color-bone-400);
 }
 
 /* Seamless Infinite Ticker Keyframes */
