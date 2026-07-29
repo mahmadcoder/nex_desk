@@ -454,12 +454,27 @@ export async function deleteJobTitle(id: string) {
 export async function assignEmployeeToClient(clientId: string, employeeId: string, projectId?: string) {
   await requireStaff();
   const db = createAdminClient();
+
+  // Check if assignment already exists to prevent 500 unique constraint errors
+  const { data: existing } = await db
+    .from("client_employee_assignments")
+    .select("id")
+    .eq("client_id", clientId)
+    .eq("employee_id", employeeId)
+    .maybeSingle();
+
+  if (existing) {
+    return existing;
+  }
+
   const { data, error } = await db.from("client_employee_assignments").insert({
     client_id: clientId,
     employee_id: employeeId,
     project_id: projectId ?? null,
   }).select().single();
-  if (error) throw error;
+
+  if (error) throw new Error(error.message || "Failed to assign employee to client.");
+
   revalidatePath(`/${ADMIN}/clients/${clientId}`);
   revalidatePath(`/${ADMIN}/employees/${employeeId}`);
   revalidatePath("/portal");

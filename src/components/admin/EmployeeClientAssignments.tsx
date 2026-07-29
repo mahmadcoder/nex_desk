@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Users, Plus, Trash2, ExternalLink, Briefcase, Building } from "lucide-react";
 import CustomSelect from "@/components/ui/CustomSelect";
@@ -18,6 +19,7 @@ export default function EmployeeClientAssignments({
   assignments,
   allClients,
 }: Props) {
+  const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [selectedClientId, setSelectedClientId] = useState("");
   const [showAssignModal, setShowAssignModal] = useState(false);
@@ -28,12 +30,12 @@ export default function EmployeeClientAssignments({
     startTransition(async () => {
       try {
         await assignEmployeeToClient(selectedClientId, employee.id);
-        toast.success("Assigned employee to client.");
+        toast.success("Assigned employee to client successfully.");
         setSelectedClientId("");
         setShowAssignModal(false);
-        window.location.reload();
-      } catch {
-        toast.error("Failed to assign client.");
+        router.refresh();
+      } catch (err: any) {
+        toast.error(err.message || "Failed to assign client.");
       }
     });
   };
