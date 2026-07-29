@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { ensureClientPortalAccount, updateClientPermissions, deleteClient } from "@/lib/actions";
+import { getSiteBaseUrl } from "@/lib/utils";
 import { Key, Copy, Eye, EyeOff, Shield, Trash2, CheckSquare, Square, Edit3 } from "lucide-react";
 import ClientDialog from "@/components/admin/ClientDialog";
 
@@ -45,9 +46,8 @@ export default function ClientManagerCard({
   const [perms, setPerms] = useState<ClientPermissions>(defaultPerms);
 
   const tokenParam = client.portal_access_token ? `key=${client.portal_access_token}` : `email=${encodeURIComponent(client.email)}`;
-  const portalLink = typeof window !== "undefined"
-    ? `${window.location.origin}/portal/login?${tokenParam}`
-    : `/portal/login?${tokenParam}`;
+  const siteUrl = getSiteBaseUrl();
+  const portalLink = `${siteUrl}/portal/login?${tokenParam}`;
 
   const copyLink = () => {
     navigator.clipboard.writeText(portalLink);

@@ -24,19 +24,14 @@ export function fillTemplate(text: string, vars: Record<string, string | number>
 export const adminPath = (sub = "") =>
   `/${process.env.NEXT_PUBLIC_ADMIN_PATH || "nx-control"}${sub}`;
 
-/** Returns the canonical site base URL, ensuring production URLs (e.g. nex-desk-tech.vercel.app) are used instead of localhost. */
+/** Returns the canonical site base URL, ensuring the primary public domain (https://nex-desk-tech.vercel.app) is used instead of Vercel preview deployment URLs. */
 export function getSiteBaseUrl() {
   if (process.env.NEXT_PUBLIC_SITE_URL && !process.env.NEXT_PUBLIC_SITE_URL.includes("localhost")) {
     return process.env.NEXT_PUBLIC_SITE_URL.replace(/\/$/, "");
   }
-  if (process.env.VERCEL_URL) {
-    return `https://${process.env.VERCEL_URL.replace(/\/$/, "")}`;
+  if (process.env.VERCEL_PROJECT_PRODUCTION_URL) {
+    return `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL.replace(/\/$/, "")}`;
   }
-  if (typeof window !== "undefined" && window.location?.origin && !window.location.origin.includes("localhost")) {
-    return window.location.origin.replace(/\/$/, "");
-  }
-  if (process.env.NODE_ENV === "production") {
-    return "https://nex-desk-tech.vercel.app";
-  }
-  return process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, "") || "https://nex-desk-tech.vercel.app";
+  // Public production domain fallback
+  return "https://nex-desk-tech.vercel.app";
 }
