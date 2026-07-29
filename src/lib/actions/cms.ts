@@ -572,3 +572,43 @@ export async function deleteDailyWorkLog(id: string) {
   revalidatePath(`/${ADMIN}/daily-logs`);
 }
 
+export async function uploadPublicAsset(formData: FormData): Promise<{ url?: string; error?: string }> {
+  await requireStaff();
+  const file = formData.get("file") as File;
+  const folder = (formData.get("folder") as string) || "uploads";
+
+  if (!file) return { error: "No file provided." };
+
+  try {
+    const db = createAdminClient();
+    const bytes = await file.arrayBuffer();
+    const buffer = Buffer.from(bytes);
+    const fileExt = file.name.split(".").pop() || "png";
+    const fileName = `${folder}/${Date.now()}_${Math.random().toString(36).substring(2, 7)}.${fileExt}`;
+
+    const { error: uploadError } = await db.storage
+      .from("public-assets")
+      .upload(fileName, buffer, {
+        contentType: file.type || "image/jpeg",
+        upsert: true,
+      });
+
+    if (uploadError) {
+      console.error("Supabase Storage admin upload error:", uploadError);
+      // Fallback to WebP base64 data URL if storage bucket fails
+      const base64 = buffer.toString("base64");
+      const mime = file.type || "image/jpeg";
+      return { url: `data:${mime};base64,${base64}` };
+    }
+
+    const { data: publicData } = db.storage
+      .from("public-assets")
+      .getPublicUrl(fileName);
+
+    return { url: publicData.publicUrl };
+  } catch (err: any) {
+    console.error("uploadPublicAsset error:", err);
+    return { error: err.message || "Failed to upload image." };
+  }
+}
+

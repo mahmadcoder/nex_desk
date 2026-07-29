@@ -112,17 +112,13 @@ function PortalLoginForm() {
 
 export default function PortalLogin() {
   return (
-    <div className="min-h-[75vh] flex flex-col justify-center items-center py-6 px-4">
+    <div className="min-h-[calc(100vh-140px)] flex flex-col justify-center items-center py-4 px-4">
       <div className="w-full max-w-sm">
-        <div className="flex justify-center mb-6">
-          <Logo />
-        </div>
-
-        <div className="card p-8 shadow-2xl">
-          <div className="mb-6">
+        <div className="card p-6 sm:p-7 shadow-2xl border-ink-600">
+          <div className="mb-5">
             <p className="mono-tag text-lime-400">Client Portal</p>
-            <h1 className="mt-2 text-2xl font-semibold text-bone-50">Client Sign In</h1>
-            <p className="mt-1 text-sm text-bone-400">
+            <h1 className="mt-1.5 text-2xl font-semibold text-bone-50">Client Sign In</h1>
+            <p className="mt-1 text-xs text-bone-400">
               Enter the login credentials sent to your email upon locking your project.
             </p>
           </div>
@@ -131,7 +127,7 @@ export default function PortalLogin() {
             <PortalLoginForm />
           </Suspense>
 
-          <p className="mt-6 text-center text-xs text-bone-500">
+          <p className="mt-5 text-center text-[11px] text-bone-500">
             Need help logging in? Contact your Nex Desk project lead.
           </p>
         </div>

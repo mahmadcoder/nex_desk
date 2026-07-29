@@ -492,3 +492,38 @@ export async function saveSettings(patch: Record<string, unknown>) {
   await audit(me.id, "settings.update", "settings", undefined, patch);
   revalidatePath(`/${ADMIN}/settings`);
 }
+
+export async function checkEmailExists(args: {
+  email: string;
+  target: "client" | "employee" | "lead";
+  excludeId?: string | null;
+}): Promise<{ exists: boolean; message?: string }> {
+  const cleanEmail = (args.email || "").trim().toLowerCase();
+  if (!cleanEmail || !cleanEmail.includes("@")) return { exists: false };
+
+  const db = createAdminClient();
+
+  if (args.target === "client") {
+    let query = db.from("clients").select("id").eq("email", cleanEmail);
+    if (args.excludeId) query = query.neq("id", args.excludeId);
+    const { data } = await query.maybeSingle();
+    if (data) {
+      return { exists: true, message: "A client account with this email address already exists." };
+    }
+  } else if (args.target === "employee") {
+    let query = db.from("employees").select("id").eq("email", cleanEmail);
+    if (args.excludeId) query = query.neq("id", args.excludeId);
+    const { data } = await query.maybeSingle();
+    if (data) {
+      return { exists: true, message: "An employee profile with this email address already exists." };
+    }
+  } else if (args.target === "lead") {
+    const { data: lead } = await db.from("leads").select("id").eq("email", cleanEmail).maybeSingle();
+    const { data: client } = await db.from("clients").select("id").eq("email", cleanEmail).maybeSingle();
+    if (lead || client) {
+      return { exists: true, message: "An account or project lead with this email address is already registered." };
+    }
+  }
+
+  return { exists: false };
+}

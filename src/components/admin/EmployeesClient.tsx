@@ -12,6 +12,7 @@ import {
 import ImageUpload from "@/components/admin/ImageUpload";
 import CustomSelect from "@/components/ui/CustomSelect";
 import { saveEmployee, deleteEmployee, saveJobTitle, deleteJobTitle } from "@/lib/actions/cms";
+import { checkEmailExists } from "@/lib/actions";
 
 import type { Employee, JobTitle } from "@/types/admin";
 export type { Employee, JobTitle };
@@ -63,6 +64,7 @@ export default function EmployeesClient({
   const [newTitle, setNewTitle] = useState("");
   const [newCategory, setNewCategory] = useState("Engineering");
   const [skillInput, setSkillInput] = useState("");
+  const [emailError, setEmailError] = useState("");
 
   const filtered = employees.filter((e) => {
     const q = query.toLowerCase();
@@ -453,11 +455,30 @@ export default function EmployeesClient({
                   <label className="mono-tag text-xs mb-1 block">Work Email *</label>
                   <input
                     type="email"
-                    className="w-full rounded-lg border border-ink-500 bg-ink-800 px-3 py-2 text-sm text-bone-50 focus:border-lime-400 focus:outline-none"
+                    className={`w-full rounded-lg border border-ink-500 bg-ink-800 px-3 py-2 text-sm text-bone-50 focus:border-lime-400 focus:outline-none ${emailError ? "border-rose-500/80 focus:border-rose-500" : ""}`}
                     placeholder="sarah@nexdesk.com"
                     value={editing.email ?? ""}
-                    onChange={(e) => setEditing({ ...editing, email: e.target.value })}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setEditing({ ...editing, email: val });
+                      if (emailError) setEmailError("");
+                    }}
+                    onBlur={async () => {
+                      if (editing.email && editing.email.includes("@")) {
+                        const res = await checkEmailExists({ email: editing.email, target: "employee", excludeId: editing.id });
+                        if (res.exists) {
+                          setEmailError(res.message || "An employee profile with this email address already exists.");
+                        } else {
+                          setEmailError("");
+                        }
+                      }
+                    }}
                   />
+                  {emailError && (
+                    <p className="mt-1 text-xs text-rose-400 font-medium flex items-center gap-1 animate-in fade-in">
+                      <span>⚠️</span> {emailError}
+                    </p>
+                  )}
                 </div>
               </div>
 

@@ -3,7 +3,7 @@
 import { useState, useTransition, useMemo, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { saveClient } from "@/lib/actions";
+import { saveClient, checkEmailExists } from "@/lib/actions";
 import { COUNTRIES, CURRENCIES, type CountryData } from "@/lib/countries";
 import { PlatformIcon } from "@/components/brand/PlatformIcons";
 import { X, ChevronDown, Check, Search, MapPin, Loader2 } from "lucide-react";
@@ -60,6 +60,7 @@ export default function ClientDialog({
 
   const [liveCities, setLiveCities] = useState<string[]>(defaultCountry.cities);
   const [loadingCities, setLoadingCities] = useState<boolean>(false);
+  const [emailError, setEmailError] = useState<string>("");
 
   const [showCountryMenu, setShowCountryMenu] = useState(false);
   const [countrySearch, setCountrySearch] = useState("");
@@ -286,13 +287,32 @@ export default function ClientDialog({
           <div>
             <label className={labelStyle}>Email Address *</label>
             <input
-              className={field}
+              className={`${field} ${emailError ? "border-rose-500/80 focus:border-rose-500" : ""}`}
               type="email"
               placeholder="client@company.com"
               value={f.email}
-              onChange={(e) => set("email", e.target.value)}
+              onChange={(e) => {
+                const val = e.target.value;
+                set("email", val);
+                if (emailError) setEmailError("");
+              }}
+              onBlur={async () => {
+                if (f.email && f.email.includes("@")) {
+                  const res = await checkEmailExists({ email: f.email, target: "client", excludeId: clientToEdit?.id });
+                  if (res.exists) {
+                    setEmailError(res.message || "A client account with this email address already exists.");
+                  } else {
+                    setEmailError("");
+                  }
+                }
+              }}
               required
             />
+            {emailError && (
+              <p className="mt-1 text-xs text-rose-400 font-medium flex items-center gap-1 animate-in fade-in">
+                <span>⚠️</span> {emailError}
+              </p>
+            )}
           </div>
 
           {/* Company */}

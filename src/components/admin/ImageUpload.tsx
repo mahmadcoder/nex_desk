@@ -1,8 +1,8 @@
 "use client";
 import { useState, ChangeEvent } from "react";
-import { createClient } from "@/lib/supabase/client";
 import { Upload, X, Image as ImageIcon, Loader2 } from "lucide-react";
 import { toast } from "sonner";
+import { uploadPublicAsset } from "@/lib/actions/cms";
 
 interface ImageUploadProps {
   label?: string;
@@ -31,27 +31,22 @@ export default function ImageUpload({
 
     setUploading(true);
     try {
-      const supabase = createClient();
-      const fileExt = file.name.split(".").pop();
-      const fileName = `${folder}/${Date.now()}_${Math.random().toString(36).substring(2, 7)}.${fileExt}`;
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("folder", folder);
 
-      const { error } = await supabase.storage
-        .from("public-assets")
-        .upload(fileName, file, { upsert: true });
+      const res = await uploadPublicAsset(formData);
 
-      if (error) throw error;
+      if (res.error || !res.url) {
+        throw new Error(res.error || "Image upload failed");
+      }
 
-      const { data: publicData } = supabase.storage
-        .from("public-assets")
-        .getPublicUrl(fileName);
-
-      const url = publicData.publicUrl;
-      setImageUrl(url);
-      onChange(url);
+      setImageUrl(res.url);
+      onChange(res.url);
       toast.success("Image uploaded successfully!");
-    } catch (err) {
+    } catch (err: any) {
       console.error("Image upload error:", err);
-      toast.error("Failed to upload image. Please try again.");
+      toast.error(err.message || "Failed to upload image. Please try again.");
     } finally {
       setUploading(false);
     }

@@ -3,6 +3,7 @@ import { useState, useEffect, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 import { Sparkles, CheckCircle2 } from "lucide-react";
+import { checkEmailExists } from "@/lib/actions";
 
 const SERVICES = [
   ["web-development", "Web development"],
@@ -29,6 +30,7 @@ function ContactFormContent() {
   const [step, setStep] = useState(0);
   const [busy, setBusy] = useState(false);
   const [sent, setSent] = useState(false);
+  const [emailError, setEmailError] = useState("");
   const [form, setForm] = useState({
     name: "", email: "", phone: "", company: "", city: "", country: "Pakistan",
     service_slugs: [] as string[], budget_range: "", timeline: "", message: "",
@@ -222,7 +224,33 @@ function ContactFormContent() {
           <h3 className="mt-4 text-2xl">Where do we reach you?</h3>
           <div className="mt-6 grid gap-4 sm:grid-cols-2">
             <input className={field} placeholder="Full name" value={form.name} onChange={(e) => set("name", e.target.value)} />
-            <input className={field} placeholder="name@company.com" type="email" value={form.email} onChange={(e) => set("email", e.target.value)} />
+            <div>
+              <input
+                className={`${field} ${emailError ? "border-rose-500/80 focus:border-rose-500" : ""}`}
+                placeholder="name@company.com"
+                type="email"
+                value={form.email}
+                onChange={(e) => {
+                  set("email", e.target.value);
+                  if (emailError) setEmailError("");
+                }}
+                onBlur={async () => {
+                  if (form.email && form.email.includes("@")) {
+                    const res = await checkEmailExists({ email: form.email, target: "lead" });
+                    if (res.exists) {
+                      setEmailError(res.message || "An account or project lead with this email address is already registered.");
+                    } else {
+                      setEmailError("");
+                    }
+                  }
+                }}
+              />
+              {emailError && (
+                <p className="mt-1 text-xs text-rose-400 font-medium flex items-center gap-1 animate-in fade-in">
+                  <span>⚠️</span> {emailError}
+                </p>
+              )}
+            </div>
             <input className={field} placeholder="Phone or WhatsApp" value={form.phone} onChange={(e) => set("phone", e.target.value)} />
             <input className={field} placeholder="Company (optional)" value={form.company} onChange={(e) => set("company", e.target.value)} />
             <input className={field} placeholder="City" value={form.city} onChange={(e) => set("city", e.target.value)} />
