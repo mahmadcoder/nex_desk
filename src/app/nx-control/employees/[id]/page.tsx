@@ -34,7 +34,7 @@ export default async function EmployeeDetailPage({
   const [{ data: employee }, { data: assignments }, { data: allClients }] = await Promise.all([
     db.from("employees").select("*").eq("id", id).single(),
     db.from("client_employee_assignments")
-      .select("*, clients(id, name, email, company), projects(id, name, status)")
+      .select("*, clients(id, name, email, company)")
       .eq("employee_id", id),
     db.from("clients").select("id, name, email, company"),
   ]);

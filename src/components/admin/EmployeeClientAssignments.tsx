@@ -103,12 +103,6 @@ export default function EmployeeClientAssignments({
                   <ExternalLink size={11} className="text-bone-400" />
                 </Link>
                 <p className="text-xs text-bone-400 mt-0.5">{a.clients?.email}</p>
-
-                {a.projects?.name && (
-                  <span className="mono-tag text-[10px] text-lime-400 bg-lime-400/10 px-2 py-0.5 rounded mt-1 inline-block">
-                    Project: {a.projects.name}
-                  </span>
-                )}
               </div>
             </div>
 
