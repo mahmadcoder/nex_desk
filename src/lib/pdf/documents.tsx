@@ -1,6 +1,7 @@
 import { Document, Page, Text, View } from "@react-pdf/renderer";
 import { s, C } from "./theme";
 import { DocHeader, DocFooter, Field, fmt, date } from "./parts";
+import { CONTACT_EMAIL, getSiteBaseUrl } from "@/lib/utils";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
@@ -25,8 +26,8 @@ function Parties({ client, meta }: { client: Party; meta: [string, string][] }) 
       <View style={s.col}>
         <Text style={s.label}>Prepared by</Text>
         <Text style={{ fontWeight: 500 }}>Nex Desk</Text>
-        <Text>ahmadsadiq.dev@gmail.com</Text>
-        <Text>London, United Kingdom</Text>
+        <Text>{CONTACT_EMAIL}</Text>
+        <Text>Multan, Pakistan</Text>
       </View>
       <View style={s.col}>
         {meta.map(([k, v]) => (
@@ -198,7 +199,7 @@ export function AgreementDoc({ deal, client }: { deal: any; client: Party }) {
           <View style={s.signBox}>
             <Text style={s.label}>For Nex Desk</Text>
             <Text style={{ marginTop: 12, fontWeight: 500 }}>Nex Desk</Text>
-            <Text style={s.muted}>ahmadsadiq.dev@gmail.com</Text>
+            <Text style={s.muted}>{CONTACT_EMAIL}</Text>
             <Text style={[s.muted, { marginTop: 6 }]}>Date: {date(deal.locked_at)}</Text>
           </View>
         </View>
@@ -311,7 +312,7 @@ export function InvoiceDoc({ invoice, client, bank }: { invoice: any; client: Pa
             <Text style={s.muted}>Bank details are set in admin under Settings.</Text>
           )}
           <Text style={{ marginTop: 8 }}>
-            Send the payment screenshot to ahmadsadiq.dev@gmail.com and you get a receipt the same day.
+            Send the payment screenshot to {CONTACT_EMAIL} and you get a receipt the same day.
           </Text>
         </View>
 
@@ -624,7 +625,7 @@ export function AgencyTemplatePdfDocument({
         <View style={{ marginTop: 8, marginBottom: 12, borderBottomWidth: 1, borderBottomColor: C.line, paddingBottom: 6 }}>
           <Text style={[s.h1, { fontSize: 15, color: C.ink }]}>{title.toUpperCase()}</Text>
           <Text style={{ fontSize: 8, color: C.muted, marginTop: 3 }}>
-            Nex Desk Software Agency · nexdesk.agency · hello@nexdesk.agency · +92 300 1234567 · Multan, PK
+            Nex Desk Software Agency · {getSiteBaseUrl().replace(/^https?:\/\//, "")} · {CONTACT_EMAIL} · Multan, PK
           </Text>
         </View>
 

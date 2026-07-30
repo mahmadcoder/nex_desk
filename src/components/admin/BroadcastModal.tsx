@@ -4,6 +4,9 @@ import { useState, useTransition } from "react";
 import { toast } from "sonner";
 import { Mail, Send, CheckCircle2, Users, FileText, Sparkles, X } from "lucide-react";
 import { sendClientEmail } from "@/lib/actions";
+import { getSiteBaseUrl } from "@/lib/utils";
+
+const SITE = getSiteBaseUrl();
 
 interface Subscriber {
   id: string;
@@ -23,19 +26,19 @@ const TEMPLATE_PRESETS = [
     key: "agency_update",
     title: "Agency Monthly Update",
     subject: "Nex Desk Monthly Dispatch — What we shipped & built this month",
-    body: `Hi {{client_name}},\n\nHere is a quick snapshot of what our engineering and design team at Nex Desk has been up to over the past month.\n\nHighlights:\n• Delivered 3 new enterprise web apps\n• Scaled client infrastructure to 99.99% uptime\n• Published new technical case studies\n\nCheck out our latest case studies and agency portfolio:\nhttps://nexdesk.agency/work\n\nBest regards,\nNex Desk Team`,
+    body: `Hi {{client_name}},\n\nHere is a quick snapshot of what our engineering and design team at Nex Desk has been up to over the past month.\n\nHighlights:\n• Delivered 3 new enterprise web apps\n• Scaled client infrastructure to 99.99% uptime\n• Published new technical case studies\n\nCheck out our latest case studies and agency portfolio:\n${SITE}/work\n\nBest regards,\nNex Desk Team`,
   },
   {
     key: "case_study_spotlight",
     title: "Case Study Spotlight",
     subject: "Spotlight: How we built a high-scale platform for our client",
-    body: `Hi {{client_name}},\n\nWe just published a deep dive on how we engineered a custom software system to streamline business operations and drive 3x efficiency.\n\nRead the full case study here:\nhttps://nexdesk.agency/work\n\nHave a project in mind? Reply to this email and let's talk.\n\nWarmly,\nNex Desk Team`,
+    body: `Hi {{client_name}},\n\nWe just published a deep dive on how we engineered a custom software system to streamline business operations and drive 3x efficiency.\n\nRead the full case study here:\n${SITE}/work\n\nHave a project in mind? Reply to this email and let's talk.\n\nWarmly,\nNex Desk Team`,
   },
   {
     key: "service_offer",
     title: "Special Service Announcement",
     subject: "Accelerate your product launch with Nex Desk software engineering",
-    body: `Hi {{client_name}},\n\nAre you looking to build a web application, mobile app, or modern backend platform?\n\nOur team specializes in fast, production-ready software development using Next.js, React, Node.js, and cloud infrastructure.\n\nBook a strategy call or request a quote today:\nhttps://nexdesk.agency/contact\n\nBest regards,\nNex Desk Team`,
+    body: `Hi {{client_name}},\n\nAre you looking to build a web application, mobile app, or modern backend platform?\n\nOur team specializes in fast, production-ready software development using Next.js, React, Node.js, and cloud infrastructure.\n\nBook a strategy call or request a quote today:\n${SITE}/contact\n\nBest regards,\nNex Desk Team`,
   },
 ];
 
@@ -101,12 +104,10 @@ export default function BroadcastModal({ subscribers, isOpen, onClose }: Broadca
     });
   };
 
+  // No backdrop-close: a mis-click would discard the composed broadcast.
   return (
-    <div className="fixed inset-0 z-50 grid place-items-center bg-ink-950/80 p-4 sm:p-6 overflow-y-auto" onClick={onClose}>
-      <div
-        className="card w-full max-w-2xl p-6 sm:p-8 text-left bg-ink-900 border-ink-600 my-8"
-        onClick={(e) => e.stopPropagation()}
-      >
+    <div className="fixed inset-0 z-50 grid place-items-center bg-ink-950/80 backdrop-blur-xs p-4 sm:p-6">
+      <div className="card custom-admin-scrollbar my-8 max-h-[calc(100dvh-2rem)] w-full max-w-2xl overflow-y-auto border-ink-600 bg-ink-900 p-6 text-left sm:p-8">
         <div className="flex items-center justify-between border-b border-ink-600 pb-4">
           <div className="flex items-center gap-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-full bg-lime-400/10 text-lime-400">

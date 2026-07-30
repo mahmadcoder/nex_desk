@@ -7,7 +7,16 @@ export const dynamic = "force-dynamic";
 
 export default async function LeadsPage() {
   const db = createAdminClient();
-  const { data: leads } = await db.from("leads").select("*").order("created_at", { ascending: false });
+  const [{ data: leads }, { data: converted }] = await Promise.all([
+    db.from("leads").select("*").order("created_at", { ascending: false }),
+    db.from("clients").select("id, lead_id").not("lead_id", "is", null),
+  ]);
+
+  // lead_id → client_id, so an already-converted lead shows a link instead of
+  // a button that would create a second client.
+  const clientByLead = new Map<string, string>(
+    (converted ?? []).map((c) => [c.lead_id as string, c.id as string])
+  );
 
   const counts = (leads ?? []).reduce<Record<string, number>>((a, l) => {
     a[l.status] = (a[l.status] ?? 0) + 1;
@@ -31,7 +40,9 @@ export default async function LeadsPage() {
         <Empty title="Inbox is empty" body="New enquiries from the website land here, and the sender gets an auto-reply straight away." />
       ) : (
         <Table head={["Who", "Wants", "Budget", "When", "Status", ""]}>
-          {leads.map((l) => <LeadRow key={l.id} lead={l} />)}
+          {leads.map((l) => (
+            <LeadRow key={l.id} lead={l} convertedClientId={clientByLead.get(l.id) ?? null} />
+          ))}
         </Table>
       )}
     </>

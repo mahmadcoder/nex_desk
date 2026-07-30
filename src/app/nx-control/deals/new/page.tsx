@@ -9,9 +9,11 @@ export const dynamic = "force-dynamic";
 export default async function NewDeal() {
   const db = createAdminClient();
   const [{ data: clients }, { data: services }, { data: settings }] = await Promise.all([
-    db.from("clients").select("id,name,email,company").eq("is_active", true).order("name"),
+    db.from("clients")
+      .select("id,name,email,company,preferred_currency")
+      .eq("is_active", true).order("name"),
     db.from("services").select("slug,title,starting_at").eq("is_active", true).order("sort_order"),
-    db.from("settings").select("default_terms, tax_percent").eq("id", 1).single(),
+    db.from("settings").select("default_terms, tax_percent, default_currency").eq("id", 1).single(),
   ]);
 
   if (!clients?.length) {
@@ -40,6 +42,7 @@ export default async function NewDeal() {
         services={services ?? []}
         defaultTerms={settings?.default_terms ?? ""}
         taxDefault={Number(settings?.tax_percent ?? 0)}
+        defaultCurrency={settings?.default_currency ?? "PKR"}
       />
     </>
   );

@@ -7,6 +7,7 @@ import { ensureClientPortalAccount, updateClientPermissions, deleteClient } from
 import { getSiteBaseUrl } from "@/lib/utils";
 import { Key, Copy, Eye, EyeOff, Shield, Trash2, CheckSquare, Square, Edit3 } from "lucide-react";
 import ClientDialog from "@/components/admin/ClientDialog";
+import ConfirmModal from "@/components/admin/ConfirmModal";
 
 type ClientPermissions = {
   show_financials?: boolean;
@@ -63,8 +64,14 @@ export default function ClientManagerCard({
   const handleGenPassword = () => {
     start(async () => {
       try {
-        await ensureClientPortalAccount(client.id, newPass || undefined);
-        toast.success("Client password updated & credentials saved!");
+        const res = await ensureClientPortalAccount(client.id, newPass || undefined);
+        // Report what actually happened — the send can fail independently of
+        // the password being saved.
+        if (res?.credentialsEmailed) {
+          toast.success("Password updated and credentials emailed to the client.");
+        } else {
+          toast.warning("Password updated, but the credentials email failed to send. Copy them manually below.");
+        }
         setNewPass("");
         router.refresh();
       } catch (e: any) {
@@ -229,32 +236,16 @@ export default function ClientManagerCard({
       </div>
 
       {/* Delete Confirmation Modal */}
-      {showDeleteModal && (
-        <div
-          className="fixed inset-0 z-50 grid place-items-center bg-ink-950/80 p-6"
-          onClick={() => setShowDeleteModal(false)}
-        >
-          <div className="card w-full max-w-md p-6" onClick={(e) => e.stopPropagation()}>
-            <h3 className="text-lg font-medium text-red-400">Delete Client</h3>
-            <p className="mt-2 text-sm text-bone-400">
-              Are you sure you want to delete <strong className="text-bone-100">{client.name}</strong>?
-              This will remove their profile, portal credentials, and associated records.
-            </p>
-            <div className="mt-6 flex justify-end gap-3">
-              <button className="btn h-9" onClick={() => setShowDeleteModal(false)}>
-                Cancel
-              </button>
-              <button
-                className="btn bg-red-600 text-white hover:bg-red-700 h-9"
-                onClick={handleDelete}
-                disabled={pending}
-              >
-                {pending ? "Deleting…" : "Confirm Delete"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <ConfirmModal
+        isOpen={showDeleteModal}
+        title={`Delete ${client.name}?`}
+        description="This removes their profile, portal login and associated records. It cannot be undone."
+        confirmText="Delete client"
+        isDanger
+        pending={pending}
+        onConfirm={handleDelete}
+        onClose={() => setShowDeleteModal(false)}
+      />
     </div>
   );
 }

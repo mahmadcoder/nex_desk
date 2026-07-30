@@ -46,9 +46,27 @@ const NAV_SECTIONS = [
   },
 ];
 
+/**
+ * What a `staff` employee may reach. Owners and admins see everything.
+ * Kept in sync with the server-side guard in `lib/auth/staffAccess.ts` — the
+ * menu only hides links, the guard is what actually enforces this.
+ */
+const STAFF_NAV = [
+  {
+    title: "MY WORK",
+    items: [
+      { href: "", label: "Dashboard", icon: LayoutDashboard },
+      { href: "/clients", label: "My Clients", icon: Users },
+      { href: "/projects", label: "My Projects", icon: FolderKanban },
+      { href: "/daily-logs", label: "Daily Work Logs", icon: Clock },
+    ],
+  },
+];
+
 export default function Sidebar({ base, user }: { base: string; user: { name: string; role: string } }) {
   const path = usePathname();
   const [open, setOpen] = useState(false);
+  const sections = user.role === "staff" ? STAFF_NAV : NAV_SECTIONS;
 
   // Close drawer on route change
   useEffect(() => { setOpen(false); }, [path]);
@@ -71,10 +89,12 @@ export default function Sidebar({ base, user }: { base: string; user: { name: st
         </div>
       </Link>
 
-      <nav className="flex-1 overflow-y-auto min-h-0 space-y-5 pr-1.5 custom-admin-scrollbar">
-        {NAV_SECTIONS.map((section) => (
+      {/* Scrolls, but without a visible scrollbar — the nav is short enough that
+          a bar sitting over the menu was pure noise. */}
+      <nav className="no-scrollbar flex-1 overflow-y-auto min-h-0 space-y-5 pr-1.5">
+        {sections.map((section) => (
           <div key={section.title} className="space-y-1">
-            <p className="px-3 text-[10px] font-mono font-semibold tracking-wider text-bone-500 uppercase">
+            <p className="px-3 text-[10px] font-mono font-semibold tracking-wider text-bone-300 uppercase">
               {section.title}
             </p>
             <div className="space-y-0.5">

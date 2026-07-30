@@ -1,14 +1,22 @@
 "use client";
+import Link from "next/link";
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
 import { updateLead, convertLeadToClient } from "@/lib/actions";
+import { adminPath } from "@/lib/utils";
 import { Badge } from "./ui";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 const STATUSES = ["new", "contacted", "quoted", "won", "lost"];
 
-export default function LeadRow({ lead }: { lead: any }) {
+export default function LeadRow({
+  lead,
+  convertedClientId = null,
+}: {
+  lead: any;
+  convertedClientId?: string | null;
+}) {
   const [open, setOpen] = useState(false);
   const [status, setStatus] = useState(lead.status);
   const [pending, start] = useTransition();
@@ -87,12 +95,23 @@ export default function LeadRow({ lead }: { lead: any }) {
                     <a href={`https://wa.me/${String(lead.phone).replace(/\D/g, "")}`}
                       target="_blank" rel="noreferrer" className="btn h-9 text-xs">WhatsApp</a>
                   )}
-                  <button
-                    className="btn btn-primary h-9 text-xs"
-                    onClick={(e) => { e.stopPropagation(); start(() => convertLeadToClient(lead.id) as never); }}
-                  >
-                    Convert to client
-                  </button>
+                  {convertedClientId ? (
+                    <Link
+                      href={adminPath(`/clients/${convertedClientId}`)}
+                      onClick={(e) => e.stopPropagation()}
+                      className="inline-flex h-9 items-center gap-1.5 rounded-full border border-lime-400/30 bg-lime-400/10 px-4 text-xs text-lime-400"
+                    >
+                      ✓ Converted to client
+                    </Link>
+                  ) : (
+                    <button
+                      className="btn btn-primary h-9 text-xs"
+                      disabled={pending}
+                      onClick={(e) => { e.stopPropagation(); start(() => convertLeadToClient(lead.id) as never); }}
+                    >
+                      {pending ? "Converting…" : "Convert to client"}
+                    </button>
+                  )}
                 </div>
               </div>
             </div>

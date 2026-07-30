@@ -6,7 +6,7 @@ import { PageHead, Badge, Stat, Table } from "@/components/admin/ui";
 import { money } from "@/lib/utils";
 import DocButton from "@/components/admin/DocButton";
 import ClientManagerCard from "@/components/admin/ClientManagerCard";
-import { Calendar, Layers, Clock, CheckCircle2, ShieldCheck, Mail, Globe } from "lucide-react";
+import { Calendar, Layers, Clock, CheckCircle2, ShieldCheck, Mail, Globe, Lock } from "lucide-react";
 
 const BASE = `/${process.env.ADMIN_PATH || "nx-control"}`;
 export const dynamic = "force-dynamic";
@@ -48,7 +48,7 @@ export default async function ClientDetail({ params }: { params: Promise<{ id: s
     { data: docs },
     { data: emails },
     { data: deals },
-    { data: assignedEmployees },
+    { data: assignedEmployees, error: assignedEmployeesError },
     { data: allEmployees },
   ] = await Promise.all([
     db.from("projects").select("*").eq("client_id", id).order("created_at", { ascending: false }),
@@ -59,6 +59,15 @@ export default async function ClientDetail({ params }: { params: Promise<{ id: s
     db.from("client_employee_assignments").select("*, employees(id, full_name, email, job_title, seniority, avatar_url)").eq("client_id", id),
     db.from("employees").select("id, full_name, email, job_title, seniority"),
   ]);
+
+  if (assignedEmployeesError) {
+    console.error("Failed to load assigned employees for client", id, assignedEmployeesError);
+  }
+
+  const lockedDeal = (deals ?? []).find((d) => d.status === "locked") ?? null;
+  const lockedProject = lockedDeal
+    ? (projects ?? []).find((p) => p.deal_id === lockedDeal.id) ?? (projects ?? [])[0] ?? null
+    : null;
 
   const billed = (invoices ?? []).reduce((s, i) => s + Number(i.total), 0);
   const paid = (invoices ?? []).reduce((s, i) => s + Number(i.amount_paid), 0);
@@ -92,7 +101,23 @@ export default async function ClientDetail({ params }: { params: Promise<{ id: s
           [client.city, client.country].filter(Boolean).join(", "),
           client.source ? `Acquisition: ${client.source.charAt(0).toUpperCase() + client.source.slice(1).replace(/_/g, " ")}` : null,
         ].filter(Boolean).join(" · ")}
-        action={<Link href={`${BASE}/deals/new`} className="btn btn-primary h-10">Lock a deal</Link>}
+        action={
+          // A locked deal must not lead back to the create form — submitting it
+          // again raises a second deal, project, milestone set and invoice.
+          lockedDeal ? (
+            lockedProject ? (
+              <Link href={`${BASE}/projects/${lockedProject.id}`} className="btn h-10">
+                <Lock size={14} /> Deal locked — open project
+              </Link>
+            ) : (
+              <span className="btn h-10 cursor-not-allowed text-bone-500">
+                <Lock size={14} /> Deal locked
+              </span>
+            )
+          ) : (
+            <Link href={`${BASE}/deals/new`} className="btn btn-primary h-10">Lock a deal</Link>
+          )
+        }
       />
 
       {/* 360 Client Key Summary Banner */}
@@ -167,6 +192,7 @@ export default async function ClientDetail({ params }: { params: Promise<{ id: s
         clientId={id}
         assignedEmployees={assignedEmployees ?? []}
         allEmployees={allEmployees ?? []}
+        loadError={assignedEmployeesError?.message ?? null}
       />
 
       {/* Projects & Invoices */}

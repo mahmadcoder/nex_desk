@@ -193,7 +193,7 @@ Certificate ID: ND-CERT-{{YEAR}}-{{CLIENT_NAME_SHORT}}
 
 Certified By:
 Ahmad Sadiq — Founder & Lead Engineer
-Nex Desk Software Agency (nexdesk.agency)
+Nex Desk Software Agency ({{AGENCY_SITE}})
 `,
   },
   {
@@ -262,7 +262,7 @@ Payment Schedule: 50% Advance to start, 50% upon final sign-off.
 4. TIMELINE
 Estimated Duration: 3–6 weeks from deposit date.
 
-Nex Desk (hello@nexdesk.com) · nexdesk.agency
+Nex Desk ({{AGENCY_EMAIL}}) · {{AGENCY_SITE}}
 `,
   },
   {
@@ -362,10 +362,10 @@ Phone/WhatsApp: [           ]
 
 ------------------------------------------------------------
 
-Please return this completed form to hello@nexdesk.com or share it via your Client Portal.
+Please return this completed form to {{AGENCY_EMAIL}} or share it via your Client Portal.
 
 Nex Desk Software Agency
-nexdesk.agency
+{{AGENCY_SITE}}
 `,
   },
   {
@@ -395,7 +395,7 @@ Your project is managed by a dedicated team at Nex Desk. You will have a single 
 2. COMMUNICATION
 ------------------------------------------------------------
 
-Primary Channel: Email (hello@nexdesk.com)
+Primary Channel: Email ({{AGENCY_EMAIL}})
 Quick Questions: WhatsApp
 Working Hours: Monday – Saturday, 10am – 7pm PKT
 Response Time: All messages receive a reply within 1 working day
@@ -466,7 +466,7 @@ We're genuinely glad to have you as a client.
 Ahmad Sadiq
 Founder & Lead Engineer
 Nex Desk Software Agency
-nexdesk.agency
+{{AGENCY_SITE}}
 `,
   },
 ];

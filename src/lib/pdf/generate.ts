@@ -1,6 +1,7 @@
 import { renderToBuffer } from "@react-pdf/renderer";
 import { createElement } from "react";
 import { createAdminClient } from "@/lib/supabase/server";
+import { moneyMulti, sumByCurrency } from "@/lib/utils";
 import {
   AgreementDoc, QuotationDoc, InvoiceDoc, ReceiptDoc,
   ChangeOrderDoc, ProgressDoc, HandoverDoc,
@@ -60,6 +61,27 @@ export async function generateDocument(type: DocType, id: string, actorId?: stri
   if (type === "handover") {
     const { data: project } = await db.from("projects").select("*, clients(*)").eq("id", id).single();
     if (!project) throw new Error("Project not found");
+
+    // Handover transfers ownership of the work, so it must not be produced
+    // while money is outstanding. Enforced here, not just on the button.
+    const { data: projectInvoices } = await db
+      .from("invoices").select("total, amount_paid, currency").eq("project_id", id);
+
+    if (!projectInvoices?.length) {
+      throw new Error("Raise and settle an invoice for this project before handing it over.");
+    }
+    const owing = sumByCurrency(
+      projectInvoices,
+      (i) => i.currency,
+      (i) => Number(i.total) - Number(i.amount_paid)
+    ).filter((t) => t.total > 0.009);
+
+    if (owing.length) {
+      throw new Error(
+        `Handover is locked until this project is paid in full. Outstanding: ${moneyMulti(owing)}.`
+      );
+    }
+
     title = `Handover — ${project.name}`;
     meta = { client_id: project.client_id, project_id: project.id };
     snapshot = project;
@@ -78,6 +100,16 @@ export async function generateDocument(type: DocType, id: string, actorId?: stri
     element = createElement(ChangeOrderDoc, { change, deal: change.deals, client: change.deals.clients });
   }
 
+  // documents.created_by is a FK to profiles(id). A staff member authenticated
+  // purely via user_metadata may not have a profiles row, and a dangling id
+  // would fail the insert with 23503 — record NULL instead.
+  let createdBy: string | null = null;
+  if (actorId) {
+    const { data: actorProfile } = await db
+      .from("profiles").select("id").eq("id", actorId).maybeSingle();
+    createdBy = actorProfile?.id ?? null;
+  }
+
   const buffer = await renderToBuffer(element);
   const path = `${meta.client_id}/${type}/${Date.now()}-${type}.pdf`;
 
@@ -87,12 +119,12 @@ export async function generateDocument(type: DocType, id: string, actorId?: stri
   if (upErr) throw upErr;
 
   const { data: doc } = await db.from("documents").insert({
-    type: type === "agreement" ? "agreement" : type,
+    type,
     title,
     storage_path: path,
     file_size: buffer.length,
     snapshot,
-    created_by: actorId ?? null,
+    created_by: createdBy,
     ...meta,
   }).select().single();
 

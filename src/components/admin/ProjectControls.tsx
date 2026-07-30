@@ -1,7 +1,7 @@
 "use client";
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
-import { updateProject, sendClientEmail } from "@/lib/actions";
+import { updateProject, sendProgressUpdate } from "@/lib/actions";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
@@ -9,8 +9,8 @@ const field = "w-full rounded-lg border border-ink-500 bg-ink-800 px-3 py-2 text
 const STATUSES = ["not_started", "in_progress", "review", "on_hold", "delivered", "completed", "cancelled"];
 
 export default function ProjectControls({
-  project, clientEmail, clientName,
-}: { project: any; clientEmail: string; clientName: string }) {
+  project, clientEmail,
+}: { project: any; clientEmail: string }) {
   const [f, setF] = useState({
     status: project.status,
     staging_url: project.staging_url ?? "",
@@ -28,17 +28,17 @@ export default function ProjectControls({
     toast.success("Project updated.");
   });
 
+  // Content (recent shared work logs + milestone state) is assembled on the
+  // server so the email matches what the client sees in their portal.
   const emailProgress = () => start(async () => {
-    const res = await sendClientEmail({
-      templateKey: "progress_update",
-      to: clientEmail,
-      clientId: project.client_id,
-      projectId: project.id,
-      subject: `${project.name} — ${project.progress}% complete`,
-      body: `Hi ${clientName},\n\nWeekly update on ${project.name}. We are at ${project.progress}%.\n\nThe attached report has the full milestone breakdown.${f.staging_url ? `\n\nReview it live: ${f.staging_url}` : ""}\n\nNex Desk`,
-      attach: { type: "progress_report", id: project.id },
-    });
-    res.ok ? toast.success("Progress report sent.") : toast.error(res.error ?? "Send failed.");
+    try {
+      const res = await sendProgressUpdate(project.id);
+      res.ok
+        ? toast.success(`Progress update sent to ${clientEmail}.`)
+        : toast.error(res.error ?? "Send failed.");
+    } catch (e: any) {
+      toast.error(e?.message ?? "Send failed.");
+    }
   });
 
   return (

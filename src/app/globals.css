@@ -1,18 +1,30 @@
 @import "tailwindcss";
 
 @theme {
+  /* Tailwind v4 is CSS-first: a shade that is not declared here generates no
+     utility at all, so `text-bone-300` silently did nothing and the element
+     just inherited its parent colour. Every shade the app actually uses must
+     be present — run
+       grep -rhoE "(text|bg|border)-(bone|ink|lime)-[0-9]+" src
+     before removing any of these. */
+
   --color-ink-950: #08080B;   /* deepest — page base */
   --color-ink-900: #0B0B0F;   /* default background */
   --color-ink-800: #131318;   /* raised card */
   --color-ink-700: #1B1B22;   /* hover / input */
   --color-ink-600: #26262F;   /* border strong */
   --color-ink-500: #33333E;   /* border */
+  --color-ink-400: #42424F;   /* border on hover */
 
   --color-bone-50:  #F4F1EA;  /* primary text, warm not white */
+  --color-bone-100: #E2DED4;  /* primary text, one step down */
   --color-bone-200: #C9C5BB;  /* secondary */
-  --color-bone-400: #8A877F;  /* muted */
+  --color-bone-300: #A9A69D;  /* labels and meta — lowest AA-safe step */
+  --color-bone-400: #8A877F;  /* muted, large text only */
+  --color-bone-500: #726F69;  /* decorative */
   --color-bone-600: #5A5852;  /* faint / grid lines */
 
+  --color-lime-300: #DEFF80;
   --color-lime-400: #D0FF4E;  /* the one loud colour */
   --color-lime-500: #B9E63C;
   --color-lime-950: #2A3A00;  /* text on lime */
@@ -151,8 +163,59 @@ h1, h2, h3, h4 {
 .mono-tag {
   font-family: var(--font-mono);
   font-size: 0.75rem;
+  line-height: 1.5;
   letter-spacing: 0.04em;
-  color: var(--color-bone-400);
+  /* bone-400 (#8A877F) sat at ~4.2:1 on raised cards — under the 4.5:1 AA
+     floor, and far worse at the 9–10px sizes these labels are used at. */
+  color: var(--color-bone-300);
+}
+
+/* ---------- Scrollbars -------------------------------------------------
+   `.custom-admin-scrollbar` was referenced across a dozen components but
+   never actually defined anywhere, so every one of those panes rendered the
+   raw OS scrollbar. Defined once here.
+   -------------------------------------------------------------------- */
+
+.nd-scroll,
+.custom-admin-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-ink-500) transparent;
+}
+
+.nd-scroll::-webkit-scrollbar,
+.custom-admin-scrollbar::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.nd-scroll::-webkit-scrollbar-track,
+.custom-admin-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.nd-scroll::-webkit-scrollbar-thumb,
+.custom-admin-scrollbar::-webkit-scrollbar-thumb {
+  background: var(--color-ink-500);
+  border: 2px solid transparent;
+  background-clip: content-box;
+  border-radius: 999px;
+}
+
+/* Only assert itself on hover — a resting scrollbar adds visual noise. */
+.nd-scroll:hover::-webkit-scrollbar-thumb,
+.custom-admin-scrollbar:hover::-webkit-scrollbar-thumb {
+  background: var(--color-ink-600);
+  background-clip: content-box;
+}
+
+/** Scrolls, but shows no scrollbar at all. Used for the dashboard sidebar. */
+.no-scrollbar {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  width: 0;
+  height: 0;
 }
 
 .reveal-mask { display: block; overflow: hidden; }

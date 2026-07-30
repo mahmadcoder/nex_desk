@@ -7,6 +7,7 @@ import {
   Briefcase, Mail, Phone, ExternalLink, ShieldCheck, Award, ArrowLeft
 } from "lucide-react";
 import EmployeeClientAssignments from "@/components/admin/EmployeeClientAssignments";
+import EmployeeAccessCard from "@/components/admin/EmployeeAccessCard";
 
 export async function generateMetadata(
   { params }: { params: Promise<{ id: string }> }
@@ -31,15 +32,23 @@ export default async function EmployeeDetailPage({
   const { id } = await params;
   const db = createAdminClient();
 
-  const [{ data: employee }, { data: assignments }, { data: allClients }] = await Promise.all([
-    db.from("employees").select("*").eq("id", id).single(),
-    db.from("client_employee_assignments")
-      .select("*, clients(id, name, email, company)")
-      .eq("employee_id", id),
-    db.from("clients").select("id, name, email, company"),
-  ]);
+  const [{ data: employee }, { data: assignments, error: assignmentsError }, { data: allClients }] =
+    await Promise.all([
+      db.from("employees").select("*").eq("id", id).single(),
+      db.from("client_employee_assignments")
+        .select("*, clients(id, name, email, company)")
+        .eq("employee_id", id),
+      db.from("clients").select("id, name, email, company"),
+    ]);
 
   if (!employee) notFound();
+
+  // Never swallow this one: if the embed can't resolve (PGRST200) the panel
+  // silently reads "(0)" even when assignments exist, which is what made this
+  // bug so hard to spot.
+  if (assignmentsError) {
+    console.error("Failed to load client assignments for employee", id, assignmentsError);
+  }
 
   return (
     <div className="space-y-6">
@@ -179,10 +188,21 @@ export default async function EmployeeDetailPage({
 
         {/* Right Client & Project Assignments Hub */}
         <div className="space-y-6">
+          <EmployeeAccessCard
+            employee={{
+              id: employee.id,
+              full_name: employee.full_name,
+              email: employee.email,
+              user_id: employee.user_id ?? null,
+              portal_password_preview: employee.portal_password_preview ?? null,
+            }}
+          />
+
           <EmployeeClientAssignments
             employee={employee}
             assignments={assignments ?? []}
             allClients={allClients ?? []}
+            loadError={assignmentsError?.message ?? null}
           />
         </div>
       </div>

@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { createAdminClient } from "@/lib/supabase/server";
-import { sendEmail } from "@/lib/email/send";
+import { sendEmail, adminNotifyAddress } from "@/lib/email/send";
 import { getSiteBaseUrl } from "@/lib/utils";
 
 const schema = z.object({
@@ -43,13 +43,10 @@ export async function POST(req: Request) {
     });
 
     // 2. Send Notification Email to Admin / Owner
-    const { data: settings } = await db.from("settings").select("email").eq("id", 1).maybeSingle();
-    const adminEmail = settings?.email || process.env.GMAIL_USER || "ahmadsadiq.dev@gmail.com";
-
     try {
       await sendEmail({
         templateKey: "internal_new_subscriber",
-        to: adminEmail,
+        to: await adminNotifyAddress(),
         subjectOverride: `New Newsletter Subscriber: ${email}`,
         bodyOverride: `Great news!\n\nA new user/client just subscribed to the Nex Desk newsletter:\n\n• Subscriber Email: ${email}\n• Subscribed At: ${new Date().toLocaleString()}\n• Source: Website Footer / Agency Site\n\nYou can view all subscribers from your Admin Control Center (/nx-control/subscribers).`,
         vars: {},

@@ -2,6 +2,7 @@ import nodemailer from "nodemailer";
 import { createAdminClient } from "@/lib/supabase/server";
 import { fillTemplate } from "@/lib/utils";
 import { generateDocument, type DocType } from "@/lib/pdf/generate";
+import { renderHtml } from "./layout";
 
 const transporter = nodemailer.createTransport({
   service: "gmail",
@@ -11,6 +12,77 @@ const transporter = nodemailer.createTransport({
   },
 });
 
+
+/** Last-resort recipient if neither the settings row nor the env var is set. */
+const FALLBACK_ADMIN_EMAIL = "ahmadsadiq.dev@gmail.com";
+
+/**
+ * The single address every internal notification goes to.
+ *
+ * Previously each call site picked its own source — some read `settings.email`
+ * (seeded to hello@nexdesk.com), others read `GMAIL_USER` — so notifications
+ * scattered across two different inboxes. Resolve it here, once.
+ */
+export async function adminNotifyAddress(): Promise<string> {
+  try {
+    const { data } = await createAdminClient()
+      .from("settings").select("email").eq("id", 1).maybeSingle();
+    const configured = data?.email?.trim();
+    if (configured) return configured;
+  } catch (e) {
+    console.error("Could not read settings.email, falling back:", e);
+  }
+  return process.env.ADMIN_EMAIL?.trim() || process.env.GMAIL_USER?.trim() || FALLBACK_ADMIN_EMAIL;
+}
+
+/**
+ * Tells someone their sign-in address changed — sent to BOTH the old and the
+ * new address, so a typo in the new one is still recoverable at the old one.
+ */
+export async function notifyEmailChange(args: {
+  name: string;
+  oldEmail?: string | null;
+  newEmail: string;
+  loginUrl: string;
+  actorId?: string;
+}) {
+  const body =
+    `Hi ${args.name},\n\n` +
+    `The email address you use to sign in has been updated.\n\n` +
+    `• Previous address: ${args.oldEmail || "—"}\n` +
+    `• New sign-in address: ${args.newEmail}\n` +
+    `• Sign in here: ${args.loginUrl}\n\n` +
+    `Your password has not changed. From now on, sign in with the new address above.\n\n` +
+    `If you did not expect this change, reply to this email straight away.\n\n` +
+    `Nex Desk`;
+
+  const recipients = Array.from(
+    new Set([args.newEmail, args.oldEmail].filter((e): e is string => !!e))
+  );
+
+  const results = await Promise.allSettled(
+    recipients.map((to) =>
+      sendEmail({
+        templateKey: "account_email_changed",
+        to,
+        actorId: args.actorId,
+        vars: { name: args.name, new_email: args.newEmail, login_url: args.loginUrl },
+        subjectOverride: "Your Nex Desk sign-in email has changed",
+        bodyOverride: body,
+      })
+    )
+  );
+
+  const failure = results.find((r) => r.status === "rejected" || !r.value?.ok);
+  if (!failure) return { ok: true as const };
+  return {
+    ok: false as const,
+    error:
+      failure.status === "rejected"
+        ? String(failure.reason)
+        : failure.value?.error ?? "Notification email failed.",
+  };
+}
 
 export type SendArgs = {
   templateKey: string;
@@ -39,110 +111,192 @@ export async function sendEmail(args: SendArgs) {
 
   const DEFAULT_TEMPLATES: Record<string, { subject: string; body: string }> = {
     newsletter_welcome: {
-      subject: "Welcome to Nex Desk — Software Agency",
-      body: "Hi {{client_name}},\n\nThank you for subscribing to the Nex Desk newsletter!\n\nWe share monthly insights on custom software engineering, modern web applications, UI/UX design trends, and tech strategy.\n\nWarm regards,\nThe Nex Desk Team",
-    },
-
-    /* ── Client Welcome (Merike Step 2) ── */
-    client_welcome: {
-      subject: "Welcome to Nex Desk — Here's What Happens Next",
+      subject: "You're on the list — welcome to Nex Desk",
       body: `Hi {{client_name}},
 
-Welcome aboard — we're genuinely excited to be working with you.
+Thanks for subscribing. You'll now get our monthly dispatch.
 
-Here's exactly what the next few days look like:
+Each issue is short and practical:
 
-• Step 1: We'll send you a short client intake form to gather your project details, brand files, and any references you'd like us to follow. Takes about 5 minutes.
+• What we shipped, and the engineering decisions behind it
+• Lessons from real client builds — including the ones that went sideways
+• Practical notes on web, mobile and cloud architecture
 
-• Step 2: Within 48 hours of receiving your completed form, we'll send you a detailed project outline with timeline and milestone breakdown.
+One email a month. No filler, and you can unsubscribe from any issue.
 
-• Step 3: Work officially begins on the agreed start date. You'll receive a staging link where you can watch progress in real time.
+Best regards,
+The Nex Desk Team`,
+    },
 
-A few things worth knowing:
+    client_welcome: {
+      subject: "Welcome to Nex Desk — your portal is ready",
+      body: `Hi {{client_name}},
 
-• Working Hours: Monday – Saturday, 10am – 7pm PKT
-• Response Time: We reply to all messages within one working day
-• Best Way to Reach Us: Email (hello@nexdesk.com) or WhatsApp
-• Revisions: Your agreement includes 2 full rounds of revisions per deliverable
+Welcome aboard. We're glad to be working with you.
 
-If you have any questions before we start, reply to this email directly — a real person reads every message.
+Your client portal is live. You can sign in any time to track progress, review documents and see who is working on your project:
 
-Looking forward to building something great together.
+• Portal: {{portal_url}}
+• Email: {{client_email}}
+• Password: {{client_password}}
 
-Warm regards,
+Here's what happens next:
+
+• We'll send a short intake form to collect your brand files, content and any references. It takes about five minutes.
+• Within two working days of getting it back, you'll receive your project outline with the timeline and milestones.
+• Work starts on the agreed date, and progress appears in your portal as we go.
+
+Worth knowing:
+
+• Working hours: Monday to Saturday, 10am to 7pm PKT
+• We reply to every message within one working day
+• Your agreement includes two full rounds of revisions per deliverable
+
+Any questions before we start, just reply to this email — a real person reads every one.
+
+Best regards,
 Ahmad Sadiq
 Nex Desk Software Agency`,
     },
 
-    /* ── Payment Thank You (Merike Step 5) ── */
-    payment_thankyou: {
-      subject: "Payment Received — Thank You, {{client_name}}",
-      body: `Hi {{client_name}},
+    account_email_changed: {
+      subject: "Your Nex Desk sign-in email has changed",
+      body: `Hi {{name}},
 
-Payment received — thank you!
+The email address you use to sign in has been updated to {{new_email}}.
 
-We're officially moving forward. Here's what happens next:
+• Sign in here: {{login_url}}
 
-• Your project is now active in our pipeline
-• You'll receive your first progress update within the next few working days
-• Your Client Portal is live — you can track milestones, view documents, and check project status at any time
+Your password has not changed. From now on, use the new address above.
 
-We appreciate your trust in Nex Desk. If you need anything at all, just reply to this email.
+If you weren't expecting this, reply to this email straight away.
 
-— Ahmad Sadiq
-Nex Desk Software Agency
-
-P.S. As a token of appreciation, your next project with us gets 10% off. Just mention this email when you're ready.`,
-    },
-
-    /* ── Portal Introduction (Merike Step 4) ── */
-    portal_intro: {
-      subject: "Your Nex Desk Client Portal Is Ready",
-      body: `Hi {{client_name}},
-
-Your dedicated Client Portal is now set up and ready to use.
-
-Here's what you can do inside:
-
-• Track Project Progress — See real-time milestones, percentage complete, and delivery dates
-• View Invoices & Payments — Complete financial history with download options
-• Access Documents — Agreements, receipts, progress reports, and handover documents
-• Meet Your Team — See the dedicated agency team assigned to your project
-• Upload Files — Share brand assets, content, or signed documents directly
-
-We update the portal every 2-3 business days as work progresses.
-
-Your login credentials:
-• Email: {{client_email}}
-• Portal: {{portal_url}}
-
-If this is your first time logging in, click the portal link above and use the "Reset Password" option to set your password.
-
-Any questions? Just reply to this email.
-
-Warm regards,
-Nex Desk Team`,
+Nex Desk`,
     },
 
     employee_joining_en: {
-      subject: "Welcome to Nex Desk — Employee Onboarding",
-      body: "Hi {{employee_name}},\n\nWelcome aboard! We are thrilled to have you join Nex Desk as our new {{job_title}} ({{seniority}}).\n\nYour profile details:\n• Role: {{job_title}}\n• Seniority: {{seniority}}\n• Location: {{city}}, {{country}}\n• Joining Date: {{joining_date}}\n\nOur team is excited to work with you on upcoming client projects.\n\nWarm regards,\nThe Nex Desk Leadership Team",
+      subject: "Welcome to Nex Desk — your staff account is ready",
+      body: `Hi {{employee_name}},
+
+Welcome to the team. You're joining us as {{job_title}} ({{seniority}}), starting {{joining_date}}.
+
+Your staff panel account is ready. Sign in to see the clients assigned to you, track your projects and submit your daily work log:
+
+• Sign in: {{staff_login_url}}
+• Email: {{staff_email}}
+• Password: {{staff_password}}
+
+Please change your password after your first sign-in.
+
+A few things to know:
+
+• Submit a work log at the end of each working day — it's how project progress reaches the client
+• You'll only see the clients and projects assigned to you
+• Flag blockers in your log; that's the fastest way to get them cleared
+
+Glad to have you with us.
+
+Best regards,
+The Nex Desk Team`,
     },
     employee_joining_ar: {
-      subject: "مرحباً بك في نيكس ديسك — انضمام موظف جديد",
-      body: "أهلاً بك {{employee_name}}،\n\nيسعدنا جداً انضمامك إلى فريق نيكس ديسك كـ {{job_title}} ({{seniority}}).\n\nتفاصيل الملف الشخصي:\n• المسمى الوظيفي: {{job_title}}\n• المستوى الوظيفي: {{seniority}}\n• الموقع: {{city}}، {{country}}\n• تاريخ البدء: {{joining_date}}\n\nفريقنا متحمس للعمل معك في مشاريع العملاء القادمة.\n\nمع أطيب التحيات،\nفريق إدارة نيكس ديسك",
+      subject: "مرحباً بك في نيكس ديسك — حسابك جاهز",
+      body: `مرحباً {{employee_name}}،
+
+أهلاً بك في الفريق. تنضم إلينا بوظيفة {{job_title}} ({{seniority}}) اعتباراً من {{joining_date}}.
+
+حسابك على لوحة الموظفين جاهز الآن. سجّل الدخول لعرض العملاء المسندين إليك ومتابعة مشاريعك وتسجيل تقرير عملك اليومي:
+
+• رابط الدخول: {{staff_login_url}}
+• البريد الإلكتروني: {{staff_email}}
+• كلمة المرور: {{staff_password}}
+
+يرجى تغيير كلمة المرور بعد أول تسجيل دخول.
+
+مع أطيب التحيات،
+فريق نيكس ديسك`,
     },
     employee_joining_fr: {
-      subject: "Bienvenue chez Nex Desk — Intégration",
-      body: "Bonjour {{employee_name}},\n\nBienvenue à bord ! Nous sommes ravis de vous accueillir chez Nex Desk au poste de {{job_title}} ({{seniority}}).\n\nDétails de votre profil :\n• Poste : {{job_title}}\n• Niveau : {{seniority}}\n• Ville : {{city}}, {{country}}\n• Date d'arrivée : {{joining_date}}\n\nCordialement,\nL'équipe dirigeante de Nex Desk",
+      subject: "Bienvenue chez Nex Desk — votre compte est prêt",
+      body: `Bonjour {{employee_name}},
+
+Bienvenue dans l'équipe. Vous nous rejoignez au poste de {{job_title}} ({{seniority}}) à partir du {{joining_date}}.
+
+Votre compte est prêt. Connectez-vous pour voir les clients qui vous sont assignés, suivre vos projets et saisir votre rapport quotidien :
+
+• Connexion : {{staff_login_url}}
+• E-mail : {{staff_email}}
+• Mot de passe : {{staff_password}}
+
+Merci de changer votre mot de passe après la première connexion.
+
+Cordialement,
+L'équipe Nex Desk`,
     },
     employee_joining_de: {
-      subject: "Willkommen bei Nex Desk — Onboarding",
-      body: "Hallo {{employee_name}},\n\nWillkommen an Bord! Wir freuen uns sehr, Sie als neuen {{job_title}} ({{seniority}}) bei Nex Desk zu begrüßen.\n\nIhre Profildetails:\n• Rolle: {{job_title}}\n• Erfahrenheit: {{seniority}}\n• Standort: {{city}}, {{country}}\n• Startdatum: {{joining_date}}\n\nMit freundlichen Grüßen,\nDas Nex Desk Management Team",
+      subject: "Willkommen bei Nex Desk — Ihr Konto ist bereit",
+      body: `Hallo {{employee_name}},
+
+willkommen im Team. Sie starten am {{joining_date}} als {{job_title}} ({{seniority}}).
+
+Ihr Konto ist eingerichtet. Melden Sie sich an, um Ihre zugewiesenen Kunden zu sehen, Projekte zu verfolgen und Ihren Tagesbericht einzureichen:
+
+• Anmeldung: {{staff_login_url}}
+• E-Mail: {{staff_email}}
+• Passwort: {{staff_password}}
+
+Bitte ändern Sie Ihr Passwort nach der ersten Anmeldung.
+
+Mit freundlichen Grüßen,
+Das Nex Desk Team`,
     },
     employee_joining_es: {
-      subject: "Bienvenido a Nex Desk — Incorporación",
-      body: "Hola {{employee_name}},\n\n¡Bienvenido al equipo! Estamos encantados de que te unas a Nex Desk como nuestro nuevo {{job_title}} ({{seniority}}).\n\nDetalles del perfil:\n• Rol: {{job_title}}\n• Nivel: {{seniority}}\n• Ubicación: {{city}}, {{country}}\n• Fecha de ingreso: {{joining_date}}\n\nSaludos cordiales,\nEl equipo directivo de Nex Desk",
+      subject: "Bienvenido a Nex Desk — tu cuenta está lista",
+      body: `Hola {{employee_name}},
+
+Bienvenido al equipo. Te incorporas como {{job_title}} ({{seniority}}) a partir del {{joining_date}}.
+
+Tu cuenta ya está lista. Inicia sesión para ver los clientes asignados, seguir tus proyectos y registrar tu parte de trabajo diario:
+
+• Acceso: {{staff_login_url}}
+• Correo: {{staff_email}}
+• Contraseña: {{staff_password}}
+
+Cambia tu contraseña después del primer acceso.
+
+Saludos cordiales,
+El equipo de Nex Desk`,
+    },
+
+    /* ── Internal notices ── */
+    admin_client_created_notice: {
+      subject: "New client provisioned: {{client_name}}",
+      body: `A new client account has been created.
+
+• Name: {{client_name}}
+• Email: {{client_email}}
+
+Portal credentials have been sent to the client.`,
+    },
+    internal_new_lead: {
+      subject: "New lead",
+      body: "A new enquiry came in through the website.",
+    },
+    internal_new_subscriber: {
+      subject: "New newsletter subscriber",
+      body: "Someone new subscribed to the newsletter.",
+    },
+    internal_payment_received: {
+      subject: "Payment received",
+      body: "A payment has been recorded.",
+    },
+    admin_document_uploaded_notice: {
+      subject: "Client uploaded a signed document",
+      body: "A client has uploaded a signed document to their portal.",
+    },
+    admin_work_log_notice: {
+      subject: "Daily work log submitted",
+      body: "A team member submitted their daily work log.",
     },
   };
 
@@ -203,182 +357,3 @@ Nex Desk Team`,
     return { ok: false as const, error: message };
   }
 }
-
-import { getSiteBaseUrl } from "@/lib/utils";
-
-/**
- * Premium HTML email layout — deep navy glassmorphism design
- * with official NexDesk branding, refined typography, and structured content blocks.
- */
-function renderHtml(subject: string, body: string, lang: string = "en") {
-  const isRtl = lang === "ar";
-  const dirAttr = isRtl ? 'dir="rtl"' : 'dir="ltr"';
-  const alignStyle = isRtl ? 'text-align:right' : 'text-align:left';
-  const siteUrl = getSiteBaseUrl();
-
-  /* ── Official NexDesk Brand palette tokens ── */
-  const C = {
-    pageBg:     "#08080B",
-    cardBg:     "#131318",
-    cardBorder: "#26262F",
-    headerBg:   "#0B0B0F",
-    lime:       "#D0FF4E",
-    limeDark:   "#2A3A00",
-    text:       "#F4F1EA",
-    textSub:    "#C9C5BB",
-    textMuted:  "#8A877F",
-    divider:    "#26262F",
-    infoBg:     "#1B1B22",
-    infoBorder: "#26262F",
-  };
-
-  // Process body into structured HTML cards, paragraphs, and CTA buttons
-  const paragraphs = body
-    .split("\n\n")
-    .map((block) => {
-      const trimmed = block.trim();
-      if (!trimmed) return "";
-
-      // Check if block contains key-value bullets like "• Email: ..."
-      if (trimmed.includes("• ") || trimmed.startsWith("- ")) {
-        const items = trimmed
-          .split("\n")
-          .map((line) => {
-            const cleanLine = line.replace(/^[•\-]\s*/, "").trim();
-            if (cleanLine.includes("http://") || cleanLine.includes("https://")) {
-              const urlMatch = cleanLine.match(/(https?:\/\/[^\s]+)/);
-              if (urlMatch) {
-                const url = urlMatch[0];
-                const label = cleanLine.split(":")[0]?.trim() || "Access Link";
-                return `<div style="margin-bottom:14px;"><span style="color:${C.textMuted};font-size:12px;display:block;margin-bottom:6px;font-family:-apple-system,BlinkMacSystemFont,Inter,sans-serif;">${escapeHtml(label)}:</span><a href="${url}" target="_blank" style="display:inline-block;background:${C.lime};color:${C.limeDark};font-weight:700;padding:13px 28px;border-radius:10px;text-decoration:none;font-size:13px;font-family:-apple-system,BlinkMacSystemFont,Inter,sans-serif;box-shadow:0 4px 16px rgba(208,255,78,0.2);">Access Portal Dashboard &rarr;</a></div>`;
-              }
-            }
-            if (cleanLine.includes(":")) {
-              const parts = cleanLine.split(":");
-              const key = parts[0].trim();
-              const val = parts.slice(1).join(":").trim();
-              return `<div style="margin-bottom:10px;"><span style="color:${C.textMuted};font-size:12px;display:inline-block;min-width:120px;font-family:-apple-system,BlinkMacSystemFont,Inter,sans-serif;">${escapeHtml(key)}:</span><strong style="color:${C.text};font-size:13px;font-family:ui-monospace,monospace;">${escapeHtml(val)}</strong></div>`;
-            }
-            return `<div style="margin-bottom:8px;padding-left:16px;position:relative;"><span style="position:absolute;left:0;color:${C.lime};font-size:14px;line-height:1;">•</span><span style="color:${C.textSub};font-size:13px;line-height:1.5;">${escapeHtml(cleanLine)}</span></div>`;
-          })
-          .join("");
-
-        return `<div style="background:${C.infoBg};border:1px solid ${C.infoBorder};border-radius:12px;padding:20px 22px;margin:20px 0;${alignStyle}">${items}</div>`;
-      }
-
-      // Check if block contains standalone URL link
-      if ((trimmed.includes("http://") || trimmed.includes("https://")) && !trimmed.includes("<a")) {
-        const urlMatch = trimmed.match(/(https?:\/\/[^\s]+)/);
-        if (urlMatch) {
-          const url = urlMatch[0];
-          const textBefore = trimmed.replace(url, "").trim();
-          return `${textBefore ? `<p style="margin:0 0 14px;white-space:pre-line;color:${C.textSub};font-size:14px;line-height:1.65;${alignStyle}">${escapeHtml(textBefore)}</p>` : ""}<div style="margin:22px 0;${alignStyle}"><a href="${url}" target="_blank" style="display:inline-block;background:${C.lime};color:${C.limeDark};font-weight:700;padding:14px 32px;border-radius:10px;text-decoration:none;font-size:14px;letter-spacing:-0.2px;box-shadow:0 4px 20px rgba(208,255,78,0.2);font-family:-apple-system,BlinkMacSystemFont,Inter,sans-serif;">Open Link &rarr;</a></div>`;
-        }
-      }
-
-      return `<p style="margin:0 0 16px;white-space:pre-line;color:${C.textSub};font-size:14px;line-height:1.7;${alignStyle}">${escapeHtml(trimmed)}</p>`;
-    })
-    .join("");
-
-  return `<!DOCTYPE html>
-<html ${dirAttr}>
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>${escapeHtml(subject)}</title>
-</head>
-<body style="margin:0;padding:0;background:${C.pageBg};color:${C.text};font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Inter,sans-serif;${alignStyle}">
-  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:${C.pageBg};padding:48px 16px;" ${dirAttr}>
-    <tr>
-      <td align="center">
-        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:600px;background:${C.cardBg};border:1px solid ${C.cardBorder};border-radius:20px;overflow:hidden;box-shadow:0 24px 48px rgba(0,0,0,0.5),0 0 0 1px rgba(26,34,54,0.5);${alignStyle}" ${dirAttr}>
-          
-          <!-- ── Brand Header ── -->
-          <tr>
-            <td style="background:${C.headerBg};padding:28px 36px;border-bottom:1px solid ${C.divider};${alignStyle}">
-              <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
-                <tr>
-                  <td align="${isRtl ? "right" : "left"}" valign="middle">
-                    <table role="presentation" cellpadding="0" cellspacing="0">
-                      <tr>
-                        <td valign="middle" style="padding-right:10px;">
-                          <!-- Logo Mark: desk + caret -->
-                          <div style="width:32px;height:32px;background:linear-gradient(135deg,#111827,#0A0E17);border-radius:8px;display:inline-block;position:relative;vertical-align:middle;">
-                            <div style="position:absolute;bottom:7px;left:5px;width:22px;height:3px;background:#F1F5F9;border-radius:2px;opacity:0.9;"></div>
-                            <div style="position:absolute;top:5px;left:9px;width:14px;height:14px;background:#D0FF4E;border-radius:3px;"></div>
-                          </div>
-                        </td>
-                        <td valign="middle">
-                          <span style="font-size:20px;font-weight:700;letter-spacing:-0.5px;color:#FFFFFF;font-family:-apple-system,BlinkMacSystemFont,Inter,sans-serif;">
-                            Nex<span style="color:#F1F5F9;"> Desk</span><span style="display:inline-block;width:4px;height:17px;background:#D0FF4E;border-radius:1px;margin-left:2px;vertical-align:baseline;transform:translateY(2px);"></span>
-                          </span>
-                        </td>
-                      </tr>
-                    </table>
-                  </td>
-                  <td align="${isRtl ? "left" : "right"}" valign="middle">
-                    <span style="background:rgba(208,255,78,0.1);color:${C.lime};border:1px solid rgba(208,255,78,0.2);font-size:10px;font-weight:700;padding:6px 14px;border-radius:20px;text-transform:uppercase;letter-spacing:1.2px;font-family:ui-monospace,monospace;">
-                      SOFTWARE AGENCY
-                    </span>
-                  </td>
-                </tr>
-              </table>
-            </td>
-          </tr>
-
-          <!-- ── Accent line under header ── -->
-          <tr>
-            <td style="height:2px;background:linear-gradient(90deg,transparent,rgba(208,255,78,0.3),transparent);"></td>
-          </tr>
-
-          <!-- ── Main Email Content ── -->
-          <tr>
-            <td style="padding:40px 36px 32px;${alignStyle}">
-              <h1 style="margin:0 0 28px;font-size:24px;font-weight:700;letter-spacing:-0.4px;color:#FFFFFF;line-height:1.3;${alignStyle}">
-                ${escapeHtml(subject)}
-              </h1>
-              ${paragraphs}
-            </td>
-          </tr>
-
-          <!-- ── Footer Divider ── -->
-          <tr>
-            <td style="padding:0 36px;"><div style="height:1px;background:${C.divider};"></div></td>
-          </tr>
-
-          <!-- ── Agency Footer ── -->
-          <tr>
-            <td style="padding:24px 36px 28px;${alignStyle}">
-              <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
-                <tr>
-                  <td align="${isRtl ? "right" : "left"}" style="color:${C.textMuted};font-size:12px;line-height:1.6;">
-                    <p style="margin:0 0 4px;">&copy; ${new Date().getFullYear()} Nex Desk Software Agency</p>
-                    <p style="margin:0;color:${C.textMuted};font-size:11px;">Multan, Pakistan &middot; Working worldwide across timezones</p>
-                  </td>
-                  <td align="${isRtl ? "left" : "right"}" valign="top">
-                    <a href="${siteUrl}" target="_blank" style="display:inline-block;color:${C.lime};text-decoration:none;font-weight:600;font-size:12px;padding:6px 14px;border:1px solid rgba(208,255,78,0.2);border-radius:8px;transition:all 0.2s;">nexdesk.agency &rarr;</a>
-                  </td>
-                </tr>
-              </table>
-            </td>
-          </tr>
-
-        </table>
-
-        <!-- ── Tiny unsubscribe / legal line below the card ── -->
-        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:600px;margin-top:16px;">
-          <tr>
-            <td align="center" style="color:#4A5568;font-size:11px;font-family:-apple-system,BlinkMacSystemFont,Inter,sans-serif;">
-              This email was sent by Nex Desk Software Agency &middot; <a href="mailto:hello@nexdesk.com" style="color:#8492A6;text-decoration:underline;">hello@nexdesk.com</a>
-            </td>
-          </tr>
-        </table>
-      </td>
-    </tr>
-  </table>
-</body>
-</html>`;
-}
-
-const escapeHtml = (s: string) =>
-  s.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]!));

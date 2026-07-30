@@ -1,8 +1,9 @@
 import type { MetadataRoute } from "next";
 import { createAdminClient } from "@/lib/supabase/server";
+import { getSiteBaseUrl } from "@/lib/utils";
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  const base = process.env.NEXT_PUBLIC_SITE_URL ?? "https://nexdesk.com";
+  const base = getSiteBaseUrl();
   const db = createAdminClient();
 
   const [{ data: services }, { data: cases }, { data: posts }] = await Promise.all([

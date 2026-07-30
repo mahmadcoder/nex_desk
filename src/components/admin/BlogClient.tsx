@@ -183,8 +183,8 @@ export default function BlogClient({ posts }: { posts: Post[] }) {
       </div>
 
       {editing && (
-        <div className="fixed inset-0 z-50 grid place-items-center bg-ink-950/80 backdrop-blur-xs p-4 overflow-y-auto animate-in fade-in duration-200">
-          <div className="card w-full max-w-2xl p-5 sm:p-7 relative bg-ink-900 border-ink-600 my-auto max-h-[90vh] overflow-y-auto custom-admin-scrollbar space-y-4 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+        <div className="fixed inset-0 z-50 grid place-items-center bg-ink-950/80 backdrop-blur-xs p-4 animate-in fade-in duration-200">
+          <div className="card w-full max-w-2xl p-5 sm:p-7 relative bg-ink-900 border-ink-600 my-auto max-h-[calc(100dvh-2rem)] overflow-y-auto custom-admin-scrollbar space-y-4 shadow-2xl" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between border-b border-ink-700/80 pb-3">
               <h2 className="text-lg font-semibold text-bone-50">
                 {editing.id ? "Edit Article" : "Write New Article"}

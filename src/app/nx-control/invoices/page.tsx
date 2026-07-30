@@ -1,6 +1,6 @@
 import { createAdminClient } from "@/lib/supabase/server";
 import { PageHead, Badge, Table, Stat, Empty } from "@/components/admin/ui";
-import { money } from "@/lib/utils";
+import { money, moneyMulti, sumByCurrency } from "@/lib/utils";
 import DocButton from "@/components/admin/DocButton";
 import PaymentDialog from "@/components/admin/PaymentDialog";
 
@@ -12,19 +12,28 @@ export default async function InvoicesPage() {
   const { data: invoices } = await db.from("invoices")
     .select("*, clients(id, name, email)").order("issue_date", { ascending: false });
 
-  const total = (invoices ?? []).reduce((s, i) => s + Number(i.total), 0);
-  const paid = (invoices ?? []).reduce((s, i) => s + Number(i.amount_paid), 0);
-  const overdue = (invoices ?? []).filter((i) => i.status === "overdue")
-    .reduce((s, i) => s + Number(i.total) - Number(i.amount_paid), 0);
+  // Grouped per currency — a USD invoice and a PKR invoice cannot be added up.
+  const rows = invoices ?? [];
+  const total = sumByCurrency(rows, (i) => i.currency, (i) => Number(i.total));
+  const paid = sumByCurrency(rows, (i) => i.currency, (i) => Number(i.amount_paid));
+  const overdueTotals = sumByCurrency(
+    rows.filter((i) => i.status === "overdue"),
+    (i) => i.currency,
+    (i) => Number(i.total) - Number(i.amount_paid)
+  );
 
   return (
     <>
       <PageHead title="Invoices" sub="Recording a payment sends the receipt automatically." />
 
       <div className="grid gap-4 sm:grid-cols-3">
-        <Stat label="Invoiced" value={money(total)} />
-        <Stat label="Collected" value={money(paid)} tone="good" />
-        <Stat label="Overdue" value={money(overdue)} tone={overdue > 0 ? "warn" : "default"} />
+        <Stat label="Invoiced" value={moneyMulti(total)} />
+        <Stat label="Collected" value={moneyMulti(paid)} tone="good" />
+        <Stat
+          label="Overdue"
+          value={moneyMulti(overdueTotals, money(0, "PKR"))}
+          tone={overdueTotals.length ? "warn" : "default"}
+        />
       </div>
 
       <div className="mt-8">

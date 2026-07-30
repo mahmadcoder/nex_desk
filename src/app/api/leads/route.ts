@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { createAdminClient } from "@/lib/supabase/server";
-import { sendEmail } from "@/lib/email/send";
+import { sendEmail, adminNotifyAddress } from "@/lib/email/send";
 import { getSiteBaseUrl } from "@/lib/utils";
 
 const schema = z.object({
@@ -40,24 +40,25 @@ export async function POST(req: Request) {
       },
     });
 
-    const { data: settings } = await db.from("settings").select("email").eq("id", 1).single();
-    if (settings?.email) {
-      await sendEmail({
-        templateKey: "internal_new_lead",
-        to: settings.email,
-        subjectOverride: `New lead — ${lead.name}${lead.company ? ` (${lead.company})` : ""}`,
-        bodyOverride:
-          `${lead.name} · ${lead.email}${lead.phone ? ` · ${lead.phone}` : ""}\n` +
-          `${[lead.city, lead.country].filter(Boolean).join(", ")}\n\n` +
-          `Wants: ${lead.service_slugs.join(", ") || "not specified"}\n` +
-          `Budget: ${lead.budget_range ?? "—"}\nTimeline: ${lead.timeline ?? "—"}\n\n` +
-          `${lead.message ?? ""}`,
-        vars: {},
-      });
-    }
+    await sendEmail({
+      templateKey: "internal_new_lead",
+      to: await adminNotifyAddress(),
+      subjectOverride: `New lead — ${lead.name}${lead.company ? ` (${lead.company})` : ""}`,
+      bodyOverride:
+        `${lead.name} · ${lead.email}${lead.phone ? ` · ${lead.phone}` : ""}\n` +
+        `${[lead.city, lead.country].filter(Boolean).join(", ")}\n\n` +
+        `Wants: ${lead.service_slugs.join(", ") || "not specified"}\n` +
+        `Budget: ${lead.budget_range ?? "—"}\nTimeline: ${lead.timeline ?? "—"}\n\n` +
+        `${lead.message ?? ""}`,
+      vars: {},
+    });
 
     return NextResponse.json({ ok: true, id: data.id });
-  } catch {
-    return NextResponse.json({ error: "Something went wrong. Email ahmadsadiq.dev@gmail.com instead." }, { status: 500 });
+  } catch (e) {
+    console.error("Lead submission failed:", e);
+    return NextResponse.json(
+      { error: "Something went wrong. Please try again, or reach us through the contact details on the site." },
+      { status: 500 }
+    );
   }
 }

@@ -7,6 +7,8 @@ import { toast } from "sonner";
 import { Users, Plus, Trash2, Edit3, ExternalLink, X } from "lucide-react";
 import CustomSelect from "@/components/ui/CustomSelect";
 import ConfirmModal from "@/components/admin/ConfirmModal";
+import Modal from "@/components/admin/Modal";
+import { adminPath } from "@/lib/utils";
 import { assignEmployeeToClient, removeEmployeeFromClient, updateAssignedEmployee } from "@/lib/actions/cms";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -15,12 +17,14 @@ interface Props {
   clientId: string;
   assignedEmployees: any[];
   allEmployees: any[];
+  loadError?: string | null;
 }
 
 export default function ClientTeamAssignments({
   clientId,
   assignedEmployees,
   allEmployees,
+  loadError = null,
 }: Props) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -35,14 +39,14 @@ export default function ClientTeamAssignments({
 
     startTransition(async () => {
       const res = await assignEmployeeToClient(clientId, selectedEmployeeId);
-      if (res && res.error) {
-        toast.error(res.error);
-      } else {
-        toast.success("Assigned team member to client.");
-        setSelectedEmployeeId("");
-        setShowAssignModal(false);
-        router.refresh();
+      if (!res?.success) {
+        toast.error(res?.error || "Could not assign that team member.");
+        return;
       }
+      toast.success(res.message || "Assigned team member to client.");
+      setSelectedEmployeeId("");
+      setShowAssignModal(false);
+      router.refresh();
     });
   };
 
@@ -104,6 +108,12 @@ export default function ClientTeamAssignments({
         </button>
       </div>
 
+      {loadError && (
+        <div className="rounded-lg border border-rose-400/30 bg-rose-400/10 p-3 text-xs text-rose-300">
+          Couldn&apos;t load the assigned team: {loadError}
+        </div>
+      )}
+
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {assignedEmployees.map((a) => {
           const emp = a.employees;
@@ -126,7 +136,7 @@ export default function ClientTeamAssignments({
                 </div>
                 <div>
                   <Link
-                    href={`/nx-control/employees/${emp.id}`}
+                    href={adminPath(`/employees/${emp.id}`)}
                     className="text-sm font-semibold text-bone-50 hover:text-lime-400 transition-colors flex items-center gap-1"
                   >
                     {emp.full_name}
@@ -170,110 +180,64 @@ export default function ClientTeamAssignments({
       </div>
 
       {/* Assign Modal */}
-      {showAssignModal && (
-        <div className="fixed inset-0 z-50 grid place-items-center bg-ink-950/80 backdrop-blur-xs p-4 overflow-y-auto animate-in fade-in duration-200">
-          <div
-            className="card w-full max-w-md p-6 bg-ink-900 border-ink-600 space-y-4 my-auto shadow-2xl relative"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex items-center justify-between border-b border-ink-700 pb-3">
-              <div>
-                <span className="mono-tag text-xs text-lime-400">Team Allocation</span>
-                <h3 className="text-base font-semibold text-bone-50">Assign Employee to Client</h3>
-              </div>
-              <button
-                type="button"
-                className="p-1 rounded text-bone-400 hover:text-bone-50 hover:bg-ink-800 cursor-pointer"
-                onClick={() => setShowAssignModal(false)}
-              >
-                <X size={18} />
-              </button>
-            </div>
-
-            <div>
-              <label className="mono-tag text-xs mb-1.5 block">Select Agency Team Member</label>
-              <CustomSelect
-                options={employeeOptions}
-                value={selectedEmployeeId}
-                onChange={(val) => setSelectedEmployeeId(val)}
-                placeholder="Select team member to assign…"
-              />
-            </div>
-
-            <div className="flex justify-end gap-2 border-t border-ink-700 pt-3">
-              <button
-                className="btn h-8 px-3 text-xs cursor-pointer"
-                onClick={() => setShowAssignModal(false)}
-                disabled={pending}
-              >
-                Cancel
-              </button>
-              <button
-                className="btn btn-primary h-8 px-4 text-xs cursor-pointer"
-                onClick={handleAssign}
-                disabled={pending}
-              >
-                {pending ? "Assigning..." : "Assign Employee →"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <Modal
+        open={showAssignModal}
+        onClose={() => setShowAssignModal(false)}
+        pending={pending}
+        eyebrow="Team Allocation"
+        title="Assign an employee to this client"
+        footer={
+          <>
+            <button className="btn h-8 px-3 text-xs" onClick={() => setShowAssignModal(false)} disabled={pending}>
+              Cancel
+            </button>
+            <button className="btn btn-primary h-8 px-4 text-xs" onClick={handleAssign} disabled={pending}>
+              {pending ? "Assigning…" : "Assign Employee →"}
+            </button>
+          </>
+        }
+      >
+        <label className="mono-tag mb-1.5 block text-xs">Select Agency Team Member</label>
+        <CustomSelect
+          options={employeeOptions}
+          value={selectedEmployeeId}
+          onChange={(val) => setSelectedEmployeeId(val)}
+          placeholder="Select team member to assign…"
+        />
+      </Modal>
 
       {/* Update / Replace Staff Modal */}
-      {editingAssignment && (
-        <div className="fixed inset-0 z-50 grid place-items-center bg-ink-950/80 backdrop-blur-xs p-4 overflow-y-auto animate-in fade-in duration-200">
-          <div
-            className="card w-full max-w-md p-6 bg-ink-900 border-ink-600 space-y-4 my-auto shadow-2xl relative"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex items-center justify-between border-b border-ink-700 pb-3">
-              <div>
-                <span className="mono-tag text-xs text-lime-400">Staff Re-allocation</span>
-                <h3 className="text-base font-semibold text-bone-50">Update / Replace Assigned Staff</h3>
-              </div>
-              <button
-                type="button"
-                className="p-1 rounded text-bone-400 hover:text-bone-50 hover:bg-ink-800 cursor-pointer"
-                onClick={() => setEditingAssignment(null)}
-              >
-                <X size={18} />
-              </button>
-            </div>
+      <Modal
+        open={Boolean(editingAssignment)}
+        onClose={() => setEditingAssignment(null)}
+        pending={pending}
+        eyebrow="Staff Re-allocation"
+        title="Replace the assigned staff member"
+        footer={
+          <>
+            <button className="btn h-8 px-3 text-xs" onClick={() => setEditingAssignment(null)} disabled={pending}>
+              Cancel
+            </button>
+            <button className="btn btn-primary h-8 px-4 text-xs" onClick={handleUpdate} disabled={pending}>
+              {pending ? "Updating…" : "Update Staff Assignment →"}
+            </button>
+          </>
+        }
+      >
+        <p className="text-xs text-bone-300">
+          Currently assigned: <strong className="text-bone-50">{editingAssignment?.name}</strong>.
+          Pick a replacement below.
+        </p>
 
-            <p className="text-xs text-bone-300">
-              Currently assigned: <strong className="text-bone-50">{editingAssignment.name}</strong>. Select a replacement employee below:
-            </p>
+        <label className="mono-tag mb-1.5 mt-4 block text-xs">Select Replacement Employee</label>
+        <CustomSelect
+          options={employeeOptions}
+          value={editEmployeeId}
+          onChange={(val) => setEditEmployeeId(val)}
+          placeholder="Select replacement team member…"
+        />
+      </Modal>
 
-            <div>
-              <label className="mono-tag text-xs mb-1.5 block">Select Replacement Employee</label>
-              <CustomSelect
-                options={employeeOptions}
-                value={editEmployeeId}
-                onChange={(val) => setEditEmployeeId(val)}
-                placeholder="Select replacement team member…"
-              />
-            </div>
-
-            <div className="flex justify-end gap-2 border-t border-ink-700 pt-3">
-              <button
-                className="btn h-8 px-3 text-xs cursor-pointer"
-                onClick={() => setEditingAssignment(null)}
-                disabled={pending}
-              >
-                Cancel
-              </button>
-              <button
-                className="btn btn-primary h-8 px-4 text-xs cursor-pointer"
-                onClick={handleUpdate}
-                disabled={pending}
-              >
-                {pending ? "Updating..." : "Update Staff Assignment →"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Unassign Confirmation Modal */}
       <ConfirmModal

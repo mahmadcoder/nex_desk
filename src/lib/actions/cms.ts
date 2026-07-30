@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { cookies } from "next/headers";
 import { createClient, createAdminClient } from "@/lib/supabase/server";
+import { asUuid, getSiteBaseUrl } from "@/lib/utils";
 
 const ADMIN = process.env.ADMIN_PATH || "nx-control";
 
@@ -398,42 +399,199 @@ export async function seedDefaultFaqs() {
 }
 
 // ---------------- EMPLOYEES & JOB TITLES ----------------
-import { sendEmail } from "@/lib/email/send";
+import { sendEmail, adminNotifyAddress, notifyEmailChange } from "@/lib/email/send";
+import { recomputeProjectProgress } from "@/lib/actions";
 
-export async function saveEmployee(id: string | null, data: Record<string, unknown>, language: "en" | "ar" | "fr" | "de" | "es" = "en") {
+/** Where staff sign in. Employees use the same control panel as admins, with a reduced menu. */
+export async function staffLoginUrl() {
+  return `${getSiteBaseUrl()}/${ADMIN}/login`;
+}
+
+/**
+ * Gives an employee a real login.
+ *
+ * Creates a Supabase auth user with the `staff` role, links it to the employee
+ * row via `user_id`, and stores the generated password so an admin can re-read
+ * it later. Mirrors `ensureClientPortalAccount` for clients.
+ */
+export async function ensureEmployeeAccount(employeeId: string, customPassword?: string) {
+  await requireStaff();
+  const db = createAdminClient();
+
+  const { data: employee } = await db.from("employees").select("*").eq("id", employeeId).single();
+  if (!employee) throw new Error("Employee not found");
+  if (!employee.email) throw new Error("This employee has no email address.");
+
+  const password =
+    customPassword || employee.portal_password_preview || "Nex#" + Math.floor(100000 + Math.random() * 900000);
+
+  let userId: string | null = employee.user_id ?? null;
+
+  if (!userId) {
+    const { data: created, error } = await db.auth.admin.createUser({
+      email: employee.email,
+      password,
+      email_confirm: true,
+      user_metadata: { full_name: employee.full_name, role: "staff" },
+    });
+
+    if (created?.user) {
+      userId = created.user.id;
+    } else {
+      // Most often "email already registered" — adopt the existing auth user
+      // rather than leaving the employee without a login.
+      const { data: list } = await db.auth.admin.listUsers();
+      const existing = list?.users?.find(
+        (u) => u.email?.toLowerCase() === employee.email.toLowerCase()
+      );
+      if (!existing) {
+        throw new Error(error?.message || "Could not create a login for this employee.");
+      }
+      userId = existing.id;
+      await db.auth.admin.updateUserById(userId, {
+        password,
+        user_metadata: { full_name: employee.full_name, role: "staff" },
+      });
+    }
+  } else {
+    await db.auth.admin.updateUserById(userId, { password });
+  }
+
+  await db.from("profiles").upsert({
+    id: userId,
+    email: employee.email,
+    full_name: employee.full_name,
+    role: "staff",
+    is_active: true,
+  });
+
+  await db.from("employees")
+    .update({ user_id: userId, portal_password_preview: password })
+    .eq("id", employeeId);
+
+  return { userId, password, email: employee.email as string };
+}
+
+/** Sends an employee their staff-panel credentials. Returns whether it actually sent. */
+export async function sendEmployeeCredentials(
+  employeeId: string,
+  language: "en" | "ar" | "fr" | "de" | "es" = "en"
+) {
   const staff = await requireStaff();
   const db = createAdminClient();
+
+  const account = await ensureEmployeeAccount(employeeId);
+  const { data: employee } = await db.from("employees").select("*").eq("id", employeeId).single();
+  const loginUrl = await staffLoginUrl();
+
+  const result = await sendEmail({
+    templateKey: "employee_joining",
+    language,
+    to: account.email,
+    actorId: staff.id,
+    vars: {
+      employee_name: String(employee?.full_name ?? "Team Member"),
+      job_title: String(employee?.job_title ?? "Specialist"),
+      seniority: String(employee?.seniority ?? "Senior"),
+      city: String(employee?.city ?? "Remote"),
+      country: String(employee?.country ?? "Global"),
+      joining_date: String(employee?.joining_date ?? new Date().toISOString().slice(0, 10)),
+      staff_email: account.email,
+      staff_password: account.password,
+      staff_login_url: loginUrl,
+    },
+  });
+
+  revalidatePath(`/${ADMIN}/employees`);
+  revalidatePath(`/${ADMIN}/employees/${employeeId}`);
+  return { ok: result.ok, error: result.ok ? undefined : result.error, password: account.password };
+}
+
+export async function saveEmployee(
+  id: string | null,
+  data: Record<string, unknown>,
+  language: "en" | "ar" | "fr" | "de" | "es" = "en"
+) {
+  const staff = await requireStaff();
+  const db = createAdminClient();
+
+  // Capture the address before the update so an email change can be detected
+  // and pushed through to auth.users — otherwise the employee is locked out
+  // while the admin panel shows the new address as their login.
+  let previous: { email: string | null; user_id: string | null } | null = null;
+  if (id) {
+    const { data: before } = await db
+      .from("employees").select("email, user_id").eq("id", id).maybeSingle();
+    previous = before ?? null;
+  }
+
   const res = id
     ? await db.from("employees").update(data).eq("id", id).select().single()
     : await db.from("employees").insert(data).select().single();
   if (res.error) throw res.error;
 
-  // Send Joining Email on new employee creation in non-blocking background task
+  let emailed: boolean | undefined;
+  let emailError: string | undefined;
+
   if (!id && res.data?.email) {
-    sendEmail({
-      templateKey: "employee_joining",
-      language,
-      to: String(res.data.email),
-      vars: {
-        employee_name: String(res.data.full_name ?? "Team Member"),
-        job_title: String(res.data.job_title ?? "Specialist"),
-        seniority: String(res.data.seniority ?? "Senior"),
-        city: String(res.data.city ?? "Remote"),
-        country: String(res.data.country ?? "Global"),
-        joining_date: String(res.data.joining_date ?? new Date().toISOString().slice(0, 10)),
-      },
-      actorId: staff.id,
-    }).catch((emailErr) => console.error("Employee joining email failed in background:", emailErr));
+    // New hire: provision the login and send credentials. Awaited, because a
+    // detached promise gets killed when the serverless function returns.
+    try {
+      const sent = await sendEmployeeCredentials(res.data.id, language);
+      emailed = sent.ok;
+      emailError = sent.error;
+    } catch (e) {
+      emailed = false;
+      emailError = e instanceof Error ? e.message : "Could not send the welcome email.";
+      console.error("Employee onboarding failed:", e);
+    }
+  } else if (id && previous) {
+    const newEmail = String(res.data?.email ?? "");
+    const changed = !!newEmail && newEmail.toLowerCase() !== (previous.email ?? "").toLowerCase();
+
+    if (changed && previous.user_id) {
+      const { error: authErr } = await db.auth.admin.updateUserById(previous.user_id, {
+        email: newEmail,
+        email_confirm: true,
+      });
+      if (authErr) {
+        // Roll the row back so the panel never shows an address that cannot log in.
+        await db.from("employees").update({ email: previous.email }).eq("id", id);
+        throw new Error(`Could not update the login email: ${authErr.message}`);
+      }
+
+      await db.from("profiles").update({ email: newEmail }).eq("id", previous.user_id);
+      const notice = await notifyEmailChange({
+        name: String(res.data?.full_name ?? "there"),
+        oldEmail: previous.email,
+        newEmail,
+        loginUrl: await staffLoginUrl(),
+        actorId: staff.id,
+      });
+      emailed = notice.ok;
+      emailError = notice.error;
+    }
   }
 
   revalidatePath(`/${ADMIN}/employees`);
   if (id) revalidatePath(`/${ADMIN}/employees/${id}`);
-  return res.data;
+  return { ...res.data, emailed, emailError };
 }
 
 export async function deleteEmployee(id: string) {
   await requireStaff();
   const db = createAdminClient();
+
+  // Remove the login too, otherwise a deleted employee keeps panel access.
+  const { data: employee } = await db.from("employees").select("user_id").eq("id", id).maybeSingle();
+  if (employee?.user_id) {
+    try {
+      await db.auth.admin.deleteUser(employee.user_id);
+    } catch (e) {
+      console.error("Could not delete employee auth user:", e);
+    }
+  }
+
   await db.from("employees").delete().eq("id", id);
   revalidatePath(`/${ADMIN}/employees`);
 }
@@ -466,7 +624,7 @@ export async function assignEmployeeToClient(clientId: string, employeeId: strin
     }
 
     // Verify client exists in database
-    const { data: clientObj } = await db.from("clients").select("id, profile_id, name").eq("id", clientId).maybeSingle();
+    const { data: clientObj } = await db.from("clients").select("id, name").eq("id", clientId).maybeSingle();
     if (!clientObj) {
       return { success: false, error: "Selected client does not exist in the database." };
     }
@@ -477,41 +635,28 @@ export async function assignEmployeeToClient(clientId: string, employeeId: strin
       return { success: false, error: "Selected employee does not exist in the database." };
     }
 
-    // Check if assignment already exists
-    const { data: existing } = await db
-      .from("client_employee_assignments")
-      .select("id")
-      .eq("client_id", clientId)
-      .eq("employee_id", employeeId)
-      .maybeSingle();
-
-    if (existing) {
-      return { success: true, message: "Client is already assigned to this staff member." };
-    }
-
-    // Insert assignment
-    let { error } = await db.from("client_employee_assignments").insert({
+    // Insert the assignment. The partial unique indexes on
+    // (client_id, employee_id) make this idempotent at the database level, so
+    // two concurrent clicks collapse into a single row instead of both passing
+    // an application-level "does it exist yet?" check.
+    const { error } = await db.from("client_employee_assignments").insert({
       client_id: clientId,
       employee_id: employeeId,
       project_id: projectId ?? null,
     });
 
-    // Fallback: If foreign key constraint 23503 fails and profile_id is present, try matching profile_id
-    if (error && error.code === "23503" && clientObj.profile_id) {
-      const retry = await db.from("client_employee_assignments").insert({
-        client_id: clientObj.profile_id,
-        employee_id: employeeId,
-        project_id: projectId ?? null,
-      });
-      if (!retry.error) {
-        error = null;
-      }
-    }
-
     if (error) {
+      // 23505 = unique violation: the pairing already exists, which is the
+      // outcome the caller wanted anyway.
+      if (error.code === "23505") {
+        return { success: true, message: `${empObj.full_name} is already assigned to ${clientObj.name}.` };
+      }
       console.error("assignEmployeeToClient insert error:", error);
       if (error.code === "23503") {
-        return { success: false, error: `Client '${clientObj.name}' is missing a valid database foreign key link. Please open and save the client profile in Clients tab to fix.` };
+        return {
+          success: false,
+          error: "Assignment table is out of date. Run supabase/idempotent_fixes_2026_07.sql in the Supabase SQL editor, then try again.",
+        };
       }
       return { success: false, error: error.message };
     }
@@ -581,9 +726,36 @@ export async function uploadClientSignedDocument(data: {
   storagePath: string;
   documentType?: string;
 }) {
+  const clientId = asUuid(data.clientId);
+  if (!clientId) throw new Error("Invalid client reference.");
+
   const db = createAdminClient();
+  const { data: clientObj } = await db
+    .from("clients").select("id, name, email, profile_id").eq("id", clientId).maybeSingle();
+  if (!clientObj) throw new Error("Client not found.");
+
+  // `clientId` arrives from the browser, so ownership has to be proven here —
+  // this action runs with the service-role key and would otherwise let anyone
+  // file a document against any client.
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  const ownsRecord =
+    !!user &&
+    (clientObj.profile_id === user.id ||
+      clientObj.email?.toLowerCase() === user.email?.toLowerCase());
+
+  if (!ownsRecord) {
+    const staff = await requireStaff();
+    if (!["owner", "admin", "staff"].includes(staff.role)) {
+      throw new Error("You are not allowed to upload documents for this client.");
+    }
+  }
+
   const { data: res, error } = await db.from("documents").insert({
-    client_id: data.clientId,
+    // `type` is a NOT NULL doc_type enum — omitting it was what made every
+    // upload fail. The free-text `document_type` carries the finer label.
+    type: "agreement",
+    client_id: clientId,
     title: data.title,
     storage_path: data.storagePath,
     uploaded_by_client: true,
@@ -592,20 +764,18 @@ export async function uploadClientSignedDocument(data: {
 
   if (error) throw new Error(error.message || "Failed to upload document.");
 
-  const adminEmail = process.env.GMAIL_USER || "ahmadsadiq.dev@gmail.com";
-  db.from("clients").select("name, email").eq("id", data.clientId).maybeSingle().then(({ data: clientObj }) => {
-    sendEmail({
-      templateKey: "admin_document_uploaded_notice",
-      to: adminEmail,
-      vars: { client_name: clientObj?.name || "Client", doc_title: data.title },
-      bodyOverride: `Hello Admin,\n\nClient "${clientObj?.name || "A client"}" (${clientObj?.email || ""}) has uploaded a signed document:\n\n• Title: ${data.title}\n• Document Type: ${data.documentType || "Signed Agreement"}\n• Date: ${new Date().toLocaleString()}\n\nYou can view and download this document from your Admin Document Center (/nx-control/documents).`,
-      subjectOverride: `Signed Document Uploaded: ${data.title} by ${clientObj?.name || "Client"}`,
-    }).catch((emailErr) => console.error("Error sending document upload notice email:", emailErr));
-  });
+  const adminEmail = await adminNotifyAddress();
+  await sendEmail({
+    templateKey: "admin_document_uploaded_notice",
+    to: adminEmail,
+    vars: { client_name: clientObj.name || "Client", doc_title: data.title },
+    bodyOverride: `Hello Admin,\n\nClient "${clientObj.name || "A client"}" (${clientObj.email || ""}) has uploaded a signed document:\n\n• Title: ${data.title}\n• Document Type: ${data.documentType || "Signed Agreement"}\n• Date: ${new Date().toLocaleString()}\n\nYou can view and download this document from your Admin Document Center (/${ADMIN}/documents).`,
+    subjectOverride: `Signed Document Uploaded: ${data.title} by ${clientObj.name || "Client"}`,
+  }).catch((emailErr) => console.error("Error sending document upload notice email:", emailErr));
 
   revalidatePath("/portal");
   revalidatePath(`/${ADMIN}/documents`);
-  revalidatePath(`/${ADMIN}/clients/${data.clientId}`);
+  revalidatePath(`/${ADMIN}/clients/${clientId}`);
   return res;
 }
 
@@ -620,23 +790,50 @@ export async function submitDailyWorkLog(data: {
   tasks_completed: string;
   blockers?: string | null;
   proof_url?: string | null;
+  /** Show this entry on the client's project timeline in the portal. */
+  client_visible?: boolean;
+  /** Percentage points to add to the project when it has no milestones. */
+  progress_delta?: number;
 }) {
+  await requireStaff();
   const db = createAdminClient();
+
+  // These columns are uuid. Anything that isn't a uuid must become NULL rather
+  // than reaching Postgres, which would raise 22P02 and 500 the whole action.
+  const employeeId = asUuid(data.employee_id);
+  const projectId = asUuid(data.project_id);
+
+  if (!employeeId) {
+    throw new Error("Select a valid employee before submitting a work log.");
+  }
+
+  const clientVisible = !!data.client_visible && !!projectId;
+  const progressDelta = Math.max(0, Math.min(100, Number(data.progress_delta) || 0));
+
   const { data: res, error } = await db.from("daily_work_logs").insert({
-    employee_id: data.employee_id || null,
+    employee_id: employeeId,
     employee_name: data.employee_name || null,
-    project_id: data.project_id || null,
+    project_id: projectId,
     project_title: data.project_title || null,
     work_date: data.work_date,
     hours_spent: data.hours_spent,
     tasks_completed: data.tasks_completed,
     blockers: data.blockers || null,
     proof_url: data.proof_url || null,
+    client_visible: clientVisible,
+    progress_delta: progressDelta,
   }).select().single();
 
   if (error) throw new Error(error.message || "Failed to submit daily work log.");
 
-  const adminEmail = process.env.GMAIL_USER || "ahmadsadiq.dev@gmail.com";
+  // A shared log is what moves the client's progress bar.
+  if (projectId && (clientVisible || progressDelta > 0)) {
+    await recomputeProjectProgress(projectId, progressDelta);
+    revalidatePath("/portal");
+    revalidatePath(`/${ADMIN}/projects/${projectId}`);
+  }
+
+  const adminEmail = await adminNotifyAddress();
   sendEmail({
     templateKey: "admin_work_log_notice",
     to: adminEmail,

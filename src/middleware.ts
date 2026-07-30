@@ -1,8 +1,10 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 import { createClient as createRawClient } from "@supabase/supabase-js";
+import { canStaffAccess } from "@/lib/auth/staffAccess";
 
 const ADMIN_PATH = process.env.ADMIN_PATH || "nx-control";
+const STAFF_ROLES = ["owner", "admin", "staff"];
 
 function getAdminClient() {
   return createRawClient(
@@ -108,31 +110,41 @@ export async function middleware(req: NextRequest) {
       }
     }
 
-    const userRole = user.user_metadata?.role;
-    let isStaff = ["owner", "admin", "staff"].includes(userRole);
-
-    if (!isStaff && user.id) {
+    // Resolve the role, not just a boolean — employees sign in here too and
+    // are limited to their own work (see canStaffAccess).
+    let role: string | null = null;
+    const metaRole = user.user_metadata?.role;
+    if (STAFF_ROLES.includes(metaRole)) {
+      role = metaRole;
+    } else if (user.id) {
       try {
         const adminDb = getAdminClient();
         const { data: profile } = await adminDb
           .from("profiles")
           .select("role, is_active")
           .eq("id", user.id)
-          .single();
-        isStaff = !!(profile?.is_active && ["owner", "admin", "staff"].includes(profile.role));
+          .maybeSingle();
+        if (profile?.is_active && STAFF_ROLES.includes(profile.role)) {
+          role = profile.role;
+        }
       } catch {
-        isStaff = false;
+        role = null;
       }
     }
 
-    if (!isStaff) {
+    if (!role) {
       if (isLoginPage) return res;
       return NextResponse.redirect(new URL(`/${ADMIN_PATH}/login`, req.url));
     }
 
-    if (isLoginPage && isStaff) {
+    if (isLoginPage) {
       return NextResponse.redirect(new URL(`/${ADMIN_PATH}`, req.url));
     }
+
+    if (!canStaffAccess(role, pathname, `/${ADMIN_PATH}`)) {
+      return NextResponse.redirect(new URL(`/${ADMIN_PATH}`, req.url));
+    }
+
     return res;
   }
 

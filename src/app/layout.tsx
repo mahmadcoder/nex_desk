@@ -1,10 +1,11 @@
 import type { Metadata } from "next";
 import { Toaster } from "sonner";
 import ScrollRestoration from "@/components/providers/ScrollRestoration";
+import { getSiteBaseUrl } from "@/lib/utils";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || "https://nexdesk.com"),
+  metadataBase: new URL(getSiteBaseUrl()),
   title: {
     default: "Nex Desk — Software Agency",
     template: "%s | Nex Desk",

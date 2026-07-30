@@ -7,18 +7,22 @@ import { toast } from "sonner";
 import { Users, Plus, Trash2, ExternalLink, Briefcase, Building } from "lucide-react";
 import CustomSelect from "@/components/ui/CustomSelect";
 import ConfirmModal from "@/components/admin/ConfirmModal";
+import Modal from "@/components/admin/Modal";
+import { adminPath } from "@/lib/utils";
 import { assignEmployeeToClient, removeEmployeeFromClient } from "@/lib/actions/cms";
 
 interface Props {
   employee: any;
   assignments: any[];
   allClients: any[];
+  loadError?: string | null;
 }
 
 export default function EmployeeClientAssignments({
   employee,
   assignments,
   allClients,
+  loadError = null,
 }: Props) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -30,14 +34,14 @@ export default function EmployeeClientAssignments({
 
     startTransition(async () => {
       const res = await assignEmployeeToClient(selectedClientId, employee.id);
-      if (res && res.error) {
-        toast.error(res.error);
-      } else {
-        toast.success("Assigned employee to client successfully.");
-        setSelectedClientId("");
-        setShowAssignModal(false);
-        router.refresh();
+      if (!res?.success) {
+        toast.error(res?.error || "Could not assign that client.");
+        return;
       }
+      toast.success(res.message || "Assigned employee to client successfully.");
+      setSelectedClientId("");
+      setShowAssignModal(false);
+      router.refresh();
     });
   };
 
@@ -83,6 +87,12 @@ export default function EmployeeClientAssignments({
         </button>
       </div>
 
+      {loadError && (
+        <div className="rounded-lg border border-rose-400/30 bg-rose-400/10 p-3 text-xs text-rose-300">
+          Couldn&apos;t load assignments: {loadError}
+        </div>
+      )}
+
       <div className="space-y-3">
         {assignments.map((a) => (
           <div
@@ -95,7 +105,7 @@ export default function EmployeeClientAssignments({
               </div>
               <div>
                 <Link
-                  href={`/nx-control/clients/${a.clients?.id}`}
+                  href={adminPath(`/clients/${a.clients?.id}`)}
                   className="text-sm font-semibold text-bone-50 hover:text-lime-400 transition-colors flex items-center gap-1"
                 >
                   {a.clients?.name}
@@ -130,59 +140,31 @@ export default function EmployeeClientAssignments({
       </div>
 
       {/* Modal to Assign Client */}
-      {showAssignModal && (
-        <div
-          className="fixed inset-0 z-50 grid place-items-center bg-ink-950/80 p-4"
-          onClick={() => setShowAssignModal(false)}
-        >
-          <div
-            className="card w-full max-w-md p-6 bg-ink-900 border-ink-600 space-y-4"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex items-center justify-between border-b border-ink-700 pb-3">
-              <div>
-                <span className="mono-tag text-xs text-lime-400">Team Assignment</span>
-                <h3 className="text-base font-semibold text-bone-50">
-                  Assign Client to {employee.full_name}
-                </h3>
-              </div>
-              <button
-                className="text-bone-400 hover:text-bone-50 text-sm"
-                onClick={() => setShowAssignModal(false)}
-              >
-                ✕
-              </button>
-            </div>
-
-            <div>
-              <label className="mono-tag text-xs mb-1.5 block">Select Client</label>
-              <CustomSelect
-                options={clientOptions}
-                value={selectedClientId}
-                onChange={(val) => setSelectedClientId(val)}
-                placeholder="Select client to assign…"
-              />
-            </div>
-
-            <div className="flex justify-end gap-2 border-t border-ink-700 pt-3">
-              <button
-                className="btn h-8 px-3 text-xs"
-                onClick={() => setShowAssignModal(false)}
-                disabled={pending}
-              >
-                Cancel
-              </button>
-              <button
-                className="btn btn-primary h-8 px-4 text-xs"
-                onClick={handleAssign}
-                disabled={pending}
-              >
-                {pending ? "Assigning..." : "Assign Client →"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <Modal
+        open={showAssignModal}
+        onClose={() => setShowAssignModal(false)}
+        pending={pending}
+        eyebrow="Team Assignment"
+        title={`Assign a client to ${employee.full_name}`}
+        footer={
+          <>
+            <button className="btn h-8 px-3 text-xs" onClick={() => setShowAssignModal(false)} disabled={pending}>
+              Cancel
+            </button>
+            <button className="btn btn-primary h-8 px-4 text-xs" onClick={handleAssign} disabled={pending}>
+              {pending ? "Assigning…" : "Assign Client →"}
+            </button>
+          </>
+        }
+      >
+        <label className="mono-tag mb-1.5 block text-xs">Select Client</label>
+        <CustomSelect
+          options={clientOptions}
+          value={selectedClientId}
+          onChange={(val) => setSelectedClientId(val)}
+          placeholder="Select client to assign…"
+        />
+      </Modal>
 
       {/* Confirm Unassign Modal */}
       <ConfirmModal

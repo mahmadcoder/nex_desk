@@ -9,8 +9,12 @@ export default async function DailyLogsPage() {
 
   const [{ data: logs }, { data: employees }, { data: projects }] = await Promise.all([
     db.from("daily_work_logs").select("*").order("work_date", { ascending: false }).limit(100),
-    db.from("employees").select("id, full_name").eq("status", "active"),
-    db.from("projects").select("id, title").order("title"),
+    // `status` is stored capitalised ('Active'); match case-insensitively so the
+    // dropdown is never silently empty.
+    db.from("employees").select("id, full_name").ilike("status", "active").order("full_name"),
+    // The column is `name`, not `title` — selecting/ordering by `title` errored
+    // out, left the list empty, and pushed the form onto its free-text fallback.
+    db.from("projects").select("id, name").order("name"),
   ]);
 
   const formattedLogs = (logs ?? []).map((l: any) => ({
@@ -34,7 +38,7 @@ export default async function DailyLogsPage() {
 
   const projectsList = (projects ?? []).map((p: any) => ({
     id: p.id,
-    title: p.title,
+    title: p.name,
   }));
 
   return (

@@ -18,7 +18,10 @@ export default function ClientDocumentUploader({ clientId }: ClientDocumentUploa
   const [docTitle, setDocTitle] = useState("Signed Agreement");
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
+    const input = e.target;
+    const file = input.files?.[0];
+    // Clear immediately so picking the same file twice still fires onChange.
+    input.value = "";
     if (!file) return;
 
     if (file.size > 15 * 1024 * 1024) {
@@ -32,8 +35,9 @@ export default function ClientDocumentUploader({ clientId }: ClientDocumentUploa
     try {
       const supabase = createClient();
       const fileExt = file.name.split(".").pop();
-      const fileName = `${clientId}_signed_${Date.now()}.${fileExt}`;
-      const filePath = `signed-agreements/${fileName}`;
+      // Scoped per client: the storage RLS policy authorises on this folder,
+      // and a flat prefix let one client overwrite another's upload.
+      const filePath = `signed-agreements/${clientId}/signed_${Date.now()}.${fileExt}`;
 
       const { error: storageError } = await supabase.storage
         .from("documents")

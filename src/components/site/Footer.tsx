@@ -3,6 +3,7 @@
 import { useState, FormEvent } from "react";
 import Link from "next/link";
 import { Logo } from "@/components/brand/Logo";
+import { CONTACT_EMAIL } from "@/lib/utils";
 import { ArrowUpRight, MessageSquare, ArrowRight, Check } from "lucide-react";
 import { FaLinkedin, FaInstagram, FaXTwitter, FaGithub } from "react-icons/fa6";
 
@@ -77,11 +78,11 @@ export default function Footer() {
 
           <div className="flex flex-wrap items-center gap-4">
             <a
-              href="mailto:hello@nexdesk.com"
+              href={`mailto:${CONTACT_EMAIL}`}
               className="group inline-flex items-center gap-3 rounded-full border border-ink-600 bg-ink-900/80 px-6 py-3.5 text-base font-medium text-bone-100 transition-all hover:border-lime-400 hover:bg-lime-400 hover:text-ink-950"
             >
               <span className="h-2 w-2 rounded-full bg-lime-400 transition-colors group-hover:bg-ink-950" />
-              hello@nexdesk.com
+              {CONTACT_EMAIL}
               <ArrowUpRight size={18} className="transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
             </a>
 

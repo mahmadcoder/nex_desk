@@ -2,8 +2,14 @@ import { NextRequest, NextResponse } from "next/server";
 import { renderToBuffer } from "@react-pdf/renderer";
 import { createElement } from "react";
 import { AgencyTemplatePdfDocument } from "@/lib/pdf/documents";
+import { requireStaffRequest } from "@/lib/auth/staff";
 
 export async function POST(req: NextRequest) {
+  // This renders caller-supplied text straight into a PDF, so it must not be
+  // reachable anonymously.
+  const auth = await requireStaffRequest();
+  if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status });
+
   try {
     const { title, badge, content } = await req.json();
 

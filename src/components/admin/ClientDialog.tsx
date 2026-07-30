@@ -200,12 +200,24 @@ export default function ClientDialog({
 
     start(async () => {
       try {
-        await saveClient(clientToEdit?.id || null, payload);
-        toast.success(
-          clientToEdit?.id
-            ? `Updated ${f.name}'s details successfully!`
-            : `${f.name} added successfully! Portal credentials emailed.`
-        );
+        const saved = await saveClient(clientToEdit?.id || null, payload);
+
+        // Only claim the email went out if it actually did.
+        if (clientToEdit?.id) {
+          if (saved?.credentialsEmailed === false) {
+            toast.warning(
+              `Updated ${f.name}'s details, but the notice about the new sign-in email failed to send.`
+            );
+          } else {
+            toast.success(`Updated ${f.name}'s details successfully!`);
+          }
+        } else if (saved?.credentialsEmailed) {
+          toast.success(`${f.name} added. Portal credentials emailed.`);
+        } else {
+          toast.warning(
+            `${f.name} added, but the credentials email failed to send. Open the client and use "Update Password" to retry.`
+          );
+        }
         setOpen(false);
         if (!clientToEdit?.id) {
           setF({
@@ -244,10 +256,10 @@ export default function ClientDialog({
 
   return (
     <div
-      className="fixed inset-0 z-50 grid place-items-center bg-ink-950/80 p-4 backdrop-blur-sm overflow-y-auto animate-in fade-in duration-200 text-left"
+      className="fixed inset-0 z-50 grid place-items-center bg-ink-950/80 p-4 backdrop-blur-sm animate-in fade-in duration-200 text-left"
     >
       <div
-        className="card w-full max-w-xl p-5 sm:p-7 relative bg-ink-900 border-ink-600 shadow-2xl my-auto max-h-[90vh] overflow-y-auto custom-admin-scrollbar text-left"
+        className="card w-full max-w-xl p-5 sm:p-7 relative bg-ink-900 border-ink-600 shadow-2xl my-auto max-h-[calc(100dvh-2rem)] overflow-y-auto custom-admin-scrollbar text-left"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Top Header with Close Icon */}

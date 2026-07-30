@@ -266,8 +266,8 @@ export default function WorkClient({ caseStudies }: { caseStudies: ICaseStudy[] 
       </div>
 
       {editing && (
-        <div className="fixed inset-0 z-50 grid place-items-center bg-ink-950/80 backdrop-blur-xs p-4 overflow-y-auto animate-in fade-in duration-200">
-          <div className="card w-full max-w-2xl p-6 sm:p-8 bg-ink-900 border-ink-600 my-8 space-y-4 max-h-[90vh] overflow-y-auto shadow-2xl relative" onClick={(e) => e.stopPropagation()}>
+        <div className="fixed inset-0 z-50 grid place-items-center bg-ink-950/80 backdrop-blur-xs p-4 animate-in fade-in duration-200">
+          <div className="card w-full max-w-2xl p-6 sm:p-8 bg-ink-900 border-ink-600 my-8 space-y-4 max-h-[calc(100dvh-2rem)] overflow-y-auto shadow-2xl relative" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between border-b border-ink-700/80 pb-3">
               <h2 className="text-lg font-semibold text-bone-50">
                 {editing.id ? "Edit Case Study" : "New Case Study"}

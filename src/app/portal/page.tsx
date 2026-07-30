@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient, createAdminClient } from "@/lib/supabase/server";
-import { money } from "@/lib/utils";
+import { money, moneyMulti, sumByCurrency, CONTACT_EMAIL } from "@/lib/utils";
 import { Badge, Stat } from "@/components/admin/ui";
 import { ExternalLink, CheckCircle, Circle, DollarSign, Calendar, FileText, Download } from "lucide-react";
 import ClientDocumentUploader from "@/components/portal/ClientDocumentUploader";
@@ -63,14 +63,35 @@ export default async function Portal() {
   );
 
   const projectIds = (projects ?? []).map((p) => p.id);
-  const { data: milestones } = projectIds.length
-    ? await db.from("milestones").select("*").in("project_id", projectIds).order("sort_order")
-    : { data: [] };
+  const [{ data: milestones }, { data: sharedLogs }] = projectIds.length
+    ? await Promise.all([
+        db.from("milestones").select("*").in("project_id", projectIds).order("sort_order"),
+        // Only logs explicitly shared by the team. `blockers` is deliberately
+        // not selected — that conversation stays internal.
+        db.from("daily_work_logs")
+          .select("id, project_id, work_date, tasks_completed, employee_name")
+          .in("project_id", projectIds)
+          .eq("client_visible", true)
+          .order("work_date", { ascending: false })
+          .limit(40),
+      ])
+    : [{ data: [] }, { data: [] }];
 
-  const currency = client.preferred_currency || (invoices?.[0]?.currency ?? "PKR");
-  const totalContract = (invoices ?? []).reduce((s, i) => s + Number(i.total), 0);
-  const totalPaid = (invoices ?? []).reduce((s, i) => s + Number(i.amount_paid), 0);
-  const balanceOwed = totalContract - totalPaid;
+  const updates = sharedLogs ?? [];
+
+  // Totals are grouped by each invoice's own currency. Previously they were
+  // summed together and then labelled with `preferred_currency`, so a client
+  // billed in USD saw their figures marked "Rs".
+  const invoiceRows = invoices ?? [];
+  const totalContract = sumByCurrency(invoiceRows, (i) => i.currency, (i) => Number(i.total));
+  const totalPaid = sumByCurrency(invoiceRows, (i) => i.currency, (i) => Number(i.amount_paid));
+  const balanceOwed = sumByCurrency(
+    invoiceRows,
+    (i) => i.currency,
+    (i) => Number(i.total) - Number(i.amount_paid)
+  ).filter((t) => t.total > 0.009);
+
+  const billedCurrencies = [...new Set(invoiceRows.map((i) => String(i.currency).toUpperCase()))];
 
   return (
     <div className="max-w-5xl mx-auto py-10 px-4">
@@ -84,9 +105,11 @@ export default async function Portal() {
         </div>
 
         <div className="flex items-center gap-3">
-          <span className="mono-tag bg-ink-800 px-3 py-1.5 rounded border border-ink-600 text-bone-200">
-            Currency: <strong className="text-lime-400">{currency}</strong>
-          </span>
+          {!!billedCurrencies.length && (
+            <span className="mono-tag bg-ink-800 px-3 py-1.5 rounded border border-ink-600 text-bone-200">
+              Billed in: <strong className="text-lime-400">{billedCurrencies.join(", ")}</strong>
+            </span>
+          )}
           <ClientPortalSignOutButton />
         </div>
       </div>
@@ -96,16 +119,16 @@ export default async function Portal() {
         <section className="mt-8 grid gap-4 sm:grid-cols-3">
           <div className="card p-5">
             <span className="text-xs text-bone-400 block mono-tag mb-1">Total Contract Billed</span>
-            <p className="text-2xl font-mono text-bone-50">{money(totalContract, currency)}</p>
+            <p className="text-2xl font-mono text-bone-50">{moneyMulti(totalContract)}</p>
           </div>
           <div className="card p-5 border-lime-500/30">
             <span className="text-xs text-lime-400 block mono-tag mb-1">Total Amount Paid</span>
-            <p className="text-2xl font-mono text-lime-400">{money(totalPaid, currency)}</p>
+            <p className="text-2xl font-mono text-lime-400">{moneyMulti(totalPaid)}</p>
           </div>
           <div className="card p-5">
             <span className="text-xs text-bone-400 block mono-tag mb-1">Balance Remaining</span>
-            <p className={`text-2xl font-mono ${balanceOwed > 0 ? "text-amber-400" : "text-bone-200"}`}>
-              {money(balanceOwed, currency)}
+            <p className={`text-2xl font-mono ${balanceOwed.length ? "text-amber-400" : "text-bone-200"}`}>
+              {balanceOwed.length ? moneyMulti(balanceOwed) : "Settled in full"}
             </p>
           </div>
         </section>
@@ -148,6 +171,7 @@ export default async function Portal() {
       {/* Projects & Milestones Section */}
       {(projects ?? []).map((p) => {
         const ms = (milestones ?? []).filter((m) => m.project_id === p.id);
+        const timeline = updates.filter((u) => u.project_id === p.id);
         return (
           <section key={p.id} className="card mt-8 p-8">
             <div className="flex flex-wrap items-start justify-between gap-4 border-b border-ink-600 pb-5">
@@ -183,6 +207,39 @@ export default async function Portal() {
                 />
               </div>
             </div>
+
+            {/* What the team actually did, newest first */}
+            {!!timeline.length && (
+              <div className="mt-8">
+                <h3 className="mono-tag text-xs text-bone-300 mb-3">Recent Updates</h3>
+                <ol className="space-y-0">
+                  {timeline.map((u, i) => (
+                    <li key={u.id} className="relative flex gap-4 pb-5 last:pb-0">
+                      {/* connector line */}
+                      {i < timeline.length - 1 && (
+                        <span className="absolute left-[5px] top-4 bottom-0 w-px bg-ink-600" aria-hidden />
+                      )}
+                      <span className="relative mt-1.5 h-2.5 w-2.5 shrink-0 rounded-full bg-lime-400" aria-hidden />
+                      <div className="min-w-0 flex-1">
+                        <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+                          <span className="mono-tag text-[11px] text-lime-400">
+                            {new Date(u.work_date).toLocaleDateString("en-GB", {
+                              day: "2-digit", month: "short", year: "numeric",
+                            })}
+                          </span>
+                          {u.employee_name && (
+                            <span className="text-[11px] text-bone-500">{u.employee_name}</span>
+                          )}
+                        </div>
+                        <p className="mt-1 whitespace-pre-line text-sm leading-relaxed text-bone-200">
+                          {u.tasks_completed}
+                        </p>
+                      </div>
+                    </li>
+                  ))}
+                </ol>
+              </div>
+            )}
 
             {/* Milestones */}
             {perms.show_milestones && !!ms.length && (
@@ -235,8 +292,8 @@ export default async function Portal() {
               <h2 className="text-lg font-medium text-bone-50 flex items-center gap-2">
                 <DollarSign className="h-4 w-4 text-lime-400" /> Invoices & Receipts
               </h2>
-              {balanceOwed > 0 && (
-                <span className="mono-tag text-amber-400 text-xs">{money(balanceOwed, currency)} due</span>
+              {!!balanceOwed.length && (
+                <span className="mono-tag text-amber-400 text-xs">{moneyMulti(balanceOwed)} due</span>
               )}
             </div>
 
@@ -308,7 +365,7 @@ export default async function Portal() {
       <div className="mt-12 text-center text-xs text-bone-500 space-y-2">
         <p>
           Need assistance or wish to request revisions? Contact your Nex Desk project manager at{" "}
-          <a href="mailto:hello@nexdesk.com" className="text-lime-400 underline">hello@nexdesk.com</a>
+          <a href={`mailto:${CONTACT_EMAIL}`} className="text-lime-400 underline">{CONTACT_EMAIL}</a>
         </p>
       </div>
     </div>

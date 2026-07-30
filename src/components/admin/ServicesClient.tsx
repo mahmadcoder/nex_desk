@@ -7,6 +7,7 @@ import { saveService, deleteService, toggleServiceActive, seedDefaultServices } 
 import { Plus, Trash2, Edit3, Eye, EyeOff, RefreshCw, DollarSign, Layers, X } from "lucide-react";
 import { PageHead } from "@/components/admin/ui";
 import ConfirmModal from "@/components/admin/ConfirmModal";
+import { money } from "@/lib/utils";
 
 import { IService } from "@/types/cms";
 
@@ -210,13 +211,13 @@ export default function ServicesClient({ services }: { services: IService[] }) {
                 </button>
               </div>
 
-              <h3 className="mt-3 text-base font-semibold text-bone-50">{s.title}</h3>
+              <h3 className="mt-4 text-base font-semibold text-bone-50">{s.title}</h3>
               {s.short_desc && <p className="mt-1.5 text-xs text-bone-300 line-clamp-2 leading-relaxed">{s.short_desc}</p>}
 
               <div className="mt-3 pt-3 border-t border-ink-800/80 flex items-center justify-between text-xs font-mono">
-                <span className="text-bone-400">Starting Price:</span>
+                <span className="text-bone-300">Starting Price:</span>
                 <span className="text-lime-400 font-semibold">
-                  {s.starting_at ? `${s.currency === "USD" ? "$" : s.currency || ""}${Number(s.starting_at).toLocaleString()}` : "Custom Quote"}
+                  {s.starting_at ? money(Number(s.starting_at), s.currency) : "Custom Quote"}
                 </span>
               </div>
             </div>
@@ -245,8 +246,8 @@ export default function ServicesClient({ services }: { services: IService[] }) {
       </div>
 
       {editing && (
-        <div className="fixed inset-0 z-50 grid place-items-center bg-ink-950/80 backdrop-blur-xs p-4 overflow-y-auto animate-in fade-in duration-200">
-          <div className="card w-full max-w-xl p-5 sm:p-7 relative bg-ink-900 border-ink-600 my-auto max-h-[90vh] overflow-y-auto custom-admin-scrollbar space-y-4 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+        <div className="fixed inset-0 z-50 grid place-items-center bg-ink-950/80 backdrop-blur-xs p-4 animate-in fade-in duration-200">
+          <div className="card w-full max-w-xl p-5 sm:p-7 relative bg-ink-900 border-ink-600 my-auto max-h-[calc(100dvh-2rem)] overflow-y-auto custom-admin-scrollbar space-y-4 shadow-2xl" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between border-b border-ink-700/80 pb-3">
               <h2 className="text-lg font-semibold text-bone-50">
                 {editing.id ? `Edit ${editing.title}` : "New Agency Service"}

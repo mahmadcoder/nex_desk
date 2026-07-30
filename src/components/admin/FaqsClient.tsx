@@ -135,8 +135,8 @@ export default function FaqsClient({ faqs }: { faqs: IFaq[] }) {
               f.is_active ? "bg-ink-900/80 border-ink-600" : "bg-ink-950/60 border-ink-700/50 opacity-65"
             }`}
           >
-            <div className="space-y-1 max-w-3xl">
-              <div className="flex items-center gap-2">
+            <div className="max-w-3xl">
+              <div className="flex flex-wrap items-center gap-2">
                 <span className="mono-tag text-[10px] text-lime-400 bg-lime-400/10 px-2.5 py-0.5 rounded border border-lime-400/20">
                   {f.category || "General"}
                 </span>
@@ -162,8 +162,10 @@ export default function FaqsClient({ faqs }: { faqs: IFaq[] }) {
                 </button>
               </div>
 
-              <h3 className="text-sm font-semibold text-bone-50 pt-1">{f.question}</h3>
-              <p className="text-xs text-bone-300 leading-relaxed">{f.answer}</p>
+              {/* mt-3 clears the badge row — the previous pt-1 inside a
+                  space-y-1 parent left the heading ~4px from the tags. */}
+              <h3 className="mt-3 text-sm font-semibold text-bone-50">{f.question}</h3>
+              <p className="mt-1.5 text-xs leading-relaxed text-bone-300">{f.answer}</p>
             </div>
 
             <div className="flex items-center gap-1 shrink-0">
@@ -192,9 +194,9 @@ export default function FaqsClient({ faqs }: { faqs: IFaq[] }) {
       </div>
 
       {editing && (
-        <div className="fixed inset-0 z-50 grid place-items-center bg-ink-950/80 backdrop-blur-xs p-4 overflow-y-auto animate-in fade-in duration-200">
+        <div className="fixed inset-0 z-50 grid place-items-center bg-ink-950/80 backdrop-blur-xs p-4 animate-in fade-in duration-200">
           <div
-            className="card w-full max-w-lg p-6 bg-ink-900 border-ink-600 relative space-y-4 shadow-2xl my-auto max-h-[90vh] overflow-y-auto custom-admin-scrollbar"
+            className="card w-full max-w-lg p-6 bg-ink-900 border-ink-600 relative space-y-4 shadow-2xl my-auto max-h-[calc(100dvh-2rem)] overflow-y-auto custom-admin-scrollbar"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Header with Title and X Close Icon */}

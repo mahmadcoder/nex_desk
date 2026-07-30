@@ -4,26 +4,31 @@ import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { lockDeal } from "@/lib/actions";
-import { money } from "@/lib/utils";
+import { money, CURRENCIES } from "@/lib/utils";
 import { Trash2, Plus } from "lucide-react";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-type Client = { id: string; name: string; email: string; company: string | null };
+type Client = {
+  id: string;
+  name: string;
+  email: string;
+  company: string | null;
+  preferred_currency?: string | null;
+};
 
 const field =
   "w-full rounded-lg border border-ink-500 bg-ink-800 px-3 py-2.5 text-sm text-bone-50 placeholder:text-bone-600 focus:border-lime-400 focus:outline-none";
 const label = "mono-tag mb-1.5 block";
 
-const CURRENCIES = ["PKR", "USD", "GBP", "EUR", "AED"];
-
 export default function DealForm({
-  clients, services, defaultTerms, taxDefault,
+  clients, services, defaultTerms, taxDefault, defaultCurrency,
 }: {
   clients: Client[];
   services: { slug: string; title: string; starting_at: number | null }[];
   defaultTerms: string;
   taxDefault: number;
+  defaultCurrency: string;
 }) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
@@ -35,7 +40,7 @@ export default function DealForm({
     summary: "",
     scope: "",
     exclusions: "",
-    currency: "PKR",
+    currency: defaultCurrency,
     discount: 0,
     tax_percent: taxDefault,
     advance_percent: 50,
@@ -54,6 +59,19 @@ export default function DealForm({
   ]);
 
   const set = (k: string, v: unknown) => setD((p) => ({ ...p, [k]: v }));
+
+  /**
+   * Picking a client also adopts their billing currency, so a client you
+   * already invoice in USD does not silently get a PKR agreement.
+   */
+  const selectClient = (clientId: string) => {
+    const picked = clients.find((c) => c.id === clientId);
+    setD((p) => ({
+      ...p,
+      client_id: clientId,
+      currency: picked?.preferred_currency || p.currency,
+    }));
+  };
 
   const subtotal = useMemo(
     () => items.reduce((s, i) => s + Number(i.price || 0) * Number(i.qty || 1), 0),
@@ -115,7 +133,7 @@ export default function DealForm({
           <div className="grid gap-4 sm:grid-cols-2">
             <div>
               <label className={label}>Client</label>
-              <select className={field} value={d.client_id} onChange={(e) => set("client_id", e.target.value)}>
+              <select className={field} value={d.client_id} onChange={(e) => selectClient(e.target.value)}>
                 <option value="">Select a client…</option>
                 {clients.map((c) => (
                   <option key={c.id} value={c.id}>
@@ -194,13 +212,9 @@ export default function DealForm({
             <Plus size={13} /> add line
           </button>
 
-          <div className="mt-6 grid gap-4 border-t border-ink-600 pt-5 sm:grid-cols-3">
-            <div>
-              <label className={label}>Currency</label>
-              <select className={field} value={d.currency} onChange={(e) => set("currency", e.target.value)}>
-                {CURRENCIES.map((c) => <option key={c}>{c}</option>)}
-              </select>
-            </div>
+          {/* Currency lives in the summary rail next to the total — it used to
+              sit here, easy to miss, and every deal defaulted to PKR. */}
+          <div className="mt-6 grid gap-4 border-t border-ink-600 pt-5 sm:grid-cols-2">
             <div>
               <label className={label}>Discount</label>
               <input className={field} type="number" min={0} value={d.discount} onChange={(e) => set("discount", e.target.value)} />
@@ -294,6 +308,21 @@ export default function DealForm({
       <aside className="xl:sticky xl:top-8 xl:self-start">
         <div className="card p-6">
           <h2 className="text-base">Summary</h2>
+
+          <div className="mt-4 rounded-lg border border-ink-600 bg-ink-900/60 p-3">
+            <label className={label}>Bill this deal in</label>
+            <select
+              className={field}
+              value={d.currency}
+              onChange={(e) => set("currency", e.target.value)}
+            >
+              {CURRENCIES.map((c) => <option key={c}>{c}</option>)}
+            </select>
+            <p className="mt-1.5 text-[11px] leading-relaxed text-bone-400">
+              Applies to the agreement, the invoice and the client portal. Saved to the
+              client so future deals match.
+            </p>
+          </div>
 
           <dl className="mt-5 space-y-2.5 text-sm">
             <div className="flex justify-between"><dt className="text-bone-400">Subtotal</dt><dd>{money(subtotal, d.currency)}</dd></div>

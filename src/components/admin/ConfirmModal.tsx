@@ -1,6 +1,7 @@
 "use client";
 
-import { AlertTriangle, X } from "lucide-react";
+import { AlertTriangle } from "lucide-react";
+import Modal from "@/components/admin/Modal";
 
 interface ConfirmModalProps {
   isOpen: boolean;
@@ -14,6 +15,10 @@ interface ConfirmModalProps {
   onClose: () => void;
 }
 
+/**
+ * Yes/no confirmation. Sits on the shared `Modal` shell so it inherits the
+ * X button, focus trap, Escape handling and viewport-capped scrolling.
+ */
 export default function ConfirmModal({
   isOpen,
   title,
@@ -25,45 +30,18 @@ export default function ConfirmModal({
   onConfirm,
   onClose,
 }: ConfirmModalProps) {
-  if (!isOpen) return null;
-
   return (
-    <div className="fixed inset-0 z-50 grid place-items-center bg-ink-950/80 backdrop-blur-xs p-4 animate-in fade-in duration-200">
-      <div
-        className="card w-full max-w-md p-6 bg-ink-900 border-ink-600 shadow-2xl space-y-5 relative"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <button
-          type="button"
-          onClick={onClose}
-          disabled={pending}
-          className="absolute top-4 right-4 p-1.5 rounded-lg text-bone-400 hover:text-bone-50 hover:bg-ink-800 transition-colors cursor-pointer"
-          title="Close"
-        >
-          <X size={16} />
-        </button>
-
-        <div className="flex items-start gap-4 pr-6">
-          <div
-            className={`h-11 w-11 rounded-xl shrink-0 flex items-center justify-center border ${
-              isDanger
-                ? "bg-rose-500/10 border-rose-500/30 text-rose-400"
-                : "bg-amber-500/10 border-amber-500/30 text-amber-400"
-            }`}
-          >
-            <AlertTriangle size={22} />
-          </div>
-
-          <div className="space-y-1 pt-0.5">
-            <h3 className="text-lg font-semibold text-bone-50">{title}</h3>
-            <p className="text-xs text-bone-300 leading-relaxed">{description}</p>
-          </div>
-        </div>
-
-        <div className="flex justify-end gap-2.5 pt-2 border-t border-ink-700/80">
+    <Modal
+      open={isOpen}
+      onClose={onClose}
+      pending={pending}
+      title={title}
+      size="md"
+      footer={
+        <>
           <button
             type="button"
-            className="btn h-9 px-4 text-xs font-medium cursor-pointer"
+            className="btn h-9 px-4 text-xs font-medium"
             onClick={onClose}
             disabled={pending}
           >
@@ -71,18 +49,29 @@ export default function ConfirmModal({
           </button>
           <button
             type="button"
-            className={`btn h-9 px-4 text-xs font-semibold cursor-pointer ${
-              isDanger
-                ? "bg-rose-600 text-white hover:bg-rose-500 border-rose-500"
-                : "btn-primary"
+            className={`btn h-9 px-4 text-xs font-semibold ${
+              isDanger ? "border-rose-500 bg-rose-600 text-white hover:bg-rose-500" : "btn-primary"
             }`}
             onClick={onConfirm}
             disabled={pending}
           >
-            {pending ? "Processing..." : confirmText}
+            {pending ? "Processing…" : confirmText}
           </button>
+        </>
+      }
+    >
+      <div className="flex items-start gap-4">
+        <div
+          className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border ${
+            isDanger
+              ? "border-rose-500/30 bg-rose-500/10 text-rose-400"
+              : "border-amber-500/30 bg-amber-500/10 text-amber-400"
+          }`}
+        >
+          <AlertTriangle size={22} />
         </div>
+        <p className="pt-1 text-sm leading-relaxed text-bone-200">{description}</p>
       </div>
-    </div>
+    </Modal>
   );
 }

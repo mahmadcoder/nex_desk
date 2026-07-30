@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import ContactForm from "@/components/site/ContactForm";
+import { CONTACT_EMAIL } from "@/lib/utils";
 
 export const metadata: Metadata = {
   title: "Contact",
@@ -19,7 +20,7 @@ export default function ContactPage() {
 
         <dl className="mt-8 space-y-6 border-t border-ink-600 pt-8">
           {[
-            ["Email", "ahmadsadiq.dev@gmail.com"],
+            ["Email", CONTACT_EMAIL],
             ["WhatsApp", "+92 300 0000000"],
             ["Based in", "Multan, Pakistan — working across timezones"],
             ["Hours", "Mon–Sat, 10am–7pm PKT"],

@@ -49,6 +49,8 @@ export default function DailyLogsClient({
   const [tasksCompleted, setTasksCompleted] = useState("");
   const [blockers, setBlockers] = useState("");
   const [proofUrl, setProofUrl] = useState("");
+  const [shareWithClient, setShareWithClient] = useState(true);
+  const [progressDelta, setProgressDelta] = useState("0");
 
   // Check if selected workDate or Today is Sunday
   const isSundayDate = useMemo(() => {
@@ -76,25 +78,37 @@ export default function DailyLogsClient({
     const empObj = employeesList.find((e) => e.id === selectedEmployeeId);
     const projObj = projectsList.find((p) => p.id === selectedProjectId);
 
+    if (!empObj) {
+      toast.error("Select the employee this log belongs to.");
+      return;
+    }
+
     startTransition(async () => {
       try {
-        const res = await submitDailyWorkLog({
-          employee_id: selectedEmployeeId || null,
-          employee_name: empObj?.name || "Staff Member",
-          project_id: selectedProjectId || null,
+        await submitDailyWorkLog({
+          employee_id: empObj.id,
+          employee_name: empObj.name,
+          project_id: projObj?.id ?? null,
           project_title: projObj?.title || "General Agency Work",
           work_date: workDate,
           hours_spent: parseFloat(hoursSpent) || 0,
           tasks_completed: tasksCompleted,
           blockers: blockers || null,
           proof_url: proofUrl || null,
+          client_visible: shareWithClient && !!projObj,
+          progress_delta: Number(progressDelta) || 0,
         });
 
-        toast.success("Daily work log submitted successfully!");
+        toast.success(
+          shareWithClient && projObj
+            ? "Work log submitted and shared with the client."
+            : "Work log submitted."
+        );
         setShowAddModal(false);
         setTasksCompleted("");
         setBlockers("");
         setProofUrl("");
+        setProgressDelta("0");
         router.refresh();
       } catch (err: any) {
         toast.error(err.message || "Failed to submit work log.");
@@ -248,9 +262,9 @@ export default function DailyLogsClient({
 
       {/* Add Work Log Modal */}
       {showAddModal && (
-        <div className="fixed inset-0 z-50 grid place-items-center bg-ink-950/80 backdrop-blur-xs p-4 overflow-y-auto animate-in fade-in duration-200">
+        <div className="fixed inset-0 z-50 grid place-items-center bg-ink-950/80 backdrop-blur-xs p-4 animate-in fade-in duration-200">
           <div
-            className="card w-full max-w-2xl p-6 sm:p-7 bg-ink-900 border-ink-600 relative space-y-4 shadow-2xl my-auto max-h-[90vh] overflow-y-auto custom-admin-scrollbar"
+            className="card w-full max-w-2xl p-6 sm:p-7 bg-ink-900 border-ink-600 relative space-y-4 shadow-2xl my-auto max-h-[calc(100dvh-2rem)] overflow-y-auto custom-admin-scrollbar"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between border-b border-ink-700/80 pb-3">
@@ -274,6 +288,9 @@ export default function DailyLogsClient({
 
             <div className="space-y-4">
               <div className="grid sm:grid-cols-2 gap-4">
+                {/* Both fields must resolve to a real UUID — the previous
+                    free-text fallback sent typed names into uuid columns and
+                    crashed the server action. */}
                 <div>
                   <label className="mono-tag text-xs mb-1 block">Employee / Staff Member *</label>
                   {employeeOptions.length > 0 ? (
@@ -283,11 +300,9 @@ export default function DailyLogsClient({
                       onChange={(val) => setSelectedEmployeeId(val)}
                     />
                   ) : (
-                    <input
-                      className="w-full rounded-lg border border-ink-500 bg-ink-800 px-3 py-2 text-sm text-bone-50"
-                      placeholder="Type employee name..."
-                      onChange={(e) => setSelectedEmployeeId(e.target.value)}
-                    />
+                    <p className="rounded-lg border border-amber-400/30 bg-amber-400/10 px-3 py-2 text-xs text-amber-300">
+                      No active employees yet. Add one in Employees first.
+                    </p>
                   )}
                 </div>
 
@@ -300,11 +315,9 @@ export default function DailyLogsClient({
                       onChange={(val) => setSelectedProjectId(val)}
                     />
                   ) : (
-                    <input
-                      className="w-full rounded-lg border border-ink-500 bg-ink-800 px-3 py-2 text-sm text-bone-50"
-                      placeholder="Type project title..."
-                      onChange={(e) => setSelectedProjectId(e.target.value)}
-                    />
+                    <p className="rounded-lg border border-amber-400/30 bg-amber-400/10 px-3 py-2 text-xs text-amber-300">
+                      No projects yet. Lock a deal to create one.
+                    </p>
                   )}
                 </div>
               </div>
@@ -363,6 +376,46 @@ export default function DailyLogsClient({
                   value={proofUrl}
                   onChange={(e) => setProofUrl(e.target.value)}
                 />
+              </div>
+
+              {/* This is how work reaches the client — a shared log becomes a
+                  dated entry on their project timeline in the portal. */}
+              <div className="rounded-lg border border-ink-600 bg-ink-950/40 p-3.5 space-y-3">
+                <label className="flex cursor-pointer items-start gap-2.5 text-xs">
+                  <input
+                    type="checkbox"
+                    checked={shareWithClient}
+                    onChange={(e) => setShareWithClient(e.target.checked)}
+                    disabled={!selectedProjectId}
+                    className="mt-0.5 accent-[color:var(--color-lime-400)]"
+                  />
+                  <span>
+                    <span className="font-medium text-bone-100">Share this update with the client</span>
+                    <span className="mt-0.5 block text-[11px] text-bone-400">
+                      {selectedProjectId
+                        ? "Adds it to their project timeline in the portal. Blockers stay internal."
+                        : "Pick a project first — updates are shown per project."}
+                    </span>
+                  </span>
+                </label>
+
+                {shareWithClient && (
+                  <div className="flex items-center gap-3 border-t border-ink-700 pt-3">
+                    <label className="mono-tag text-[10px] whitespace-nowrap">Move progress by</label>
+                    <input
+                      type="number"
+                      min="0"
+                      max="100"
+                      step="5"
+                      className="w-20 rounded-lg border border-ink-500 bg-ink-800 px-2 py-1.5 text-xs text-bone-50 focus:border-lime-400 focus:outline-none"
+                      value={progressDelta}
+                      onChange={(e) => setProgressDelta(e.target.value)}
+                    />
+                    <span className="text-[11px] text-bone-400">
+                      % — ignored when the project has milestones, which set progress themselves.
+                    </span>
+                  </div>
+                )}
               </div>
             </div>
 

@@ -2,7 +2,6 @@
 
 import { useState, useTransition } from "react";
 import Link from "next/link";
-import { useRouter } from "next/router";
 import { toast } from "sonner";
 import {
   Users, UserPlus, Search, MapPin, GraduationCap, DollarSign,
@@ -92,7 +91,7 @@ export default function EmployeesClient({
 
     startTransition(async () => {
       try {
-        await saveEmployee(
+        const saved = await saveEmployee(
           editing.id ?? null,
           {
             full_name: editing.full_name,
@@ -114,11 +113,23 @@ export default function EmployeesClient({
           },
           welcomeLang
         );
-        toast.success(editing.id ? "Employee updated successfully." : "Employee hired & welcome email sent!");
+        if (!editing.id) {
+          if (saved?.emailed) {
+            toast.success("Employee hired. Login credentials emailed to them.");
+          } else {
+            toast.warning(
+              `Employee hired, but the credentials email failed${saved?.emailError ? `: ${saved.emailError}` : "."} Use "Send login details" on their profile to retry.`
+            );
+          }
+        } else if (saved?.emailed === false) {
+          toast.warning("Employee updated, but the sign-in email notice failed to send.");
+        } else {
+          toast.success("Employee updated successfully.");
+        }
         setEditing(null);
         window.location.reload();
-      } catch {
-        toast.error("Failed to save employee.");
+      } catch (e: any) {
+        toast.error(e?.message || "Failed to save employee.");
       }
     });
   };
@@ -420,8 +431,8 @@ export default function EmployeesClient({
 
       {/* Add / Edit Employee Modal */}
       {editing && (
-        <div className="fixed inset-0 z-50 grid place-items-center bg-ink-950/80 backdrop-blur-xs p-4 overflow-y-auto animate-in fade-in duration-200">
-          <div className="card w-full max-w-2xl p-5 sm:p-7 bg-ink-900 border-ink-600 relative space-y-4 shadow-2xl my-auto max-h-[90vh] overflow-y-auto custom-admin-scrollbar" onClick={(e) => e.stopPropagation()}>
+        <div className="fixed inset-0 z-50 grid place-items-center bg-ink-950/80 backdrop-blur-xs p-4 animate-in fade-in duration-200">
+          <div className="card w-full max-w-2xl p-5 sm:p-7 bg-ink-900 border-ink-600 relative space-y-4 shadow-2xl my-auto max-h-[calc(100dvh-2rem)] overflow-y-auto custom-admin-scrollbar" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between border-b border-ink-700 pb-3">
               <div>
                 <span className="mono-tag text-xs text-lime-400">Staff Profile Engine</span>
@@ -637,7 +648,7 @@ export default function EmployeesClient({
 
       {/* Manage Job Titles Modal */}
       {showJobTitlesModal && (
-        <div className="fixed inset-0 z-50 grid place-items-center bg-ink-950/80 p-4" onClick={() => setShowJobTitlesModal(false)}>
+        <div className="fixed inset-0 z-50 grid place-items-center bg-ink-950/80 backdrop-blur-xs p-4">
           <div className="card w-full max-w-md p-6 bg-ink-900 border-ink-600 space-y-4" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between border-b border-ink-700 pb-3">
               <div>

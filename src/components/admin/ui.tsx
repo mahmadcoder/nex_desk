@@ -8,7 +8,7 @@ export function PageHead({
     <div className="mb-8 flex flex-wrap items-end justify-between gap-4">
       <div>
         <h1 className="text-2xl tracking-tight">{title}</h1>
-        {sub && <p className="mt-1 text-sm text-bone-400">{sub}</p>}
+        {sub && <p className="mt-1.5 text-sm leading-relaxed text-bone-300">{sub}</p>}
       </div>
       {action}
     </div>

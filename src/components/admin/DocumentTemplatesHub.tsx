@@ -21,6 +21,7 @@ import {
   Loader2,
 } from "lucide-react";
 import { toast } from "sonner";
+import { CONTACT_EMAIL, getSiteBaseUrl } from "@/lib/utils";
 
 export default function DocumentTemplatesHub({
   clientDocs,
@@ -52,7 +53,9 @@ export default function DocumentTemplatesHub({
     const yr = new Date().getFullYear().toString();
     const formatted = t.textContent
       .replace(/{{DATE}}/g, d)
-      .replace(/{{YEAR}}/g, yr);
+      .replace(/{{YEAR}}/g, yr)
+      .replace(/{{AGENCY_EMAIL}}/g, CONTACT_EMAIL)
+      .replace(/{{AGENCY_SITE}}/g, getSiteBaseUrl().replace(/^https?:\/\//, ""));
     setCustomText(formatted);
   };
 
@@ -109,9 +112,8 @@ export default function DocumentTemplatesHub({
               <div style="font-size: 10px; font-weight: bold; color: #65a30d; font-family: Arial, sans-serif; text-transform: uppercase; margin-top: 2px;">Software Agency & AI Solutions</div>
             </td>
             <td valign="top" style="width: 45%; text-align: right; font-size: 10px; color: #52525b; font-family: Arial, sans-serif; line-height: 1.5;">
-              <div><strong>Website:</strong> nexdesk.agency</div>
-              <div><strong>Email:</strong> hello@nexdesk.agency</div>
-              <div><strong>WhatsApp:</strong> +92 300 1234567</div>
+              <div><strong>Website:</strong> ${getSiteBaseUrl().replace(/^https?:\/\//, "")}</div>
+              <div><strong>Email:</strong> ${CONTACT_EMAIL}</div>
               <div>Multan, Pakistan</div>
             </td>
           </tr>
@@ -407,14 +409,9 @@ export default function DocumentTemplatesHub({
 
       {/* View & Edit Template Modal */}
       {selectedTemplate && (
-        <div
-          className="fixed inset-0 z-50 grid place-items-center bg-ink-950/80 p-4 backdrop-blur-sm overflow-y-auto"
-          onClick={() => setSelectedTemplate(null)}
-        >
-          <div
-            className="card w-full max-w-3xl p-6 relative bg-ink-900 border-ink-600 shadow-2xl my-8"
-            onClick={(e) => e.stopPropagation()}
-          >
+        // No backdrop-close: a mis-click would discard the edited template.
+        <div className="fixed inset-0 z-50 grid place-items-center bg-ink-950/80 p-4 backdrop-blur-sm">
+          <div className="card custom-admin-scrollbar relative my-8 max-h-[calc(100dvh-2rem)] w-full max-w-3xl overflow-y-auto border-ink-600 bg-ink-900 p-6 shadow-2xl">
             <div className="flex items-start justify-between border-b border-ink-600 pb-4">
               <div>
                 <span className="mono-tag text-xs text-lime-400">{selectedTemplate.badge}</span>

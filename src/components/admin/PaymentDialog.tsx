@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { recordPayment } from "@/lib/actions";
 import { money } from "@/lib/utils";
 
+import Modal from "@/components/admin/Modal";
 import PaymentProofUpload from "@/components/admin/PaymentProofUpload";
 
 import CustomSelect from "@/components/ui/CustomSelect";
@@ -54,20 +55,31 @@ export default function PaymentDialog({
     });
   };
 
-  if (!open) {
-    return <button className="btn btn-primary h-8 px-3 text-xs" onClick={() => setOpen(true)}>Record payment</button>;
-  }
-
   return (
-    <div className="fixed inset-0 z-50 grid place-items-center bg-ink-950/80 p-6" onClick={() => setOpen(false)}>
-      <div className="card w-full max-w-md p-7 text-left" onClick={(e) => e.stopPropagation()}>
-        <h2 className="text-lg">Record payment</h2>
-        <p className="mt-1 text-sm text-bone-400">
-          Against {invoice.invoice_no} · {money(invoice.balance, invoice.currency)} outstanding
-        </p>
+    <>
+      <button className="btn btn-primary h-8 px-3 text-xs" onClick={() => setOpen(true)}>
+        Record payment
+      </button>
 
-        <div className="mt-6 space-y-4">
-          <div className="grid grid-cols-2 gap-3">
+      <Modal
+        open={open}
+        onClose={() => setOpen(false)}
+        pending={pending}
+        title="Record payment"
+        eyebrow="Payments"
+        description={`Against ${invoice.invoice_no} · ${money(invoice.balance, invoice.currency)} outstanding`}
+        footer={
+          <>
+            <button className="btn h-10" onClick={() => setOpen(false)} disabled={pending}>Cancel</button>
+            <button className="btn btn-primary h-10" onClick={save} disabled={pending}>
+              {pending ? "Recording…" : "Record payment"}
+            </button>
+          </>
+        }
+      >
+        <div className="space-y-4">
+          {/* Stacks on narrow phones rather than cramming two fields side by side. */}
+          <div className="grid gap-3 sm:grid-cols-2">
             <div>
               <label className="mono-tag mb-1.5 block">Amount received</label>
               <input className={field} type="number" min={0} value={f.amount}
@@ -105,20 +117,13 @@ export default function PaymentDialog({
             <input className={field} value={f.note} onChange={(e) => setF({ ...f, note: e.target.value })} />
           </div>
 
-          <label className="flex cursor-pointer items-start gap-2.5 border-t border-ink-600 pt-4 text-xs text-bone-400">
+          <label className="flex cursor-pointer items-start gap-2.5 border-t border-ink-600 pt-4 text-xs text-bone-300">
             <input type="checkbox" checked={notify} onChange={(e) => setNotify(e.target.checked)}
               className="mt-0.5 accent-[color:var(--color-lime-400)]" />
             Email the client a receipt PDF with the date, method, reference and remaining balance.
           </label>
         </div>
-
-        <div className="mt-6 flex justify-end gap-2">
-          <button className="btn h-10" onClick={() => setOpen(false)}>Cancel</button>
-          <button className="btn btn-primary h-10" onClick={save} disabled={pending}>
-            {pending ? "Recording…" : "Record payment"}
-          </button>
-        </div>
-      </div>
-    </div>
+      </Modal>
+    </>
   );
 }
