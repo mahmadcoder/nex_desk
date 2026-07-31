@@ -605,6 +605,205 @@ export function HandoverDoc({ project, client, credentials }: { project: any; cl
   );
 }
 
+/* ============================================================
+   7. STAFF OFFER LETTER — issued when someone is hired
+   ============================================================ */
+
+/**
+ * The standing terms every offer letter carries. Kept here, in one place, so
+ * the wording is identical for every hire and can be revised in a single edit.
+ */
+const OFFER_TERMS = {
+  hours:
+    "Standard working hours are Monday to Saturday. Sunday is an official agency rest day — " +
+    "work is not expected and any Sunday hours logged are voluntary. Hours are flexible around " +
+    "agreed client meetings and delivery deadlines; what matters is that committed work lands on time.",
+  logging:
+    "Work is recorded daily in the Nex Desk control panel under Daily Work Logs: what you completed, " +
+    "hours spent, and anything blocking you. This log is how progress reaches the client, how your " +
+    "delivery record is kept, and how your review is evidenced. It is a condition of employment.",
+  confidentiality:
+    "You will have access to client source code, credentials, commercial terms and internal material. " +
+    "All of it is confidential. You may not copy, share, publish or reuse it outside the work assigned " +
+    "to you, during your employment or after it ends. Client credentials may not be stored outside the " +
+    "systems the agency provides.",
+  ip:
+    "All work you produce in the course of your employment — code, designs, copy, documentation and " +
+    "any derivative of it — is the property of Nex Desk and, on delivery, of the client it was produced " +
+    "for. You retain no licence to it. You may reference the work in a personal portfolio only with " +
+    "written permission from the agency.",
+  conduct:
+    "You are expected to communicate directly with the team about anything that will slip, hold client " +
+    "data to the same standard you would hold your own, and never contract with an agency client " +
+    "directly for work of the kind the agency provides while employed and for six months afterwards.",
+  notice:
+    "Either party may end this engagement with thirty (30) days' written notice. The agency may end it " +
+    "immediately for a breach of confidentiality, intellectual property or client-conduct terms. On the " +
+    "final day you will hand back all agency and client access, devices and material.",
+  probation:
+    "The first ninety (90) days are a mutual probation period, during which either party may end the " +
+    "engagement with seven (7) days' written notice. Compensation is unchanged during probation.",
+};
+
+export function StaffOfferLetterDoc({ employee }: { employee: any }) {
+  const no = `OL-${String(employee.id).slice(0, 8).toUpperCase()}`;
+  const salary = Number(employee.salary_amount ?? 0);
+  const currency = String(employee.salary_currency || "USD");
+  const employmentType = String(employee.employment_type || "Full-Time");
+  const location = [employee.city, employee.country].filter(Boolean).join(", ") || "Remote";
+  const skills: string[] = Array.isArray(employee.skills) ? employee.skills : [];
+
+  return (
+    <Document title={`Offer letter — ${employee.full_name}`} author="Nex Desk">
+      <Page size="A4" style={s.page}>
+        <DocHeader type="Offer of employment" number={no} />
+
+        <View style={{ marginTop: 26 }}>
+          <View style={[s.row, { alignItems: "center" }]}>
+            <Text style={s.h1}>{employee.full_name}</Text>
+            <Text style={s.badge}>{employmentType}</Text>
+          </View>
+          <Text style={s.muted}>
+            {employee.job_title}
+            {employee.seniority ? ` · ${employee.seniority}` : ""}
+          </Text>
+        </View>
+
+        <View style={s.cols}>
+          <View style={s.col}>
+            <Text style={s.label}>Issued to</Text>
+            <Text style={{ fontWeight: 500 }}>{employee.full_name}</Text>
+            <Text>{employee.email}</Text>
+            {employee.phone && <Text>{employee.phone}</Text>}
+            <Text>{location}</Text>
+          </View>
+          <View style={s.col}>
+            <Text style={s.label}>Issued by</Text>
+            <Text style={{ fontWeight: 500 }}>Nex Desk</Text>
+            <Text>{CONTACT_EMAIL}</Text>
+            <Text>Multan, Pakistan</Text>
+          </View>
+          <View style={s.col}>
+            <View style={{ marginBottom: 8 }}>
+              <Text style={s.label}>Start date</Text>
+              <Text>{date(employee.joining_date)}</Text>
+            </View>
+            <View style={{ marginBottom: 8 }}>
+              <Text style={s.label}>Date of issue</Text>
+              <Text>{date(new Date().toISOString())}</Text>
+            </View>
+          </View>
+        </View>
+
+        <Text style={s.h2}>1. The offer</Text>
+        <Text style={{ lineHeight: 1.7 }}>
+          Nex Desk is pleased to offer you the position of {employee.job_title} on a{" "}
+          {employmentType.toLowerCase()} basis, starting {date(employee.joining_date)}. This letter sets
+          out the position, what you will be paid, and the terms that apply. It takes effect when you
+          accept it in writing.
+        </Text>
+
+        <Text style={s.h2}>2. Position and compensation</Text>
+        <View style={s.table}>
+          <View style={s.th}>
+            <Text style={[s.thText, { flex: 2.6 }]}>Item</Text>
+            <Text style={[s.thText, { flex: 3.4, textAlign: "right" }]}>Detail</Text>
+          </View>
+          {([
+            ["Job title", String(employee.job_title ?? "—")],
+            ["Seniority", String(employee.seniority ?? "—")],
+            ["Employment type", employmentType],
+            ["Work location", location],
+            ["Start date", date(employee.joining_date)],
+            [
+              "Compensation",
+              salary > 0 ? `${fmt(salary, currency)} per month (gross)` : "As agreed separately in writing",
+            ],
+            ["Pay cycle", "Monthly, within the first five working days of the following month"],
+            ["Reporting to", "Agency management, through the Nex Desk control panel"],
+          ] as [string, string][]).map(([k, v]) => (
+            <View key={k} style={s.tr}>
+              <Text style={{ flex: 2.6 }}>{k}</Text>
+              <Text style={{ flex: 3.4, textAlign: "right" }}>{v}</Text>
+            </View>
+          ))}
+        </View>
+
+        {!!skills.length && (
+          <>
+            <Text style={s.h2}>3. What you are being hired for</Text>
+            <Text style={{ lineHeight: 1.7 }}>
+              You are joining to work on client delivery in the following areas: {skills.join(", ")}.
+              Client assignments are made by agency management and appear in your control-panel
+              dashboard.
+            </Text>
+          </>
+        )}
+
+        <Text style={s.h2}>{skills.length ? "4" : "3"}. Working hours</Text>
+        <Text style={{ lineHeight: 1.7 }}>{OFFER_TERMS.hours}</Text>
+
+        <Text style={s.h2}>{skills.length ? "5" : "4"}. Reporting your work</Text>
+        <Text style={{ lineHeight: 1.7 }}>{OFFER_TERMS.logging}</Text>
+
+        <View style={s.callout}>
+          <Text style={{ fontWeight: 500, marginBottom: 4 }}>At a glance</Text>
+          <Text>
+            {employee.job_title} · {employmentType} ·{" "}
+            {salary > 0 ? `${fmt(salary, currency)} per month` : "compensation as agreed"} · starting{" "}
+            {date(employee.joining_date)} · {location}
+          </Text>
+        </View>
+
+        <DocFooter number={no} />
+      </Page>
+
+      <Page size="A4" style={s.page}>
+        <DocHeader type="Offer of employment" number={no} />
+
+        <Text style={s.h2}>Probation</Text>
+        <Text style={s.terms}>{OFFER_TERMS.probation}</Text>
+
+        <Text style={s.h2}>Confidentiality</Text>
+        <Text style={s.terms}>{OFFER_TERMS.confidentiality}</Text>
+
+        <Text style={s.h2}>Intellectual property</Text>
+        <Text style={s.terms}>{OFFER_TERMS.ip}</Text>
+
+        <Text style={s.h2}>Conduct and client relationships</Text>
+        <Text style={s.terms}>{OFFER_TERMS.conduct}</Text>
+
+        <Text style={s.h2}>Notice and termination</Text>
+        <Text style={s.terms}>{OFFER_TERMS.notice}</Text>
+
+        <Text style={s.h2}>Acceptance</Text>
+        <Text style={s.terms}>
+          Please confirm your acceptance by signing below and returning a copy to {CONTACT_EMAIL}, or by
+          replying to the email this letter arrived with. Starting work on the agreed date is also taken
+          as acceptance of these terms.
+        </Text>
+
+        <View style={s.signRow}>
+          <View style={s.signBox}>
+            <Text style={s.label}>Accepted by</Text>
+            <Text style={{ marginTop: 12, fontWeight: 500 }}>{employee.full_name}</Text>
+            <Text style={s.muted}>{employee.email}</Text>
+            <Text style={[s.muted, { marginTop: 6 }]}>Date: ____________________</Text>
+          </View>
+          <View style={s.signBox}>
+            <Text style={s.label}>For Nex Desk</Text>
+            <Text style={{ marginTop: 12, fontWeight: 500 }}>Nex Desk</Text>
+            <Text style={s.muted}>{CONTACT_EMAIL}</Text>
+            <Text style={[s.muted, { marginTop: 6 }]}>Date: {date(new Date().toISOString())}</Text>
+          </View>
+        </View>
+
+        <DocFooter number={no} />
+      </Page>
+    </Document>
+  );
+}
+
 export function AgencyTemplatePdfDocument({
   title,
   badge,

@@ -8,12 +8,31 @@ const C = {
   pageBg: "#E7E3D8", // desk surface behind the sheet
   paper: "#F4F1EA", // bone — the sheet itself
   ink: "#0B0B0F",
-  muted: "#75736C",
+  // Darkened from #75736C (~4.4:1 on bone) to ~6.5:1. Labels, footer and date
+  // are secondary, not decorative — on a phone in daylight the old grey
+  // disappeared, and every reported "the text is too dim" was this colour.
+  muted: "#57554F",
   line: "#E4E0D4",
   lime: "#D0FF4E",
   limeText: "#2A3A00",
   callout: "#F0FDF4",
 };
+
+/**
+ * `**bold**` → `<strong>`, applied AFTER escaping so a template can never
+ * inject markup. Templates are edited in the admin panel by hand; asking an
+ * admin to type raw HTML to emphasise a due date is how you end up with a
+ * broken email.
+ */
+const inline = (escaped: string) =>
+  escaped.replace(/\*\*([^*]+)\*\*/g, `<strong style="font-weight:700;color:${C.ink};">$1</strong>`);
+
+/**
+ * Emoji at the start of a subject is lifted out of the heading and shown as a
+ * badge above it. The inbox subject line keeps the emoji (it earns attention
+ * there); the heading inside the email reads as a clean sentence.
+ */
+const LEADING_EMOJI = /^([\p{Extended_Pictographic}️‍☀-➿]+)\s*/u;
 
 const FONT = "-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Inter,Helvetica,Arial,sans-serif";
 const MONO = "ui-monospace,SFMono-Regular,Menlo,Consolas,monospace";
@@ -21,7 +40,7 @@ const MONO = "ui-monospace,SFMono-Regular,Menlo,Consolas,monospace";
 const button = (url: string, label: string) =>
   `<table role="presentation" cellpadding="0" cellspacing="0" style="margin:22px 0;"><tr>` +
   `<td bgcolor="${C.lime}" style="border-radius:4px;">` +
-  `<a href="${url}" target="_blank" style="display:inline-block;padding:13px 26px;font-family:${FONT};font-size:13px;font-weight:600;letter-spacing:0.2px;color:${C.limeText};text-decoration:none;">${escapeHtml(label)} &rarr;</a>` +
+  `<a href="${url}" target="_blank" style="display:inline-block;padding:15px 30px;font-family:${FONT};font-size:15px;font-weight:700;letter-spacing:0.2px;color:${C.limeText};text-decoration:none;">${escapeHtml(label)} &rarr;</a>` +
   `</td></tr></table>`;
 
 /**
@@ -35,23 +54,23 @@ function renderBulletBlock(block: string, align: string, alignStyle: string) {
       const text = line.replace(/^\s*[•-]\s*/, "").trim();
       if (!text) return "";
 
-      const cell = `padding:3px 0;font-family:${FONT};font-size:13px;line-height:1.6;color:${C.ink};${alignStyle}`;
+      const cell = `padding:5px 0;font-family:${FONT};font-size:15px;line-height:1.6;color:${C.ink};${alignStyle}`;
       const url = text.match(/(https?:\/\/[^\s]+)/)?.[0];
       const colon = text.indexOf(":");
       const label = colon > -1 ? text.slice(0, colon).trim() : "";
 
       if (url) {
-        return `<tr><td style="${cell}"><span style="color:${C.muted};">${escapeHtml(label || "Link")}:</span> ` +
-          `<a href="${url}" target="_blank" style="color:${C.limeText};font-family:${MONO};font-size:12px;word-break:break-all;">${escapeHtml(url)}</a></td></tr>`;
+        return `<tr><td style="${cell}"><span style="color:${C.muted};font-weight:600;">${escapeHtml(label || "Link")}:</span> ` +
+          `<a href="${url}" target="_blank" style="color:${C.limeText};font-family:${MONO};font-size:13px;font-weight:600;word-break:break-all;">${escapeHtml(url)}</a></td></tr>`;
       }
 
       if (label) {
         const value = text.slice(colon + 1).trim();
-        return `<tr><td style="${cell}"><span style="color:${C.muted};">${escapeHtml(label)}:</span> ` +
-          `<strong style="font-family:${MONO};font-size:12.5px;color:${C.ink};">${escapeHtml(value)}</strong></td></tr>`;
+        return `<tr><td style="${cell}"><span style="color:${C.muted};font-weight:600;">${escapeHtml(label)}:</span> ` +
+          `<strong style="font-family:${MONO};font-size:14px;font-weight:600;color:${C.ink};">${escapeHtml(value)}</strong></td></tr>`;
       }
 
-      return `<tr><td style="${cell}"><span style="color:${C.limeText};">&bull;</span> ${escapeHtml(text)}</td></tr>`;
+      return `<tr><td style="${cell}"><span style="color:${C.limeText};font-weight:700;">&bull;</span> ${inline(escapeHtml(text))}</td></tr>`;
     })
     .join("");
 
@@ -69,8 +88,12 @@ function renderBulletBlock(block: string, align: string, alignStyle: string) {
  * Light rather than dark on purpose — dark HTML email is mangled by Gmail and
  * Outlook colour inversion, and it never matched the printed documents anyway.
  *
- * Body convention: blocks separated by blank lines. A block of `•` lines
- * becomes a callout card; a block containing a bare URL becomes a button.
+ * Body convention: blocks separated by blank lines.
+ *   `## Heading`   → section heading
+ *   `• ` lines     → callout card (`Label: value` rows are styled as a pair)
+ *   a bare URL     → button
+ *   `**text**`     → bold, parsed after escaping so templates stay safe
+ * A leading emoji on the SUBJECT becomes a badge above the heading.
  */
 export function renderHtml(subject: string, body: string, lang: string = "en") {
   const isRtl = lang === "ar";
@@ -86,6 +109,12 @@ export function renderHtml(subject: string, body: string, lang: string = "en") {
       const block = raw.trim();
       if (!block) return "";
 
+      // `## Heading` on its own line — lets a long email (onboarding, handover)
+      // be scanned rather than read start to finish.
+      if (block.startsWith("## ")) {
+        return `<h2 style="margin:28px 0 10px;font-family:${FONT};font-size:17px;font-weight:700;letter-spacing:-0.2px;line-height:1.35;color:${C.ink};${alignStyle}">${inline(escapeHtml(block.slice(3).trim()))}</h2>`;
+      }
+
       if (/^\s*[•-]\s/.test(block) || /\n\s*[•-]\s/.test(block)) {
         return renderBulletBlock(block, align, alignStyle);
       }
@@ -94,12 +123,12 @@ export function renderHtml(subject: string, body: string, lang: string = "en") {
       if (url && !block.includes("<a")) {
         const before = block.replace(url, "").trim();
         const lead = before
-          ? `<p style="margin:0 0 6px;font-family:${FONT};font-size:14px;line-height:1.65;color:${C.ink};${alignStyle}">${escapeHtml(before)}</p>`
+          ? `<p style="margin:0 0 8px;font-family:${FONT};font-size:16px;line-height:1.7;color:${C.ink};${alignStyle}">${inline(escapeHtml(before))}</p>`
           : "";
         return lead + button(url, "Open");
       }
 
-      return `<p style="margin:0 0 16px;font-family:${FONT};font-size:14px;line-height:1.7;color:${C.ink};white-space:pre-line;${alignStyle}">${escapeHtml(block)}</p>`;
+      return `<p style="margin:0 0 18px;font-family:${FONT};font-size:16px;line-height:1.7;color:${C.ink};white-space:pre-line;${alignStyle}">${inline(escapeHtml(block))}</p>`;
     })
     .join("");
 
@@ -108,6 +137,18 @@ export function renderHtml(subject: string, body: string, lang: string = "en") {
     month: "short",
     year: "numeric",
   });
+
+  // Split any leading emoji off the subject: it stays in the inbox subject line
+  // (set separately in send.ts) and becomes a badge here.
+  const emojiMatch = subject.match(LEADING_EMOJI);
+  const emoji = emojiMatch?.[1] ?? "";
+  const heading = emoji ? subject.slice(emojiMatch![0].length) : subject;
+
+  const emojiBadge = emoji
+    ? `<table role="presentation" cellpadding="0" cellspacing="0" style="margin:0 0 14px;"><tr>` +
+      `<td align="center" valign="middle" width="44" height="44" style="width:44px;height:44px;background:${C.lime};border-radius:12px;font-size:22px;line-height:44px;">${escapeHtml(emoji)}</td>` +
+      `</tr></table>`
+    : "";
 
   return `<!DOCTYPE html>
 <html ${dirAttr}>
@@ -144,13 +185,13 @@ export function renderHtml(subject: string, body: string, lang: string = "en") {
                         </table>
                       </td>
                       <td valign="middle">
-                        <span style="font-family:${FONT};font-size:17px;font-weight:600;letter-spacing:-0.4px;color:${C.ink};">Nex Desk</span>
-                        <div style="font-family:${FONT};font-size:9px;color:${C.muted};margin-top:1px;">Software agency</div>
+                        <span style="font-family:${FONT};font-size:19px;font-weight:700;letter-spacing:-0.4px;color:${C.ink};">Nex Desk</span>
+                        <div style="font-family:${FONT};font-size:11px;color:${C.muted};margin-top:1px;">Software agency</div>
                       </td>
                     </tr></table>
                   </td>
                   <td align="${flip}" valign="middle">
-                    <span style="font-family:${MONO};font-size:8px;letter-spacing:2px;text-transform:uppercase;color:${C.muted};">${escapeHtml(today)}</span>
+                    <span style="font-family:${MONO};font-size:10px;letter-spacing:1.6px;text-transform:uppercase;color:${C.muted};">${escapeHtml(today)}</span>
                   </td>
                 </tr>
               </table>
@@ -160,7 +201,8 @@ export function renderHtml(subject: string, body: string, lang: string = "en") {
           <!-- Message -->
           <tr>
             <td style="padding:30px 34px 8px;${alignStyle}">
-              <h1 style="margin:0 0 22px;font-family:${FONT};font-size:21px;font-weight:600;letter-spacing:-0.5px;line-height:1.3;color:${C.ink};">${escapeHtml(subject)}</h1>
+              ${emojiBadge}
+              <h1 style="margin:0 0 22px;font-family:${FONT};font-size:26px;font-weight:700;letter-spacing:-0.6px;line-height:1.25;color:${C.ink};">${escapeHtml(heading)}</h1>
               ${blocks}
             </td>
           </tr>
@@ -171,12 +213,12 @@ export function renderHtml(subject: string, body: string, lang: string = "en") {
               <div style="border-top:1px solid ${C.line};padding-top:14px;">
                 <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
                   <tr>
-                    <td align="${align}" style="font-family:${FONT};font-size:11px;line-height:1.6;color:${C.muted};">
+                    <td align="${align}" style="font-family:${FONT};font-size:12px;line-height:1.65;color:${C.muted};">
                       Nex Desk Software Agency &middot; Multan, Pakistan<br>
                       <a href="mailto:${CONTACT_EMAIL}" style="color:${C.muted};">${CONTACT_EMAIL}</a>
                     </td>
                     <td align="${flip}" valign="top">
-                      <a href="${siteUrl}" target="_blank" style="font-family:${FONT};font-size:11px;font-weight:600;color:${C.ink};text-decoration:none;border-bottom:1.5px solid ${C.lime};">${escapeHtml(siteUrl.replace(/^https?:\/\//, ""))}</a>
+                      <a href="${siteUrl}" target="_blank" style="font-family:${FONT};font-size:12px;font-weight:600;color:${C.ink};text-decoration:none;border-bottom:1.5px solid ${C.lime};">${escapeHtml(siteUrl.replace(/^https?:\/\//, ""))}</a>
                     </td>
                   </tr>
                 </table>
@@ -186,7 +228,7 @@ export function renderHtml(subject: string, body: string, lang: string = "en") {
 
         </table>
 
-        <p style="max-width:600px;margin:12px auto 0;font-family:${FONT};font-size:10px;color:${C.muted};text-align:center;">
+        <p style="max-width:600px;margin:14px auto 0;font-family:${FONT};font-size:12px;color:${C.muted};text-align:center;">
           &copy; ${new Date().getFullYear()} Nex Desk Software Agency
         </p>
       </td>

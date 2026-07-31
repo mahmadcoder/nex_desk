@@ -21,7 +21,7 @@ export default async function Portal() {
     return (
       <div className="card mx-auto max-w-md p-10 text-center mt-12">
         <h1 className="text-2xl font-semibold">No project profile found</h1>
-        <p className="mt-3 text-sm text-bone-400">
+        <p className="mt-3 text-sm text-bone-300">
           Your account ({user.email}) is not currently attached to an active client profile. If you believe this is an error, please reach out to your Nex Desk representative.
         </p>
         <Link href="/" className="btn mt-6 inline-flex">Return to Homepage</Link>
@@ -38,12 +38,17 @@ export default async function Portal() {
     ...(client.client_permissions as Record<string, boolean> || {}),
   };
 
-  const [{ data: projects }, { data: invoices }, { data: docs }, { data: assignedAssignments }] = await Promise.all([
-    db.from("projects").select("*").eq("client_id", client.id).order("created_at", { ascending: false }),
-    db.from("invoices").select("*").eq("client_id", client.id).order("issue_date", { ascending: false }),
-    db.from("documents").select("*").eq("client_id", client.id).order("created_at", { ascending: false }),
-    db.from("client_employee_assignments").select("*, employees(id, full_name, email, job_title, seniority, avatar_url, skills)").eq("client_id", client.id),
-  ]);
+  const [{ data: projects }, { data: invoices }, { data: docs }, { data: assignedAssignments }, { data: deals }] =
+    await Promise.all([
+      db.from("projects").select("*").eq("client_id", client.id).order("created_at", { ascending: false }),
+      db.from("invoices").select("*").eq("client_id", client.id).order("issue_date", { ascending: false }),
+      db.from("documents").select("*").eq("client_id", client.id).order("created_at", { ascending: false }),
+      db.from("client_employee_assignments").select("*, employees(id, full_name, email, job_title, seniority, avatar_url, skills)").eq("client_id", client.id),
+      // The signed agreements. Without these the portal could only ever show
+      // what had been invoiced so far, so a 1500 deal billed 50/50 read as a
+      // 750 contract.
+      db.from("deals").select("deal_no, total, currency").eq("client_id", client.id).eq("status", "locked"),
+    ]);
 
   const assignedTeam = Array.from(
     new Map(
@@ -79,35 +84,60 @@ export default async function Portal() {
 
   const updates = sharedLogs ?? [];
 
-  // Totals are grouped by each invoice's own currency. Previously they were
-  // summed together and then labelled with `preferred_currency`, so a client
-  // billed in USD saw their figures marked "Rs".
-  const invoiceRows = invoices ?? [];
-  const totalContract = sumByCurrency(invoiceRows, (i) => i.currency, (i) => Number(i.total));
+  // Totals are grouped by each currency of its own. Previously they were summed
+  // together and then labelled with `preferred_currency`, so a client billed in
+  // USD saw their figures marked "Rs".
+  //
+  // A draft is a scheduled payment stage that has not been issued yet — the
+  // client must not see it at all, so it is filtered out before anything else.
+  const invoiceRows = (invoices ?? []).filter((i) => i.status !== "draft");
+
+  const contractValue = sumByCurrency(deals ?? [], (d) => d.currency, (d) => Number(d.total));
+  const totalInvoiced = sumByCurrency(invoiceRows, (i) => i.currency, (i) => Number(i.total));
   const totalPaid = sumByCurrency(invoiceRows, (i) => i.currency, (i) => Number(i.amount_paid));
-  const balanceOwed = sumByCurrency(
-    invoiceRows,
-    (i) => i.currency,
-    (i) => Number(i.total) - Number(i.amount_paid)
+
+  // What is still owed on the agreement, not merely on the invoices raised so
+  // far. Falls back to the invoice view for clients with no locked deal.
+  const paidByCurrency = new Map(totalPaid.map((t) => [t.currency, t.total]));
+  const balanceOwed = (
+    contractValue.length
+      ? contractValue.map((c) => ({
+          currency: c.currency,
+          total: c.total - (paidByCurrency.get(c.currency) ?? 0),
+        }))
+      : totalInvoiced.map((t) => ({
+          currency: t.currency,
+          total: t.total - (paidByCurrency.get(t.currency) ?? 0),
+        }))
   ).filter((t) => t.total > 0.009);
 
-  const billedCurrencies = [...new Set(invoiceRows.map((i) => String(i.currency).toUpperCase()))];
+  const hasBilling = contractValue.length > 0 || invoiceRows.length > 0;
+
+  const billedCurrencies = [
+    ...new Set([
+      ...contractValue.map((c) => c.currency),
+      ...invoiceRows.map((i) => String(i.currency).toUpperCase()),
+    ]),
+  ];
 
   return (
     <div className="max-w-5xl mx-auto py-10 px-4">
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between border-b border-ink-600 pb-6">
         <div>
+          {/* The global h1-h4 rule sets a very tight line-height, so a heading
+              directly under an eyebrow rides up into it. mt-2 + leading-tight
+              gives the pair room without loosening the heading itself. */}
           <p className="mono-tag text-lime-400">Nex Desk Client Portal</p>
-          <h1 className="mt-1 text-3xl font-semibold text-bone-50">Welcome, {client.name}.</h1>
-          <p className="mt-1 text-sm text-bone-400">
+          <h1 className="mt-2 text-3xl leading-tight font-semibold text-bone-50">Welcome, {client.name}.</h1>
+          <p className="mt-2 text-sm text-bone-300">
             {client.company ? `${client.company} · ` : ""}Tracking live progress, payment summaries, and documents.
           </p>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3 shrink-0">
           {!!billedCurrencies.length && (
-            <span className="mono-tag bg-ink-800 px-3 py-1.5 rounded border border-ink-600 text-bone-200">
-              Billed in: <strong className="text-lime-400">{billedCurrencies.join(", ")}</strong>
+            <span className="mono-tag inline-flex items-center gap-1.5 rounded-full border border-ink-500 bg-ink-800 px-3.5 py-2 text-xs leading-none text-bone-200">
+              Billed in <strong className="font-semibold text-lime-400">{billedCurrencies.join(", ")}</strong>
             </span>
           )}
           <ClientPortalSignOutButton />
@@ -116,19 +146,29 @@ export default async function Portal() {
 
       {/* Financial Summary Cards */}
       {perms.show_financials && (
-        <section className="mt-8 grid gap-4 sm:grid-cols-3">
+        <section className="mt-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
           <div className="card p-5">
-            <span className="text-xs text-bone-400 block mono-tag mb-1">Total Contract Billed</span>
-            <p className="text-2xl font-mono text-bone-50">{moneyMulti(totalContract)}</p>
+            <span className="text-xs text-bone-300 block mono-tag mb-1">Contract Value</span>
+            <p className="text-2xl font-mono text-bone-50">{moneyMulti(contractValue, "—")}</p>
+            <p className="mt-1 text-[11px] text-bone-300">Agreed total across your signed agreements</p>
+          </div>
+          <div className="card p-5">
+            <span className="text-xs text-bone-300 block mono-tag mb-1">Invoiced To Date</span>
+            <p className="text-2xl font-mono text-bone-50">{moneyMulti(totalInvoiced, "—")}</p>
+            <p className="mt-1 text-[11px] text-bone-300">Issued so far — later stages are billed on schedule</p>
           </div>
           <div className="card p-5 border-lime-500/30">
             <span className="text-xs text-lime-400 block mono-tag mb-1">Total Amount Paid</span>
-            <p className="text-2xl font-mono text-lime-400">{moneyMulti(totalPaid)}</p>
+            <p className="text-2xl font-mono text-lime-400">{moneyMulti(totalPaid, "—")}</p>
+            <p className="mt-1 text-[11px] text-bone-300">Payments received and receipted</p>
           </div>
           <div className="card p-5">
-            <span className="text-xs text-bone-400 block mono-tag mb-1">Balance Remaining</span>
+            <span className="text-xs text-bone-300 block mono-tag mb-1">Balance Remaining</span>
             <p className={`text-2xl font-mono ${balanceOwed.length ? "text-amber-400" : "text-bone-200"}`}>
-              {balanceOwed.length ? moneyMulti(balanceOwed) : "Settled in full"}
+              {balanceOwed.length ? moneyMulti(balanceOwed) : hasBilling ? "Settled in full" : "—"}
+            </p>
+            <p className="mt-1 text-[11px] text-bone-300">
+              {contractValue.length ? "Against the contract value" : "Against the invoices issued"}
             </p>
           </div>
         </section>
@@ -137,10 +177,12 @@ export default async function Portal() {
       {/* Assigned Dedicated Team */}
       {!!assignedTeam.length && (
         <section className="mt-8 card p-6 border-ink-600 bg-ink-900/60">
-          <div className="border-b border-ink-600 pb-3 mb-4">
-            <span className="mono-tag text-xs text-lime-400">Assigned Agency Team</span>
-            <h2 className="text-lg font-medium text-bone-50">Your Dedicated Agency Specialists</h2>
-            <p className="text-xs text-bone-400 mt-0.5">The team members assigned directly to manage and deliver your projects.</p>
+          <div className="border-b border-ink-600 pb-4 mb-5">
+            {/* The eyebrow was inline with no margin, so the heading sat flush
+                against it — the global heading line-height closed the last gap. */}
+            <span className="mono-tag block text-xs text-lime-400">Assigned Agency Team</span>
+            <h2 className="mt-2 text-lg leading-tight font-medium text-bone-50">Your Dedicated Agency Specialists</h2>
+            <p className="mt-1.5 text-xs text-bone-300">The team members assigned directly to manage and deliver your projects.</p>
           </div>
 
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -157,10 +199,12 @@ export default async function Portal() {
                   )}
                 </div>
 
-                <div>
-                  <h3 className="text-sm font-semibold text-bone-50">{emp.full_name}</h3>
-                  <p className="text-xs text-lime-400 font-medium">{emp.job_title}</p>
-                  <span className="mono-tag text-[9px] text-bone-400 mt-0.5 block">{emp.seniority}</span>
+                {/* min-w-0 + truncate: a long job title used to stretch the
+                    card and break the grid on a phone. */}
+                <div className="min-w-0">
+                  <h3 className="truncate text-sm leading-snug font-semibold text-bone-50">{emp.full_name}</h3>
+                  <p className="mt-0.5 truncate text-xs text-lime-400 font-medium">{emp.job_title}</p>
+                  <span className="mono-tag mt-1 block text-[11px] text-bone-300">{emp.seniority}</span>
                 </div>
               </div>
             ))}
@@ -176,9 +220,9 @@ export default async function Portal() {
           <section key={p.id} className="card mt-8 p-8">
             <div className="flex flex-wrap items-start justify-between gap-4 border-b border-ink-600 pb-5">
               <div>
-                <span className="mono-tag text-xs text-lime-400 mb-1 block">Active Project</span>
-                <h2 className="text-2xl font-semibold text-bone-50">{p.name}</h2>
-                <div className="flex flex-wrap items-center gap-4 mt-2 text-xs text-bone-400">
+                <span className="mono-tag block text-xs text-lime-400">Active Project</span>
+                <h2 className="mt-2 text-2xl leading-tight font-semibold text-bone-50">{p.name}</h2>
+                <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs text-bone-300">
                   {p.start_date && (
                     <span className="flex items-center gap-1">
                       <Calendar className="h-3.5 w-3.5" /> Started: {new Date(p.start_date).toLocaleDateString("en-GB")}
@@ -211,7 +255,7 @@ export default async function Portal() {
             {/* What the team actually did, newest first */}
             {!!timeline.length && (
               <div className="mt-8">
-                <h3 className="mono-tag text-xs text-bone-300 mb-3">Recent Updates</h3>
+                <h3 className="mono-tag mb-3 text-xs font-semibold text-bone-200">Recent Updates</h3>
                 <ol className="space-y-0">
                   {timeline.map((u, i) => (
                     <li key={u.id} className="relative flex gap-4 pb-5 last:pb-0">
@@ -228,7 +272,7 @@ export default async function Portal() {
                             })}
                           </span>
                           {u.employee_name && (
-                            <span className="text-[11px] text-bone-500">{u.employee_name}</span>
+                            <span className="text-[11px] text-bone-300">{u.employee_name}</span>
                           )}
                         </div>
                         <p className="mt-1 whitespace-pre-line text-sm leading-relaxed text-bone-200">
@@ -244,7 +288,7 @@ export default async function Portal() {
             {/* Milestones */}
             {perms.show_milestones && !!ms.length && (
               <div className="mt-8">
-                <h3 className="mono-tag text-xs text-bone-400 mb-3">Project Milestones</h3>
+                <h3 className="mono-tag mb-3 text-xs font-semibold text-bone-200">Project Milestones</h3>
                 <ul className="divide-y divide-ink-600 rounded-lg border border-ink-600 bg-ink-900/40">
                   {ms.map((m) => (
                     <li key={m.id} className="flex items-center justify-between p-3.5 text-sm">
@@ -252,14 +296,14 @@ export default async function Portal() {
                         {m.is_done ? (
                           <CheckCircle className="h-4 w-4 text-lime-400 shrink-0" />
                         ) : (
-                          <Circle className="h-4 w-4 text-bone-500 shrink-0" />
+                          <Circle className="h-4 w-4 text-bone-300 shrink-0" />
                         )}
-                        <span className={m.is_done ? "text-bone-400 line-through" : "text-bone-100"}>
+                        <span className={m.is_done ? "text-bone-300 line-through" : "text-bone-100"}>
                           {m.title}
                         </span>
                       </div>
                       {m.due_date && (
-                        <span className="mono-tag text-xs text-bone-400">{m.due_date}</span>
+                        <span className="mono-tag text-xs text-bone-300">{m.due_date}</span>
                       )}
                     </li>
                   ))}
@@ -289,7 +333,7 @@ export default async function Portal() {
         {perms.show_invoices && (
           <section className="card p-6">
             <div className="flex items-center justify-between border-b border-ink-600 pb-4">
-              <h2 className="text-lg font-medium text-bone-50 flex items-center gap-2">
+              <h2 className="flex items-center gap-2 text-lg leading-tight font-medium text-bone-50">
                 <DollarSign className="h-4 w-4 text-lime-400" /> Invoices & Receipts
               </h2>
               {!!balanceOwed.length && (
@@ -298,19 +342,19 @@ export default async function Portal() {
             </div>
 
             <ul className="mt-4 divide-y divide-ink-600">
-              {(invoices ?? []).map((i) => (
+              {invoiceRows.map((i) => (
                 <li key={i.id} className="flex items-center justify-between py-3.5 text-sm">
                   <div>
                     <p className="font-mono text-bone-100">{i.invoice_no}</p>
-                    <p className="text-xs text-bone-400">
+                    <p className="text-xs text-bone-300">
                       Paid: {money(Number(i.amount_paid), i.currency)} / Total: {money(Number(i.total), i.currency)}
                     </p>
                   </div>
                   <Badge>{i.status}</Badge>
                 </li>
               ))}
-              {!invoices?.length && (
-                <li className="py-6 text-center text-sm text-bone-400">No invoices recorded yet.</li>
+              {!invoiceRows.length && (
+                <li className="py-6 text-center text-sm text-bone-300">No invoices issued yet.</li>
               )}
             </ul>
           </section>
@@ -322,7 +366,7 @@ export default async function Portal() {
 
             <section className="card p-6">
               <div className="border-b border-ink-600 pb-4">
-                <h2 className="text-lg font-medium text-bone-50 flex items-center gap-2">
+                <h2 className="flex items-center gap-2 text-lg leading-tight font-medium text-bone-50">
                   <FileText className="h-4 w-4 text-lime-400" /> Shared Documents & PDF Assets
                 </h2>
               </div>
@@ -334,12 +378,12 @@ export default async function Portal() {
                       <div className="flex items-center gap-2">
                         <p className="truncate text-bone-100 font-medium">{d.title}</p>
                         {d.uploaded_by_client && (
-                          <span className="mono-tag text-[9px] text-emerald-400 bg-emerald-400/10 px-2 py-0.5 rounded border border-emerald-400/30">
+                          <span className="mono-tag shrink-0 rounded-full border border-emerald-400/40 bg-emerald-400/15 px-2.5 py-1 text-[11px] leading-none text-emerald-300">
                             Client Signed
                           </span>
                         )}
                       </div>
-                      <p className="mono-tag text-xs text-bone-400">{new Date(d.created_at).toLocaleDateString("en-GB")}</p>
+                      <p className="mono-tag text-xs text-bone-300">{new Date(d.created_at).toLocaleDateString("en-GB")}</p>
                     </div>
                     {d.url && (
                       <a
@@ -354,7 +398,7 @@ export default async function Portal() {
                   </li>
                 ))}
                 {!withUrls.length && (
-                  <li className="py-6 text-center text-sm text-bone-400">No documents uploaded yet.</li>
+                  <li className="py-6 text-center text-sm text-bone-300">No documents uploaded yet.</li>
                 )}
               </ul>
             </section>
@@ -362,7 +406,7 @@ export default async function Portal() {
         )}
       </div>
 
-      <div className="mt-12 text-center text-xs text-bone-500 space-y-2">
+      <div className="mt-12 text-center text-xs text-bone-300 space-y-2">
         <p>
           Need assistance or wish to request revisions? Contact your Nex Desk project manager at{" "}
           <a href={`mailto:${CONTACT_EMAIL}`} className="text-lime-400 underline">{CONTACT_EMAIL}</a>

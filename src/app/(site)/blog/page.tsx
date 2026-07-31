@@ -13,6 +13,13 @@ export const revalidate = 300;
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
+/**
+ * Category tags. Rendered as outlined pills so two of them side by side read
+ * as two labels rather than one run-on phrase.
+ */
+const tagPill =
+  "mono-tag rounded-full border border-ink-500 bg-ink-800/70 px-2.5 py-1 text-[11px] leading-none text-bone-200";
+
 const fmtDate = (d?: string | null) =>
   d ? new Date(d).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" }) : "";
 
@@ -67,21 +74,30 @@ export default async function BlogPage() {
       {/* featured */}
       <section className="shell">
         <Reveal>
-          <Link href={`/blog/${featured.slug}`} className="card group grid overflow-hidden lg:grid-cols-2">
+          <Link
+            href={`/blog/${featured.slug}`}
+            className="card group grid overflow-hidden transition-colors hover:border-lime-400/40 lg:grid-cols-2"
+          >
             <TexturePanel src={getPostCover(featured.slug, featured.cover_url)} className="blog-img-hover min-h-[280px]" overlay={0.3}>
               <div className="flex h-full items-end p-8">
-                <span className="mono-tag rounded-full bg-lime-400 px-3 py-1 text-lime-950">featured</span>
+                <span className="mono-tag relative z-10 rounded-full bg-lime-400 px-3.5 py-1.5 text-xs leading-none font-semibold text-lime-950">
+                  featured
+                </span>
               </div>
             </TexturePanel>
             <div className="flex flex-col justify-center p-8 lg:p-12">
+              {/* Pills, not bare text: two adjacent tags used to run together
+                  and read as one sentence ("Process Working with us"). */}
               <div className="flex flex-wrap gap-2">
                 {(featured.tags ?? []).slice(0, 2).map((t: string) => (
-                  <span key={t} className="mono-tag">{t}</span>
+                  <span key={t} className={tagPill}>{t}</span>
                 ))}
               </div>
-              <h2 className="mt-4 text-3xl group-hover:text-lime-400">{featured.title}</h2>
-              <p className="mt-4 text-bone-400">{featured.excerpt}</p>
-              <div className="mono-tag mt-6 flex items-center gap-4">
+              {/* The site-wide heading rule sets line-height 0.92, so a wrapped
+                  title collided with the tags above and its own second line. */}
+              <h2 className="mt-5 text-3xl leading-tight transition-colors group-hover:text-lime-400">{featured.title}</h2>
+              <p className="mt-4 text-bone-300">{featured.excerpt}</p>
+              <div className="mono-tag mt-6 flex flex-wrap items-center gap-x-4 gap-y-2">
                 <span>{fmtDate(featured.published_at)}</span>
                 <span className="flex items-center gap-1.5"><Clock size={12} /> {featured.read_minutes ?? 5} min</span>
               </div>
@@ -94,17 +110,21 @@ export default async function BlogPage() {
       <section className="shell py-16">
         <Reveal className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
           {rest.map((p) => (
-            <Link key={p.slug} href={`/blog/${p.slug}`} className="card group flex flex-col overflow-hidden hover:border-lime-400/40">
+            <Link
+              key={p.slug}
+              href={`/blog/${p.slug}`}
+              className="card group flex flex-col overflow-hidden transition-colors hover:border-lime-400/40"
+            >
               <TexturePanel src={getPostCover(p.slug, p.cover_url)} className="blog-img-hover h-48" overlay={0.3} />
               <div className="flex flex-1 flex-col p-6">
                 <div className="flex flex-wrap gap-2">
                   {(p.tags ?? []).slice(0, 2).map((t: string) => (
-                    <span key={t} className="mono-tag">{t}</span>
+                    <span key={t} className={tagPill}>{t}</span>
                   ))}
                 </div>
-                <h3 className="mt-3 text-xl group-hover:text-lime-400">{p.title}</h3>
-                <p className="mt-2 flex-1 text-sm text-bone-400">{p.excerpt}</p>
-                <div className="mono-tag mt-5 flex items-center gap-3 border-t border-ink-600 pt-4">
+                <h3 className="mt-4 text-xl leading-tight transition-colors group-hover:text-lime-400">{p.title}</h3>
+                <p className="mt-3 flex-1 text-sm leading-relaxed text-bone-300">{p.excerpt}</p>
+                <div className="mono-tag mt-5 flex flex-wrap items-center gap-x-3 gap-y-1.5 border-t border-ink-600 pt-4">
                   <span>{fmtDate(p.published_at)}</span>
                   <span className="flex items-center gap-1.5"><Clock size={11} /> {p.read_minutes ?? 5} min</span>
                 </div>

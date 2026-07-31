@@ -56,6 +56,22 @@
   --gutter: clamp(1.25rem, 5vw, 5rem);
 }
 
+/* ---------- Base -------------------------------------------------------
+   These MUST live in `@layer base`, for the same reason the component
+   classes do: unlayered CSS outranks every cascade layer, and Tailwind's
+   utilities are in `@layer utilities`.
+
+   While the heading rule below sat unlayered it set `margin: 0`,
+   `line-height: 0.92` and `font-weight: 500` on EVERY h1–h4 in the app and
+   nothing in the markup could override it — `mt-8`, `leading-tight`,
+   `tracking-tight` and `font-semibold` were all written and all discarded.
+   That is why headings sat flush against the element above them and why a
+   wrapped two-line title overlapped itself.
+
+   0.92 is still the default; it is now a default that can be overridden.
+   -------------------------------------------------------------------- */
+@layer base {
+
 * { box-sizing: border-box; }
 
 html {
@@ -91,6 +107,23 @@ h1, h2, h3, h4 {
   outline-offset: 3px;
   border-radius: 2px;
 }
+
+}
+
+/* ---------- Components ------------------------------------------------
+   These MUST live in `@layer components`.
+
+   `@import "tailwindcss"` puts every utility in `@layer utilities`, and an
+   unlayered rule beats any cascade layer no matter how low its specificity.
+   So while these sat outside a layer, `.mono-tag` silently overrode
+   `text-lime-400`, `.btn` overrode `h-8 px-3 text-xs`, and `.card` overrode
+   `bg-ink-950/60` — the utility was in the markup but never applied. That is
+   why the category and Active pills rendered grey instead of lime and green.
+
+   Inside `components`, utilities win, because `utilities` comes after
+   `components` in Tailwind's layer order.
+   -------------------------------------------------------------------- */
+@layer components {
 
 .desk-grid {
   position: fixed;
@@ -218,6 +251,100 @@ h1, h2, h3, h4 {
   height: 0;
 }
 
+/* ---------- Blog card imagery ------------------------------------------
+   `.blog-img-hover` was referenced on every blog cover but defined nowhere,
+   so hovering a post card did nothing at all. Same failure as
+   `.custom-admin-scrollbar`: a class name that only ever existed in markup.
+
+   The scale sits on the <img> inside TexturePanel rather than the panel, so
+   the tint, gradient and grid overlays stay put and only the photo moves. */
+.blog-img-hover img {
+  transition: transform 700ms cubic-bezier(0.22, 1, 0.36, 1);
+  will-change: transform;
+}
+.group:hover .blog-img-hover img {
+  transform: scale(1.06);
+}
+
+/* The cover lifts out of its ink tint slightly on hover, so the card feels
+   live rather than just the text changing colour. */
+.blog-img-hover::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: var(--color-lime-400);
+  opacity: 0;
+  mix-blend-mode: overlay;
+  transition: opacity var(--dur-fast, 200ms) ease;
+  pointer-events: none;
+  z-index: 1;
+}
+.group:hover .blog-img-hover::after { opacity: 0.12; }
+
+@media (prefers-reduced-motion: reduce) {
+  .blog-img-hover img { transition: none; }
+  .group:hover .blog-img-hover img { transform: none; }
+}
+
+/* ---------- Animations -------------------------------------------------
+   Every one of these was referenced in markup and defined nowhere — the
+   stylesheet contained no @keyframes at all. So the blog mosaic sat static,
+   the "Live at the desk" ticker never scrolled, the cookie banner appeared
+   without sliding in, and the blog loading state rendered as blank boxes.
+   -------------------------------------------------------------------- */
+
+.mosaic-pulse { animation: mosaic-pulse 3.2s ease-in-out infinite; }
+@keyframes mosaic-pulse {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.45; }
+}
+
+/* Each ticker row renders its events twice, so travelling exactly -50% lands
+   on an identical frame and the loop is seamless. */
+.animate-ticker-left  { animation: ticker-left  42s linear infinite; }
+.animate-ticker-right { animation: ticker-right 42s linear infinite; }
+@keyframes ticker-left  { from { transform: translateX(0);     } to { transform: translateX(-50%); } }
+@keyframes ticker-right { from { transform: translateX(-50%);  } to { transform: translateX(0);    } }
+
+/* The component comments promised "pauses on hover"; this is what delivers it. */
+.ticker-group:hover .animate-ticker-left,
+.ticker-group:hover .animate-ticker-right { animation-play-state: paused; }
+
+.cookie-slide-up { animation: cookie-slide-up 380ms cubic-bezier(0.22, 1, 0.36, 1) both; }
+@keyframes cookie-slide-up {
+  from { transform: translateY(100%); opacity: 0; }
+  to   { transform: translateY(0);    opacity: 1; }
+}
+
+/* Loading placeholder: a visible block that shimmers, rather than the
+   invisible empty divs the blog loading state rendered before. */
+.nd-skeleton {
+  background: linear-gradient(
+    90deg,
+    var(--color-ink-800) 0%,
+    var(--color-ink-700) 50%,
+    var(--color-ink-800) 100%
+  );
+  background-size: 200% 100%;
+  animation: nd-skeleton 1.4s ease-in-out infinite;
+}
+@keyframes nd-skeleton {
+  from { background-position: 200% 0; }
+  to   { background-position: -200% 0; }
+}
+
+/* Referenced by the footer's "Subscribed!" confirmation and defined nowhere,
+   so the message used to snap in. */
+.animate-fadeIn { animation: nd-fade-in 260ms ease-out both; }
+@keyframes nd-fade-in {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+} /* end @layer components */
+
+/* Left unlayered on purpose: GSAP reads these as the animation's start state,
+   and a stray opacity utility must not be able to cancel it. */
 .reveal-mask { display: block; overflow: hidden; }
 .reveal-line { display: block; will-change: transform; }
 
@@ -232,9 +359,15 @@ h1, h2, h3, h4 {
   [data-anim] { opacity: 1 !important; transform: none !important; }
 }
 
+/* Admin panel overrides. Layered too, so `leading-*` and `mt-*` on an admin
+   heading behave the same way they do on the marketing site. */
+@layer components {
+
 .admin {
   --grid-cell: 0;
   font-size: 0.875rem;
 }
 .admin h1, .admin h2, .admin h3 { letter-spacing: -0.02em; line-height: 1.2; }
 .admin .card { border-radius: 10px; }
+
+}

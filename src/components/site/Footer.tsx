@@ -183,7 +183,9 @@ export default function Footer() {
 
               {subscribed && (
                 <div className="inline-flex items-center gap-1.5 text-xs text-lime-400 font-medium animate-fadeIn">
-                  <Check size={14} />
+                  {/* Same weight as the feature-list mark, so the one tick on
+                      the site that is not a feature still looks like family. */}
+                  <Check size={14} strokeWidth={2.5} aria-hidden />
                   <span>Subscribed! Thank you for joining.</span>
                 </div>
               )}

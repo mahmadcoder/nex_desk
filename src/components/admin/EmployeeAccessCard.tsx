@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { KeyRound, Copy, Send, Eye, EyeOff } from "lucide-react";
+import { KeyRound, Copy, Send, Eye, EyeOff, FileDown } from "lucide-react";
 import { sendEmployeeCredentials } from "@/lib/actions/cms";
 import { getSiteBaseUrl, adminPath } from "@/lib/utils";
 
@@ -26,6 +26,7 @@ export default function EmployeeAccessCard({
   const router = useRouter();
   const [pending, start] = useTransition();
   const [reveal, setReveal] = useState(false);
+  const [downloading, setDownloading] = useState(false);
 
   const loginUrl = `${getSiteBaseUrl()}${adminPath("/login")}`;
   const hasAccount = !!employee.user_id;
@@ -44,7 +45,11 @@ export default function EmployeeAccessCard({
       try {
         const res = await sendEmployeeCredentials(employee.id);
         if (res.ok) {
-          toast.success(`Login details sent to ${employee.email}.`);
+          toast.success(
+            res.offerAttached
+              ? `Login details and offer letter sent to ${employee.email}.`
+              : `Login details sent to ${employee.email}, but the offer letter could not be built.`
+          );
         } else {
           toast.error(res.error || "Could not send the login details.");
         }
@@ -53,6 +58,39 @@ export default function EmployeeAccessCard({
         toast.error(e?.message || "Could not send the login details.");
       }
     });
+  };
+
+  /**
+   * The offer letter is streamed straight back as a PDF, not stored — so this
+   * downloads the response rather than following a URL.
+   */
+  const downloadOffer = async () => {
+    setDownloading(true);
+    try {
+      const res = await fetch("/api/staff-doc", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ type: "offer_letter", id: employee.id }),
+      });
+
+      if (!res.ok) {
+        const { error } = await res.json().catch(() => ({ error: "" }));
+        toast.error(error || "Could not build the offer letter.");
+        return;
+      }
+
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `Nex-Desk-Offer-Letter-${employee.full_name.replace(/\s+/g, "-")}.pdf`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (e: any) {
+      toast.error(e?.message || "Could not build the offer letter.");
+    } finally {
+      setDownloading(false);
+    }
   };
 
   return (
@@ -108,15 +146,20 @@ export default function EmployeeAccessCard({
         <button onClick={copyCredentials} className="btn h-8 px-3 text-xs">
           <Copy className="mr-1.5 h-3.5 w-3.5" /> Copy
         </button>
+        <button onClick={downloadOffer} disabled={downloading} className="btn h-8 px-3 text-xs">
+          <FileDown className="mr-1.5 h-3.5 w-3.5" />
+          {downloading ? "Building…" : "Offer letter"}
+        </button>
         <button onClick={resend} disabled={pending} className="btn btn-primary h-8 px-3 text-xs">
           <Send className="mr-1.5 h-3.5 w-3.5" />
-          {pending ? "Sending…" : hasAccount ? "Resend login details" : "Create login & send"}
+          {pending ? "Sending…" : hasAccount ? "Resend login & offer letter" : "Create login & send"}
         </button>
       </div>
 
       <p className="text-[11px] leading-relaxed text-bone-400">
-        Staff sign in to the same control panel and see only their assigned clients,
-        projects and the daily work log.
+        Sending the login details also attaches the offer letter, built live from this
+        employee&rsquo;s salary, role and start date. Staff sign in to the same control panel
+        and see only their assigned clients, projects and the daily work log.
       </p>
     </div>
   );

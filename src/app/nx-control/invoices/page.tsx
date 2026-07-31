@@ -3,6 +3,7 @@ import { PageHead, Badge, Table, Stat, Empty } from "@/components/admin/ui";
 import { money, moneyMulti, sumByCurrency } from "@/lib/utils";
 import DocButton from "@/components/admin/DocButton";
 import PaymentDialog from "@/components/admin/PaymentDialog";
+import SendInvoiceButton from "@/components/admin/SendInvoiceButton";
 
 export const metadata = { title: "Invoices & Payments" };
 export const dynamic = "force-dynamic";
@@ -14,8 +15,16 @@ export default async function InvoicesPage() {
 
   // Grouped per currency — a USD invoice and a PKR invoice cannot be added up.
   const rows = invoices ?? [];
-  const total = sumByCurrency(rows, (i) => i.currency, (i) => Number(i.total));
-  const paid = sumByCurrency(rows, (i) => i.currency, (i) => Number(i.amount_paid));
+
+  // Drafts are future payment stages the client has not been billed for yet, so
+  // they belong in their own "scheduled" bucket — counting them as invoiced
+  // would overstate what is actually owed to us today.
+  const issued = rows.filter((i) => i.status !== "draft");
+  const drafts = rows.filter((i) => i.status === "draft");
+
+  const total = sumByCurrency(issued, (i) => i.currency, (i) => Number(i.total));
+  const paid = sumByCurrency(issued, (i) => i.currency, (i) => Number(i.amount_paid));
+  const scheduled = sumByCurrency(drafts, (i) => i.currency, (i) => Number(i.total));
   const overdueTotals = sumByCurrency(
     rows.filter((i) => i.status === "overdue"),
     (i) => i.currency,
@@ -24,9 +33,9 @@ export default async function InvoicesPage() {
 
   return (
     <>
-      <PageHead title="Invoices" sub="Recording a payment sends the receipt automatically." />
+      <PageHead title="Invoices" sub="Locking a deal drafts every payment stage. Send one to bill it; recording a payment sends the receipt automatically." />
 
-      <div className="grid gap-4 sm:grid-cols-3">
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <Stat label="Invoiced" value={moneyMulti(total)} />
         <Stat label="Collected" value={moneyMulti(paid)} tone="good" />
         <Stat
@@ -34,11 +43,12 @@ export default async function InvoicesPage() {
           value={moneyMulti(overdueTotals, money(0, "PKR"))}
           tone={overdueTotals.length ? "warn" : "default"}
         />
+        <Stat label="Scheduled (draft)" value={moneyMulti(scheduled, "—")} />
       </div>
 
       <div className="mt-8">
         {!invoices?.length ? (
-          <Empty title="No invoices yet" body="The advance invoice is raised automatically the moment you lock a deal." />
+          <Empty title="No invoices yet" body="Locking a deal raises the advance invoice and drafts every remaining payment stage." />
         ) : (
           <Table head={["Invoice", "Client", "Total", "Paid", "Due", "Status", ""]}>
             {invoices.map((i) => (
@@ -52,7 +62,17 @@ export default async function InvoicesPage() {
                 <td className="px-5 py-3">
                   <div className="flex justify-end gap-2">
                     <DocButton type="invoice" id={i.id} label="PDF" />
-                    {i.status !== "paid" && (
+                    {/* A draft has not been billed yet, so there is nothing to
+                        pay against it — issue it first. */}
+                    {i.status === "draft" ? (
+                      <SendInvoiceButton
+                        invoice={{
+                          id: i.id, invoice_no: i.invoice_no, currency: i.currency,
+                          total: Number(i.total), client_name: (i.clients as any)?.name,
+                        }}
+                        label="Send invoice"
+                      />
+                    ) : i.status !== "paid" ? (
                       <PaymentDialog
                         invoice={{
                           id: i.id, invoice_no: i.invoice_no, currency: i.currency,
@@ -60,7 +80,7 @@ export default async function InvoicesPage() {
                           client_id: (i.clients as any).id,
                         }}
                       />
-                    )}
+                    ) : null}
                   </div>
                 </td>
               </tr>

@@ -2,13 +2,16 @@ import { NextRequest, NextResponse } from "next/server";
 import { renderToBuffer } from "@react-pdf/renderer";
 import { createElement } from "react";
 import { AgencyTemplatePdfDocument } from "@/lib/pdf/documents";
-import { requireStaffRequest } from "@/lib/auth/staff";
+import { getCurrentStaff } from "@/lib/auth/staff";
 
 export async function POST(req: NextRequest) {
-  // This renders caller-supplied text straight into a PDF, so it must not be
-  // reachable anonymously.
-  const auth = await requireStaffRequest();
-  if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status });
+  // Renders caller-supplied text straight into a PDF, and the agency template
+  // library holds contracts and commercial terms — owner/admin only.
+  const me = await getCurrentStaff();
+  if (!me) return NextResponse.json({ error: "Not signed in" }, { status: 401 });
+  if (!me.isPrivileged) {
+    return NextResponse.json({ error: "Not authorised" }, { status: 403 });
+  }
 
   try {
     const { title, badge, content } = await req.json();

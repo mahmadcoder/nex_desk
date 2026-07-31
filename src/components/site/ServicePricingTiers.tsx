@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { Check, Zap, Sparkles, ShieldCheck } from "lucide-react";
+import { Sparkles } from "lucide-react";
+import FeatureList from "@/components/site/FeatureList";
 
 import type { PricingTier } from "@/types/site";
 export type { PricingTier };
@@ -76,16 +77,7 @@ export default function ServicePricingTiers({
                   </p>
                 </div>
 
-                <ul className="mt-6 space-y-3">
-                  {tier.features.map((feat) => (
-                    <li key={feat} className="flex items-start gap-2.5 text-xs text-bone-200">
-                      <span className="h-4 w-4 rounded-full bg-lime-400/10 text-lime-400 border border-lime-400/30 flex items-center justify-center shrink-0 mt-0.5">
-                        <Check size={11} />
-                      </span>
-                      <span>{feat}</span>
-                    </li>
-                  ))}
-                </ul>
+                <FeatureList features={tier.features} size="xs" className="mt-6" />
               </div>
 
               <div className="mt-8">

@@ -185,36 +185,40 @@ export default function ServicesClient({ services }: { services: IService[] }) {
             }`}
           >
             <div>
-              <div className="flex items-center justify-between gap-2">
-                <span className="mono-tag text-[10px] text-lime-400 bg-lime-400/10 px-2.5 py-0.5 rounded-full border border-lime-400/20">
+              {/* Wraps rather than squashing: on a narrow card a long category
+                  name and the status pill will not fit on one line. */}
+              <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-2">
+                <span className="mono-tag text-[11px] leading-none text-lime-400 bg-lime-400/10 px-2.5 py-1.5 rounded-full border border-lime-400/25">
                   {s.category}
                 </span>
 
                 <button
                   onClick={() => handleToggleActive(s.id, s.is_active)}
                   disabled={pending}
-                  className={`mono-tag text-[10px] px-2 py-0.5 rounded-full font-medium flex items-center gap-1 cursor-pointer transition-colors ${
+                  className={`mono-tag text-[11px] leading-none px-2.5 py-1.5 rounded-full font-semibold inline-flex items-center gap-1.5 cursor-pointer transition-colors ${
                     s.is_active
-                      ? "bg-emerald-400/10 text-emerald-400 border border-emerald-400/30 hover:bg-emerald-400/20"
-                      : "bg-rose-400/10 text-rose-400 border border-rose-400/30 hover:bg-rose-400/20"
+                      ? "bg-emerald-400/15 text-emerald-300 border border-emerald-400/40 hover:bg-emerald-400/25"
+                      : "bg-rose-400/15 text-rose-300 border border-rose-400/40 hover:bg-rose-400/25"
                   }`}
                 >
                   {s.is_active ? (
                     <>
-                      <Eye size={11} /> Active
+                      <Eye size={12} /> Active
                     </>
                   ) : (
                     <>
-                      <EyeOff size={11} /> Hidden
+                      <EyeOff size={12} /> Hidden
                     </>
                   )}
                 </button>
               </div>
 
-              <h3 className="mt-4 text-base font-semibold text-bone-50">{s.title}</h3>
-              {s.short_desc && <p className="mt-1.5 text-xs text-bone-300 line-clamp-2 leading-relaxed">{s.short_desc}</p>}
+              {/* leading-snug: the global heading rule sets line-height 1.2, which
+                  pulls a wrapped two-line title up against the pills above it. */}
+              <h3 className="mt-5 text-base leading-snug font-semibold text-bone-50">{s.title}</h3>
+              {s.short_desc && <p className="mt-2 text-xs text-bone-300 line-clamp-2 leading-relaxed">{s.short_desc}</p>}
 
-              <div className="mt-3 pt-3 border-t border-ink-800/80 flex items-center justify-between text-xs font-mono">
+              <div className="mt-4 pt-3 border-t border-ink-800/80 flex flex-wrap items-center justify-between gap-x-2 gap-y-1 text-xs font-mono">
                 <span className="text-bone-300">Starting Price:</span>
                 <span className="text-lime-400 font-semibold">
                   {s.starting_at ? money(Number(s.starting_at), s.currency) : "Custom Quote"}
@@ -222,8 +226,10 @@ export default function ServicesClient({ services }: { services: IService[] }) {
               </div>
             </div>
 
-            <div className="border-t border-ink-700/60 pt-3 flex items-center justify-between">
-              <span className="text-[11px] font-mono text-bone-400">/{s.slug}</span>
+            <div className="border-t border-ink-700/60 pt-3 flex items-center justify-between gap-2">
+              {/* The slug can be long — let it truncate instead of shoving the
+                  edit and delete buttons off the card. */}
+              <span className="min-w-0 truncate text-[11px] font-mono text-bone-400">/{s.slug}</span>
               <div className="flex items-center gap-1">
                 <button
                   onClick={() => setEditing(s)}

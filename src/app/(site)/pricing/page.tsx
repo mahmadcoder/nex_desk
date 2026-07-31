@@ -3,8 +3,8 @@ import type { Metadata } from "next";
 import { createClient } from "@/lib/supabase/server";
 import Reveal from "@/components/site/Reveal";
 import CTA from "@/components/site/CTA";
+import FeatureList from "@/components/site/FeatureList";
 import { money } from "@/lib/utils";
-import { Check } from "lucide-react";
 
 export const metadata: Metadata = { title: "Pricing" };
 export const revalidate = 300;
@@ -139,16 +139,7 @@ export default async function PricingPage() {
                 <p className="mono-tag mt-2">typically {t.timeline}</p>
               </div>
 
-              <ul className="mt-6 flex-1 space-y-2.5">
-                {t.features.map((f) => (
-                  <li key={f} className="flex gap-2.5 text-sm text-bone-200">
-                    <span className="h-4 w-4 rounded-full bg-lime-400/10 text-lime-400 border border-lime-400/30 flex items-center justify-center shrink-0 mt-0.5">
-                      <Check size={11} />
-                    </span>
-                    <span>{f}</span>
-                  </li>
-                ))}
-              </ul>
+              <FeatureList features={t.features} className="mt-6 flex-1" />
 
               <Link
                 href="/contact"

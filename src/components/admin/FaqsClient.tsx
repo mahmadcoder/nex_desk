@@ -131,41 +131,44 @@ export default function FaqsClient({ faqs }: { faqs: IFaq[] }) {
         {faqs.map((f) => (
           <div
             key={f.id}
-            className={`card p-5 border-ink-600 flex items-start justify-between gap-4 transition-opacity ${
+            className={`card p-5 border-ink-600 flex items-start justify-between gap-3 sm:gap-4 transition-opacity ${
               f.is_active ? "bg-ink-900/80 border-ink-600" : "bg-ink-950/60 border-ink-700/50 opacity-65"
             }`}
           >
-            <div className="max-w-3xl">
+            {/* min-w-0 lets the long answer text wrap instead of forcing the
+                row wider than the card on a phone. */}
+            <div className="min-w-0 max-w-3xl">
               <div className="flex flex-wrap items-center gap-2">
-                <span className="mono-tag text-[10px] text-lime-400 bg-lime-400/10 px-2.5 py-0.5 rounded border border-lime-400/20">
+                <span className="mono-tag text-[11px] leading-none text-lime-400 bg-lime-400/10 px-2.5 py-1.5 rounded-full border border-lime-400/25">
                   {f.category || "General"}
                 </span>
 
                 <button
                   onClick={() => handleToggleActive(f.id, f.is_active)}
                   disabled={pending}
-                  className={`mono-tag text-[10px] px-2 py-0.5 rounded-full font-medium flex items-center gap-1 cursor-pointer transition-colors ${
+                  className={`mono-tag text-[11px] leading-none px-2.5 py-1.5 rounded-full font-semibold inline-flex items-center gap-1.5 cursor-pointer transition-colors ${
                     f.is_active
-                      ? "bg-emerald-400/10 text-emerald-400 border border-emerald-400/30 hover:bg-emerald-400/20"
-                      : "bg-rose-400/10 text-rose-400 border border-rose-400/30 hover:bg-rose-400/20"
+                      ? "bg-emerald-400/15 text-emerald-300 border border-emerald-400/40 hover:bg-emerald-400/25"
+                      : "bg-rose-400/15 text-rose-300 border border-rose-400/40 hover:bg-rose-400/25"
                   }`}
                 >
                   {f.is_active ? (
                     <>
-                      <Eye size={11} /> Active
+                      <Eye size={12} /> Active
                     </>
                   ) : (
                     <>
-                      <EyeOff size={11} /> Hidden
+                      <EyeOff size={12} /> Hidden
                     </>
                   )}
                 </button>
               </div>
 
-              {/* mt-3 clears the badge row — the previous pt-1 inside a
-                  space-y-1 parent left the heading ~4px from the tags. */}
-              <h3 className="mt-3 text-sm font-semibold text-bone-50">{f.question}</h3>
-              <p className="mt-1.5 text-xs leading-relaxed text-bone-300">{f.answer}</p>
+              {/* mt-4 + leading-snug clear the badge row. The global heading rule
+                  sets line-height 1.2, which pulled the question up against the
+                  pills whenever it wrapped to a second line. */}
+              <h3 className="mt-4 text-sm leading-snug font-semibold text-bone-50">{f.question}</h3>
+              <p className="mt-2 text-xs leading-relaxed text-bone-300">{f.answer}</p>
             </div>
 
             <div className="flex items-center gap-1 shrink-0">

@@ -59,7 +59,8 @@ export async function generateDocument(type: DocType, id: string, actorId?: stri
   }
 
   if (type === "handover") {
-    const { data: project } = await db.from("projects").select("*, clients(*)").eq("id", id).single();
+    const { data: project } = await db
+      .from("projects").select("*, clients(*), deals(total, currency)").eq("id", id).single();
     if (!project) throw new Error("Project not found");
 
     // Handover transfers ownership of the work, so it must not be produced
@@ -67,14 +68,33 @@ export async function generateDocument(type: DocType, id: string, actorId?: stri
     const { data: projectInvoices } = await db
       .from("invoices").select("total, amount_paid, currency").eq("project_id", id);
 
-    if (!projectInvoices?.length) {
-      throw new Error("Raise and settle an invoice for this project before handing it over.");
-    }
-    const owing = sumByCurrency(
-      projectInvoices,
+    const paidTotals = sumByCurrency(
+      projectInvoices ?? [],
       (i) => i.currency,
-      (i) => Number(i.total) - Number(i.amount_paid)
-    ).filter((t) => t.total > 0.009);
+      (i) => Number(i.amount_paid)
+    );
+
+    const deal = (project.deals as any) ?? null;
+    let owing: Array<{ currency: string; total: number }>;
+
+    if (deal && Number(deal.total) > 0) {
+      // Measure against the agreement. Invoice-vs-invoice would clear the gate
+      // as soon as the advance was paid, because the later stages of a payment
+      // schedule may not have been issued yet.
+      const currency = String(deal.currency).toUpperCase();
+      const paid = paidTotals.find((p) => p.currency === currency)?.total ?? 0;
+      owing = [{ currency, total: Number(deal.total) - paid }].filter((t) => t.total > 0.009);
+    } else {
+      // No deal behind this project — the invoices are the only record of price.
+      if (!projectInvoices?.length) {
+        throw new Error("Raise and settle an invoice for this project before handing it over.");
+      }
+      owing = sumByCurrency(
+        projectInvoices,
+        (i) => i.currency,
+        (i) => Number(i.total) - Number(i.amount_paid)
+      ).filter((t) => t.total > 0.009);
+    }
 
     if (owing.length) {
       throw new Error(

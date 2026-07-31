@@ -1,42 +1,15 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { cookies } from "next/headers";
 import { createClient, createAdminClient } from "@/lib/supabase/server";
-import { asUuid, getSiteBaseUrl } from "@/lib/utils";
+import { requireStaff, requireOwnerAdmin } from "@/lib/auth/guards";
+import { asUuid, getSiteBaseUrl, money } from "@/lib/utils";
 
 const ADMIN = process.env.ADMIN_PATH || "nx-control";
 
-async function requireStaff() {
-  try {
-    const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-
-    if (user) {
-      const { data: profile } = await supabase.from("profiles")
-        .select("id, role, is_active").eq("id", user.id).maybeSingle();
-      if (profile?.is_active && ["owner", "admin", "staff"].includes(profile.role)) {
-        return profile;
-      }
-      return { id: user.id, role: profile?.role || "owner", is_active: true };
-    }
-
-    const cookieStore = await cookies();
-    const adminLogin = cookieStore.get("nx_admin_login_at")?.value;
-    if (adminLogin || process.env.NODE_ENV === "development") {
-      return { id: "admin-session", role: "owner", is_active: true };
-    }
-
-    return { id: "admin-fallback", role: "owner", is_active: true };
-  } catch (err) {
-    console.error("requireStaff notice:", err);
-    return { id: "admin-fallback", role: "owner", is_active: true };
-  }
-}
-
 // ---------------- TESTIMONIALS ----------------
 export async function saveTestimonial(id: string | null, data: Record<string, unknown>) {
-  await requireStaff();
+  await requireOwnerAdmin();
   const db = createAdminClient();
   const cleanId = id && String(id).trim() !== "" ? String(id) : null;
 
@@ -55,7 +28,7 @@ export async function saveTestimonial(id: string | null, data: Record<string, un
 }
 
 export async function toggleTestimonialPublished(id: string, is_published: boolean) {
-  await requireStaff();
+  await requireOwnerAdmin();
   const db = createAdminClient();
   const res = await db.from("testimonials").update({ is_published }).eq("id", id).select().single();
   if (res.error) throw res.error;
@@ -66,7 +39,7 @@ export async function toggleTestimonialPublished(id: string, is_published: boole
 }
 
 export async function deleteTestimonial(id: string) {
-  await requireStaff();
+  await requireOwnerAdmin();
   const db = createAdminClient();
   await db.from("testimonials").delete().eq("id", id);
   revalidatePath(`/${ADMIN}/testimonials`);
@@ -75,7 +48,7 @@ export async function deleteTestimonial(id: string) {
 }
 
 export async function seedDefaultTestimonials() {
-  await requireStaff();
+  await requireOwnerAdmin();
   const db = createAdminClient();
   const SAMPLE_QUOTES = [
     { client_name: "Ayesha Khan", role: "Founder", company: "Lumen Studio", rating: 5, is_published: true, sort_order: 1, quote: "They shipped in four weeks what two previous agencies couldn't in six months. The staging link from day one meant no surprises." },
@@ -102,7 +75,7 @@ export async function seedDefaultTestimonials() {
 
 // ---------------- CASE STUDIES / WORK ----------------
 export async function saveCaseStudy(id: string | null, data: Record<string, unknown>) {
-  await requireStaff();
+  await requireOwnerAdmin();
   const db = createAdminClient();
   const cleanId = id && String(id).trim() !== "" ? String(id) : null;
   const { id: _, ...payload } = data;
@@ -119,7 +92,7 @@ export async function saveCaseStudy(id: string | null, data: Record<string, unkn
 }
 
 export async function toggleCaseStudyPublished(id: string, is_published: boolean) {
-  await requireStaff();
+  await requireOwnerAdmin();
   const db = createAdminClient();
   const res = await db.from("case_studies").update({ is_published }).eq("id", id).select().single();
   if (res.error) throw res.error;
@@ -130,7 +103,7 @@ export async function toggleCaseStudyPublished(id: string, is_published: boolean
 }
 
 export async function deleteCaseStudy(id: string) {
-  await requireStaff();
+  await requireOwnerAdmin();
   const db = createAdminClient();
   await db.from("case_studies").delete().eq("id", id);
   revalidatePath(`/${ADMIN}/work`);
@@ -139,7 +112,7 @@ export async function deleteCaseStudy(id: string) {
 }
 
 export async function seedDefaultCaseStudies() {
-  await requireStaff();
+  await requireOwnerAdmin();
   const db = createAdminClient();
   const DEFAULT_STUDIES = [
     {
@@ -197,7 +170,7 @@ export async function seedDefaultCaseStudies() {
 
 // ---------------- SERVICES ----------------
 export async function saveService(id: string | null, data: Record<string, unknown>) {
-  await requireStaff();
+  await requireOwnerAdmin();
   const db = createAdminClient();
   const res = id
     ? await db.from("services").update(data).eq("id", id).select().single()
@@ -211,7 +184,7 @@ export async function saveService(id: string | null, data: Record<string, unknow
 }
 
 export async function toggleServiceActive(id: string, is_active: boolean) {
-  await requireStaff();
+  await requireOwnerAdmin();
   const db = createAdminClient();
   const res = await db.from("services").update({ is_active }).eq("id", id).select().single();
   if (res.error) throw res.error;
@@ -223,7 +196,7 @@ export async function toggleServiceActive(id: string, is_active: boolean) {
 }
 
 export async function deleteService(id: string) {
-  await requireStaff();
+  await requireOwnerAdmin();
   const db = createAdminClient();
   await db.from("services").delete().eq("id", id);
   revalidatePath(`/${ADMIN}/services`);
@@ -233,7 +206,7 @@ export async function deleteService(id: string) {
 }
 
 export async function seedDefaultServices() {
-  await requireStaff();
+  await requireOwnerAdmin();
   const { demoServices } = await import("@/lib/agencyData");
   const db = createAdminClient();
 
@@ -315,7 +288,7 @@ export async function seedDefaultServices() {
 
 // ---------------- BLOG POSTS ----------------
 export async function savePost(id: string | null, data: Record<string, unknown>) {
-  await requireStaff();
+  await requireOwnerAdmin();
   const db = createAdminClient();
   const res = id
     ? await db.from("posts").update(data).eq("id", id).select().single()
@@ -327,7 +300,7 @@ export async function savePost(id: string | null, data: Record<string, unknown>)
 }
 
 export async function deletePost(id: string) {
-  await requireStaff();
+  await requireOwnerAdmin();
   const db = createAdminClient();
   await db.from("posts").delete().eq("id", id);
   revalidatePath(`/${ADMIN}/blog`);
@@ -336,7 +309,7 @@ export async function deletePost(id: string) {
 
 // ---------------- FAQS ----------------
 export async function saveFaq(id: string | null, data: Record<string, unknown>) {
-  await requireStaff();
+  await requireOwnerAdmin();
   const db = createAdminClient();
   const cleanId = id && String(id).trim() !== "" ? String(id) : null;
   const { id: _, ...payload } = data;
@@ -353,7 +326,7 @@ export async function saveFaq(id: string | null, data: Record<string, unknown>) 
 }
 
 export async function toggleFaqActive(id: string, is_active: boolean) {
-  await requireStaff();
+  await requireOwnerAdmin();
   const db = createAdminClient();
   const res = await db.from("faqs").update({ is_active }).eq("id", id).select().single();
   if (res.error) throw res.error;
@@ -364,7 +337,7 @@ export async function toggleFaqActive(id: string, is_active: boolean) {
 }
 
 export async function deleteFaq(id: string) {
-  await requireStaff();
+  await requireOwnerAdmin();
   const db = createAdminClient();
   await db.from("faqs").delete().eq("id", id);
   revalidatePath(`/${ADMIN}/faqs`);
@@ -373,7 +346,7 @@ export async function deleteFaq(id: string) {
 }
 
 export async function seedDefaultFaqs() {
-  await requireStaff();
+  await requireOwnerAdmin();
   const db = createAdminClient();
   const DEFAULT_FAQS = [
     { question: "How do we start?", category: "General", sort_order: 1, is_active: true, answer: "Send us a message with what you need. We reply within one working day, get on a short call, then send a written proposal with scope, price and timeline. Once you approve it, we lock the deal and send a signed agreement PDF by email." },
@@ -400,6 +373,7 @@ export async function seedDefaultFaqs() {
 
 // ---------------- EMPLOYEES & JOB TITLES ----------------
 import { sendEmail, adminNotifyAddress, notifyEmailChange } from "@/lib/email/send";
+import { buildStaffOfferPdf } from "@/lib/pdf/staffDocs";
 import { recomputeProjectProgress } from "@/lib/actions";
 
 /** Where staff sign in. Employees use the same control panel as admins, with a reduced menu. */
@@ -415,7 +389,7 @@ export async function staffLoginUrl() {
  * it later. Mirrors `ensureClientPortalAccount` for clients.
  */
 export async function ensureEmployeeAccount(employeeId: string, customPassword?: string) {
-  await requireStaff();
+  await requireOwnerAdmin();
   const db = createAdminClient();
 
   const { data: employee } = await db.from("employees").select("*").eq("id", employeeId).single();
@@ -472,30 +446,65 @@ export async function ensureEmployeeAccount(employeeId: string, customPassword?:
   return { userId, password, email: employee.email as string };
 }
 
-/** Sends an employee their staff-panel credentials. Returns whether it actually sent. */
+/**
+ * The employment terms an employee row carries, formatted for email copy.
+ * Shared by the joining email and the internal new-hire notice so the two can
+ * never quote different figures for the same person.
+ */
+function employmentVars(employee: any) {
+  const salaryAmount = Number(employee?.salary_amount ?? 0);
+  const salaryCurrency = String(employee?.salary_currency || "USD");
+  return {
+    employee_name: String(employee?.full_name ?? "Team Member"),
+    employee_email: String(employee?.email ?? "—"),
+    job_title: String(employee?.job_title ?? "Specialist"),
+    seniority: String(employee?.seniority ?? "Senior"),
+    employment_type: String(employee?.employment_type ?? "Full-Time"),
+    // `salary_amount` and `salary_currency` have been stored since day one and
+    // used by nothing — an offer with no money in it is not an offer.
+    salary: salaryAmount > 0 ? money(salaryAmount, salaryCurrency) : "As agreed separately",
+    city: String(employee?.city ?? "Remote"),
+    country: String(employee?.country ?? "Global"),
+    joining_date: String(employee?.joining_date ?? new Date().toISOString().slice(0, 10)),
+  };
+}
+
+/**
+ * Sends an employee their staff-panel credentials AND their offer letter.
+ *
+ * The letter is rendered fresh from the employee row each time, so re-sending
+ * after a salary or title change reissues the correct terms. Returns whether it
+ * actually sent — the caller must not claim success on its behalf.
+ */
 export async function sendEmployeeCredentials(
   employeeId: string,
   language: "en" | "ar" | "fr" | "de" | "es" = "en"
 ) {
-  const staff = await requireStaff();
+  const staff = await requireOwnerAdmin();
   const db = createAdminClient();
 
   const account = await ensureEmployeeAccount(employeeId);
   const { data: employee } = await db.from("employees").select("*").eq("id", employeeId).single();
   const loginUrl = await staffLoginUrl();
 
+  // A failed PDF render must not cost the employee their login email, so the
+  // attachment is best-effort and its absence is logged rather than thrown.
+  let offer: { buffer: Buffer; filename: string } | null = null;
+  try {
+    const built = await buildStaffOfferPdf(employeeId);
+    offer = { buffer: built.buffer, filename: built.filename };
+  } catch (e) {
+    console.error("Could not build the offer letter for", employeeId, e);
+  }
+
   const result = await sendEmail({
     templateKey: "employee_joining",
     language,
     to: account.email,
-    actorId: staff.id,
+    actorId: staff.userId,
+    rawAttachments: offer ? [{ filename: offer.filename, content: offer.buffer }] : undefined,
     vars: {
-      employee_name: String(employee?.full_name ?? "Team Member"),
-      job_title: String(employee?.job_title ?? "Specialist"),
-      seniority: String(employee?.seniority ?? "Senior"),
-      city: String(employee?.city ?? "Remote"),
-      country: String(employee?.country ?? "Global"),
-      joining_date: String(employee?.joining_date ?? new Date().toISOString().slice(0, 10)),
+      ...employmentVars(employee),
       staff_email: account.email,
       staff_password: account.password,
       staff_login_url: loginUrl,
@@ -504,7 +513,12 @@ export async function sendEmployeeCredentials(
 
   revalidatePath(`/${ADMIN}/employees`);
   revalidatePath(`/${ADMIN}/employees/${employeeId}`);
-  return { ok: result.ok, error: result.ok ? undefined : result.error, password: account.password };
+  return {
+    ok: result.ok,
+    error: result.ok ? undefined : result.error,
+    password: account.password,
+    offerAttached: !!offer,
+  };
 }
 
 export async function saveEmployee(
@@ -512,7 +526,7 @@ export async function saveEmployee(
   data: Record<string, unknown>,
   language: "en" | "ar" | "fr" | "de" | "es" = "en"
 ) {
-  const staff = await requireStaff();
+  const staff = await requireOwnerAdmin();
   const db = createAdminClient();
 
   // Capture the address before the update so an email change can be detected
@@ -534,8 +548,9 @@ export async function saveEmployee(
   let emailError: string | undefined;
 
   if (!id && res.data?.email) {
-    // New hire: provision the login and send credentials. Awaited, because a
-    // detached promise gets killed when the serverless function returns.
+    // New hire: provision the login and send credentials + offer letter.
+    // Awaited, because a detached promise gets killed when the serverless
+    // function returns.
     try {
       const sent = await sendEmployeeCredentials(res.data.id, language);
       emailed = sent.ok;
@@ -544,6 +559,27 @@ export async function saveEmployee(
       emailed = false;
       emailError = e instanceof Error ? e.message : "Could not send the welcome email.";
       console.error("Employee onboarding failed:", e);
+    }
+
+    // Tell the agency someone was hired. Creating a *client* has always sent an
+    // internal notice; creating an employee sent nothing, so a hire made by one
+    // admin was invisible to everyone else. Best-effort: a failed notice must
+    // not fail the hire.
+    try {
+      await sendEmail({
+        templateKey: "admin_employee_created_notice",
+        to: await adminNotifyAddress(),
+        actorId: staff.userId,
+        vars: {
+          ...employmentVars(res.data),
+          email_status: emailed
+            ? "Sent successfully."
+            : `FAILED — ${emailError ?? "unknown error"}. Resend from their profile.`,
+          employee_url: `${getSiteBaseUrl()}/${ADMIN}/employees/${res.data.id}`,
+        },
+      });
+    } catch (e) {
+      console.error("Could not send the new-hire notice:", e);
     }
   } else if (id && previous) {
     const newEmail = String(res.data?.email ?? "");
@@ -566,7 +602,7 @@ export async function saveEmployee(
         oldEmail: previous.email,
         newEmail,
         loginUrl: await staffLoginUrl(),
-        actorId: staff.id,
+        actorId: staff.userId,
       });
       emailed = notice.ok;
       emailError = notice.error;
@@ -579,7 +615,7 @@ export async function saveEmployee(
 }
 
 export async function deleteEmployee(id: string) {
-  await requireStaff();
+  await requireOwnerAdmin();
   const db = createAdminClient();
 
   // Remove the login too, otherwise a deleted employee keeps panel access.
@@ -597,7 +633,7 @@ export async function deleteEmployee(id: string) {
 }
 
 export async function saveJobTitle(id: string | null, data: Record<string, unknown>) {
-  await requireStaff();
+  await requireOwnerAdmin();
   const db = createAdminClient();
   const res = id
     ? await db.from("employee_job_titles").update(data).eq("id", id).select().single()
@@ -608,7 +644,7 @@ export async function saveJobTitle(id: string | null, data: Record<string, unkno
 }
 
 export async function deleteJobTitle(id: string) {
-  await requireStaff();
+  await requireOwnerAdmin();
   const db = createAdminClient();
   await db.from("employee_job_titles").delete().eq("id", id);
   revalidatePath(`/${ADMIN}/employees`);
@@ -616,21 +652,25 @@ export async function deleteJobTitle(id: string) {
 
 export async function assignEmployeeToClient(clientId: string, employeeId: string, projectId?: string) {
   try {
-    await requireStaff();
+    const me = await requireOwnerAdmin();
     const db = createAdminClient();
 
     if (!clientId || !employeeId) {
       return { success: false, error: "Invalid client or employee ID." };
     }
 
-    // Verify client exists in database
-    const { data: clientObj } = await db.from("clients").select("id, name").eq("id", clientId).maybeSingle();
+    // Verify client exists in database. The email addresses are selected here
+    // because both sides get told about the assignment — previously this
+    // fetched only ids and names, and nobody was notified at all.
+    const { data: clientObj } = await db.from("clients")
+      .select("id, name, email, company").eq("id", clientId).maybeSingle();
     if (!clientObj) {
       return { success: false, error: "Selected client does not exist in the database." };
     }
 
     // Verify employee exists in database
-    const { data: empObj } = await db.from("employees").select("id, full_name").eq("id", employeeId).maybeSingle();
+    const { data: empObj } = await db.from("employees")
+      .select("id, full_name, email, job_title, seniority, skills").eq("id", employeeId).maybeSingle();
     if (!empObj) {
       return { success: false, error: "Selected employee does not exist in the database." };
     }
@@ -661,6 +701,44 @@ export async function assignEmployeeToClient(clientId: string, employeeId: strin
       return { success: false, error: error.message };
     }
 
+    // Tell both sides. Awaited (a detached promise dies with the serverless
+    // function) and reported back, so the toast states what actually happened
+    // rather than assuming.
+    const staffEmailed = empObj.email
+      ? (await sendEmail({
+          templateKey: "employee_assigned_to_client",
+          to: empObj.email,
+          clientId,
+          actorId: me.userId,
+          vars: {
+            employee_name: empObj.full_name,
+            client_name: clientObj.name,
+            client_company: clientObj.company || clientObj.name,
+            job_title: empObj.job_title ?? "Specialist",
+            client_url: `${getSiteBaseUrl()}/${ADMIN}/clients/${clientId}`,
+            sender_name: me.fullName ?? "Nex Desk",
+          },
+        })).ok
+      : false;
+
+    const clientEmailed = clientObj.email
+      ? (await sendEmail({
+          templateKey: "client_team_assigned",
+          to: clientObj.email,
+          clientId,
+          actorId: me.userId,
+          vars: {
+            client_name: clientObj.name,
+            employee_name: empObj.full_name,
+            job_title: empObj.job_title ?? "Specialist",
+            seniority: empObj.seniority ?? "Senior",
+            skills: (empObj.skills as string[] | null)?.join(", ") || "Client delivery",
+            portal_url: `${getSiteBaseUrl()}/portal`,
+            sender_name: me.fullName ?? "Nex Desk",
+          },
+        })).ok
+      : false;
+
     try {
       if (clientId) revalidatePath(`/${ADMIN}/clients/${clientId}`);
       if (employeeId) revalidatePath(`/${ADMIN}/employees/${employeeId}`);
@@ -669,7 +747,18 @@ export async function assignEmployeeToClient(clientId: string, employeeId: strin
       console.error("revalidatePath notice:", rErr);
     }
 
-    return { success: true };
+    return {
+      success: true,
+      emailed: { staff: staffEmailed, client: clientEmailed },
+      message:
+        staffEmailed && clientEmailed
+          ? `${empObj.full_name} assigned. Both they and ${clientObj.name} have been emailed.`
+          : staffEmailed
+            ? `${empObj.full_name} assigned and emailed. The client was not notified.`
+            : clientEmailed
+              ? `${empObj.full_name} assigned. ${clientObj.name} was emailed, but ${empObj.full_name} was not.`
+              : `${empObj.full_name} assigned, but no notification emails went out.`,
+    };
   } catch (err: any) {
     console.error("assignEmployeeToClient top error:", err);
     return { success: false, error: err.message || "Failed to assign employee to client." };
@@ -678,7 +767,7 @@ export async function assignEmployeeToClient(clientId: string, employeeId: strin
 
 export async function removeEmployeeFromClient(assignmentId: string, clientId?: string, employeeId?: string) {
   try {
-    await requireStaff();
+    await requireOwnerAdmin();
     const db = createAdminClient();
     const { error } = await db.from("client_employee_assignments").delete().eq("id", assignmentId);
     if (error) return { success: false, error: error.message };
@@ -700,7 +789,7 @@ export async function removeEmployeeFromClient(assignmentId: string, clientId?: 
 
 export async function updateAssignedEmployee(assignmentId: string, newEmployeeId: string, clientId?: string) {
   try {
-    await requireStaff();
+    await requireOwnerAdmin();
     const db = createAdminClient();
     const { error } = await db.from("client_employee_assignments").update({ employee_id: newEmployeeId }).eq("id", assignmentId);
     if (error) return { success: false, error: error.message };
@@ -744,12 +833,8 @@ export async function uploadClientSignedDocument(data: {
     (clientObj.profile_id === user.id ||
       clientObj.email?.toLowerCase() === user.email?.toLowerCase());
 
-  if (!ownsRecord) {
-    const staff = await requireStaff();
-    if (!["owner", "admin", "staff"].includes(staff.role)) {
-      throw new Error("You are not allowed to upload documents for this client.");
-    }
-  }
+  // Either the client owns this record, or a staff member is filing it for them.
+  if (!ownsRecord) await requireStaff();
 
   const { data: res, error } = await db.from("documents").insert({
     // `type` is a NOT NULL doc_type enum — omitting it was what made every
@@ -795,6 +880,7 @@ export async function submitDailyWorkLog(data: {
   /** Percentage points to add to the project when it has no milestones. */
   progress_delta?: number;
 }) {
+  // Staff-accessible: logging your own work is the whole point of this screen.
   await requireStaff();
   const db = createAdminClient();
 
@@ -860,6 +946,7 @@ export async function deleteDailyWorkLog(id: string) {
 }
 
 export async function uploadPublicAsset(formData: FormData): Promise<{ url?: string; error?: string }> {
+  // Staff upload proof screenshots against their work logs.
   await requireStaff();
   const file = formData.get("file") as File;
   const folder = (formData.get("folder") as string) || "uploads";

@@ -91,6 +91,12 @@ export type SendArgs = {
   vars: Record<string, string | number>;
   /** Attach a freshly generated PDF of this type for this record id. */
   attach?: { type: DocType; id: string };
+  /**
+   * Attach a buffer the caller already rendered. For documents that have no
+   * row in `documents` — the staff offer letter, which belongs to an employee
+   * rather than a client and so does not fit that table.
+   */
+  rawAttachments?: { filename: string; content: Buffer }[];
   clientId?: string;
   projectId?: string;
   cc?: string[];
@@ -141,17 +147,19 @@ export async function sendEmail(args: SendArgs) {
   const subject = fillTemplate(subjectRaw, vars);
   const body = fillTemplate(bodyRaw, vars);
 
-  let attachments: { filename: string; content: Buffer }[] | undefined;
+  const attachments: { filename: string; content: Buffer }[] = [];
   let documentId: string | null = null;
 
   if (args.attach) {
     const doc = await generateDocument(args.attach.type, args.attach.id, args.actorId);
     documentId = doc.document?.id ?? null;
-    attachments = [{
+    attachments.push({
       filename: `${doc.title.replace(/[^\w\s-]/g, "").slice(0, 60)}.pdf`,
       content: doc.buffer,
-    }];
+    });
   }
+
+  if (args.rawAttachments?.length) attachments.push(...args.rawAttachments);
 
   const log = {
     template_key: args.templateKey,
@@ -176,10 +184,9 @@ export async function sendEmail(args: SendArgs) {
       subject,
       html: renderHtml(subject, body, lang),
       text: body,
-      attachments: attachments?.map((a) => ({
-        filename: a.filename,
-        content: a.content,
-      })),
+      attachments: attachments.length
+        ? attachments.map((a) => ({ filename: a.filename, content: a.content }))
+        : undefined,
     });
 
     await db.from("email_log").insert({ ...log, status: "sent", provider_id: info.messageId });

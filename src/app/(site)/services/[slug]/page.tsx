@@ -7,7 +7,8 @@ import { demoServices } from "@/lib/agencyData";
 import ServicePricingTiers from "@/components/site/ServicePricingTiers";
 import ServiceProcessRoadmap from "@/components/site/ServiceProcessRoadmap";
 import ServiceFaqAccordion from "@/components/site/ServiceFaqAccordion";
-import { Check, ShieldCheck, Clock, Award, ArrowRight, ArrowLeft, Layers, Sparkles } from "lucide-react";
+import FeatureList from "@/components/site/FeatureList";
+import { ShieldCheck, Clock, Award, ArrowRight, ArrowLeft, Layers, Sparkles } from "lucide-react";
 
 export const revalidate = 300;
 
@@ -151,26 +152,21 @@ export default async function ServiceDetail({ params }: { params: Promise<{ slug
             </p>
 
             {/* Feature Checklist */}
-            <div className="grid gap-3 sm:grid-cols-2 pt-3">
-              {(service.features ?? [
-                "Next.js & React Modern Architecture",
-                "Sub-second Load Times (<1s)",
-                "TailwindCSS Design Tokens & Theme",
-                "Supabase Database & Authentication",
-                "100% Code & Asset Copyright",
-                "Complimentary Warranty & Maintenance",
-              ]).map((feature: string) => (
-                <div
-                  key={feature}
-                  className="flex items-start gap-3 card p-4 border-ink-600/80 bg-ink-900/60 hover:border-lime-400/30 transition-colors"
-                >
-                  <span className="h-5 w-5 rounded-full bg-lime-400/10 text-lime-400 border border-lime-400/30 flex items-center justify-center shrink-0 mt-0.5">
-                    <Check size={12} />
-                  </span>
-                  <span className="text-xs font-medium text-bone-100 leading-snug">{feature}</span>
-                </div>
-              ))}
-            </div>
+            <FeatureList
+              variant="cards"
+              size="xs"
+              className="pt-3"
+              features={
+                service.features ?? [
+                  "Next.js & React Modern Architecture",
+                  "Sub-second Load Times (<1s)",
+                  "TailwindCSS Design Tokens & Theme",
+                  "Supabase Database & Authentication",
+                  "100% Code & Asset Copyright",
+                  "Complimentary Warranty & Maintenance",
+                ]
+              }
+            />
           </div>
 
           {/* Side Highlight Card */}
@@ -189,26 +185,15 @@ export default async function ServiceDetail({ params }: { params: Promise<{ slug
               We operate on fixed-fee written quotes. No surprise hourly billing, no scope inflation. You get a dedicated team and clear weekly milestones.
             </p>
 
-            <ul className="space-y-2.5 text-xs text-bone-200 pt-2">
-              <li className="flex items-center gap-2.5">
-                <span className="h-4 w-4 rounded-full bg-lime-400/10 text-lime-400 border border-lime-400/30 flex items-center justify-center shrink-0">
-                  <Check size={11} />
-                </span>
-                <span>Direct senior engineer & designer communication</span>
-              </li>
-              <li className="flex items-center gap-2.5">
-                <span className="h-4 w-4 rounded-full bg-lime-400/10 text-lime-400 border border-lime-400/30 flex items-center justify-center shrink-0">
-                  <Check size={11} />
-                </span>
-                <span>Weekly staging demo links & progress reports</span>
-              </li>
-              <li className="flex items-center gap-2.5">
-                <span className="h-4 w-4 rounded-full bg-lime-400/10 text-lime-400 border border-lime-400/30 flex items-center justify-center shrink-0">
-                  <Check size={11} />
-                </span>
-                <span>Post-launch maintenance & bug warranty</span>
-              </li>
-            </ul>
+            <FeatureList
+              size="xs"
+              className="pt-2"
+              features={[
+                "Direct senior engineer & designer communication",
+                "Weekly staging demo links & progress reports",
+                "Post-launch maintenance & bug warranty",
+              ]}
+            />
 
             <Link
               href={`/contact?service=${encodeURIComponent(service.slug)}`}

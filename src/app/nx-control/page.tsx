@@ -1,8 +1,11 @@
 import Link from "next/link";
+import { cookies } from "next/headers";
 import { createAdminClient } from "@/lib/supabase/server";
+import { getCurrentStaff } from "@/lib/auth/staff";
 import { PageHead, Stat, Badge, Table } from "@/components/admin/ui";
 import { money } from "@/lib/utils";
 import DashboardCurrencyTabs from "@/components/admin/DashboardCurrencyTabs";
+import StaffDashboard from "@/components/admin/StaffDashboard";
 import { getLiveExchangeRates, convertCurrency } from "@/lib/currency";
 
 const BASE = `/${process.env.ADMIN_PATH || "nx-control"}`;
@@ -14,9 +17,22 @@ export default async function Dashboard({
 }: {
   searchParams: Promise<{ curr?: string; mode?: string }>;
 }) {
+  const me = await getCurrentStaff();
+  if (!me) return null; // middleware redirects; nothing to render
+
+  // Everything below this line is agency-wide money and pipeline data. Employees
+  // get their own scoped, money-free dashboard instead.
+  if (!me.isPrivileged) return <StaffDashboard me={me} />;
+
+  // The URL wins so a shared link still works; otherwise fall back to what the
+  // tabs last remembered. Without the cookie, every link back to the dashboard
+  // targets the bare path and silently reset the view to PKR / Strict.
   const { curr, mode: rawMode } = await searchParams;
-  const filterCurr = curr?.toUpperCase() || null;
-  const mode = rawMode === "converted" ? "converted" : "strict";
+  const jar = await cookies();
+
+  const filterCurr = (curr || jar.get("nx_dash_curr")?.value || "").toUpperCase() || null;
+  const modeSource = rawMode || jar.get("nx_dash_mode")?.value;
+  const mode = modeSource === "converted" ? "converted" : "strict";
 
   const db = createAdminClient();
   const monthStart = new Date(new Date().setDate(1)).toISOString().slice(0, 10);
@@ -27,7 +43,10 @@ export default async function Dashboard({
       .in("status", ["sent", "partial", "overdue"]).order("due_date"),
     db.from("projects").select("id, name, status, progress, deadline, clients(name)")
       .not("status", "in", "(completed,cancelled)").order("deadline"),
+    // Spam is excluded outright — it must not inflate the new-lead count or
+    // push a real enquiry off the "Latest leads" list.
     db.from("leads").select("id, name, email, company, status, created_at, service_slugs")
+      .neq("status", "spam")
       .order("created_at", { ascending: false }).limit(6),
     db.from("deals").select("total, currency, status").eq("status", "locked"),
     getLiveExchangeRates(),
@@ -94,7 +113,7 @@ export default async function Dashboard({
       />
 
       {/* Currency & Mode Switcher Tabs */}
-      <DashboardCurrencyTabs />
+      <DashboardCurrencyTabs currency={filterCurr ?? "ALL"} mode={mode} />
 
       <div className="grid gap-4 grid-cols-2 sm:grid-cols-3 lg:grid-cols-5">
         <Stat

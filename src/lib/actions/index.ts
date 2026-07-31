@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { createClient, createAdminClient } from "@/lib/supabase/server";
+import { requireStaff, requireOwnerAdmin } from "@/lib/auth/guards";
 import { sendEmail, adminNotifyAddress, notifyEmailChange } from "@/lib/email/send";
 import type { DocType } from "@/lib/pdf/generate";
 import { getLiveExchangeRates, convertCurrency, DEFAULT_RATES } from "@/lib/currency";
@@ -13,36 +14,20 @@ import { getSiteBaseUrl } from "@/lib/utils";
 
 const ADMIN = process.env.ADMIN_PATH || "nx-control";
 
-async function requireStaff() {
-  try {
-    const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-
-    if (user) {
-      const { data: profile } = await supabase.from("profiles")
-        .select("id, role, full_name, is_active").eq("id", user.id).maybeSingle();
-      if (profile?.is_active && ["owner", "admin", "staff"].includes(profile.role)) {
-        return profile;
-      }
-      return { id: user.id, role: profile?.role || "owner", full_name: profile?.full_name || user.email || "Admin", is_active: true };
-    }
-
-    const cookieStore = await cookies();
-    const adminLogin = cookieStore.get("nx_admin_login_at")?.value;
-    if (adminLogin || process.env.NODE_ENV === "development") {
-      return { id: "admin-session", role: "owner", full_name: "Admin", is_active: true };
-    }
-
-    return { id: "admin-fallback", role: "owner", full_name: "Admin", is_active: true };
-  } catch (err) {
-    console.error("requireStaff notice:", err);
-    return { id: "admin-fallback", role: "owner", full_name: "Admin", is_active: true };
-  }
-}
-
+/**
+ * Actor identity for audit rows.
+ * `audit_log.actor_id` is a FK to profiles, so a login without a profile row
+ * must record NULL rather than a dangling id.
+ */
 async function audit(actorId: string, action: string, entity: string, entityId?: string, meta?: any) {
-  await createAdminClient().from("audit_log")
-    .insert({ actor_id: actorId, action, entity, entity_id: entityId, meta: meta ?? {} });
+  const db = createAdminClient();
+  const { data: actor } = await db
+    .from("profiles").select("id").eq("id", actorId).maybeSingle();
+
+  await db.from("audit_log").insert({
+    actor_id: actor?.id ?? null,
+    action, entity, entity_id: entityId, meta: meta ?? {},
+  });
 }
 
 
@@ -85,11 +70,35 @@ export async function signOut() {
 
 
 export async function updateLead(id: string, patch: Record<string, unknown>) {
-  const me = await requireStaff();
+  const me = await requireOwnerAdmin();
   const db = createAdminClient();
   await db.from("leads").update(patch).eq("id", id);
-  await audit(me.id, "lead.update", "leads", id, patch);
+  await audit(me.userId, "lead.update", "leads", id, patch);
   revalidatePath(`/${ADMIN}/leads`);
+}
+
+/**
+ * Deletes a lead outright. For website spam, which there is no point keeping.
+ *
+ * A real enquiry that went nowhere should be marked `lost`, and anything
+ * questionable `spam` — both keep the record. This is the last resort.
+ */
+export async function deleteLead(id: string) {
+  const me = await requireOwnerAdmin();
+  const db = createAdminClient();
+
+  // Audit before deleting, so the log still says who this was.
+  const { data: lead } = await db
+    .from("leads").select("name, email, status").eq("id", id).maybeSingle();
+
+  const { error } = await db.from("leads").delete().eq("id", id);
+  if (error) throw new Error(error.message);
+
+  await audit(me.userId, "lead.delete", "leads", id, {
+    name: lead?.name ?? null, email: lead?.email ?? null, status: lead?.status ?? null,
+  });
+  revalidatePath(`/${ADMIN}/leads`);
+  return { ok: true as const };
 }
 
 
@@ -121,7 +130,7 @@ async function findClientForLead(lead: { id: string; email?: string | null }) {
  * second visit to an already-won lead) can never create a duplicate.
  */
 export async function convertLeadToClient(leadId: string) {
-  const me = await requireStaff();
+  const me = await requireOwnerAdmin();
   const db = createAdminClient();
 
   const { data: lead, error: leadErr } = await db
@@ -163,7 +172,7 @@ export async function convertLeadToClient(leadId: string) {
     console.error("Portal provisioning failed on lead conversion:", e);
   }
 
-  await audit(me.id, "lead.convert", "clients", client.id);
+  await audit(me.userId, "lead.convert", "clients", client.id);
   revalidatePath(`/${ADMIN}/leads`);
   revalidatePath(`/${ADMIN}/clients`);
   redirect(`/${ADMIN}/clients/${client.id}`);
@@ -172,7 +181,7 @@ export async function convertLeadToClient(leadId: string) {
 
 
 export async function saveClient(id: string | null, data: Record<string, unknown>) {
-  const me = await requireStaff();
+  const me = await requireOwnerAdmin();
   const db = createAdminClient();
 
   // Snapshot the current address so an email change can be pushed through to
@@ -189,7 +198,7 @@ export async function saveClient(id: string | null, data: Record<string, unknown
     ? await db.from("clients").update(data).eq("id", id).select().single()
     : await db.from("clients").insert(data).select().single();
   if (res.error) throw res.error;
-  await audit(me.id, id ? "client.update" : "client.create", "clients", res.data.id);
+  await audit(me.userId, id ? "client.update" : "client.create", "clients", res.data.id);
 
   let credentialsEmailed: boolean | undefined;
   let emailError: string | undefined;
@@ -224,7 +233,7 @@ export async function saveClient(id: string | null, data: Record<string, unknown
         oldEmail: previous.email,
         newEmail,
         loginUrl: `${getSiteBaseUrl()}/portal/login`,
-        actorId: me.id,
+        actorId: me.userId,
       });
       credentialsEmailed = notice.ok;
       emailError = notice.ok ? undefined : notice.error;
@@ -237,7 +246,7 @@ export async function saveClient(id: string | null, data: Record<string, unknown
 }
 
 export async function deleteClient(id: string) {
-  const me = await requireStaff();
+  const me = await requireOwnerAdmin();
   const db = createAdminClient();
   const { data: client } = await db.from("clients").select("profile_id").eq("id", id).single();
   if (client?.profile_id) {
@@ -248,16 +257,16 @@ export async function deleteClient(id: string) {
     }
   }
   await db.from("clients").delete().eq("id", id);
-  await audit(me.id, "client.delete", "clients", id);
+  await audit(me.userId, "client.delete", "clients", id);
   revalidatePath(`/${ADMIN}/clients`);
   return { success: true };
 }
 
 export async function updateClientPermissions(id: string, permissions: Record<string, boolean>) {
-  const me = await requireStaff();
+  const me = await requireOwnerAdmin();
   const db = createAdminClient();
   await db.from("clients").update({ client_permissions: permissions }).eq("id", id);
-  await audit(me.id, "client.permissions", "clients", id, permissions);
+  await audit(me.userId, "client.permissions", "clients", id, permissions);
   revalidatePath(`/${ADMIN}/clients/${id}`);
 }
 
@@ -269,7 +278,7 @@ export async function getClientEmailByToken(token: string) {
 }
 
 export async function ensureClientPortalAccount(clientId: string, customPassword?: string) {
-  const me = await requireStaff();
+  const me = await requireOwnerAdmin();
   const db = createAdminClient();
   const { data: client } = await db.from("clients").select("*").eq("id", clientId).single();
   if (!client) throw new Error("Client not found");
@@ -369,14 +378,14 @@ export async function ensureClientPortalAccount(clientId: string, customPassword
     );
   }
 
-  await audit(me.id, "client.credentials", "clients", clientId, { email: client.email });
+  await audit(me.userId, "client.credentials", "clients", clientId, { email: client.email });
   revalidatePath(`/${ADMIN}/clients`);
   return { ...updated, credentialsEmailed };
 }
 
 
 export async function lockDeal(dealData: any, options: { sendEmail: boolean } = { sendEmail: true }) {
-  const me = await requireStaff();
+  const me = await requireOwnerAdmin();
   const db = createAdminClient();
 
   const { deliverables, payment_schedule, milestones, ...rest } = dealData;
@@ -386,7 +395,7 @@ export async function lockDeal(dealData: any, options: { sendEmail: boolean } = 
     deliverables, payment_schedule,
     status: "locked",
     locked_at: new Date().toISOString(),
-    locked_by: me.id,
+    locked_by: me.userId,
   }).select("*, clients(*)").single();
   if (error) throw error;
 
@@ -414,7 +423,7 @@ export async function lockDeal(dealData: any, options: { sendEmail: boolean } = 
     status: "not_started",
     start_date: deal.start_date,
     deadline: deal.deadline,
-    lead_member: me.id,
+    lead_member: me.userId,
   }).select().single();
 
 
@@ -429,23 +438,66 @@ export async function lockDeal(dealData: any, options: { sendEmail: boolean } = 
   }
 
 
-  const first = (payment_schedule ?? [])[0];
-  const advance = first?.amount ?? (Number(deal.total) * Number(deal.advance_percent ?? 50)) / 100;
-  const { data: invNo } = await db.rpc("next_invoice_no");
+  /* ---------- Invoices: one per payment stage ----------------------------
+   *
+   * Every stage of the agreed payment schedule becomes its own invoice up
+   * front. Stage 1 is issued and emailed now; later stages are created as
+   * `draft` with their agreed due dates and issued later via `sendInvoice`.
+   *
+   * Previously only stage 1 was ever invoiced, and nothing anywhere could
+   * raise the rest. That made the client portal understate the contract (a
+   * $1500 deal showed $750 "billed" and "settled in full" after the advance)
+   * and it silently unlocked the handover document, because the handover gate
+   * compares paid against *invoiced*.
+   * -------------------------------------------------------------------- */
+  const stages: any[] = (payment_schedule ?? []).length
+    ? payment_schedule
+    : [{
+        label: "Advance payment",
+        amount: (Number(deal.total) * Number(deal.advance_percent ?? 50)) / 100,
+        due_on: null,
+      }];
 
-  const { data: invoice } = await db.from("invoices").insert({
-    invoice_no: invNo,
-    client_id: deal.client_id,
-    project_id: project?.id,
-    deal_id: deal.id,
-    line_items: [{ item: `${deal.title} — ${first?.label ?? "Advance payment"}`, qty: 1, price: advance }],
-    subtotal: advance,
-    tax_percent: deal.tax_percent,
-    total: advance + (advance * Number(deal.tax_percent ?? 0)) / 100,
-    currency: deal.currency,
-    due_date: first?.due_on ?? new Date(Date.now() + 7 * 864e5).toISOString().slice(0, 10),
-    status: "sent",
-  }).select().single();
+  const createdInvoices: any[] = [];
+
+  for (let i = 0; i < stages.length; i++) {
+    const stage = stages[i];
+    const amount = Number(stage?.amount ?? 0);
+    if (!(amount > 0)) continue;
+
+    const { data: invNo } = await db.rpc("next_invoice_no");
+
+    const { data: invoice, error: invErr } = await db.from("invoices").insert({
+      invoice_no: invNo,
+      client_id: deal.client_id,
+      project_id: project?.id,
+      deal_id: deal.id,
+      stage_index: i,
+      line_items: [{ item: `${deal.title} — ${stage?.label ?? `Stage ${i + 1}`}`, qty: 1, price: amount }],
+      // `deals.total` is already tax-inclusive (DealForm adds tax before
+      // splitting the schedule), so stage amounts must NOT be taxed again.
+      // The old code re-applied tax_percent here and double-charged it.
+      subtotal: amount,
+      tax_percent: 0,
+      total: amount,
+      currency: deal.currency,
+      due_date: stage?.due_on
+        ?? (i === 0 ? new Date(Date.now() + 7 * 864e5).toISOString().slice(0, 10) : null),
+      // Only the first stage is issued now. The rest wait for their milestone.
+      status: i === 0 ? "sent" : "draft",
+    }).select().single();
+
+    if (invErr) {
+      // 23505 = this stage is already invoiced (re-lock). Not fatal.
+      if (invErr.code !== "23505") {
+        console.error(`Could not raise invoice for stage ${i}:`, invErr);
+      }
+      continue;
+    }
+    if (invoice) createdInvoices.push(invoice);
+  }
+
+  const invoice = createdInvoices.find((v) => v.stage_index === 0) ?? createdInvoices[0] ?? null;
 
 
   if (options.sendEmail) {
@@ -459,7 +511,7 @@ export async function lockDeal(dealData: any, options: { sendEmail: boolean } = 
       to: deal.clients.email,
       clientId: deal.client_id,
       projectId: project?.id,
-      actorId: me.id,
+      actorId: me.userId,
       attach: { type: "agreement", id: deal.id },
       vars: {
         client_name: deal.clients.name,
@@ -469,7 +521,7 @@ export async function lockDeal(dealData: any, options: { sendEmail: boolean } = 
         currency: deal.currency,
         deadline: deal.deadline ?? "as agreed",
         portal_url: portalUrl,
-        sender_name: me.full_name ?? "Nex Desk",
+        sender_name: me.fullName ?? "Nex Desk",
       },
     });
 
@@ -481,24 +533,26 @@ export async function lockDeal(dealData: any, options: { sendEmail: boolean } = 
         templateKey: "portal_invite",
         to: deal.clients.email,
         clientId: deal.client_id,
-        actorId: me.id,
+        actorId: me.userId,
         vars: {
           client_name: deal.clients.name,
           project_name: deal.title,
           portal_url: portalUrl,
           client_email: deal.clients.email,
           client_password: clientAcc.portal_password_preview,
-          sender_name: me.full_name ?? "Nex Desk",
+          sender_name: me.fullName ?? "Nex Desk",
         },
       });
     }
 
-    if (invoice) {
+    // Only the issued (stage 1) invoice is emailed. Drafts stay internal until
+    // their milestone is reached and you press "Send invoice".
+    if (invoice && invoice.status === "sent") {
       await sendEmail({
         templateKey: "invoice_sent",
         to: deal.clients.email,
         clientId: deal.client_id,
-        actorId: me.id,
+        actorId: me.userId,
         attach: { type: "invoice", id: invoice.id },
         vars: {
           client_name: deal.clients.name,
@@ -506,20 +560,82 @@ export async function lockDeal(dealData: any, options: { sendEmail: boolean } = 
           amount: Number(invoice.total).toLocaleString(),
           currency: invoice.currency,
           due_date: invoice.due_date,
-          sender_name: me.full_name ?? "Nex Desk",
+          sender_name: me.fullName ?? "Nex Desk",
         },
       });
     }
   }
 
-  await audit(me.id, "deal.lock", "deals", deal.id, { total: deal.total, project: project?.id });
+  await audit(me.userId, "deal.lock", "deals", deal.id, {
+    total: deal.total, project: project?.id, invoices: createdInvoices.length,
+  });
   revalidatePath(`/${ADMIN}`, "layout");
-  return { dealId: deal.id, projectId: project?.id, invoiceId: invoice?.id };
+  return {
+    dealId: deal.id,
+    projectId: project?.id,
+    invoiceId: invoice?.id,
+    invoicesCreated: createdInvoices.length,
+  };
+}
+
+/**
+ * Issues a draft invoice: flips it to `sent` and emails it to the client.
+ *
+ * Staged invoices are created at lock time as drafts so the contract value is
+ * complete from day one, but the client is only billed when the milestone is
+ * actually reached.
+ */
+export async function sendInvoice(invoiceId: string) {
+  const me = await requireOwnerAdmin();
+  const db = createAdminClient();
+
+  const { data: invoice } = await db
+    .from("invoices").select("*, clients(id, name, email)").eq("id", invoiceId).single();
+  if (!invoice) throw new Error("Invoice not found.");
+
+  if (invoice.status !== "draft") {
+    throw new Error(`Invoice ${invoice.invoice_no} has already been issued.`);
+  }
+
+  const client = invoice.clients as any;
+  if (!client?.email) throw new Error("This client has no email address on file.");
+
+  const dueDate =
+    invoice.due_date ?? new Date(Date.now() + 7 * 864e5).toISOString().slice(0, 10);
+
+  const { error: updErr } = await db.from("invoices")
+    .update({ status: "sent", issue_date: new Date().toISOString().slice(0, 10), due_date: dueDate })
+    .eq("id", invoiceId);
+  if (updErr) throw new Error(updErr.message);
+
+  const result = await sendEmail({
+    templateKey: "invoice_sent",
+    to: client.email,
+    clientId: client.id,
+    projectId: invoice.project_id ?? undefined,
+    actorId: me.userId,
+    attach: { type: "invoice", id: invoice.id },
+    vars: {
+      client_name: client.name,
+      invoice_no: invoice.invoice_no,
+      amount: Number(invoice.total).toLocaleString(),
+      currency: invoice.currency,
+      due_date: dueDate,
+      sender_name: me.fullName ?? "Nex Desk",
+    },
+  });
+
+  await audit(me.userId, "invoice.send", "invoices", invoiceId, { invoice_no: invoice.invoice_no });
+  revalidatePath(`/${ADMIN}/invoices`);
+  if (invoice.project_id) revalidatePath(`/${ADMIN}/projects/${invoice.project_id}`);
+  revalidatePath("/portal");
+
+  return { ok: result.ok, error: result.ok ? undefined : result.error, invoiceNo: invoice.invoice_no };
 }
 
 
 export async function recordPayment(data: any, notify = true) {
-  const me = await requireStaff();
+  const me = await requireOwnerAdmin();
   const db = createAdminClient();
 
   const payCurrency = data.currency || "PKR";
@@ -541,7 +657,7 @@ export async function recordPayment(data: any, notify = true) {
   const { data: payment, error } = await db.from("payments")
     .insert({
       ...data,
-      recorded_by: me.id,
+      recorded_by: me.userId,
       exchange_rate: exRate,
       realized_base_amount: realizedBase,
     })
@@ -554,14 +670,14 @@ export async function recordPayment(data: any, notify = true) {
       templateKey: "payment_received",
       to: payment.clients.email,
       clientId: payment.client_id,
-      actorId: me.id,
+      actorId: me.userId,
       attach: { type: "receipt", id: payment.id },
       vars: {
         client_name: payment.clients.name,
         amount: Number(payment.amount).toLocaleString(),
         currency: payment.currency,
         project_name: data.project_name ?? "your project",
-        sender_name: me.full_name ?? "Nex Desk",
+        sender_name: me.fullName ?? "Nex Desk",
       },
     });
 
@@ -576,7 +692,7 @@ export async function recordPayment(data: any, notify = true) {
     });
   }
 
-  await audit(me.id, "payment.record", "payments", payment.id, { amount: payment.amount });
+  await audit(me.userId, "payment.record", "payments", payment.id, { amount: payment.amount });
   revalidatePath(`/${ADMIN}`, "layout");
   return payment;
 }
@@ -584,9 +700,9 @@ export async function recordPayment(data: any, notify = true) {
 
 
 export async function updateProject(id: string, patch: Record<string, unknown>) {
-  const me = await requireStaff();
+  const me = await requireOwnerAdmin();
   await createAdminClient().from("projects").update(patch).eq("id", id);
-  await audit(me.id, "project.update", "projects", id, patch);
+  await audit(me.userId, "project.update", "projects", id, patch);
   revalidatePath(`/${ADMIN}/projects/${id}`);
   revalidatePath("/portal");
 }
@@ -599,7 +715,7 @@ export async function updateProject(id: string, patch: Record<string, unknown>) 
  * milestones; until now the caller sent an empty body and they never did.
  */
 export async function sendProgressUpdate(projectId: string) {
-  const me = await requireStaff();
+  const me = await requireOwnerAdmin();
   const db = createAdminClient();
 
   const { data: project } = await db
@@ -640,7 +756,7 @@ export async function sendProgressUpdate(projectId: string) {
     to: client.email,
     clientId: client.id,
     projectId: project.id,
-    actorId: me.id,
+    actorId: me.userId,
     attach: { type: "progress_report", id: project.id },
     vars: {
       client_name: client.name,
@@ -650,7 +766,7 @@ export async function sendProgressUpdate(projectId: string) {
       staging_url: project.staging_url ?? "",
       recent_updates: recentUpdates,
       milestone_summary: milestoneSummary,
-      sender_name: me.full_name ?? "Nex Desk",
+      sender_name: me.fullName ?? "Nex Desk",
     },
   });
 
@@ -668,6 +784,10 @@ export async function sendProgressUpdate(projectId: string) {
  * has no milestones to derive it from.
  */
 export async function recomputeProjectProgress(projectId: string, bump = 0) {
+  // Exported from a "use server" module, so this is a public endpoint that
+  // writes the client-visible progress figure — it needs its own guard even
+  // though every internal caller is already authenticated.
+  await requireStaff();
   const db = createAdminClient();
 
   const { data: all } = await db.from("milestones").select("is_done").eq("project_id", projectId);
@@ -687,6 +807,10 @@ export async function recomputeProjectProgress(projectId: string, bump = 0) {
   return pct;
 }
 
+/**
+ * Staff-accessible: reporting delivery progress is the job of whoever does the
+ * work, and this is what drives the client's progress bar.
+ */
 export async function toggleMilestone(id: string, done: boolean) {
   const me = await requireStaff();
   const db = createAdminClient();
@@ -696,7 +820,7 @@ export async function toggleMilestone(id: string, done: boolean) {
 
   if (m) await recomputeProjectProgress(m.project_id);
 
-  await audit(me.id, "milestone.toggle", "milestones", id, { done });
+  await audit(me.userId, "milestone.toggle", "milestones", id, { done });
   revalidatePath(`/${ADMIN}/projects`, "layout");
   revalidatePath("/portal");
 }
@@ -708,13 +832,13 @@ export async function sendClientEmail(args: {
   subject: string; body: string; attach?: { type: DocType; id: string };
   language?: "en" | "ar" | "fr" | "de" | "es";
 }) {
-  const me = await requireStaff();
+  const me = await requireOwnerAdmin();
   const res = await sendEmail({
     templateKey: args.templateKey,
     to: args.to,
     clientId: args.clientId,
     projectId: args.projectId,
-    actorId: me.id,
+    actorId: me.userId,
     subjectOverride: args.subject,
     bodyOverride: args.body,
     attach: args.attach,
@@ -728,10 +852,10 @@ export async function sendClientEmail(args: {
 
 
 export async function saveSettings(patch: Record<string, unknown>) {
-  const me = await requireStaff();
+  const me = await requireOwnerAdmin();
   await createAdminClient().from("settings")
     .update({ ...patch, updated_at: new Date().toISOString() }).eq("id", 1);
-  await audit(me.id, "settings.update", "settings", undefined, patch);
+  await audit(me.userId, "settings.update", "settings", undefined, patch);
   revalidatePath(`/${ADMIN}/settings`);
 }
 

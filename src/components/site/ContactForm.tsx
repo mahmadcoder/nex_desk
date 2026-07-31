@@ -25,15 +25,39 @@ const TIMELINES = ["ASAP", "2–4 weeks", "1–3 months", "Just exploring"];
 const field =
   "w-full rounded-lg border border-ink-500 bg-ink-800 px-4 py-3 text-sm text-bone-50 placeholder:text-bone-600 focus:border-lime-400 focus:outline-none";
 
+const fieldError = "border-rose-500/80 focus:border-rose-500";
+
+/**
+ * Deliberately permissive — this catches `afaq88` and `me@gmail`, not exotic
+ * but valid addresses. The server re-validates; the job here is to say
+ * something useful the moment the field loses focus rather than after submit.
+ */
+const looksLikeEmail = (v: string) => /^[^\s@]+@[^\s@.]+\.[^\s@]{2,}$/.test(v.trim());
+
+function FieldError({ children }: { children?: string }) {
+  if (!children) return null;
+  return (
+    <p className="mt-1.5 flex items-start gap-1 text-xs font-medium text-rose-400">
+      <span aria-hidden>⚠</span> {children}
+    </p>
+  );
+}
+
 function ContactFormContent() {
   const searchParams = useSearchParams();
   const [step, setStep] = useState(0);
   const [busy, setBusy] = useState(false);
   const [sent, setSent] = useState(false);
-  const [emailError, setEmailError] = useState("");
+  // One map for every field, so a name error and an email error can show at the
+  // same time instead of the last one winning.
+  const [errors, setErrors] = useState<Record<string, string>>({});
   const [form, setForm] = useState({
     name: "", email: "", phone: "", company: "", city: "", country: "Pakistan",
     service_slugs: [] as string[], budget_range: "", timeline: "", message: "",
+    // Honeypot. It has always been in the API schema and checked server-side,
+    // but was never rendered — so the bot trap did nothing. See the hidden
+    // input in step 3.
+    website: "",
   });
   const [selectedPkgInfo, setSelectedPkgInfo] = useState<{
     serviceSlug: string;
@@ -65,7 +89,21 @@ function ContactFormContent() {
     }
   }, [searchParams]);
 
-  const set = (k: string, v: unknown) => setForm((f) => ({ ...f, [k]: v }));
+  const set = (k: string, v: unknown) => {
+    setForm((f) => ({ ...f, [k]: v }));
+    // Typing clears that field's error — leaving a stale "invalid" under an
+    // input the person is actively fixing reads as broken.
+    setErrors((e) => (e[k] ? { ...e, [k]: "" } : e));
+  };
+
+  /** Shape checks only. The duplicate-address lookup runs separately on blur. */
+  const validate = () => {
+    const next: Record<string, string> = {};
+    if (form.name.trim().length < 2) next.name = "Please enter your full name.";
+    if (!form.email.trim()) next.email = "We need an email address to reply to.";
+    else if (!looksLikeEmail(form.email)) next.email = "That doesn't look like a complete email address.";
+    return next;
+  };
 
   const toggleService = (slug: string) =>
     set(
@@ -76,6 +114,14 @@ function ContactFormContent() {
     );
 
   async function submit() {
+    // Block on the client first, so a malformed address never costs a round
+    // trip — and so the message lands under the input, not in a toast.
+    const found = validate();
+    if (Object.keys(found).length || errors.email) {
+      setErrors((e) => ({ ...e, ...found }));
+      return;
+    }
+
     setBusy(true);
     try {
       const res = await fetch("/api/leads", {
@@ -83,7 +129,18 @@ function ContactFormContent() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(form),
       });
-      if (!res.ok) throw new Error((await res.json()).error ?? "Failed");
+
+      if (!res.ok) {
+        const payload = await res.json().catch(() => ({}));
+        // A 400 carries per-field detail; map it back onto the inputs rather
+        // than flattening it into one message.
+        if (payload?.fields && Object.keys(payload.fields).length) {
+          setErrors((e) => ({ ...e, ...payload.fields }));
+          return;
+        }
+        throw new Error(payload?.error ?? "Failed");
+      }
+
       setSent(true);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Something went wrong. Try emailing us instead.");
@@ -223,39 +280,71 @@ function ContactFormContent() {
           <p className="drawer-label">Step 3 of 3</p>
           <h3 className="mt-4 text-2xl">Where do we reach you?</h3>
           <div className="mt-6 grid gap-4 sm:grid-cols-2">
-            <input className={field} placeholder="Full name" value={form.name} onChange={(e) => set("name", e.target.value)} />
             <div>
               <input
-                className={`${field} ${emailError ? "border-rose-500/80 focus:border-rose-500" : ""}`}
+                className={`${field} ${errors.name ? fieldError : ""}`}
+                placeholder="Full name"
+                value={form.name}
+                onChange={(e) => set("name", e.target.value)}
+                onBlur={() => {
+                  if (form.name && form.name.trim().length < 2) {
+                    setErrors((e) => ({ ...e, name: "Please enter your full name." }));
+                  }
+                }}
+                aria-invalid={!!errors.name}
+              />
+              <FieldError>{errors.name}</FieldError>
+            </div>
+
+            <div>
+              <input
+                className={`${field} ${errors.email ? fieldError : ""}`}
                 placeholder="name@company.com"
                 type="email"
                 value={form.email}
-                onChange={(e) => {
-                  set("email", e.target.value);
-                  if (emailError) setEmailError("");
-                }}
+                onChange={(e) => set("email", e.target.value)}
                 onBlur={async () => {
-                  if (form.email && form.email.includes("@")) {
-                    const res = await checkEmailExists({ email: form.email, target: "lead" });
-                    if (res.exists) {
-                      setEmailError(res.message || "An account or project lead with this email address is already registered.");
-                    } else {
-                      setEmailError("");
-                    }
+                  if (!form.email.trim()) return;
+
+                  // Shape first. The old code gated this whole block on
+                  // `includes("@")`, so `afaq88` never reached any check at all
+                  // and the field stayed silent until submit.
+                  if (!looksLikeEmail(form.email)) {
+                    setErrors((e) => ({ ...e, email: "That doesn't look like a complete email address." }));
+                    return;
                   }
+
+                  const res = await checkEmailExists({ email: form.email, target: "lead" });
+                  setErrors((e) => ({
+                    ...e,
+                    email: res.exists
+                      ? res.message || "An account or project lead with this email address is already registered."
+                      : "",
+                  }));
                 }}
+                aria-invalid={!!errors.email}
               />
-              {emailError && (
-                <p className="mt-1 text-xs text-rose-400 font-medium flex items-center gap-1 animate-in fade-in">
-                  <span>⚠️</span> {emailError}
-                </p>
-              )}
+              <FieldError>{errors.email}</FieldError>
             </div>
+
             <input className={field} placeholder="Phone or WhatsApp" value={form.phone} onChange={(e) => set("phone", e.target.value)} />
             <input className={field} placeholder="Company (optional)" value={form.company} onChange={(e) => set("company", e.target.value)} />
             <input className={field} placeholder="City" value={form.city} onChange={(e) => set("city", e.target.value)} />
             <input className={field} placeholder="Country" value={form.country} onChange={(e) => set("country", e.target.value)} />
           </div>
+
+          {/* Honeypot: invisible to people, irresistible to form-filling bots.
+              A non-empty value makes the API drop the submission silently. */}
+          <input
+            type="text"
+            name="website"
+            tabIndex={-1}
+            autoComplete="off"
+            aria-hidden="true"
+            value={form.website}
+            onChange={(e) => set("website", e.target.value)}
+            style={{ position: "absolute", left: "-9999px", width: 1, height: 1, opacity: 0 }}
+          />
           <textarea
             className={`${field} mt-4 min-h-32 resize-y`}
             placeholder="Tell us about the project. Links to anything you like help."
@@ -287,12 +376,15 @@ function ContactFormContent() {
             Continue
           </button>
         ) : (
+          // Deliberately clickable with an empty or malformed form: pressing it
+          // surfaces the errors under the offending inputs, which teaches more
+          // than a greyed-out button that never says why.
           <button
             type="button"
             className="btn btn-primary h-11"
             onClick={submit}
-            disabled={busy || !form.name || !form.email}
-            style={{ opacity: busy || !form.name || !form.email ? 0.4 : 1 }}
+            disabled={busy}
+            style={{ opacity: busy ? 0.4 : 1 }}
           >
             {busy ? "Sending…" : "Send it"}
           </button>

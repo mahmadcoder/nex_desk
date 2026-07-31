@@ -45,10 +45,15 @@ const TONES: Record<string, string> = {
   delivered: "bg-lime-400 text-lime-950",
   overdue: "bg-[#F87171] text-[#4A1B0C]",
   lost: "bg-[#F87171] text-[#4A1B0C]",
+  // Not an alarm — spam is dismissed, not urgent.
+  spam: "bg-ink-700 text-bone-400 line-through",
   cancelled: "bg-[#F87171] text-[#4A1B0C]",
   partial: "bg-[#FBBF24] text-[#412402]",
   on_hold: "bg-[#FBBF24] text-[#412402]",
   sent: "bg-ink-600 text-bone-200",
+  // A draft invoice is a scheduled stage, not money owed yet — outlined so it
+  // reads as provisional rather than as another filled status pill.
+  draft: "border border-dashed border-ink-400 text-bone-300",
 };
 
 export function Badge({ children }: { children: string }) {

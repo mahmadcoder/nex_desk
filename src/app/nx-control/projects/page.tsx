@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { createAdminClient } from "@/lib/supabase/server";
+import { getCurrentStaff, assignedClientIds } from "@/lib/auth/staff";
 import { PageHead, Badge, Table, Empty } from "@/components/admin/ui";
 
 const BASE = `/${process.env.ADMIN_PATH || "nx-control"}`;
@@ -7,16 +8,46 @@ export const metadata = { title: "Projects" };
 export const dynamic = "force-dynamic";
 
 export default async function ProjectsPage() {
+  const me = await getCurrentStaff();
+  if (!me) return null;
+
+  const canManage = me.isPrivileged;
   const db = createAdminClient();
-  const { data: projects } = await db.from("projects")
-    .select("*, clients(name, company)").order("deadline");
+
+  let query = db.from("projects").select("*, clients(name, company)").order("deadline");
+
+  // Staff see only projects belonging to clients they are assigned to.
+  if (!canManage) {
+    const ids = await assignedClientIds(me.employeeId);
+    if (!ids.length) {
+      return (
+        <>
+          <PageHead title="My Projects" sub="Projects for the clients you are assigned to." />
+          <Empty
+            title="No projects assigned to you yet"
+            body="Once an owner or admin assigns you to a client, their projects appear here."
+          />
+        </>
+      );
+    }
+    query = query.in("client_id", ids);
+  }
+
+  const { data: projects } = await query;
 
   return (
     <>
-      <PageHead title="Projects" sub="Everything currently on the desk." />
+      <PageHead
+        title={canManage ? "Projects" : "My Projects"}
+        sub={canManage ? "Everything currently on the desk." : "Projects for the clients you are assigned to."}
+      />
       {!projects?.length ? (
-        <Empty title="No projects yet" body="Projects are created automatically when you lock a deal."
-          href={`${BASE}/deals/new`} cta="Lock a deal" />
+        canManage ? (
+          <Empty title="No projects yet" body="Projects are created automatically when you lock a deal."
+            href={`${BASE}/deals/new`} cta="Lock a deal" />
+        ) : (
+          <Empty title="No projects yet" body="Nothing has been assigned to you." />
+        )
       ) : (
         <Table head={["Project", "Client", "Progress", "Deadline", "Status"]}>
           {projects.map((p) => (

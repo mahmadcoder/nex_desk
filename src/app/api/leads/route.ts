@@ -22,7 +22,24 @@ export async function POST(req: Request) {
   try {
     const parsed = schema.safeParse(await req.json());
     if (!parsed.success) {
-      return NextResponse.json({ error: "Check the form and try again." }, { status: 400 });
+      // Hand back which field is wrong and why, so the form can point at the
+      // input instead of showing one opaque toast. Zod's own messages are
+      // developer-facing ("Invalid email"), so they are mapped to plain English.
+      const fields: Record<string, string> = {};
+      for (const issue of parsed.error.issues) {
+        const key = String(issue.path[0] ?? "");
+        if (!key || fields[key]) continue;
+        fields[key] =
+          key === "email"
+            ? "That doesn't look like a complete email address."
+            : key === "name"
+              ? "Please enter your full name."
+              : issue.message;
+      }
+      return NextResponse.json(
+        { error: "Check the highlighted fields and try again.", fields },
+        { status: 400 }
+      );
     }
     const { website, ...lead } = parsed.data;
     if (website) return NextResponse.json({ ok: true }); // silently drop bots

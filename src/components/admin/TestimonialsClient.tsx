@@ -128,8 +128,8 @@ export default function TestimonialsClient({ testimonials }: { testimonials: ITe
             }`}
           >
             <div>
-              <div className="flex items-center justify-between gap-2">
-                <div className="flex items-center gap-1 text-amber-400">
+              <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-2">
+                <div className="flex items-center gap-0.5 text-amber-400">
                   {Array.from({ length: t.rating ?? 5 }).map((_, i) => (
                     <Star key={i} size={14} fill="currentColor" />
                   ))}
@@ -138,31 +138,33 @@ export default function TestimonialsClient({ testimonials }: { testimonials: ITe
                 <button
                   onClick={() => handleTogglePublished(t.id, t.is_published)}
                   disabled={pending}
-                  className={`mono-tag text-[10px] px-2 py-0.5 rounded-full font-medium flex items-center gap-1 cursor-pointer transition-colors ${
+                  className={`mono-tag text-[11px] leading-none px-2.5 py-1.5 rounded-full font-semibold inline-flex items-center gap-1.5 cursor-pointer transition-colors ${
                     t.is_published
-                      ? "bg-emerald-400/10 text-emerald-400 border border-emerald-400/30 hover:bg-emerald-400/20"
-                      : "bg-rose-400/10 text-rose-400 border border-rose-400/30 hover:bg-rose-400/20"
+                      ? "bg-emerald-400/15 text-emerald-300 border border-emerald-400/40 hover:bg-emerald-400/25"
+                      : "bg-rose-400/15 text-rose-300 border border-rose-400/40 hover:bg-rose-400/25"
                   }`}
                 >
                   {t.is_published ? (
                     <>
-                      <Eye size={11} /> Published
+                      <Eye size={12} /> Published
                     </>
                   ) : (
                     <>
-                      <EyeOff size={11} /> Hidden
+                      <EyeOff size={12} /> Hidden
                     </>
                   )}
                 </button>
               </div>
 
-              <p className="mt-3 text-xs text-bone-200 italic leading-relaxed">&ldquo;{t.quote}&rdquo;</p>
+              <p className="mt-4 text-xs text-bone-200 italic leading-relaxed">&ldquo;{t.quote}&rdquo;</p>
             </div>
 
-            <div className="border-t border-ink-700/60 pt-3 flex items-center justify-between">
-              <div>
-                <p className="text-xs font-semibold text-bone-50">{t.client_name}</p>
-                <p className="text-[11px] text-bone-400">
+            <div className="border-t border-ink-700/60 pt-3 flex items-center justify-between gap-2">
+              {/* min-w-0 + truncate: a long company name used to push the edit
+                  and delete buttons past the card edge. */}
+              <div className="min-w-0">
+                <p className="truncate text-xs font-semibold text-bone-50">{t.client_name}</p>
+                <p className="truncate text-[11px] text-bone-400">
                   {[t.role, t.company].filter(Boolean).join(" · ")}
                 </p>
               </div>

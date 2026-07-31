@@ -23,7 +23,7 @@ export const EMAIL_TEMPLATES: Record<string, EmailTemplate> = {
   /* ─────────────── Enquiry & marketing ─────────────── */
 
   lead_autoreply: {
-    subject: "Thanks for getting in touch, {{client_name}}",
+    subject: "👋 Thanks for getting in touch, {{client_name}}",
     body: `Hi {{client_name}},
 
 Thanks for reaching out to Nex Desk. Your enquiry has arrived and a real person is reading it — this is not an automated queue.
@@ -51,7 +51,7 @@ Nex Desk Software Agency`,
   },
 
   newsletter_welcome: {
-    subject: "You're on the list — welcome to Nex Desk",
+    subject: "📬 You're on the list — welcome to Nex Desk",
     body: `Hi {{client_name}},
 
 Thanks for subscribing. You'll now get our monthly dispatch.
@@ -71,7 +71,7 @@ The Nex Desk Team`,
   /* ─────────────── Client onboarding ─────────────── */
 
   client_welcome: {
-    subject: "Welcome to Nex Desk — your portal is ready",
+    subject: "🎊 Welcome to Nex Desk — your portal is ready",
     body: `Hi {{client_name}},
 
 Welcome aboard. We're glad to be working with you.
@@ -101,7 +101,7 @@ Nex Desk Software Agency`,
   },
 
   portal_invite: {
-    subject: "Your Nex Desk client portal",
+    subject: "🔑 Your Nex Desk client portal",
     body: `Hi {{client_name}},
 
 You have a portal for {{project_name}} where you can follow progress, download every document and upload files to us.
@@ -117,7 +117,7 @@ Nex Desk`,
   },
 
   account_email_changed: {
-    subject: "Your Nex Desk sign-in email has changed",
+    subject: "🔐 Your Nex Desk sign-in email has changed",
     body: `Hi {{name}},
 
 The email address you use to sign in has been updated to {{new_email}}.
@@ -134,7 +134,7 @@ Nex Desk`,
   /* ─────────────── Sales ─────────────── */
 
   quotation_sent: {
-    subject: "Your quote for {{project_name}}",
+    subject: "📄 Your quote for {{project_name}}",
     body: `Hi {{client_name}},
 
 Here is your quote for {{project_name}}. The attached PDF sets out the full scope, the price, what is included, what is not, and how long it will take.
@@ -148,7 +148,7 @@ Nex Desk`,
   },
 
   quotation_followup: {
-    subject: "Any thoughts on the quote for {{project_name}}?",
+    subject: "💬 Any thoughts on the quote for {{project_name}}?",
     body: `Hi {{client_name}},
 
 Just checking in on the quote we sent for {{project_name}}.
@@ -162,7 +162,7 @@ Nex Desk`,
   },
 
   deal_locked: {
-    subject: "Confirmed — {{project_name}} is booked ({{deal_no}})",
+    subject: "🤝 Confirmed — {{project_name}} is booked ({{deal_no}})",
     body: `Hi {{client_name}},
 
 We are on. {{project_name}} is officially booked.
@@ -188,7 +188,7 @@ Nex Desk`,
   },
 
   change_order: {
-    subject: "Change to {{project_name}} — your approval needed",
+    subject: "🔁 Change to {{project_name}} — your approval needed",
     body: `Hi {{client_name}},
 
 What you have asked for sits outside the agreed scope, so here is a change order rather than a surprise on the final invoice.
@@ -208,7 +208,7 @@ Nex Desk`,
   /* ─────────────── Money ─────────────── */
 
   invoice_sent: {
-    subject: "Invoice {{invoice_no}} — {{currency}} {{amount}}",
+    subject: "🧾 Invoice {{invoice_no}} — {{currency}} {{amount}}",
     body: `Hi {{client_name}},
 
 Invoice {{invoice_no}} is attached.
@@ -223,7 +223,7 @@ Nex Desk`,
   },
 
   payment_received: {
-    subject: "Payment received — thank you, {{client_name}}",
+    subject: "✅ Payment received — thank you, {{client_name}}",
     body: `Hi {{client_name}},
 
 Your payment of {{currency}} {{amount}} has been received and recorded.
@@ -237,7 +237,7 @@ Nex Desk`,
   },
 
   payment_reminder: {
-    subject: "Invoice {{invoice_no}} is due on {{due_date}}",
+    subject: "⏰ Invoice {{invoice_no}} is due on {{due_date}}",
     body: `Hi {{client_name}},
 
 A quick reminder that invoice {{invoice_no}} for {{currency}} {{amount}} is due on {{due_date}}.
@@ -249,7 +249,7 @@ Nex Desk`,
   },
 
   payment_overdue: {
-    subject: "Invoice {{invoice_no}} is now past due",
+    subject: "⚠️ Invoice {{invoice_no}} is now past due",
     body: `Hi {{client_name}},
 
 Invoice {{invoice_no}} for {{currency}} {{amount}} was due on {{due_date}} and is still showing as unpaid.
@@ -261,7 +261,7 @@ Nex Desk`,
   },
 
   retainer_renewal: {
-    subject: "Your Nex Desk retainer renews on {{due_date}}",
+    subject: "🔄 Your Nex Desk retainer renews on {{due_date}}",
     body: `Hi {{client_name}},
 
 Your maintenance retainer renews on {{due_date}} at {{currency}} {{amount}} per month.
@@ -292,7 +292,7 @@ Nex Desk`,
   /* ─────────────── Delivery ─────────────── */
 
   project_kickoff: {
-    subject: "{{project_name}} starts now — what we need from you",
+    subject: "🚀 {{project_name}} starts now — what we need from you",
     body: `Hi {{client_name}},
 
 Your payment has cleared and {{project_name}} is underway.
@@ -315,7 +315,7 @@ Nex Desk`,
   },
 
   progress_update: {
-    subject: "{{project_name}} — {{progress}}% complete",
+    subject: "📊 {{project_name}} — {{progress}}% complete",
     body: `Hi {{client_name}},
 
 Here is where {{project_name}} stands. We are at {{progress}}% complete.
@@ -334,7 +334,7 @@ Nex Desk`,
   },
 
   staging_ready: {
-    subject: "{{project_name}} is ready for your review",
+    subject: "👀 {{project_name}} is ready for your review",
     body: `Hi {{client_name}},
 
 {{project_name}} is on the staging link and ready for you to go through:
@@ -350,7 +350,7 @@ Nex Desk`,
   },
 
   feedback_needed: {
-    subject: "Waiting on your feedback for {{project_name}}",
+    subject: "⏳ Waiting on your feedback for {{project_name}}",
     body: `Hi {{client_name}},
 
 We are blocked on {{project_name}} until we hear back on the last round.
@@ -364,7 +364,7 @@ Nex Desk`,
   },
 
   project_on_hold: {
-    subject: "{{project_name}} is on hold",
+    subject: "⏸️ {{project_name}} is on hold",
     body: `Hi {{client_name}},
 
 {{project_name}} is paused as of today.
@@ -376,7 +376,7 @@ Nex Desk`,
   },
 
   project_delivered: {
-    subject: "{{project_name}} is live",
+    subject: "🎉 {{project_name}} is live",
     body: `Hi {{client_name}},
 
 {{project_name}} is delivered and live.
@@ -400,7 +400,7 @@ Nex Desk`,
   },
 
   testimonial_request: {
-    subject: "Could you spare two minutes, {{client_name}}?",
+    subject: "⭐ Could you spare two minutes, {{client_name}}?",
     body: `Hi {{client_name}},
 
 Now that {{project_name}} has been running for a couple of weeks — would you write us a few lines about how it went?
@@ -414,7 +414,7 @@ Nex Desk`,
   },
 
   domain_expiry: {
-    subject: "Action needed — your domain expires on {{due_date}}",
+    subject: "🔔 Action needed — your domain expires on {{due_date}}",
     body: `Hi {{client_name}},
 
 Your domain and hosting expire on {{due_date}}.
@@ -430,24 +430,40 @@ Nex Desk`,
   /* ─────────────── Staff onboarding ─────────────── */
 
   employee_joining_en: {
-    subject: "Welcome to Nex Desk — your staff account is ready",
+    subject: "🎉 Welcome to Nex Desk, {{employee_name}} — your offer letter and account",
     body: `Hi {{employee_name}},
 
-Welcome to the team. You're joining us as {{job_title}} ({{seniority}}), starting {{joining_date}}.
+Welcome to Nex Desk. We're glad to have you.
 
-Your staff panel account is ready. Sign in to see the clients assigned to you, track your projects and submit your daily work log:
+**Your offer letter is attached to this email.** It sets out your position, your compensation and the terms of the engagement in full — please read it, and reply to this email to confirm you accept.
+
+## Your engagement at a glance
+
+• Position: {{job_title}} ({{seniority}})
+• Employment type: {{employment_type}}
+• Start date: {{joining_date}}
+• Compensation: {{salary}}, paid monthly within the first five working days of the following month
+• Based: {{city}}, {{country}}
+
+## Your account
+
+Sign in to see the clients assigned to you, track your projects and submit your daily work log:
 
 • Sign in: {{staff_login_url}}
 • Email: {{staff_email}}
 • Password: {{staff_password}}
 
-Please change your password after your first sign-in.
+**Please change your password after your first sign-in**, and keep these details to yourself.
 
-A few things to know:
+## How we work
 
-• Submit a work log at the end of each working day — it's how project progress reaches the client
+• Monday to Saturday are working days. Sunday is an official rest day — nothing is expected of you
+• Submit a work log at the end of each working day; it is how your progress reaches the client and how your delivery record is kept
 • You'll only see the clients and projects assigned to you
-• Flag blockers in your log; that's the fastest way to get them cleared
+• Flag blockers in your log rather than sitting on them — that's the fastest way to get them cleared
+• Client code, credentials and commercial terms are confidential; the attached letter covers this in detail
+
+If anything in the letter looks wrong, tell us before your start date and we'll reissue it.
 
 Glad to have you with us.
 
@@ -530,7 +546,7 @@ El equipo de Nex Desk`,
   /* ─────────────── Internal notices (to the agency) ─────────────── */
 
   internal_new_lead: {
-    subject: "New lead — {{client_name}}",
+    subject: "🔥 New lead — {{client_name}}",
     body: `A new enquiry came in through the website.
 
 • Name: {{client_name}}
@@ -541,7 +557,7 @@ El equipo de Nex Desk`,
   },
 
   internal_new_subscriber: {
-    subject: "New newsletter subscriber",
+    subject: "📬 New newsletter subscriber",
     body: "Someone new subscribed to the newsletter.",
   },
 
@@ -551,7 +567,7 @@ El equipo de Nex Desk`,
   },
 
   admin_client_created_notice: {
-    subject: "New client provisioned: {{client_name}}",
+    subject: "🧑‍💼 New client provisioned: {{client_name}}",
     body: `A new client account has been created.
 
 • Name: {{client_name}}
@@ -560,13 +576,79 @@ El equipo de Nex Desk`,
 Portal credentials have been sent to the client.`,
   },
 
+  admin_employee_created_notice: {
+    subject: "🧑‍💻 New hire onboarded: {{employee_name}} — {{job_title}}",
+    body: `A new employee has been added to Nex Desk and onboarded automatically.
+
+• Name: {{employee_name}}
+• Email: {{employee_email}}
+• Position: {{job_title}} ({{seniority}})
+• Employment type: {{employment_type}}
+• Start date: {{joining_date}}
+• Compensation: {{salary}}
+• Based: {{city}}, {{country}}
+
+What was sent to them: their staff panel login and their offer letter as a PDF.
+Delivery status: {{email_status}}
+
+Next: assign them to a client so they can start logging work. Their profile is at {{employee_url}}.`,
+  },
+
+  /* ─────────────── Assignments ─────────────── */
+
+  employee_assigned_to_client: {
+    subject: "📌 You've been assigned to {{client_name}}",
+    body: `Hi {{employee_name}},
+
+You've been assigned to a client account.
+
+• Client: {{client_name}}
+• Company: {{client_company}}
+• Your role on this account: {{job_title}}
+
+## What this means
+
+• The client and their projects now appear in your control panel
+• Log your work on this account daily — the client sees the entries you mark as shared
+• Anything blocking you goes in the same log; that is how it reaches us
+
+Open the account here: {{client_url}}
+
+Please introduce yourself to the client by replying to this email if you'd like their address, or through your usual channel once work starts.
+
+Thanks,
+{{sender_name}}`,
+  },
+
+  client_team_assigned: {
+    subject: "🧑‍💻 {{employee_name}} is now on your account",
+    body: `Hi {{client_name}},
+
+We've assigned a specialist to your account so you always know who is doing the work.
+
+## Who you're working with
+
+• Name: {{employee_name}}
+• Role: {{job_title}} ({{seniority}})
+• Focus: {{skills}}
+
+They will be logging their work against your project as it happens. You can see that timeline, your milestones, invoices and documents in your portal at any time:
+
+{{portal_url}}
+
+If you'd like to raise anything with them directly, reply to this email and we'll put you in touch. For anything commercial — scope, timeline or billing — keep coming to us as usual.
+
+Best regards,
+{{sender_name}}`,
+  },
+
   admin_document_uploaded_notice: {
-    subject: "Client uploaded a signed document",
+    subject: "📥 Client uploaded a signed document",
     body: "A client has uploaded a signed document to their portal.",
   },
 
   admin_work_log_notice: {
-    subject: "Daily work log submitted",
+    subject: "📝 Daily work log submitted",
     body: "A team member submitted their daily work log.",
   },
 };

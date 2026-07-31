@@ -5,6 +5,20 @@ export const cn = (...i: ClassValue[]) => twMerge(clsx(i));
 
 export const CURRENCIES = ["PKR", "USD", "GBP", "EUR", "AED"] as const;
 
+/**
+ * The lead pipeline, in order. One list, used by the leads board, the row
+ * status picker and the counts — they were three separate literals, so adding
+ * `spam` to one of them would have left the others silently out of step.
+ *
+ * `spam` must also exist in the `lead_status` enum
+ * (supabase/idempotent_fixes_2026_08.sql).
+ */
+export const LEAD_STATUSES = ["new", "contacted", "quoted", "won", "lost", "spam"] as const;
+export type LeadStatus = (typeof LEAD_STATUSES)[number];
+
+/** Statuses that count as live pipeline. Spam is noise, not a lead. */
+export const ACTIVE_LEAD_STATUSES = LEAD_STATUSES.filter((s) => s !== "spam");
+
 const SYMBOL: Record<string, string> = {
   PKR: "Rs", USD: "$", GBP: "£", EUR: "€", AED: "AED",
 };

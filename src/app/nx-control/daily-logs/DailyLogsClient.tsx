@@ -26,12 +26,15 @@ interface DailyLogsClientProps {
   initialLogs: IDailyWorkLog[];
   employeesList: { id: string; name: string }[];
   projectsList: { id: string; title: string }[];
+  /** Staff file only as themselves — show their name instead of a picker. */
+  lockedToEmployee?: boolean;
 }
 
 export default function DailyLogsClient({
   initialLogs,
   employeesList,
   projectsList,
+  lockedToEmployee = false,
 }: DailyLogsClientProps) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -293,7 +296,11 @@ export default function DailyLogsClient({
                     crashed the server action. */}
                 <div>
                   <label className="mono-tag text-xs mb-1 block">Employee / Staff Member *</label>
-                  {employeeOptions.length > 0 ? (
+                  {lockedToEmployee && employeeOptions.length === 1 ? (
+                    <p className="rounded-lg border border-ink-500 bg-ink-800/60 px-3 py-2 text-sm text-bone-100">
+                      {employeeOptions[0].label}
+                    </p>
+                  ) : employeeOptions.length > 0 ? (
                     <CustomSelect
                       options={employeeOptions}
                       value={selectedEmployeeId}

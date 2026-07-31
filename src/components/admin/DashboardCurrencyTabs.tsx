@@ -4,6 +4,13 @@ import { Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { DollarSign, Layers } from "lucide-react";
 
+type TabProps = {
+  /** Resolved on the server: "ALL", or a currency code. */
+  currency?: string;
+  /** Resolved on the server: "strict" | "converted". */
+  mode?: string;
+};
+
 const CURRENCIES = [
   { code: "ALL", label: "All (Original)", flagUrl: "" },
   { code: "PKR", label: "PKR (Rs)", flagUrl: "https://flagcdn.com/w40/pk.png" },
@@ -12,11 +19,35 @@ const CURRENCIES = [
   { code: "GBP", label: "GBP (£)", flagUrl: "https://flagcdn.com/w40/gb.png" },
 ];
 
-function CurrencyTabsContent() {
+/**
+ * A year, in seconds. The choice is a preference, not a session — coming back
+ * tomorrow to a dashboard in the currency you left it in is the whole point.
+ */
+const REMEMBER_FOR = 60 * 60 * 24 * 365;
+
+/**
+ * Persist the choice so navigating away and back does not reset it.
+ *
+ * The selection used to live only in `searchParams`, and every link back to the
+ * dashboard targets the bare path — so leaving the page threw it away. A cookie
+ * survives that, and the page still lets an explicit `?curr=` win so a shared
+ * link keeps working.
+ */
+const remember = (key: string, value: string | null) => {
+  document.cookie = value
+    ? `${key}=${encodeURIComponent(value)};path=/;max-age=${REMEMBER_FOR};samesite=lax`
+    : `${key}=;path=/;max-age=0;samesite=lax`;
+};
+
+function CurrencyTabsContent({ currency, mode: modeProp }: TabProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const activeCurrency = searchParams.get("curr") || "ALL";
-  const mode = searchParams.get("mode") || "strict"; // "strict" vs "converted"
+
+  // The server resolves this (searchParam first, then the remembered cookie)
+  // and passes it down, so the highlighted pill always matches the figures
+  // actually on screen. Falls back to the URL if rendered without props.
+  const activeCurrency = currency ?? searchParams.get("curr") ?? "ALL";
+  const mode = modeProp ?? searchParams.get("mode") ?? "strict"; // "strict" vs "converted"
 
   const handleSelectCurrency = (code: string) => {
     const params = new URLSearchParams(searchParams.toString());
@@ -25,12 +56,14 @@ function CurrencyTabsContent() {
     } else {
       params.set("curr", code);
     }
+    remember("nx_dash_curr", code === "ALL" ? null : code);
     router.push(`?${params.toString()}`);
   };
 
   const handleToggleMode = (newMode: string) => {
     const params = new URLSearchParams(searchParams.toString());
     params.set("mode", newMode);
+    remember("nx_dash_mode", newMode);
     router.push(`?${params.toString()}`);
   };
 
@@ -93,10 +126,10 @@ function CurrencyTabsContent() {
   );
 }
 
-export default function DashboardCurrencyTabs() {
+export default function DashboardCurrencyTabs(props: TabProps) {
   return (
     <Suspense fallback={<div className="h-14 mb-6 rounded-xl bg-ink-900/50 animate-pulse border border-ink-600" />}>
-      <CurrencyTabsContent />
+      <CurrencyTabsContent {...props} />
     </Suspense>
   );
 }
