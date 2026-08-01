@@ -1,11 +1,14 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient, createAdminClient } from "@/lib/supabase/server";
-import { money, moneyMulti, sumByCurrency, CONTACT_EMAIL } from "@/lib/utils";
+import { money, moneyMulti, sumByCurrency, pdfFilename, CONTACT_EMAIL, CONTACT_WHATSAPP, whatsappLink } from "@/lib/utils";
 import { Badge, Stat } from "@/components/admin/ui";
-import { ExternalLink, CheckCircle, Circle, DollarSign, Calendar, FileText, Download } from "lucide-react";
+import { ExternalLink, CheckCircle, Circle, DollarSign, Calendar, FileText, Download, MessageCircle } from "lucide-react";
 import ClientDocumentUploader from "@/components/portal/ClientDocumentUploader";
 import ClientPortalSignOutButton from "@/components/portal/ClientPortalSignOutButton";
+import ClientChangeRequest from "@/components/portal/ClientChangeRequest";
+import AcceptAgreement from "@/components/portal/AcceptAgreement";
+import { describeMetrics } from "@/config/logFields";
 
 export const dynamic = "force-dynamic";
 
@@ -47,7 +50,7 @@ export default async function Portal() {
       // The signed agreements. Without these the portal could only ever show
       // what had been invoiced so far, so a 1500 deal billed 50/50 read as a
       // 750 contract.
-      db.from("deals").select("deal_no, total, currency").eq("client_id", client.id).eq("status", "locked"),
+      db.from("deals").select("id, deal_no, title, total, currency, accepted_at, accepted_name").eq("client_id", client.id).eq("status", "locked"),
     ]);
 
   const assignedTeam = Array.from(
@@ -59,7 +62,11 @@ export default async function Portal() {
   const withUrls = await Promise.all(
     (docs ?? []).map(async (d) => {
       try {
-        const { data } = await db.storage.from("documents").createSignedUrl(d.storage_path, 3600);
+        // `download` names the saved file after the document, not after its
+        // storage key.
+        const { data } = await db.storage
+          .from("documents")
+          .createSignedUrl(d.storage_path, 3600, { download: pdfFilename(d.title) });
         return { ...d, url: data?.signedUrl };
       } catch {
         return { ...d, url: null };
@@ -68,13 +75,24 @@ export default async function Portal() {
   );
 
   const projectIds = (projects ?? []).map((p) => p.id);
+
+  // What the client has already asked for, so the portal can show them where
+  // each request stands instead of leaving them to chase it.
+  const { data: myChangeRequests } = projectIds.length
+    ? await db.from("change_requests")
+        .select("id, project_id, title, status")
+        .in("project_id", projectIds)
+        .in("status", ["requested", "quoted", "invoiced"])
+        .order("created_at", { ascending: false })
+    : { data: [] as any[] };
+
   const [{ data: milestones }, { data: sharedLogs }] = projectIds.length
     ? await Promise.all([
         db.from("milestones").select("*").in("project_id", projectIds).order("sort_order"),
         // Only logs explicitly shared by the team. `blockers` is deliberately
         // not selected — that conversation stays internal.
         db.from("daily_work_logs")
-          .select("id, project_id, work_date, tasks_completed, employee_name")
+          .select("id, project_id, work_date, tasks_completed, employee_name, metrics")
           .in("project_id", projectIds)
           .eq("client_visible", true)
           .order("work_date", { ascending: false })
@@ -84,6 +102,21 @@ export default async function Portal() {
 
   const updates = sharedLogs ?? [];
 
+  // Second route to the agreement, via the project's own `deal_id`. A deal
+  // whose `client_id` points at a stale duplicate client row would otherwise
+  // leave the portal showing no contract value at all.
+  const dealIdsViaProjects = (projects ?? []).map((p) => p.deal_id).filter(Boolean) as string[];
+  const { data: dealsViaProjects } = dealIdsViaProjects.length
+    ? await db.from("deals").select("deal_no, total, currency, status").in("id", dealIdsViaProjects)
+    : { data: [] as any[] };
+
+  const lockedDeals = Array.from(
+    new Map(
+      [...(deals ?? []), ...(dealsViaProjects ?? []).filter((d: any) => d.status === "locked")]
+        .map((d: any) => [d.deal_no, d])
+    ).values()
+  );
+
   // Totals are grouped by each currency of its own. Previously they were summed
   // together and then labelled with `preferred_currency`, so a client billed in
   // USD saw their figures marked "Rs".
@@ -92,7 +125,7 @@ export default async function Portal() {
   // client must not see it at all, so it is filtered out before anything else.
   const invoiceRows = (invoices ?? []).filter((i) => i.status !== "draft");
 
-  const contractValue = sumByCurrency(deals ?? [], (d) => d.currency, (d) => Number(d.total));
+  const contractValue = sumByCurrency(lockedDeals, (d: any) => d.currency, (d: any) => Number(d.total));
   const totalInvoiced = sumByCurrency(invoiceRows, (i) => i.currency, (i) => Number(i.total));
   const totalPaid = sumByCurrency(invoiceRows, (i) => i.currency, (i) => Number(i.amount_paid));
 
@@ -143,6 +176,26 @@ export default async function Portal() {
           <ClientPortalSignOutButton />
         </div>
       </div>
+
+      {/* Agreements waiting on the client. Accepting here replaces print,
+          sign, scan and upload — three chances to lose momentum. */}
+      {!!(deals ?? []).length && (
+        <section className="mt-8 space-y-2.5">
+          {(deals ?? []).map((d: any) => (
+            <AcceptAgreement
+              key={d.id}
+              deal={{
+                id: d.id,
+                deal_no: d.deal_no,
+                title: d.title,
+                amount: money(Number(d.total), d.currency),
+                accepted_at: d.accepted_at ?? null,
+                accepted_name: d.accepted_name ?? null,
+              }}
+            />
+          ))}
+        </section>
+      )}
 
       {/* Financial Summary Cards */}
       {perms.show_financials && (
@@ -278,6 +331,16 @@ export default async function Portal() {
                         <p className="mt-1 whitespace-pre-line text-sm leading-relaxed text-bone-200">
                           {u.tasks_completed}
                         </p>
+                        {/* Concrete numbers beat "worked on SEO" every time. */}
+                        {!!describeMetrics(u.metrics).length && (
+                          <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1">
+                            {describeMetrics(u.metrics).map((m) => (
+                              <span key={m.label} className="mono-tag text-[11px]">
+                                {m.label}: <strong className="text-bone-100">{m.value}</strong>
+                              </span>
+                            ))}
+                          </div>
+                        )}
                       </div>
                     </li>
                   ))}
@@ -311,19 +374,39 @@ export default async function Portal() {
               </div>
             )}
 
-            {/* Staging / Preview Action */}
-            {perms.show_staging && p.staging_url && (
-              <div className="mt-6 flex justify-end">
-                <a
-                  href={p.staging_url}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="btn btn-primary h-10 px-5 text-sm gap-2"
-                >
-                  Open Live Staging Preview <ExternalLink className="h-4 w-4" />
-                </a>
+            {/* Links to the actual site. The live URL was stored and editable
+                in the admin panel but never rendered here, so a client whose
+                site had gone live had no link to it. */}
+            {perms.show_staging && (p.staging_url || p.live_url) && (
+              <div className="mt-6 flex flex-wrap justify-end gap-2">
+                {p.staging_url && (
+                  <a
+                    href={p.staging_url}
+                    target="_blank"
+                    rel="noreferrer"
+                    className={`btn h-10 gap-2 px-5 text-sm ${p.live_url ? "" : "btn-primary"}`}
+                  >
+                    Staging preview <ExternalLink className="h-4 w-4" />
+                  </a>
+                )}
+                {p.live_url && (
+                  <a
+                    href={p.live_url}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="btn btn-primary h-10 gap-2 px-5 text-sm"
+                  >
+                    Visit your live site <ExternalLink className="h-4 w-4" />
+                  </a>
+                )}
               </div>
             )}
+
+            <ClientChangeRequest
+              projectId={p.id}
+              projectName={p.name}
+              openRequests={(myChangeRequests ?? []).filter((c) => c.project_id === p.id)}
+            />
           </section>
         );
       })}
@@ -406,11 +489,23 @@ export default async function Portal() {
         )}
       </div>
 
-      <div className="mt-12 text-center text-xs text-bone-300 space-y-2">
+      <div className="mt-12 space-y-3 text-center text-xs text-bone-300">
         <p>
-          Need assistance or wish to request revisions? Contact your Nex Desk project manager at{" "}
+          Need assistance or want to request a revision? Reach your Nex Desk project manager at{" "}
           <a href={`mailto:${CONTACT_EMAIL}`} className="text-lime-400 underline">{CONTACT_EMAIL}</a>
         </p>
+        {/* Sending a receipt or a signed page on WhatsApp is easier for most
+            clients than digging out an email client. */}
+        <a
+          href={whatsappLink(CONTACT_WHATSAPP, "Hi Nex Desk — ")}
+          target="_blank"
+          rel="noreferrer"
+          className="btn h-10 gap-2 px-5 text-sm"
+        >
+          <MessageCircle className="h-4 w-4 text-lime-400" />
+          Send a receipt or document on WhatsApp
+        </a>
+        <p className="text-bone-300">{CONTACT_WHATSAPP}</p>
       </div>
     </div>
   );

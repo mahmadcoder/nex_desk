@@ -276,10 +276,10 @@ export default function TestimonialsClient({ testimonials }: { testimonials: ITe
             </div>
 
             <div className="mt-6 flex justify-end gap-2 border-t border-ink-700/80 pt-4">
-              <button className="btn h-9 px-4 text-xs cursor-pointer" onClick={() => setEditing(null)} disabled={pending}>
+              <button className="btn h-9 px-4 text-sm cursor-pointer" onClick={() => setEditing(null)} disabled={pending}>
                 Cancel
               </button>
-              <button className="btn btn-primary h-9 px-4 text-xs cursor-pointer" onClick={handleSave} disabled={pending}>
+              <button className="btn btn-primary h-9 px-4 text-sm cursor-pointer" onClick={handleSave} disabled={pending}>
                 {pending ? "Saving..." : editing.id ? "Update Testimonial" : "Save Testimonial"}
               </button>
             </div>

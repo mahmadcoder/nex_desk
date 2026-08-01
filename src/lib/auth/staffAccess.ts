@@ -12,6 +12,9 @@ const STAFF_ALLOWED_SEGMENTS = [
   "clients",
   "projects",
   "daily-logs",
+  // Their own leave balance and requests. The page itself scopes to the
+  // signed-in employee, so this exposes nobody else's.
+  "leave",
   "login",
 ];
 

@@ -3,12 +3,17 @@ import { notFound } from "next/navigation";
 import { createAdminClient } from "@/lib/supabase/server";
 import { getCurrentStaff, assignedClientIds } from "@/lib/auth/staff";
 import { PageHead, Badge, Stat } from "@/components/admin/ui";
-import { Lock } from "lucide-react";
+import { PackageCheck } from "lucide-react";
 import { money, moneyMulti, sumByCurrency } from "@/lib/utils";
+import { describeMetrics } from "@/config/logFields";
 import DocButton from "@/components/admin/DocButton";
 import MilestoneList from "@/components/admin/MilestoneList";
 import ProjectControls from "@/components/admin/ProjectControls";
 import SendInvoiceButton from "@/components/admin/SendInvoiceButton";
+import HandoverPanel from "@/components/admin/HandoverPanel";
+import ChangeRequestsCard from "@/components/admin/ChangeRequestsCard";
+import DealExtrasCard from "@/components/admin/DealExtrasCard";
+import CredentialsCard from "@/components/admin/CredentialsCard";
 
 const BASE = `/${process.env.ADMIN_PATH || "nx-control"}`;
 export const dynamic = "force-dynamic";
@@ -22,7 +27,7 @@ export default async function ProjectDetail({ params }: { params: Promise<{ id: 
   const db = createAdminClient();
 
   const { data: project } = await db.from("projects")
-    .select("*, clients(*), deals(deal_no, total, currency)").eq("id", id).single();
+    .select("*, clients(*), deals(*)").eq("id", id).single();
   if (!project) notFound();
 
   // Staff may only open projects for clients they are assigned to. 404 rather
@@ -32,15 +37,18 @@ export default async function ProjectDetail({ params }: { params: Promise<{ id: 
     if (!allowed.includes(project.client_id)) notFound();
   }
 
-  const [{ data: milestones }, { data: invoices }, { data: workLogs }] = await Promise.all([
-    db.from("milestones").select("*").eq("project_id", id).order("sort_order"),
-    db.from("invoices").select("*").eq("project_id", id).order("issue_date"),
-    db.from("daily_work_logs")
-      .select("id, work_date, tasks_completed, blockers, employee_name, client_visible")
-      .eq("project_id", id)
-      .order("work_date", { ascending: false })
-      .limit(20),
-  ]);
+  const [{ data: milestones }, { data: invoices }, { data: workLogs }, { data: changeRequests }] =
+    await Promise.all([
+      db.from("milestones").select("*").eq("project_id", id).order("sort_order"),
+      db.from("invoices").select("*").eq("project_id", id).order("issue_date"),
+      db.from("daily_work_logs")
+        .select("id, work_date, tasks_completed, blockers, employee_name, client_visible, metrics")
+        .eq("project_id", id)
+        .order("work_date", { ascending: false })
+        .limit(20),
+      db.from("change_requests")
+        .select("*").eq("project_id", id).order("created_at", { ascending: false }),
+    ]);
 
   const invoiceRows = invoices ?? [];
   const paid = sumByCurrency(invoiceRows, (i) => i.currency, (i) => Number(i.amount_paid));
@@ -76,6 +84,24 @@ export default async function ProjectDetail({ params }: { params: Promise<{ id: 
     ? contractValue > 0 && outstanding.length === 0
     : invoiceRows.length > 0 && outstanding.length === 0;
 
+  // An approved-but-unpaid change request re-locks handover, so the reasons
+  // shown on the panel have to account for it as well as the contract balance.
+  const openChanges = (changeRequests ?? []).filter((c) =>
+    ["approved", "invoiced"].includes(c.status)
+  );
+
+  const handoverReasons = [
+    !deal && !invoiceRows.length
+      ? "Lock a deal, or raise and settle an invoice, before handing this project over."
+      : null,
+    outstanding.length ? `Outstanding balance: ${moneyMulti(outstanding)}.` : null,
+    openChanges.length
+      ? `${openChanges.length} approved change request${openChanges.length === 1 ? "" : "s"} not yet paid.`
+      : null,
+  ].filter(Boolean) as string[];
+
+  const handoverReady = handoverReasons.length === 0;
+
   return (
     <>
       <Link href={`${BASE}/projects`} className="mono-tag hover:text-bone-50">← projects</Link>
@@ -86,24 +112,13 @@ export default async function ProjectDetail({ params }: { params: Promise<{ id: 
         action={
           <div className="flex flex-wrap items-center gap-2">
             <DocButton type="progress_report" id={project.id} label="Progress PDF" />
-            {/* Handover transfers ownership and carries credentials — owner/admin only. */}
-            {canManage &&
-              (isSettled ? (
-                <DocButton type="handover" id={project.id} label="Handover PDF" primary />
-              ) : (
-                <span
-                  className="inline-flex h-8 cursor-not-allowed items-center gap-1.5 rounded-full border border-ink-500 px-3 text-xs text-bone-300"
-                  title={
-                    deal
-                      ? `Outstanding against the ${money(contractValue, contractCurrency!)} contract: ${moneyMulti(outstanding)}. Handover unlocks once the agreement is paid in full.`
-                      : invoiceRows.length
-                        ? `Outstanding balance: ${moneyMulti(outstanding)}. Handover unlocks once the project is paid in full.`
-                        : "Lock a deal, or raise and settle an invoice, before handing the project over."
-                  }
-                >
-                  <Lock size={12} /> Handover PDF
-                </span>
-              ))}
+            {/* Handover itself now lives in its own panel below — it is an event
+                that emails three parties and stamps the project, not a download. */}
+            {canManage && project.handed_over_at && (
+              <span className="mono-tag inline-flex h-8 items-center gap-1.5 rounded-full border border-emerald-400/40 bg-emerald-400/15 px-3 text-[11px] font-semibold text-emerald-300">
+                <PackageCheck size={12} /> Handed over
+              </span>
+            )}
           </div>
         }
       />
@@ -179,6 +194,16 @@ export default async function ProjectDetail({ params }: { params: Promise<{ id: 
                     <p className="mt-2 whitespace-pre-line text-sm leading-relaxed text-bone-100">
                       {l.tasks_completed}
                     </p>
+                    {/* The per-service numbers, if the staff member filled any in. */}
+                    {!!describeMetrics(l.metrics).length && (
+                      <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1">
+                        {describeMetrics(l.metrics).map((m) => (
+                          <span key={m.label} className="mono-tag text-[11px]">
+                            {m.label}: <strong className="text-bone-100">{m.value}</strong>
+                          </span>
+                        ))}
+                      </div>
+                    )}
                     {l.blockers && (
                       <p className="mt-2 rounded border border-amber-400/20 bg-amber-400/5 p-2 text-xs text-amber-300">
                         Blocker: {l.blockers}
@@ -194,6 +219,36 @@ export default async function ProjectDetail({ params }: { params: Promise<{ id: 
         <div className="space-y-6">
           {/* Status, staging links and the client progress email are the
               account owner's calls — staff report through the work log. */}
+          {canManage && (
+            <HandoverPanel
+              project={{
+                id: project.id,
+                name: project.name,
+                handed_over_at: project.handed_over_at ?? null,
+                thanked_at: project.thanked_at ?? null,
+              }}
+              ready={handoverReady}
+              reasons={handoverReasons}
+            />
+          )}
+
+          {canManage && (
+            <CredentialsCard
+              projectId={project.id}
+              count={((project.credentials as any[]) ?? []).length}
+            />
+          )}
+
+          {canManage && deal && <DealExtrasCard deal={deal} />}
+
+          {canManage && (
+            <ChangeRequestsCard
+              projectId={project.id}
+              defaultCurrency={contractCurrency || client?.preferred_currency || "USD"}
+              requests={changeRequests ?? []}
+            />
+          )}
+
           {canManage && (
             <section>
               <h2 className="mb-3 text-base">Project controls</h2>
@@ -260,7 +315,7 @@ export default async function ProjectDetail({ params }: { params: Promise<{ id: 
                 {client?.company && <p className="mt-0.5 text-xs text-bone-300">{client.company}</p>}
                 <Link
                   href={`${BASE}/daily-logs`}
-                  className="btn btn-primary mt-4 h-9 w-full justify-center text-xs"
+                  className="btn btn-primary mt-4 h-9 w-full justify-center text-sm"
                 >
                   Log work on this project
                 </Link>

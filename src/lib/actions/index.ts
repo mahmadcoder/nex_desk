@@ -8,7 +8,8 @@ import { requireStaff, requireOwnerAdmin } from "@/lib/auth/guards";
 import { sendEmail, adminNotifyAddress, notifyEmailChange } from "@/lib/email/send";
 import type { DocType } from "@/lib/pdf/generate";
 import { getLiveExchangeRates, convertCurrency, DEFAULT_RATES } from "@/lib/currency";
-import { getSiteBaseUrl } from "@/lib/utils";
+import { getSiteBaseUrl, currencyForCountry, money } from "@/lib/utils";
+import { tryEncrypt, decryptSecret } from "@/lib/crypto";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
@@ -150,7 +151,15 @@ export async function convertLeadToClient(leadId: string) {
   const { data: client, error: insertErr } = await db.from("clients").insert({
     name: lead.name, email: lead.email, phone: lead.phone, company: lead.company,
     city: lead.city, country: lead.country, lead_id: lead.id,
-    notes: lead.message, source: lead.source || "website",
+    // Bill people in their own currency. This was never set, so every converted
+    // lead took the schema default of PKR — and `DealForm` adopts the client's
+    // currency, so a US lead ended up with a rupee deal, invoice and agreement.
+    preferred_currency: currencyForCountry(lead.country),
+    // Free text from the form, e.g. "Ayesha at Zenith". Kept as a note; an
+    // admin links it to the actual client record on the profile, which is what
+    // drives the referrer's thank-you and their "referred N clients" count.
+    referral_note: lead.referred_by || null,
+    notes: lead.message, source: lead.referred_by ? "referral" : lead.source || "website",
   }).select().single();
 
   // A unique-violation here means a concurrent click won the race — fall through
@@ -283,10 +292,18 @@ export async function ensureClientPortalAccount(clientId: string, customPassword
   const { data: client } = await db.from("clients").select("*").eq("id", clientId).single();
   if (!client) throw new Error("Client not found");
 
-  let password = customPassword || client.portal_password_preview;
+  // A stored preview may be ciphertext, so it has to be decrypted before it
+  // can be reused as a password.
+  let password = customPassword || decryptSecret(client.portal_password_preview);
   if (!password) {
     password = "Nex#" + Math.floor(100000 + Math.random() * 900000);
   }
+
+  // The stored copy is encrypted and short-lived: useful while you are still
+  // handing the login over, gone before it can become a permanent liability.
+  // Supabase auth holds the real password either way, so nothing is lost.
+  const previewExpiry = new Date(Date.now() + 72 * 3600e3).toISOString();
+
 
   let profileId = client.profile_id;
 
@@ -325,7 +342,10 @@ export async function ensureClientPortalAccount(clientId: string, customPassword
 
   const { data: updated } = await db.from("clients").update({
     profile_id: profileId,
-    portal_password_preview: password,
+    // tryEncrypt returns null when CREDENTIALS_KEY is unset — storing nothing
+    // is the correct failure, never a plaintext fallback.
+    portal_password_preview: tryEncrypt(password),
+    password_preview_expires_at: previewExpiry,
     portal_access_token: token,
   }).eq("id", clientId).select().single();
 
@@ -500,14 +520,29 @@ export async function lockDeal(dealData: any, options: { sendEmail: boolean } = 
   const invoice = createdInvoices.find((v) => v.stage_index === 0) ?? createdInvoices[0] ?? null;
 
 
+  // Is this their first deal, or are they buying another service? A returning
+  // client should not be welcomed as though nothing had happened before.
+  const { data: theirDeals } = await db
+    .from("deals").select("id, title, total, currency, status").eq("client_id", deal.client_id);
+
+  const otherLocked = (theirDeals ?? []).filter(
+    (d) => d.status === "locked" && d.id !== deal.id
+  );
+  const isAdditionalService = otherLocked.length > 0;
+
   if (options.sendEmail) {
     const siteUrl = getSiteBaseUrl();
     const portalUrl = clientAcc?.portal_access_token
       ? `${siteUrl}/portal/login?key=${clientAcc.portal_access_token}`
       : `${siteUrl}/portal/login`;
 
+    // Combined position across everything they hold in this currency.
+    const combined = [...otherLocked, deal]
+      .filter((d) => String(d.currency).toUpperCase() === String(deal.currency).toUpperCase())
+      .reduce((s, d) => s + Number(d.total || 0), 0);
+
     await sendEmail({
-      templateKey: "deal_locked",
+      templateKey: isAdditionalService ? "client_service_added" : "deal_locked",
       to: deal.clients.email,
       clientId: deal.client_id,
       projectId: project?.id,
@@ -516,9 +551,12 @@ export async function lockDeal(dealData: any, options: { sendEmail: boolean } = 
       vars: {
         client_name: deal.clients.name,
         project_name: deal.title,
+        service_name: deal.title,
         deal_no: deal.deal_no,
         amount: Number(deal.total).toLocaleString(),
         currency: deal.currency,
+        service_count: otherLocked.length + 1,
+        combined_total: `${deal.currency} ${combined.toLocaleString()}`,
         deadline: deal.deadline ?? "as agreed",
         portal_url: portalUrl,
         sender_name: me.fullName ?? "Nex Desk",
@@ -528,7 +566,8 @@ export async function lockDeal(dealData: any, options: { sendEmail: boolean } = 
     // Credentials go in their own email rather than being appended to the
     // portal_url variable — the layout renders a bare URL as a CTA button, so
     // concatenating a password onto it produced garbled output.
-    if (clientAcc?.portal_password_preview) {
+    const invitePassword = decryptSecret(clientAcc?.portal_password_preview);
+    if (invitePassword) {
       await sendEmail({
         templateKey: "portal_invite",
         to: deal.clients.email,
@@ -539,7 +578,7 @@ export async function lockDeal(dealData: any, options: { sendEmail: boolean } = 
           project_name: deal.title,
           portal_url: portalUrl,
           client_email: deal.clients.email,
-          client_password: clientAcc.portal_password_preview,
+          client_password: invitePassword,
           sender_name: me.fullName ?? "Nex Desk",
         },
       });
@@ -566,8 +605,40 @@ export async function lockDeal(dealData: any, options: { sendEmail: boolean } = 
     }
   }
 
+  // An existing client buying more is the best news the agency gets — say so
+  // internally, with the combined position rather than just the new line.
+  if (isAdditionalService) {
+    const combinedAll = [...otherLocked, deal]
+      .filter((d) => String(d.currency).toUpperCase() === String(deal.currency).toUpperCase())
+      .reduce((s, d) => s + Number(d.total || 0), 0);
+
+    await sendEmail({
+      templateKey: "admin_service_added_notice",
+      to: await adminNotifyAddress(),
+      clientId: deal.client_id,
+      actorId: me.userId,
+      vars: {
+        client_name: deal.clients.name,
+        service_name: deal.title,
+        amount: Number(deal.total).toLocaleString(),
+        currency: deal.currency,
+        service_count: otherLocked.length + 1,
+        combined_total: `${deal.currency} ${combinedAll.toLocaleString()}`,
+        admin_url: `${getSiteBaseUrl()}/${ADMIN}/clients/${deal.client_id}`,
+      },
+    }).catch((e) => console.error("Service-added notice failed:", e));
+  }
+
+  // Buying again reactivates a dormant client automatically — nobody should
+  // have to remember to flip that by hand.
+  await db.from("clients")
+    .update({ lifecycle: "active", is_active: true })
+    .eq("id", deal.client_id)
+    .neq("lifecycle", "active");
+
   await audit(me.userId, "deal.lock", "deals", deal.id, {
     total: deal.total, project: project?.id, invoices: createdInvoices.length,
+    additional_service: isAdditionalService,
   });
   revalidatePath(`/${ADMIN}`, "layout");
   return {
@@ -575,6 +646,7 @@ export async function lockDeal(dealData: any, options: { sendEmail: boolean } = 
     projectId: project?.id,
     invoiceId: invoice?.id,
     invoicesCreated: createdInvoices.length,
+    isAdditionalService,
   };
 }
 
@@ -664,10 +736,36 @@ export async function recordPayment(data: any, notify = true) {
     .select("*, clients(*)").single();
   if (error) throw error;
 
+  // Is this the payment that clears the whole contract? The trigger has already
+  // synced the invoice by now, so compare paid against the deal, not against
+  // the invoices raised so far.
+  let settledInFull = false;
+  let contractTotal = 0;
+  if (data.invoice_id) {
+    const { data: inv } = await db
+      .from("invoices").select("deal_id, currency").eq("id", data.invoice_id).maybeSingle();
+
+    if (inv?.deal_id) {
+      const [{ data: deal }, { data: dealInvoices }] = await Promise.all([
+        db.from("deals").select("total, currency").eq("id", inv.deal_id).maybeSingle(),
+        db.from("invoices").select("amount_paid, currency").eq("deal_id", inv.deal_id),
+      ]);
+
+      if (deal) {
+        contractTotal = Number(deal.total || 0);
+        const paidOnDeal = (dealInvoices ?? [])
+          .filter((i) => String(i.currency).toUpperCase() === String(deal.currency).toUpperCase())
+          .reduce((s, i) => s + Number(i.amount_paid || 0), 0);
+        settledInFull = contractTotal > 0 && paidOnDeal >= contractTotal - 0.01;
+      }
+    }
+  }
+
   if (notify) {
-    // 1. Client Receipt Email
+    // 1. Client Receipt Email — the final one says so, so nobody is left
+    //    wondering whether another invoice is still coming.
     await sendEmail({
-      templateKey: "payment_received",
+      templateKey: settledInFull ? "invoice_final_settled" : "payment_received",
       to: payment.clients.email,
       clientId: payment.client_id,
       actorId: me.userId,
@@ -676,6 +774,7 @@ export async function recordPayment(data: any, notify = true) {
         client_name: payment.clients.name,
         amount: Number(payment.amount).toLocaleString(),
         currency: payment.currency,
+        contract_total: contractTotal ? money(contractTotal, payment.currency) : "",
         project_name: data.project_name ?? "your project",
         sender_name: me.fullName ?? "Nex Desk",
       },
@@ -783,6 +882,20 @@ export async function sendProgressUpdate(projectId: string) {
  * `bump` nudges the figure when a work log reports progress on a project that
  * has no milestones to derive it from.
  */
+/**
+ * Recomputes a project's progress from BOTH sources of truth.
+ *
+ * This used to return the milestone percentage whenever any milestone existed
+ * and silently discard `bump`. `lockDeal` creates milestones from the payment
+ * schedule on every deal, so in practice every project had milestones — which
+ * meant the `progress_delta` a staff member entered on a daily work log was
+ * thrown away, every time, on every project. The bar never moved for the
+ * client, the staff member or the admin.
+ *
+ * Now the two combine: milestones give the structural figure, logged deltas
+ * accumulate in `projects.manual_progress`, and the project shows whichever is
+ * further along. Reporting real work can only ever move the bar forwards.
+ */
 export async function recomputeProjectProgress(projectId: string, bump = 0) {
   // Exported from a "use server" module, so this is a public endpoint that
   // writes the client-visible progress figure — it needs its own guard even
@@ -790,21 +903,29 @@ export async function recomputeProjectProgress(projectId: string, bump = 0) {
   await requireStaff();
   const db = createAdminClient();
 
-  const { data: all } = await db.from("milestones").select("is_done").eq("project_id", projectId);
+  const clamp = (n: number) => Math.max(0, Math.min(100, Math.round(n)));
 
-  let pct: number;
-  if (all?.length) {
-    pct = Math.round((all.filter((x) => x.is_done).length / all.length) * 100);
-  } else {
-    // No milestones — carry the current value forward and apply the bump.
-    const { data: project } = await db
-      .from("projects").select("progress").eq("id", projectId).maybeSingle();
-    pct = Number(project?.progress ?? 0) + bump;
-  }
+  const [{ data: all }, { data: project }] = await Promise.all([
+    db.from("milestones").select("is_done").eq("project_id", projectId),
+    db.from("projects").select("progress, manual_progress").eq("id", projectId).maybeSingle(),
+  ]);
 
-  pct = Math.max(0, Math.min(100, pct));
-  await db.from("projects").update({ progress: pct }).eq("id", projectId);
-  return pct;
+  // Deltas accumulate and persist, so they survive the next milestone tick.
+  const manual = clamp(Number(project?.manual_progress ?? 0) + Number(bump || 0));
+
+  const milestonePct = all?.length
+    ? clamp((all.filter((x) => x.is_done).length / all.length) * 100)
+    : 0;
+
+  // `max` rather than a sum: they measure the same thing two ways, so adding
+  // them would let a project read 140% complete.
+  const pct = all?.length ? Math.max(milestonePct, manual) : manual;
+
+  await db.from("projects")
+    .update({ progress: clamp(pct), manual_progress: manual })
+    .eq("id", projectId);
+
+  return clamp(pct);
 }
 
 /**

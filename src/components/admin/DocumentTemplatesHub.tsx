@@ -310,7 +310,7 @@ export default function DocumentTemplatesHub({
                   <button
                     type="button"
                     onClick={() => handleOpenModal(t)}
-                    className="btn h-9 px-3 text-xs gap-1.5 w-full justify-center cursor-pointer"
+                    className="btn h-9 px-3 text-sm gap-1.5 w-full justify-center cursor-pointer"
                   >
                     <Eye className="h-3.5 w-3.5" /> View & Edit Content
                   </button>
@@ -320,7 +320,7 @@ export default function DocumentTemplatesHub({
                       type="button"
                       onClick={() => handleDownloadPdf(t)}
                       disabled={loadingPdfId === t.id}
-                      className="btn h-9 px-2 text-xs gap-1.5 text-lime-400 border-lime-400/40 hover:bg-lime-400/10 cursor-pointer justify-center"
+                      className="btn h-9 px-2 text-sm gap-1.5 text-lime-400 border-lime-400/40 hover:bg-lime-400/10 cursor-pointer justify-center"
                       title="Download Styled PDF"
                     >
                       {loadingPdfId === t.id ? (
@@ -334,7 +334,7 @@ export default function DocumentTemplatesHub({
                     <button
                       type="button"
                       onClick={() => handleDownloadStyledDoc(t.title, t.textContent)}
-                      className="btn h-9 px-2 text-xs gap-1.5 text-sky-400 border-sky-400/40 hover:bg-sky-400/10 cursor-pointer justify-center"
+                      className="btn h-9 px-2 text-sm gap-1.5 text-sky-400 border-sky-400/40 hover:bg-sky-400/10 cursor-pointer justify-center"
                       title="Download Styled Word DOCS file"
                     >
                       <FileType className="h-3.5 w-3.5" />
@@ -440,7 +440,7 @@ export default function DocumentTemplatesHub({
             <div className="mt-6 flex flex-wrap items-center justify-between gap-3 border-t border-ink-600 pt-4">
               <button
                 type="button"
-                className="btn h-9 px-4 text-xs cursor-pointer"
+                className="btn h-9 px-4 text-sm cursor-pointer"
                 onClick={() => setSelectedTemplate(null)}
               >
                 Close
@@ -449,7 +449,7 @@ export default function DocumentTemplatesHub({
               <div className="flex flex-wrap gap-2">
                 <button
                   type="button"
-                  className="btn h-9 px-3 text-xs gap-1.5 cursor-pointer"
+                  className="btn h-9 px-3 text-sm gap-1.5 cursor-pointer"
                   onClick={() => handleCopyText(customText)}
                 >
                   <Copy className="h-3.5 w-3.5" /> Copy Text
@@ -457,7 +457,7 @@ export default function DocumentTemplatesHub({
 
                 <button
                   type="button"
-                  className="btn h-9 px-3 text-xs gap-1.5 text-sky-400 border-sky-400/40 hover:bg-sky-400/10 cursor-pointer"
+                  className="btn h-9 px-3 text-sm gap-1.5 text-sky-400 border-sky-400/40 hover:bg-sky-400/10 cursor-pointer"
                   onClick={() => handleDownloadStyledDoc(selectedTemplate.title, customText)}
                 >
                   <FileType className="h-3.5 w-3.5" /> Download Styled DOCS
@@ -465,7 +465,7 @@ export default function DocumentTemplatesHub({
 
                 <button
                   type="button"
-                  className="btn btn-primary h-9 px-4 text-xs gap-1.5 cursor-pointer"
+                  className="btn btn-primary h-9 px-4 text-sm gap-1.5 cursor-pointer"
                   onClick={() => handleDownloadPdf(selectedTemplate, customText)}
                   disabled={loadingPdfId === selectedTemplate.id}
                 >

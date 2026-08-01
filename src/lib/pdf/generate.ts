@@ -1,7 +1,8 @@
 import { renderToBuffer } from "@react-pdf/renderer";
 import { createElement } from "react";
 import { createAdminClient } from "@/lib/supabase/server";
-import { moneyMulti, sumByCurrency } from "@/lib/utils";
+import { moneyMulti, sumByCurrency, pdfFilename } from "@/lib/utils";
+import { decryptCredentials } from "@/lib/crypto";
 import {
   AgreementDoc, QuotationDoc, InvoiceDoc, ReceiptDoc,
   ChangeOrderDoc, ProgressDoc, HandoverDoc,
@@ -107,17 +108,58 @@ export async function generateDocument(type: DocType, id: string, actorId?: stri
     snapshot = project;
     element = createElement(HandoverDoc, {
       project, client: project.clients,
-      credentials: (project.credentials as any[]) ?? [],
+      // Stored encrypted; decrypted only here, at the moment the client is
+      // actually being handed ownership.
+      credentials: decryptCredentials(project.credentials as any[]),
     });
   }
 
   if (type === "change_order") {
-    const { data: change } = await db.from("change_orders").select("*, deals(*, clients(*))").eq("id", id).single();
-    if (!change) throw new Error("Change order not found");
+    // Reads `change_requests`. The original code queried `change_orders`, a
+    // table that was never created in any migration — so this document type
+    // has always thrown, despite the renderer and email template existing.
+    const { data: change } = await db
+      .from("change_requests")
+      .select("*, projects(id, name, deal_id), clients(*)")
+      .eq("id", id)
+      .single();
+    if (!change) throw new Error("Change request not found");
+
+    const project = (change.projects as any) ?? null;
+    const { data: deal } = project?.deal_id
+      ? await db.from("deals").select("*").eq("id", project.deal_id).maybeSingle()
+      : { data: null };
+
+    // A project with no deal behind it still needs a document, so synthesise
+    // the agreement fields the renderer expects rather than failing.
+    const dealForDoc = deal ?? {
+      deal_no: project?.name ? `PRJ-${String(project.id).slice(0, 6).toUpperCase()}` : "—",
+      title: project?.name ?? "Project",
+      deadline: null,
+      currency: change.currency || "USD",
+      tax_percent: 0,
+      total: 0,
+    };
+
+    const amount = Number(change.quoted_amount ?? 0);
+    const changeForDoc = {
+      ...change,
+      // `deals.total` is tax-inclusive, and a quoted change amount is the final
+      // figure the client agreed — so it must not be taxed again here either.
+      items: [{ item: change.title, qty: 1, price: amount }],
+      subtotal: amount,
+      total: amount,
+      new_deadline: null,
+    };
+
     title = `Change order — ${change.title}`;
-    meta = { client_id: change.deals.clients.id, deal_id: change.deal_id };
-    snapshot = change;
-    element = createElement(ChangeOrderDoc, { change, deal: change.deals, client: change.deals.clients });
+    meta = { client_id: change.client_id, project_id: change.project_id, deal_id: deal?.id ?? null };
+    snapshot = changeForDoc;
+    element = createElement(ChangeOrderDoc, {
+      change: changeForDoc,
+      deal: { ...dealForDoc, tax_percent: 0 },
+      client: change.clients,
+    });
   }
 
   // documents.created_by is a FK to profiles(id). A staff member authenticated
@@ -148,7 +190,12 @@ export async function generateDocument(type: DocType, id: string, actorId?: stri
     ...meta,
   }).select().single();
 
-  const { data: signed } = await db.storage.from("documents").createSignedUrl(path, 60 * 60 * 24 * 30);
+  // `download` sets Content-Disposition on the signed URL. Without it the
+  // browser saves the storage key — "1738…-agreement.pdf" — so a downloaded
+  // agreement had the right contents under a meaningless name.
+  const { data: signed } = await db.storage
+    .from("documents")
+    .createSignedUrl(path, 60 * 60 * 24 * 30, { download: pdfFilename(title) });
 
   return { buffer, path, url: signed?.signedUrl ?? null, document: doc, title };
 }

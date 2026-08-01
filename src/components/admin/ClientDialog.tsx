@@ -607,14 +607,14 @@ export default function ClientDialog({
         <div className="mt-7 flex items-center justify-end gap-3 border-t border-ink-600 pt-4">
           <button
             type="button"
-            className="btn h-10 px-4 text-xs cursor-pointer"
+            className="btn h-10 px-4 text-sm cursor-pointer"
             onClick={() => setOpen(false)}
           >
             Cancel
           </button>
           <button
             type="button"
-            className="btn btn-primary h-10 px-5 text-xs cursor-pointer"
+            className="btn btn-primary h-10 px-5 text-sm cursor-pointer"
             onClick={save}
             disabled={pending}
           >

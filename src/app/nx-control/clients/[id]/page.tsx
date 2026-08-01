@@ -7,7 +7,12 @@ import { money, moneyMulti, sumByCurrency } from "@/lib/utils";
 import DocButton from "@/components/admin/DocButton";
 import ClientManagerCard from "@/components/admin/ClientManagerCard";
 import SendInvoiceButton from "@/components/admin/SendInvoiceButton";
-import { Calendar, Layers, Clock, CheckCircle2, ShieldCheck, Mail, Globe, Lock } from "lucide-react";
+import ClientServices from "@/components/admin/ClientServices";
+import ClientLifecycleCard from "@/components/admin/ClientLifecycleCard";
+import ActivityTimeline from "@/components/admin/ActivityTimeline";
+import { clientActivity } from "@/lib/insights";
+import { revealPreview } from "@/lib/crypto";
+import { Calendar, Layers, Clock, CheckCircle2, ShieldCheck, Mail, Globe, Lock, Plus } from "lucide-react";
 
 const BASE = `/${process.env.ADMIN_PATH || "nx-control"}`;
 export const dynamic = "force-dynamic";
@@ -78,7 +83,23 @@ export default async function ClientDetail({ params }: { params: Promise<{ id: s
     console.error("Failed to load assigned employees for client", id, assignedEmployeesError);
   }
 
-  const lockedDeal = (deals ?? []).find((d) => d.status === "locked") ?? null;
+  // Deals are found by `client_id`, but a project also carries `deal_id` — so a
+  // deal whose client_id is wrong (a duplicate client row from an old lead
+  // conversion, for example) would leave this page insisting the client has no
+  // deal, showing "Lock a deal" and a blank contract value even though the
+  // agreement exists. Resolve through the projects as a second route.
+  const dealIdsViaProjects = (projects ?? []).map((p) => p.deal_id).filter(Boolean) as string[];
+  const { data: dealsViaProjects } = dealIdsViaProjects.length
+    ? await db.from("deals")
+        .select("id, title, status, service_slugs, total, currency")
+        .in("id", dealIdsViaProjects)
+    : { data: [] as any[] };
+
+  const allDeals = Array.from(
+    new Map([...(deals ?? []), ...(dealsViaProjects ?? [])].map((d: any) => [d.id, d])).values()
+  );
+
+  const lockedDeal = allDeals.find((d: any) => d.status === "locked") ?? null;
   const lockedProject = lockedDeal
     ? (projects ?? []).find((p) => p.deal_id === lockedDeal.id) ?? (projects ?? [])[0] ?? null
     : null;
@@ -89,9 +110,9 @@ export default async function ClientDetail({ params }: { params: Promise<{ id: s
   // USD client their total in Rs.
   const issuedInvoices = (invoices ?? []).filter((i) => i.status !== "draft");
   const contract = sumByCurrency(
-    (deals ?? []).filter((d) => d.status === "locked"),
-    (d) => d.currency,
-    (d) => Number(d.total)
+    allDeals.filter((d: any) => d.status === "locked"),
+    (d: any) => d.currency,
+    (d: any) => Number(d.total)
   );
   const billed = sumByCurrency(issuedInvoices, (i) => i.currency, (i) => Number(i.total));
   const paid = sumByCurrency(issuedInvoices, (i) => i.currency, (i) => Number(i.amount_paid));
@@ -103,14 +124,34 @@ export default async function ClientDetail({ params }: { params: Promise<{ id: s
 
   const tenure = getClientTenure(client.created_at || new Date().toISOString());
 
-  // Aggregate active services
-  const activeServices = Array.from(
-    new Set(
-      (deals ?? []).flatMap((d) => (d.service_slugs as string[]) || []).concat(
-        (projects ?? []).map((p) => p.name)
-      )
-    )
-  );
+  // Each locked deal is one service the client bought, with its own project and
+  // its own invoices. Numbered in the order they were sold.
+  const services = allDeals
+    .filter((d: any) => d.status === "locked")
+    .map((d: any) => ({
+      deal: d,
+      project: (projects ?? []).find((p) => p.deal_id === d.id) ?? null,
+      invoices: (invoices ?? []).filter((v) => v.deal_id === d.id),
+    }))
+    .sort(
+      (a, b) =>
+        new Date(a.project?.created_at ?? 0).getTime() -
+        new Date(b.project?.created_at ?? 0).getTime()
+    );
+
+  // Everything that has happened on this account. `audit_log` has been
+  // written on every privileged action since Phase 5 and read by nothing.
+  const activity = canManage ? await clientActivity(id) : [];
+
+  // Referral graph, both directions.
+  const [{ data: referrer }, { data: referred }, { data: referralCandidates }] = await Promise.all([
+    client.referred_by_client_id
+      ? db.from("clients").select("id, name, company").eq("id", client.referred_by_client_id).maybeSingle()
+      : Promise.resolve({ data: null }),
+    db.from("clients").select("id, name, company").eq("referred_by_client_id", id),
+    // Anyone but this client can be the referrer.
+    db.from("clients").select("id, name, company").neq("id", id).order("name"),
+  ]);
 
   return (
     <>
@@ -118,8 +159,23 @@ export default async function ClientDetail({ params }: { params: Promise<{ id: s
         <Link href={`${BASE}/clients`} className="mono-tag hover:text-bone-50 transition-colors">
           ← Back to clients list
         </Link>
-        <span className="mono-tag text-xs text-lime-400 bg-lime-400/10 px-3 py-1 rounded-full border border-lime-400/20 inline-flex items-center gap-1.5">
-          <CheckCircle2 size={13} /> Active Client
+        {/* Was hardcoded to "Active Client" for everyone, including clients
+            whose work finished two years ago. */}
+        <span
+          className={`mono-tag inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs ${
+            client.lifecycle === "dormant"
+              ? "border-amber-400/30 bg-amber-400/10 text-amber-300"
+              : client.lifecycle === "archived"
+                ? "border-ink-500 bg-ink-800 text-bone-300"
+                : "border-lime-400/20 bg-lime-400/10 text-lime-400"
+          }`}
+        >
+          <CheckCircle2 size={13} />
+          {client.lifecycle === "dormant"
+            ? "Dormant"
+            : client.lifecycle === "archived"
+              ? "Archived"
+              : "Active client"}
         </span>
       </div>
 
@@ -132,18 +188,23 @@ export default async function ClientDetail({ params }: { params: Promise<{ id: s
           client.source ? `Acquisition: ${client.source.charAt(0).toUpperCase() + client.source.slice(1).replace(/_/g, " ")}` : null,
         ].filter(Boolean).join(" · ")}
         action={
-          // A locked deal must not lead back to the create form — submitting it
-          // again raises a second deal, project, milestone set and invoice.
-          lockedProject ? (
-            <Link href={`${BASE}/projects/${lockedProject.id}`} className="btn h-10">
-              <Lock size={14} /> {canManage ? "Deal locked — open project" : "Open project"}
+          // Selling a second service is normal, so this no longer dead-ends at
+          // "Deal locked" — it offers the next one. Each becomes its own deal,
+          // project and invoice schedule.
+          !canManage ? (
+            lockedProject ? (
+              <Link href={`${BASE}/projects/${lockedProject.id}`} className="btn h-10">
+                Open project
+              </Link>
+            ) : undefined
+          ) : services.length ? (
+            <Link href={`${BASE}/deals/new?client=${id}`} className="btn btn-primary h-10">
+              <Plus size={14} /> Add another service
             </Link>
-          ) : !canManage ? undefined : lockedDeal ? (
-            <span className="btn h-10 cursor-not-allowed text-bone-500">
-              <Lock size={14} /> Deal locked
-            </span>
           ) : (
-            <Link href={`${BASE}/deals/new`} className="btn btn-primary h-10">Lock a deal</Link>
+            <Link href={`${BASE}/deals/new?client=${id}`} className="btn btn-primary h-10">
+              <Lock size={14} /> Lock the first deal
+            </Link>
           )
         }
       />
@@ -167,9 +228,11 @@ export default async function ClientDetail({ params }: { params: Promise<{ id: s
             <Layers size={20} />
           </div>
           <div>
-            <p className="mono-tag text-[11px]">Active Services & Packages</p>
-            <p className="text-sm font-semibold text-bone-50 mt-0.5">
-              {activeServices.length > 0 ? `${activeServices.length} Active ${activeServices.length === 1 ? "Service" : "Services"}` : "Custom Retainer"}
+            <p className="mono-tag text-[11px]">Services booked</p>
+            <p className="mt-0.5 text-sm font-semibold text-bone-50">
+              {services.length > 0
+                ? `${services.length} ${services.length === 1 ? "service" : "services"}`
+                : "Nothing booked yet"}
             </p>
           </div>
         </div>
@@ -208,25 +271,33 @@ export default async function ClientDetail({ params }: { params: Promise<{ id: s
         </div>
       )}
 
-      {/* Services Badge Bar */}
-      {activeServices.length > 0 && (
-        <div className="card mt-6 p-4 border-ink-600">
-          <p className="mono-tag text-xs text-lime-400 mb-2.5 flex items-center gap-1.5">
-            <Layers size={14} /> Services Purchased & In Progress
-          </p>
-          <div className="flex flex-wrap gap-2">
-            {activeServices.map((service) => (
-              <span key={service} className="inline-flex items-center gap-1.5 rounded-lg border border-ink-600 bg-ink-800 px-3 py-1.5 text-xs text-bone-100 font-medium">
-                <span className="h-1.5 w-1.5 rounded-full bg-lime-400" />
-                {service}
-              </span>
-            ))}
-          </div>
+      {/* Every service they bought, numbered and expandable. A flat badge bar
+          stopped making sense the moment anyone bought a second thing. */}
+      <ClientServices clientId={id} services={services} canManage={canManage} />
+
+      {canManage && (
+        <div className="mt-6">
+          <ActivityTimeline entries={activity} />
         </div>
       )}
 
+      {canManage && (
+        <ClientLifecycleCard
+          client={client}
+          referrer={referrer ?? null}
+          referred={referred ?? []}
+          candidates={referralCandidates ?? []}
+        />
+      )}
+
       {/* Credentials, password reset, permissions and delete — owner/admin only. */}
-      {canManage && <ClientManagerCard client={client} />}
+      {/* The stored password is ciphertext with a 72-hour window; it is
+          decrypted here, server-side, and only while still fresh. */}
+      {canManage && (
+        <ClientManagerCard
+          client={{ ...client, portal_password_preview: revealPreview(client) }}
+        />
+      )}
 
       {/* Assigned team. Read-only for staff: letting an employee change
           assignments would let them grant themselves any client. */}

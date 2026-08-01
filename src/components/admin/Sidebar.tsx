@@ -8,7 +8,7 @@ import { cn } from "@/lib/utils";
 import {
   LayoutDashboard, Inbox, Users, Handshake, FolderKanban,
   Receipt, FileText, Mail, Settings, LogOut, Menu, X,
-  MessageSquareQuote, Briefcase, Layers, BookOpen, HelpCircle, UserCheck, Clock
+  MessageSquareQuote, Briefcase, Layers, BookOpen, HelpCircle, UserCheck, Clock, CalendarDays
 } from "lucide-react";
 
 const NAV_SECTIONS = [
@@ -20,6 +20,7 @@ const NAV_SECTIONS = [
       { href: "/clients", label: "Clients", icon: Users },
       { href: "/employees", label: "Employees & Staff", icon: UserCheck },
       { href: "/daily-logs", label: "Daily Work Logs", icon: Clock },
+      { href: "/leave", label: "Leave", icon: CalendarDays },
       { href: "/deals", label: "Deals", icon: Handshake },
       { href: "/projects", label: "Projects", icon: FolderKanban },
       { href: "/invoices", label: "Invoices", icon: Receipt },
@@ -59,6 +60,7 @@ const STAFF_NAV = [
       { href: "/clients", label: "My Clients", icon: Users },
       { href: "/projects", label: "My Projects", icon: FolderKanban },
       { href: "/daily-logs", label: "Daily Work Logs", icon: Clock },
+      { href: "/leave", label: "My Leave", icon: CalendarDays },
     ],
   },
 ];

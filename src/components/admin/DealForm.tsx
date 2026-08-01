@@ -4,7 +4,9 @@ import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { lockDeal } from "@/lib/actions";
+import { noteTemplateUsed } from "@/lib/actions/agreements";
 import { money, CURRENCIES } from "@/lib/utils";
+import CustomSelect from "@/components/ui/CustomSelect";
 import { Trash2, Plus } from "lucide-react";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -22,25 +24,33 @@ const field =
 const label = "mono-tag mb-1.5 block";
 
 export default function DealForm({
-  clients, services, defaultTerms, taxDefault, defaultCurrency,
+  clients, services, defaultTerms, taxDefault, defaultCurrency, initialClientId, templates = [],
 }: {
   clients: Client[];
   services: { slug: string; title: string; starting_at: number | null }[];
   defaultTerms: string;
   taxDefault: number;
   defaultCurrency: string;
+  /** Preselected from ?client= when adding another service to a client. */
+  initialClientId?: string;
+  /** Saved standard packages. */
+  templates?: any[];
 }) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
   const [notify, setNotify] = useState(true);
 
+  // Adopting the client's currency up front matters: the form is often opened
+  // straight from a client profile to sell them a second service.
+  const preselected = clients.find((c) => c.id === initialClientId);
+
   const [d, setD] = useState({
-    client_id: "",
+    client_id: preselected?.id ?? "",
     title: "",
     summary: "",
     scope: "",
     exclusions: "",
-    currency: defaultCurrency,
+    currency: preselected?.preferred_currency || defaultCurrency,
     discount: 0,
     tax_percent: taxDefault,
     advance_percent: 50,
@@ -59,6 +69,40 @@ export default function DealForm({
   ]);
 
   const set = (k: string, v: unknown) => setD((p) => ({ ...p, [k]: v }));
+
+  /**
+   * Fills the whole form from a saved package. The client and the dates are
+   * deliberately left alone — those are the only parts that are genuinely
+   * per-deal, and overwriting a client you just picked would be maddening.
+   */
+  const applyTemplate = (templateId: string) => {
+    const tpl = templates.find((x: any) => x.id === templateId);
+    if (!tpl) return;
+
+    setD((p) => ({
+      ...p,
+      title: p.title || tpl.name,
+      summary: tpl.description ?? p.summary,
+      scope: tpl.scope ?? p.scope,
+      exclusions: tpl.exclusions ?? p.exclusions,
+      terms: tpl.terms ?? p.terms,
+      // A client already chosen keeps their own currency.
+      currency: p.client_id ? p.currency : tpl.currency || p.currency,
+      tax_percent: Number(tpl.tax_percent ?? p.tax_percent),
+      duration_days: Number(tpl.duration_days ?? p.duration_days),
+      revisions_included: Number(tpl.revisions_included ?? p.revisions_included),
+    }));
+
+    if (Array.isArray(tpl.deliverables) && tpl.deliverables.length) {
+      setItems(tpl.deliverables);
+    }
+    if (Array.isArray(tpl.payment_schedule) && tpl.payment_schedule.length) {
+      setSchedule(tpl.payment_schedule);
+    }
+
+    toast.success(`Loaded "${tpl.name}". Adjust anything before locking.`);
+    noteTemplateUsed(templateId).catch(() => {});
+  };
 
   /**
    * Picking a client also adopts their billing currency, so a client you
@@ -130,17 +174,41 @@ export default function DealForm({
         {/* ---- client + project ---- */}
         <section className="card p-6">
           <h2 className="mb-5 text-base">Who and what</h2>
+
+          {!!templates.length && (
+            <div className="mb-5 rounded-lg border border-lime-400/20 bg-lime-400/[0.05] p-3.5">
+              <label className="mono-tag mb-1.5 block text-[11px] text-lime-300">
+                Start from a saved package
+              </label>
+              <CustomSelect
+                placeholder="Build this one from scratch"
+                value=""
+                onChange={applyTemplate}
+                options={templates.map((x: any) => ({
+                  value: x.id,
+                  label: x.name,
+                  badge: x.use_count > 0 ? `used ${x.use_count}×` : undefined,
+                }))}
+              />
+              <p className="mt-1.5 text-[11px] leading-relaxed text-bone-300">
+                Fills the deliverables, schedule, scope and terms. Your client and dates
+                are left as they are.
+              </p>
+            </div>
+          )}
           <div className="grid gap-4 sm:grid-cols-2">
             <div>
               <label className={label}>Client</label>
-              <select className={field} value={d.client_id} onChange={(e) => selectClient(e.target.value)}>
-                <option value="">Select a client…</option>
-                {clients.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.name}{c.company ? ` — ${c.company}` : ""}
-                  </option>
-                ))}
-              </select>
+              <CustomSelect
+                placeholder="Select a client…"
+                value={d.client_id}
+                onChange={selectClient}
+                options={clients.map((c) => ({
+                  value: c.id,
+                  label: `${c.name}${c.company ? ` — ${c.company}` : ""}`,
+                  badge: c.preferred_currency || undefined,
+                }))}
+              />
               {client && <p className="mt-1.5 text-xs text-bone-400">Agreement goes to {client.email}</p>}
             </div>
             <div>
@@ -173,17 +241,24 @@ export default function DealForm({
         <section className="card p-6">
           <div className="mb-5 flex items-center justify-between">
             <h2 className="text-base">Deliverables and price</h2>
-            <select
-              className="rounded-lg border border-ink-500 bg-ink-800 px-2 py-1 text-xs"
-              value=""
-              onChange={(e) => {
-                const s = services.find((x) => x.slug === e.target.value);
-                if (s) setItems((p) => [...p.filter((i) => i.item), { item: s.title, qty: 1, price: Number(s.starting_at ?? 0), note: "" }]);
-              }}
-            >
-              <option value="">+ add from services…</option>
-              {services.map((s) => <option key={s.slug} value={s.slug}>{s.title}</option>)}
-            </select>
+            {/* Resets to empty after each pick so the same service can be added
+                twice — this is an action menu, not a bound value. */}
+            <div className="w-full sm:w-64">
+              <CustomSelect
+                placeholder="+ add from services…"
+                value=""
+                onChange={(slug) => {
+                  const s = services.find((x) => x.slug === slug);
+                  if (s) {
+                    setItems((p) => [
+                      ...p.filter((i) => i.item),
+                      { item: s.title, qty: 1, price: Number(s.starting_at ?? 0), note: "" },
+                    ]);
+                  }
+                }}
+                options={services.map((s) => ({ value: s.slug, label: s.title }))}
+              />
+            </div>
           </div>
 
           <div className="space-y-3">
@@ -311,13 +386,11 @@ export default function DealForm({
 
           <div className="mt-4 rounded-lg border border-ink-600 bg-ink-900/60 p-3">
             <label className={label}>Bill this deal in</label>
-            <select
-              className={field}
+            <CustomSelect
               value={d.currency}
-              onChange={(e) => set("currency", e.target.value)}
-            >
-              {CURRENCIES.map((c) => <option key={c}>{c}</option>)}
-            </select>
+              onChange={(v) => set("currency", v)}
+              options={CURRENCIES.map((c) => ({ value: c, label: c }))}
+            />
             <p className="mt-1.5 text-[11px] leading-relaxed text-bone-400">
               Applies to the agreement, the invoice and the client portal. Saved to the
               client so future deals match.

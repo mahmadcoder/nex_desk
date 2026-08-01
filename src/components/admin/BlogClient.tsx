@@ -112,7 +112,7 @@ export default function BlogClient({ posts }: { posts: Post[] }) {
                 is_published: true,
               })
             }
-            className="btn btn-primary h-9 px-4 text-xs flex items-center gap-2"
+            className="btn btn-primary h-9 px-4 text-sm flex items-center gap-2"
           >
             <Plus size={14} /> Write Article
           </button>
@@ -321,10 +321,10 @@ export default function BlogClient({ posts }: { posts: Post[] }) {
             </div>
 
             <div className="mt-6 flex justify-end gap-2 border-t border-ink-700/60 pt-4">
-              <button className="btn h-9 px-4 text-xs" onClick={() => setEditing(null)} disabled={pending}>
+              <button className="btn h-9 px-4 text-sm" onClick={() => setEditing(null)} disabled={pending}>
                 Cancel
               </button>
-              <button className="btn btn-primary h-9 px-4 text-xs" onClick={handleSave} disabled={pending}>
+              <button className="btn btn-primary h-9 px-4 text-sm" onClick={handleSave} disabled={pending}>
                 {pending ? "Saving..." : editing.id ? "Update Article" : "Save Article"}
               </button>
             </div>

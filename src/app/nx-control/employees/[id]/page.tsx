@@ -4,10 +4,14 @@ import { notFound } from "next/navigation";
 import { createAdminClient } from "@/lib/supabase/server";
 import {
   Users, MapPin, GraduationCap, DollarSign, Calendar,
-  Briefcase, Mail, Phone, ExternalLink, ShieldCheck, Award, ArrowLeft
+  Briefcase, Mail, Phone, ExternalLink, ShieldCheck, Award, ArrowLeft, CalendarDays
 } from "lucide-react";
 import EmployeeClientAssignments from "@/components/admin/EmployeeClientAssignments";
 import EmployeeAccessCard from "@/components/admin/EmployeeAccessCard";
+import CompensationCard from "@/components/admin/CompensationCard";
+import PerformanceCard from "@/components/admin/PerformanceCard";
+import { staffPerformance } from "@/lib/insights";
+import { revealPreview } from "@/lib/crypto";
 
 export async function generateMetadata(
   { params }: { params: Promise<{ id: string }> }
@@ -32,16 +36,31 @@ export default async function EmployeeDetailPage({
   const { id } = await params;
   const db = createAdminClient();
 
-  const [{ data: employee }, { data: assignments, error: assignmentsError }, { data: allClients }] =
-    await Promise.all([
-      db.from("employees").select("*").eq("id", id).single(),
-      db.from("client_employee_assignments")
-        .select("*, clients(id, name, email, company)")
-        .eq("employee_id", id),
-      db.from("clients").select("id, name, email, company"),
-    ]);
+  const [
+    { data: employee },
+    { data: assignments, error: assignmentsError },
+    { data: allClients },
+    { data: compensation },
+    { data: leave },
+  ] = await Promise.all([
+    db.from("employees").select("*").eq("id", id).single(),
+    db.from("client_employee_assignments")
+      .select("*, clients(id, name, email, company)")
+      .eq("employee_id", id),
+    db.from("clients").select("id, name, email, company"),
+    db.from("employee_compensation")
+      .select("*").eq("employee_id", id).order("effective_from", { ascending: false }),
+    db.from("leave_requests")
+      .select("leave_type, start_date, end_date, days, status")
+      .eq("employee_id", id)
+      .eq("status", "approved")
+      .gte("start_date", `2026-01-01`),
+  ]);
 
   if (!employee) notFound();
+
+  // Derived from the work logs they already file — nothing extra to fill in.
+  const stats = await staffPerformance(id);
 
   // Never swallow this one: if the embed can't resolve (PGRST200) the panel
   // silently reads "(0)" even when assignments exist, which is what made this
@@ -188,13 +207,43 @@ export default async function EmployeeDetailPage({
 
         {/* Right Client & Project Assignments Hub */}
         <div className="space-y-6">
+          <PerformanceCard stats={stats} />
+
+          {/* Pay history and leave taken — owner/admin territory. */}
+          <CompensationCard employee={employee} history={compensation ?? []} />
+
+          <section className="card border-ink-600 p-5">
+            <h2 className="mb-3 flex items-center gap-2 border-b border-ink-700 pb-3 text-base font-semibold text-bone-50">
+              <CalendarDays size={16} className="text-lime-400" /> Leave taken this year
+            </h2>
+            {!leave?.length ? (
+              <p className="text-xs leading-relaxed text-bone-300">
+                None approved this year. Someone taking no leave at all is usually a warning
+                sign, not a good one.
+              </p>
+            ) : (
+              <>
+                <p className="font-mono text-2xl text-bone-50">
+                  {leave.reduce((s: number, l: any) => s + Number(l.days || 0), 0)} days
+                </p>
+                <ul className="mt-3 space-y-1.5">
+                  {leave.map((l: any, i: number) => (
+                    <li key={i} className="mono-tag text-[11px]">
+                      {l.leave_type} · {l.start_date} → {l.end_date} · {l.days}d
+                    </li>
+                  ))}
+                </ul>
+              </>
+            )}
+          </section>
+
           <EmployeeAccessCard
             employee={{
               id: employee.id,
               full_name: employee.full_name,
               email: employee.email,
               user_id: employee.user_id ?? null,
-              portal_password_preview: employee.portal_password_preview ?? null,
+              portal_password_preview: revealPreview(employee),
             }}
           />
 

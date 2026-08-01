@@ -10,12 +10,21 @@ const BASE = `/${process.env.ADMIN_PATH || "nx-control"}`;
 export const metadata = { title: "Clients" };
 export const dynamic = "force-dynamic";
 
-export default async function ClientsPage() {
+export default async function ClientsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ show?: string }>;
+}) {
   const me = await getCurrentStaff();
   if (!me) return null;
 
   const db = createAdminClient();
   const canManage = me.isPrivileged;
+
+  // Dormant and archived clients are hidden unless asked for, so a list of
+  // twenty finished clients does not bury the three you are working with.
+  const { show } = await searchParams;
+  const showAll = show === "all";
 
   // Staff see only the clients they are assigned to, and never billing figures.
   // `assignedClientIds` fails closed, so no assignments means no rows.
@@ -23,6 +32,8 @@ export default async function ClientsPage() {
     .from("clients")
     .select(canManage ? "*, projects(id), invoices(total, amount_paid, currency, status)" : "*, projects(id)")
     .order("created_at", { ascending: false });
+
+  if (!showAll) query = query.eq("lifecycle", "active");
 
   if (!canManage) {
     const ids = await assignedClientIds(me.employeeId);
@@ -40,7 +51,12 @@ export default async function ClientsPage() {
     query = query.in("id", ids);
   }
 
-  const { data: clients } = await query;
+  const [{ data: clients }, { count: dormantCount }] = await Promise.all([
+    query,
+    canManage
+      ? db.from("clients").select("id", { count: "exact", head: true }).neq("lifecycle", "active")
+      : Promise.resolve({ count: 0 }),
+  ]);
 
   const head = canManage
     ? ["Client", "Company", "Platform / Source", "Where", "Projects", "Billed", ""]
@@ -57,6 +73,23 @@ export default async function ClientsPage() {
         }
         action={canManage ? <ClientDialog /> : undefined}
       />
+
+      {canManage && !!dormantCount && (
+        <div className="mb-4 flex flex-wrap items-center gap-3">
+          <Link
+            href={showAll ? `${BASE}/clients` : `${BASE}/clients?show=all`}
+            className="btn h-9 px-4 text-sm"
+          >
+            {showAll ? "Show active only" : `Show ${dormantCount} dormant / archived`}
+          </Link>
+          {showAll && (
+            <span className="text-xs text-bone-300">
+              Dormant clients are finished, not gone — open one and press Reactivate when they
+              come back.
+            </span>
+          )}
+        </div>
+      )}
 
       {!clients?.length ? (
         <Empty title="No clients yet" body="Convert a lead, or add someone manually with the button above." />
@@ -78,7 +111,16 @@ export default async function ClientsPage() {
             return (
               <tr key={c.id} className="hover:bg-ink-700/30">
                 <td className="px-5 py-3">
-                  <Link href={`${BASE}/clients/${c.id}`} className="hover:text-lime-400 font-medium">{c.name}</Link>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Link href={`${BASE}/clients/${c.id}`} className="font-medium hover:text-lime-400">
+                      {c.name}
+                    </Link>
+                    {c.lifecycle && c.lifecycle !== "active" && (
+                      <span className="mono-tag rounded-full border border-ink-500 px-2 py-0.5 text-[10px] leading-none text-bone-300">
+                        {c.lifecycle}
+                      </span>
+                    )}
+                  </div>
                   <p className="text-xs text-bone-300">{c.email}</p>
                 </td>
                 <td className="px-5 py-3 text-bone-300">{c.company ?? "—"}</td>

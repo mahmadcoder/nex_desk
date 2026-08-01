@@ -122,12 +122,12 @@ export default async function ServiceDetail({ params }: { params: Promise<{ slug
 
             {/* Hero CTA Action */}
             <div className="mt-7 flex flex-wrap items-center gap-3.5">
-              <a href="#pricing-tiers" className="btn btn-primary h-11 px-6 text-xs font-semibold cursor-pointer">
+              <a href="#pricing-tiers" className="btn btn-primary h-11 px-6 text-sm font-semibold cursor-pointer">
                 Explore Pricing Tiers ↓
               </a>
               <Link
                 href={`/contact?service=${encodeURIComponent(service.slug)}`}
-                className="btn h-11 px-6 text-xs text-bone-200 border-ink-600 bg-ink-800 hover:text-bone-50 cursor-pointer"
+                className="btn h-11 px-6 text-sm text-bone-200 border-ink-600 bg-ink-800 hover:text-bone-50 cursor-pointer"
               >
                 Book a Free Discovery Call
               </Link>
@@ -197,7 +197,7 @@ export default async function ServiceDetail({ params }: { params: Promise<{ slug
 
             <Link
               href={`/contact?service=${encodeURIComponent(service.slug)}`}
-              className="btn btn-primary w-full justify-center h-10 text-xs font-semibold mt-4 cursor-pointer"
+              className="btn btn-primary w-full justify-center h-10 text-sm font-semibold mt-4 cursor-pointer"
             >
               Start Your Project Now →
             </Link>

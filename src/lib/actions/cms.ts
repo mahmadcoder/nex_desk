@@ -3,7 +3,8 @@
 import { revalidatePath } from "next/cache";
 import { createClient, createAdminClient } from "@/lib/supabase/server";
 import { requireStaff, requireOwnerAdmin } from "@/lib/auth/guards";
-import { asUuid, getSiteBaseUrl, money } from "@/lib/utils";
+import { asUuid, getSiteBaseUrl, money, pdfFilename } from "@/lib/utils";
+import { tryEncrypt, decryptSecret } from "@/lib/crypto";
 
 const ADMIN = process.env.ADMIN_PATH || "nx-control";
 
@@ -397,7 +398,9 @@ export async function ensureEmployeeAccount(employeeId: string, customPassword?:
   if (!employee.email) throw new Error("This employee has no email address.");
 
   const password =
-    customPassword || employee.portal_password_preview || "Nex#" + Math.floor(100000 + Math.random() * 900000);
+    customPassword ||
+    decryptSecret(employee.portal_password_preview) ||
+    "Nex#" + Math.floor(100000 + Math.random() * 900000);
 
   let userId: string | null = employee.user_id ?? null;
 
@@ -440,7 +443,13 @@ export async function ensureEmployeeAccount(employeeId: string, customPassword?:
   });
 
   await db.from("employees")
-    .update({ user_id: userId, portal_password_preview: password })
+    // Encrypted and short-lived, same as the client side. Storing nothing is
+    // the correct outcome when no key is configured.
+    .update({
+      user_id: userId,
+      portal_password_preview: tryEncrypt(password),
+      password_preview_expires_at: new Date(Date.now() + 72 * 3600e3).toISOString(),
+    })
     .eq("id", employeeId);
 
   return { userId, password, email: employee.email as string };
@@ -849,14 +858,54 @@ export async function uploadClientSignedDocument(data: {
 
   if (error) throw new Error(error.message || "Failed to upload document.");
 
+  // Pull the file back out of storage so the notice carries the actual
+  // document. The admin previously got a link to go and find it, which defeats
+  // the point of being told at all.
+  let attachment: { filename: string; content: Buffer } | null = null;
+  try {
+    const { data: blob } = await db.storage.from("documents").download(data.storagePath);
+    if (blob) {
+      attachment = {
+        filename: pdfFilename(data.title),
+        content: Buffer.from(await blob.arrayBuffer()),
+      };
+    }
+  } catch (e) {
+    console.error("Could not attach the signed document to the notice:", e);
+  }
+
   const adminEmail = await adminNotifyAddress();
   await sendEmail({
     templateKey: "admin_document_uploaded_notice",
     to: adminEmail,
+    clientId,
+    rawAttachments: attachment ? [attachment] : undefined,
     vars: { client_name: clientObj.name || "Client", doc_title: data.title },
-    bodyOverride: `Hello Admin,\n\nClient "${clientObj.name || "A client"}" (${clientObj.email || ""}) has uploaded a signed document:\n\n• Title: ${data.title}\n• Document Type: ${data.documentType || "Signed Agreement"}\n• Date: ${new Date().toLocaleString()}\n\nYou can view and download this document from your Admin Document Center (/${ADMIN}/documents).`,
-    subjectOverride: `Signed Document Uploaded: ${data.title} by ${clientObj.name || "Client"}`,
+    bodyOverride:
+      `${clientObj.name || "A client"} (${clientObj.email || ""}) has uploaded a signed document.\n\n` +
+      `• Title: ${data.title}\n` +
+      `• Type: ${data.documentType || "Signed agreement"}\n` +
+      `• Uploaded: ${new Date().toLocaleString()}\n\n` +
+      (attachment
+        ? `The document is attached to this email.`
+        : `The file could not be attached — open it here: ${getSiteBaseUrl()}/${ADMIN}/documents`),
+    subjectOverride: `📥 Signed document from ${clientObj.name || "a client"}: ${data.title}`,
   }).catch((emailErr) => console.error("Error sending document upload notice email:", emailErr));
+
+  // Confirm receipt to the client. They uploaded something important and heard
+  // nothing back at all.
+  if (clientObj.email) {
+    await sendEmail({
+      templateKey: "client_document_received",
+      to: clientObj.email,
+      clientId,
+      vars: {
+        client_name: clientObj.name || "there",
+        doc_title: data.title,
+        portal_url: `${getSiteBaseUrl()}/portal`,
+      },
+    }).catch((e) => console.error("Could not confirm the upload to the client:", e));
+  }
 
   revalidatePath("/portal");
   revalidatePath(`/${ADMIN}/documents`);
@@ -879,6 +928,8 @@ export async function submitDailyWorkLog(data: {
   client_visible?: boolean;
   /** Percentage points to add to the project when it has no milestones. */
   progress_delta?: number;
+  /** Answers to the per-service fields, keyed by field id. */
+  metrics?: Record<string, string | boolean | number>;
 }) {
   // Staff-accessible: logging your own work is the whole point of this screen.
   await requireStaff();
@@ -908,40 +959,115 @@ export async function submitDailyWorkLog(data: {
     proof_url: data.proof_url || null,
     client_visible: clientVisible,
     progress_delta: progressDelta,
+    // Blank answers are dropped rather than stored as empty strings, so a
+    // report can treat "absent" and "zero" as different things.
+    metrics: Object.fromEntries(
+      Object.entries(data.metrics ?? {}).filter(
+        ([, v]) => v !== "" && v !== null && v !== undefined && v !== false
+      )
+    ),
   }).select().single();
 
   if (error) throw new Error(error.message || "Failed to submit daily work log.");
 
-  // A shared log is what moves the client's progress bar.
-  if (projectId && (clientVisible || progressDelta > 0)) {
-    await recomputeProjectProgress(projectId, progressDelta);
+  // Recompute whenever real work was reported, not only when it is shared —
+  // internal progress still has to move the admin and staff views.
+  let progress: number | null = null;
+  if (projectId) {
+    progress = await recomputeProjectProgress(projectId, progressDelta);
     revalidatePath("/portal");
     revalidatePath(`/${ADMIN}/projects/${projectId}`);
+    // The dashboards read project progress too, and both were stale before.
+    revalidatePath(`/${ADMIN}`, "layout");
   }
 
   const adminEmail = await adminNotifyAddress();
-  sendEmail({
+  const emailed = { client: false, admin: false };
+
+  // The client only hears about entries the team chose to share.
+  if (clientVisible && projectId) {
+    const { data: project } = await db
+      .from("projects")
+      .select("name, client_id, clients(name, email)")
+      .eq("id", projectId)
+      .maybeSingle();
+
+    const projectClient = (project?.clients as any) ?? null;
+    if (projectClient?.email) {
+      const res = await sendEmail({
+        templateKey: "client_work_update",
+        to: projectClient.email,
+        clientId: project?.client_id ?? undefined,
+        projectId,
+        vars: {
+          client_name: projectClient.name || "there",
+          project_name: project?.name || data.project_title || "your project",
+          work_date: data.work_date,
+          progress: progress ?? 0,
+          tasks_completed: data.tasks_completed,
+          portal_url: `${getSiteBaseUrl()}/portal`,
+        },
+      });
+      emailed.client = res.ok;
+    }
+  }
+
+  // Awaited, not fire-and-forget: a detached promise is killed when the
+  // serverless function returns, which is why some of these never arrived.
+  const adminRes = await sendEmail({
     templateKey: "admin_work_log_notice",
     to: adminEmail,
+    projectId: projectId ?? undefined,
     vars: {
       employee_name: data.employee_name || "Staff Member",
       project_title: data.project_title || "General Task",
     },
-    bodyOverride: `Hello Admin,\n\nA new Daily Work Log has been submitted:\n\n• Staff Member: ${data.employee_name || "N/A"}\n• Assigned Project: ${data.project_title || "N/A"}\n• Work Date: ${data.work_date}\n• Hours Spent: ${data.hours_spent} hrs\n• Tasks Completed:\n${data.tasks_completed}${data.blockers ? `\n\n• Blockers / Assistance Needed:\n${data.blockers}` : ""}\n\nYou can review all daily logs at /nx-control/daily-logs.`,
-    subjectOverride: `Daily Work Log Submitted by ${data.employee_name || "Staff Member"} (${data.work_date})`,
-  }).catch((emailErr) => console.error("Error sending work log notice email:", emailErr));
+    bodyOverride:
+      `A new daily work log has been submitted.\n\n` +
+      `• Staff member: ${data.employee_name || "N/A"}\n` +
+      `• Project: ${data.project_title || "N/A"}\n` +
+      `• Work date: ${data.work_date}\n` +
+      `• Hours: ${data.hours_spent}\n` +
+      (progress !== null ? `• Project progress now: ${progress}%\n` : "") +
+      `• Shared with client: ${clientVisible ? "yes" : "no"}\n\n` +
+      `What they did:\n\n${data.tasks_completed}` +
+      (data.blockers ? `\n\n## Blocker raised\n\n${data.blockers}` : "") +
+      `\n\nReview every log here:\n${getSiteBaseUrl()}/${ADMIN}/daily-logs`,
+    subjectOverride: data.blockers
+      ? `⚠️ Blocker raised by ${data.employee_name || "staff"} — ${data.project_title || "project"}`
+      : `📝 Work log — ${data.employee_name || "staff"} (${data.work_date})`,
+  }).catch((emailErr) => {
+    console.error("Error sending work log notice email:", emailErr);
+    return { ok: false as const };
+  });
+  emailed.admin = adminRes.ok;
 
   revalidatePath(`/${ADMIN}/daily-logs`);
   revalidatePath(`/${ADMIN}/employees`);
   revalidatePath(`/${ADMIN}/projects`);
-  return res;
+  return { ...res, progress, emailed };
 }
 
 export async function deleteDailyWorkLog(id: string) {
   await requireStaff();
   const db = createAdminClient();
+
+  // Take the entry's contribution back out of the project, otherwise deleting a
+  // log that claimed +20% leaves the client looking at progress that was never
+  // made.
+  const { data: log } = await db
+    .from("daily_work_logs").select("project_id, progress_delta").eq("id", id).maybeSingle();
+
   const { error } = await db.from("daily_work_logs").delete().eq("id", id);
   if (error) throw error;
+
+  if (log?.project_id) {
+    await recomputeProjectProgress(log.project_id, -Number(log.progress_delta || 0));
+    revalidatePath("/portal");
+    revalidatePath(`/${ADMIN}/projects/${log.project_id}`);
+    revalidatePath(`/${ADMIN}`, "layout");
+  }
+
   revalidatePath(`/${ADMIN}/daily-logs`);
 }
 

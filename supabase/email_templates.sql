@@ -70,7 +70,13 @@ E'Hi {{client_name}},\n\nWhat you have asked for sits outside the agreed scope, 
 E'Hi {{client_name}},\n\n{{project_name}} is paused as of today.\n\n**Everything completed so far is saved and nothing is lost.** Tell us when you are ready and we will pick up exactly where we stopped.\n\n{{sender_name}}\nNex Desk', null,'Send when a project stalls on the client side.'),
 
 ('project_delivered','Project delivered','🎉 {{project_name}} is live',
-E'Hi {{client_name}},\n\n**{{project_name}} is delivered and live.**\n\n## Everything is in the attached handover\n\n• Credentials: Every login and access detail\n• Source: Where the files live\n• Guide: How to update content yourself\n• Warranty: The support period and what it covers\n\n**You own all of it outright.** One month of free bug support starts today.\n\nIt has been a pleasure working with you.\n\n{{sender_name}}\nNex Desk','handover','The final delivery email.'),
+E'Hi {{client_name}},\n\n**{{project_name}} is delivered and live.**\n\n## Everything is in the attached handover\n\n• Credentials: Every login and access detail\n• Source: Where the files live\n• Guide: How to update content yourself\n• Warranty: The support period and what it covers\n\n**You own all of it outright.**
+
+## Your warranty
+
+Anything **broken in what we built** we fix free until **{{warranty_ends}}** — {{warranty_days}} days from today, which is when real defects surface once real people start using it.
+
+Anything **new** is quoted first, so you know the cost before we start rather than after. Raise one from your portal any time.\n\nIt has been a pleasure working with you.\n\n{{sender_name}}\nNex Desk','handover','The final delivery email.'),
 
 ('testimonial_request','Testimonial request','⭐ Could you spare two minutes, {{client_name}}?',
 E'Hi {{client_name}},\n\nNow that {{project_name}} has been running for a couple of weeks — would you write us a few lines about how it went?\n\nAnything honest is useful: what you were worried about beforehand, whether it turned out how you hoped, and whether you would work with us again.\n\nAnd if you know anyone who needs similar work, an introduction means a great deal to us.\n\n{{sender_name}}\nNex Desk', null,'Send two weeks after delivery.'),

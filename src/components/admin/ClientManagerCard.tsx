@@ -127,19 +127,19 @@ export default function ClientManagerCard({
           <ClientDialog
             clientToEdit={client}
             trigger={
-              <button className="btn h-9 text-xs border-ink-600 bg-ink-800 hover:text-lime-400 cursor-pointer">
+              <button className="btn h-9 text-sm border-ink-600 bg-ink-800 hover:text-lime-400 cursor-pointer">
                 <Edit3 className="mr-1.5 h-3.5 w-3.5" /> Edit Client
               </button>
             }
           />
-          <button className="btn h-9 text-xs" onClick={copyCredentials}>
+          <button className="btn h-9 text-sm" onClick={copyCredentials}>
             <Copy className="mr-1.5 h-3.5 w-3.5" /> Copy Credentials
           </button>
-          <button className="btn h-9 text-xs" onClick={copyLink}>
+          <button className="btn h-9 text-sm" onClick={copyLink}>
             <Copy className="mr-1.5 h-3.5 w-3.5" /> Copy Portal Link
           </button>
           <button
-            className="btn h-9 text-xs border-red-500/40 text-red-400 hover:bg-red-500/10"
+            className="btn h-9 text-sm border-red-500/40 text-red-400 hover:bg-red-500/10"
             onClick={() => setShowDeleteModal(true)}
           >
             <Trash2 className="mr-1.5 h-3.5 w-3.5" /> Delete Client
@@ -162,10 +162,10 @@ export default function ClientManagerCard({
               <div className="flex items-center gap-2 mt-1">
                 <span className="font-mono text-bone-50 bg-ink-950 px-3 py-1.5 rounded border border-ink-600">
                   {showPassword
-                    ? client.portal_password_preview || "No password set"
+                    ? client.portal_password_preview || "Hidden — reset to issue a new one"
                     : client.portal_password_preview
                     ? "••••••••••••"
-                    : "No password set"}
+                    : "Hidden — reset to issue a new one"}
                 </span>
                 {client.portal_password_preview && (
                   <button

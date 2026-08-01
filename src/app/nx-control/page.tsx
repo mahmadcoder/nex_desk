@@ -7,6 +7,8 @@ import { money } from "@/lib/utils";
 import DashboardCurrencyTabs from "@/components/admin/DashboardCurrencyTabs";
 import StaffDashboard from "@/components/admin/StaffDashboard";
 import { getLiveExchangeRates, convertCurrency } from "@/lib/currency";
+import { atRiskClients } from "@/lib/insights";
+import { AlertTriangle } from "lucide-react";
 
 const BASE = `/${process.env.ADMIN_PATH || "nx-control"}`;
 export const metadata = { title: "Control" };
@@ -101,6 +103,24 @@ export default async function Dashboard({
     }, 0);
   }
 
+  // Who is off, and what is waiting on a decision. Leave that nobody sees is
+  // leave that gets approved straight into a deadline.
+  const weekEnd = new Date(Date.now() + 7 * 864e5).toISOString().slice(0, 10);
+  const todayStr = new Date().toISOString().slice(0, 10);
+
+  const [{ data: offSoon }, { count: pendingLeave }] = await Promise.all([
+    db.from("leave_requests")
+      .select("start_date, end_date, leave_type, employees(full_name)")
+      .eq("status", "approved")
+      .lte("start_date", weekEnd)
+      .gte("end_date", todayStr)
+      .order("start_date"),
+    db.from("leave_requests").select("id", { count: "exact", head: true }).eq("status", "pending"),
+  ]);
+
+  // Accounts that need attention today. Totals hide all three of these.
+  const risks = await atRiskClients();
+
   const overdue = (invoices.data ?? []).filter((i) => i.status === "overdue").length;
   const newLeads = (leads.data ?? []).filter((l) => l.status === "new").length;
 
@@ -111,6 +131,64 @@ export default async function Dashboard({
         sub={new Date().toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}
         action={<Link href={`${BASE}/deals/new`} className="btn btn-primary h-10">Lock a deal</Link>}
       />
+
+      {!!risks.length && (
+        <section className="mb-6">
+          <h2 className="mb-3 flex items-center gap-2 text-base">
+            <AlertTriangle size={15} className="text-amber-400" /> Needs attention ({risks.length})
+          </h2>
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+            {risks.slice(0, 6).map((r) => (
+              <Link
+                key={r.clientId}
+                href={BASE + `/clients/` + r.clientId}
+                className={`card p-4 transition-colors hover:border-lime-400/40 ${
+                  r.severity === "high" ? "border-rose-500/30" : "border-amber-400/25"
+                }`}
+              >
+                <p className="text-sm font-semibold text-bone-50">{r.clientName}</p>
+                <ul className="mt-2 space-y-1">
+                  {r.reasons.map((reason) => (
+                    <li
+                      key={reason}
+                      className={`text-xs leading-relaxed ${
+                        r.severity === "high" ? "text-rose-300" : "text-amber-300"
+                      }`}
+                    >
+                      {reason}
+                    </li>
+                  ))}
+                </ul>
+              </Link>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {(!!offSoon?.length || !!pendingLeave) && (
+        <div className="mb-6 flex flex-wrap items-center gap-3 rounded-xl border border-ink-600 bg-ink-900/70 p-3.5">
+          <span className="mono-tag text-[11px] text-lime-400">Team availability</span>
+          {offSoon?.map((l: any, i: number) => (
+            <span
+              key={i}
+              className="mono-tag rounded-full border border-amber-400/30 bg-amber-400/10 px-2.5 py-1 text-[11px] leading-none text-amber-300"
+            >
+              {l.employees?.full_name ?? "Someone"} off {l.start_date} → {l.end_date}
+            </span>
+          ))}
+          {!offSoon?.length && (
+            <span className="text-xs text-bone-300">Everyone is in this week.</span>
+          )}
+          {!!pendingLeave && (
+            <Link
+              href={BASE + `/leave`}
+              className="mono-tag rounded-full border border-lime-400/30 bg-lime-400/10 px-2.5 py-1 text-[11px] leading-none text-lime-300 hover:bg-lime-400/20"
+            >
+              {pendingLeave} awaiting your decision →
+            </Link>
+          )}
+        </div>
+      )}
 
       {/* Currency & Mode Switcher Tabs */}
       <DashboardCurrencyTabs currency={filterCurr ?? "ALL"} mode={mode} />

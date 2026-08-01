@@ -15,6 +15,7 @@ const schema = z.object({
   budget_range: z.string().optional(),
   timeline: z.string().optional(),
   message: z.string().optional(),
+  referred_by: z.string().optional(),
   website: z.string().max(0).optional(),
 });
 

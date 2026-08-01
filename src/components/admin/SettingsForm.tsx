@@ -2,6 +2,8 @@
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
 import { saveSettings } from "@/lib/actions";
+import { CURRENCIES } from "@/lib/utils";
+import CustomSelect from "@/components/ui/CustomSelect";
 import { Badge } from "./ui";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -67,9 +69,11 @@ export default function SettingsForm({ settings, staff }: { settings: any; staff
         <div className="grid gap-4 sm:grid-cols-3">
           <div>
             <label className={label}>Default currency</label>
-            <select className={field} value={f.default_currency} onChange={(e) => set("default_currency", e.target.value)}>
-              {["PKR", "USD", "GBP", "EUR", "AED"].map((c) => <option key={c}>{c}</option>)}
-            </select>
+            <CustomSelect
+              value={f.default_currency}
+              onChange={(v) => set("default_currency", v)}
+              options={CURRENCIES.map((c) => ({ value: c, label: c }))}
+            />
           </div>
           <div>
             <label className={label}>Tax %</label>

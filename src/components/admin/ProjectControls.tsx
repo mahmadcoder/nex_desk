@@ -2,6 +2,7 @@
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
 import { updateProject, sendProgressUpdate } from "@/lib/actions";
+import CustomSelect from "@/components/ui/CustomSelect";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
@@ -45,9 +46,11 @@ export default function ProjectControls({
     <div className="card space-y-4 p-5">
       <div>
         <label className="mono-tag mb-1.5 block">Status</label>
-        <select className={field} value={f.status} onChange={(e) => setF({ ...f, status: e.target.value })}>
-          {STATUSES.map((s) => <option key={s} value={s}>{s.replace(/_/g, " ")}</option>)}
-        </select>
+        <CustomSelect
+          value={f.status}
+          onChange={(v) => setF({ ...f, status: v })}
+          options={STATUSES.map((s) => ({ value: s, label: s.replace(/_/g, " ") }))}
+        />
       </div>
       <div>
         <label className="mono-tag mb-1.5 block">Staging link</label>
@@ -64,10 +67,10 @@ export default function ProjectControls({
       </div>
 
       <div className="flex gap-2 border-t border-ink-600 pt-4">
-        <button className="btn btn-primary h-9 flex-1 justify-center text-xs" onClick={save} disabled={pending}>
+        <button className="btn btn-primary h-9 flex-1 justify-center text-sm" onClick={save} disabled={pending}>
           Save changes
         </button>
-        <button className="btn h-9 flex-1 justify-center text-xs" onClick={emailProgress} disabled={pending}>
+        <button className="btn h-9 flex-1 justify-center text-sm" onClick={emailProgress} disabled={pending}>
           Email progress
         </button>
       </div>

@@ -127,7 +127,9 @@ export default function EmployeeAccessCard({
                 ? reveal
                   ? employee.portal_password_preview
                   : "•".repeat(employee.portal_password_preview.length)
-                : "Not generated yet"}
+                : hasAccount
+                  ? "Hidden — reset to issue a new one"
+                  : "Not generated yet"}
             </p>
             {employee.portal_password_preview && (
               <button
@@ -155,6 +157,14 @@ export default function EmployeeAccessCard({
           {pending ? "Sending…" : hasAccount ? "Resend login & offer letter" : "Create login & send"}
         </button>
       </div>
+
+      {hasAccount && !employee.portal_password_preview && (
+        <p className="rounded-lg border border-ink-600 bg-ink-900/60 p-2.5 text-[11px] leading-relaxed text-bone-300">
+          The stored copy of this password expired and has been discarded — it is only kept
+          for 72 hours after it is issued. Their login still works; use the button above to
+          issue and email a new one.
+        </p>
+      )}
 
       <p className="text-[11px] leading-relaxed text-bone-400">
         Sending the login details also attaches the offer letter, built live from this

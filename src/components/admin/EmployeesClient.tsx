@@ -207,7 +207,7 @@ export default function EmployeesClient({
         <div className="flex items-center gap-2">
           <button
             onClick={() => setShowJobTitlesModal(true)}
-            className="btn h-9 px-3.5 text-xs flex items-center gap-2 border-ink-600 bg-ink-800 text-bone-200 hover:text-bone-50"
+            className="btn h-9 px-3.5 text-sm flex items-center gap-2 border-ink-600 bg-ink-800 text-bone-200 hover:text-bone-50"
           >
             <Layers size={14} className="text-lime-400" /> Manage Job Titles
           </button>
@@ -231,7 +231,7 @@ export default function EmployeesClient({
                 skills: ["React", "TypeScript", "Next.js"],
               })
             }
-            className="btn btn-primary h-9 px-4 text-xs flex items-center gap-2"
+            className="btn btn-primary h-9 px-4 text-sm flex items-center gap-2"
           >
             <UserPlus size={14} /> Add Employee
           </button>
@@ -635,10 +635,10 @@ export default function EmployeesClient({
             </div>
 
             <div className="flex justify-end gap-2 border-t border-ink-700 pt-3">
-              <button className="btn h-9 px-4 text-xs" onClick={() => setEditing(null)} disabled={pending}>
+              <button className="btn h-9 px-4 text-sm" onClick={() => setEditing(null)} disabled={pending}>
                 Cancel
               </button>
-              <button className="btn btn-primary h-9 px-4 text-xs" onClick={handleSave} disabled={pending}>
+              <button className="btn btn-primary h-9 px-4 text-sm" onClick={handleSave} disabled={pending}>
                 {pending ? "Saving..." : editing.id ? "Update Employee" : "Hire Employee →"}
               </button>
             </div>

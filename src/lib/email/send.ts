@@ -1,6 +1,6 @@
 import nodemailer from "nodemailer";
 import { createAdminClient } from "@/lib/supabase/server";
-import { fillTemplate } from "@/lib/utils";
+import { fillTemplate, pdfFilename, CONTACT_WHATSAPP } from "@/lib/utils";
 import { generateDocument, type DocType } from "@/lib/pdf/generate";
 import { renderHtml } from "./layout";
 import { EMAIL_TEMPLATES } from "./templates";
@@ -143,7 +143,15 @@ export async function sendEmail(args: SendArgs) {
     return { ok: false as const, error: message };
   }
 
-  const vars = { company_name: "Nex Desk", sender_name: "Nex Desk", ...args.vars };
+  // `whatsapp` is available to every template without each call site passing
+  // it — clients send receipts and signed pages there far more often than by
+  // email, so any template may want to offer the route.
+  const vars = {
+    company_name: "Nex Desk",
+    sender_name: "Nex Desk",
+    whatsapp: CONTACT_WHATSAPP,
+    ...args.vars,
+  };
   const subject = fillTemplate(subjectRaw, vars);
   const body = fillTemplate(bodyRaw, vars);
 
@@ -153,10 +161,9 @@ export async function sendEmail(args: SendArgs) {
   if (args.attach) {
     const doc = await generateDocument(args.attach.type, args.attach.id, args.actorId);
     documentId = doc.document?.id ?? null;
-    attachments.push({
-      filename: `${doc.title.replace(/[^\w\s-]/g, "").slice(0, 60)}.pdf`,
-      content: doc.buffer,
-    });
+    // Same naming rule as the download link, so the attachment a client saves
+    // and the file they download from the portal match.
+    attachments.push({ filename: pdfFilename(doc.title), content: doc.buffer });
   }
 
   if (args.rawAttachments?.length) attachments.push(...args.rawAttachments);

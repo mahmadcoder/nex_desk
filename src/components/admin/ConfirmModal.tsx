@@ -41,7 +41,7 @@ export default function ConfirmModal({
         <>
           <button
             type="button"
-            className="btn h-9 px-4 text-xs font-medium"
+            className="btn h-9 px-4 text-sm font-medium"
             onClick={onClose}
             disabled={pending}
           >

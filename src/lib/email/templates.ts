@@ -180,6 +180,8 @@ Keep this PDF — it is the reference point for the whole project.
 
 Next step: your advance invoice is on its way. Work begins the day it clears.
 
+If you would rather send the signed page or a payment receipt on WhatsApp than by email, use {{whatsapp}} — it reaches us just as fast.
+
 You can follow progress any time in your portal:
 {{portal_url}}
 
@@ -216,7 +218,9 @@ Invoice {{invoice_no}} is attached.
 • Amount due: {{currency}} {{amount}}
 • Due date: {{due_date}}
 
-Payment details are on the invoice. Send us the receipt once you have paid and we will confirm the same day.
+Payment details are on the invoice.
+
+**Once you have paid, send us the receipt** — by reply, or on WhatsApp at {{whatsapp}}, whichever is easier. We confirm the same day.
 
 {{sender_name}}
 Nex Desk`,
@@ -234,6 +238,27 @@ The attached receipt shows the date, method, reference number and any remaining 
 
 {{sender_name}}
 Nex Desk`,
+  },
+
+  invoice_final_settled: {
+    subject: "🎯 Paid in full — thank you, {{client_name}}",
+    body: `Hi {{client_name}},
+
+Your payment of **{{currency}} {{amount}}** has been received, and that clears the final instalment.
+
+## Your account is settled
+
+• Contract value: {{contract_total}}
+• Outstanding balance: **Nothing. You're all square.**
+
+There are no further invoices for {{project_name}}. If you ever see another one from us for this project, query it — it would be a mistake on our side.
+
+Your receipt is attached, and every invoice and document remains available in your portal for your records.
+
+It has been a pleasure doing this work. If there is anything else you need — or anyone you'd introduce us to — you know where we are.
+
+Best regards,
+{{sender_name}}`,
   },
 
   payment_reminder: {
@@ -391,7 +416,11 @@ The attached handover document has everything:
 
 You own all of it outright.
 
-One month of free bug support starts today.
+## Your warranty
+
+Anything that turns out to be **broken in what we built** we fix free until **{{warranty_ends}}** — {{warranty_days}} days from today, which is when real defects surface once real people start using it. Tell us and we sort it.
+
+Anything **new** — a feature, a page, a change of mind — is quoted first, so you always know the cost before we start rather than after. Raise one from your portal any time.
 
 It has been a pleasure working with you.
 
@@ -541,6 +570,333 @@ Cambia tu contraseña después del primer acceso.
 
 Saludos cordiales,
 El equipo de Nex Desk`,
+  },
+
+  client_agreement_accepted: {
+    subject: "✍️ Agreement accepted — {{project_name}}",
+    body: `Hi {{client_name}},
+
+Thank you — your agreement for **{{project_name}}** is accepted and in force.
+
+• Reference: {{deal_no}}
+• Contract value: {{amount}}
+• Accepted: {{accepted_at}}
+
+A copy is attached for your records. Nothing further is needed from you — no printing, no signing, no scanning. Your acceptance is recorded against your account with the time you made it.
+
+Best regards,
+The Nex Desk Team`,
+  },
+
+  admin_agreement_accepted: {
+    subject: "✍️ {{client_name}} accepted {{deal_no}}",
+    body: `An agreement has been accepted in the client portal.
+
+• Client: {{client_name}}
+• Project: {{project_name}}
+• Reference: {{deal_no}}
+• Typed name: {{accepted_name}}
+• When: {{accepted_at}}
+• IP: {{ip}}
+
+That is your record of acceptance — timestamp, typed name and IP against a signed-in portal session. Stronger than a photographed signature and it took them five seconds.
+
+{{admin_url}}`,
+  },
+
+  client_service_added: {
+    subject: "🧩 {{service_name}} is booked — that's {{service_count}} with us now",
+    body: `Hi {{client_name}},
+
+**{{service_name}}** is confirmed and booked. The agreement is attached.
+
+## The new piece
+
+• Service: {{service_name}}
+• Price: {{currency}} {{amount}}
+
+## Where that leaves us overall
+
+• Services with us: {{service_count}}
+• Combined contract value: {{combined_total}}
+
+Each service runs as its own project with its own timeline, its own team and its own invoices — so nothing gets muddled and you can see exactly what is happening on each one separately.
+
+Your portal now shows them side by side:
+
+{{portal_url}}
+
+Thanks for trusting us with more of it.
+
+Best regards,
+{{sender_name}}`,
+  },
+
+  admin_service_added_notice: {
+    subject: "🧩 {{client_name}} added {{service_name}}",
+    body: `An existing client has bought another service.
+
+• Client: {{client_name}}
+• New service: {{service_name}}
+• Value: {{currency}} {{amount}}
+• Services with us now: {{service_count}}
+• Combined contract value: {{combined_total}}
+
+The agreement, project, milestones and stage invoices have all been created automatically.
+
+## Next
+
+• Assign staff to the new project — it has nobody on it yet
+• The advance invoice has already gone out; later stages are drafted
+
+{{admin_url}}`,
+  },
+
+  referral_thank_you: {
+    subject: "🤝 Thank you for the introduction, {{client_name}}",
+    body: `Hi {{client_name}},
+
+{{referred_name}} came to us because you pointed them our way — thank you. That means more to us than any advertising we could buy.
+
+Referrals only happen when someone is confident enough to put their own name behind a recommendation, and we don't take that lightly. Whoever you send us gets looked after properly.
+
+If there is ever anything we can do for you in return — a quick question, a second opinion, something small outside your current scope — just ask.
+
+Best regards,
+{{sender_name}}`,
+  },
+
+  client_welcome_back: {
+    subject: "👋 Welcome back, {{client_name}}",
+    body: `Hi {{client_name}},
+
+Good to have you back.
+
+Your account is active again, and everything from last time is still exactly where you left it — every document, invoice, milestone and file:
+
+{{portal_url}}
+
+Your sign-in details have not changed. If you have forgotten them, reply and we'll reset them straight away rather than making you go through a password-reset loop.
+
+Tell us what you're planning and we'll put a scope and a fixed price together.
+
+Best regards,
+{{sender_name}}`,
+  },
+
+  project_thank_you: {
+    subject: "🙏 Thank you, {{client_name}}",
+    body: `Hi {{client_name}},
+
+Now that {{project_name}} has had a little time to settle, we wanted to say thank you properly.
+
+You were clear about what you wanted, you came back to us quickly when we needed decisions, and that is genuinely why this landed on time. Not every project does.
+
+Two small things, only if you're willing:
+
+• **A few honest lines about how it went.** What you were worried about beforehand, whether it turned out how you hoped, and whether you'd work with us again. We publish these, so say what you actually think.
+• **An introduction.** If you know someone who needs similar work, pointing them our way is the single most useful thing you could do for us — and we look after anyone you send.
+
+Everything from the project stays in your portal for as long as you need it:
+
+{{portal_url}}
+
+And if something breaks or you want to add to it later, you know where we are.
+
+Best regards,
+{{sender_name}}`,
+  },
+
+  staff_project_handover_notice: {
+    subject: "🚀 {{project_name}} has been handed over",
+    body: `Hi {{employee_name}},
+
+{{project_name}} has been delivered to {{client_name}} and the handover pack has gone out.
+
+Thanks for the work you put into it — the daily logs you filed are what kept the client informed the whole way through.
+
+## What happens now
+
+• The project is marked delivered and no further work is scheduled
+• If the client asks for changes, they come back as a quoted change request — don't start on anything until it has been approved
+• Your dashboard will drop this project from your active list
+
+Nicely done.
+
+{{sender_name}}`,
+  },
+
+  admin_project_handover_notice: {
+    subject: "🚀 Handed over: {{project_name}} → {{client_name}}",
+    body: `{{project_name}} has been handed over.
+
+• Client: {{client_name}} ({{client_email}})
+• Live URL: {{live_url}}
+• Handover pack: attached, and filed in the client's documents
+
+The project is marked delivered and the client has the credentials.
+
+## Worth doing next
+
+• Send the thank-you from the project page in a few days — there's a button for it
+• Any further work now goes through a change request so it gets quoted and billed
+
+{{sender_name}}`,
+  },
+
+  admin_change_request_notice: {
+    subject: "🔁 Change requested: {{project_name}} — {{client_name}}",
+    body: `{{client_name}} has asked for a change on {{project_name}}.
+
+• What they asked for: {{request_title}}
+
+Their words:
+
+{{request_detail}}
+
+## Next step
+
+Quote it from the project page. Nothing gets built until the client approves the price, and handover stays locked until that invoice is paid.
+
+{{admin_url}}`,
+  },
+
+  client_document_received: {
+    subject: "✅ We've received your signed document",
+    body: `Hi {{client_name}},
+
+Thanks — **{{doc_title}}** has arrived safely and is now on file against your account.
+
+Nothing further is needed from you. If it turns out anything is missing or unclear, we'll come back to you directly rather than leaving you guessing.
+
+You can see every document on your account here:
+
+{{portal_url}}
+
+Best regards,
+{{sender_name}}`,
+  },
+
+  client_work_update: {
+    subject: "🛠 Progress on {{project_name}} — now {{progress}}% complete",
+    body: `Hi {{client_name}},
+
+Here's what the team did on {{project_name}} today.
+
+## Work completed on {{work_date}}
+
+{{tasks_completed}}
+
+## Where the project stands
+
+• Progress: **{{progress}}% complete**
+
+You don't need to reply to this — it's a record so you always know what's moving without having to ask. Every shared update, your milestones, invoices and documents are in your portal:
+
+{{portal_url}}
+
+If anything here doesn't match what you expected, tell us early rather than late.
+
+Best regards,
+{{sender_name}}`,
+  },
+
+  /* ─────────────── Staff: pay and leave ─────────────── */
+
+  employee_salary_revised: {
+    subject: "📈 Your salary has been revised, {{employee_name}}",
+    body: `Hi {{employee_name}},
+
+Your salary has been reviewed and revised.
+
+• Previous: {{previous_salary}}
+• New salary: **{{new_salary}}** per month
+• Effective from: {{effective_from}}
+
+{{reason}}
+
+An updated offer letter is attached, stating the new figure — keep it with your records; it replaces the previous one.
+
+Nothing else about your engagement changes: same role, same terms, same notice period.
+
+If anything here does not match what we discussed, tell us before the next payroll run rather than after.
+
+Best regards,
+{{sender_name}}`,
+  },
+
+  employee_bonus: {
+    subject: "🎁 A bonus for you, {{employee_name}}",
+    body: `Hi {{employee_name}},
+
+You're getting a bonus of **{{amount}}**, paid with your next salary.
+
+{{reason}}
+
+Bonuses here are not automatic and they're not a formality — this one was decided because of specific work you did. Thank you for it.
+
+Best regards,
+{{sender_name}}`,
+  },
+
+  admin_leave_request: {
+    subject: "🌴 Leave request: {{employee_name}} ({{start_date}} → {{end_date}})",
+    body: `{{employee_name}} has requested leave.
+
+• Type: {{leave_type}}
+• Dates: {{start_date}} → {{end_date}}
+• Days: {{days}}
+• Reason: {{reason}}
+
+## Before you approve
+
+Check what they are on. Approving leave into a deadline is how projects slip quietly.
+
+{{admin_url}}`,
+  },
+
+  leave_approved: {
+    subject: "✅ Leave approved — {{start_date}} to {{end_date}}",
+    body: `Hi {{employee_name}},
+
+Your {{leave_type}} is approved.
+
+• Dates: {{start_date}} → {{end_date}}
+• Days: {{days}}
+
+{{note}}
+
+Two things before you go: hand over anything time-sensitive to whoever is covering, and put your last work log in so the client's timeline does not just stop without explanation.
+
+Enjoy it — properly. Don't check in.
+
+{{sender_name}}`,
+  },
+
+  leave_declined: {
+    subject: "Leave request — {{start_date}} to {{end_date}}",
+    body: `Hi {{employee_name}},
+
+We can't approve your {{leave_type}} for {{start_date}} → {{end_date}}.
+
+{{note}}
+
+This is about timing, not about the request. Come back with alternative dates and we'll do our best to make them work.
+
+{{sender_name}}`,
+  },
+
+  admin_bonus_notice: {
+    subject: "🎁 Bonus recorded: {{employee_name}} — {{amount}}",
+    body: `A bonus has been recorded.
+
+• Employee: {{employee_name}}
+• Amount: {{amount}}
+• Reason: {{reason}}
+
+The employee has been emailed. Remember to include it in the next payroll run — this records the decision, it does not pay anyone.
+
+{{employee_url}}`,
   },
 
   /* ─────────────── Internal notices (to the agency) ─────────────── */

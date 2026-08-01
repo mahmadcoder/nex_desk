@@ -166,7 +166,7 @@ export default function LeadRow({
                     default mail client `mailto:` does nothing regardless.
                   */}
                   <button
-                    className="btn h-9 text-xs"
+                    className="btn h-9 text-sm"
                     onClick={(e) => { e.stopPropagation(); setComposeOpen(true); }}
                   >
                     <Mail className="mr-1.5 h-3.5 w-3.5" /> Email
@@ -178,7 +178,7 @@ export default function LeadRow({
                       target="_blank"
                       rel="noreferrer"
                       onClick={(e) => e.stopPropagation()}
-                      className="btn h-9 text-xs"
+                      className="btn h-9 text-sm"
                     >
                       <MessageCircle className="mr-1.5 h-3.5 w-3.5" /> WhatsApp
                     </a>
@@ -194,7 +194,7 @@ export default function LeadRow({
                     </Link>
                   ) : (
                     <button
-                      className="btn btn-primary h-9 text-xs"
+                      className="btn btn-primary h-9 text-sm"
                       disabled={pending || isSpam}
                       title={isSpam ? "Take this out of spam first." : undefined}
                       onClick={(e) => { e.stopPropagation(); start(() => convertLeadToClient(lead.id) as never); }}

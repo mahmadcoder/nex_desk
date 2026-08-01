@@ -1,4 +1,4 @@
-import { getSiteBaseUrl, CONTACT_EMAIL } from "@/lib/utils";
+import { getSiteBaseUrl, CONTACT_EMAIL, CONTACT_WHATSAPP, whatsappLink } from "@/lib/utils";
 
 export const escapeHtml = (s: string) =>
   s.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]!));
@@ -215,7 +215,11 @@ export function renderHtml(subject: string, body: string, lang: string = "en") {
                   <tr>
                     <td align="${align}" style="font-family:${FONT};font-size:12px;line-height:1.65;color:${C.muted};">
                       Nex Desk Software Agency &middot; Multan, Pakistan<br>
-                      <a href="mailto:${CONTACT_EMAIL}" style="color:${C.muted};">${CONTACT_EMAIL}</a>
+                      <a href="mailto:${CONTACT_EMAIL}" style="color:${C.muted};">${CONTACT_EMAIL}</a><br>
+                      <!-- Clients often send receipts and signed pages on WhatsApp
+                           rather than by email, so the route is always offered. -->
+                      WhatsApp:
+                      <a href="${whatsappLink()}" target="_blank" style="color:${C.limeText};font-weight:600;text-decoration:none;">${escapeHtml(CONTACT_WHATSAPP)}</a>
                     </td>
                     <td align="${flip}" valign="top">
                       <a href="${siteUrl}" target="_blank" style="font-family:${FONT};font-size:12px;font-weight:600;color:${C.ink};text-decoration:none;border-bottom:1.5px solid ${C.lime};">${escapeHtml(siteUrl.replace(/^https?:\/\//, ""))}</a>

@@ -4,6 +4,7 @@ import { useState, useTransition, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { submitDailyWorkLog, deleteDailyWorkLog } from "@/lib/actions/cms";
+import { fieldSetFor } from "@/config/logFields";
 import { PageHead } from "@/components/admin/ui";
 import ConfirmModal from "@/components/admin/ConfirmModal";
 import CustomSelect, { SelectOption } from "@/components/ui/CustomSelect";
@@ -25,7 +26,7 @@ import {
 interface DailyLogsClientProps {
   initialLogs: IDailyWorkLog[];
   employeesList: { id: string; name: string }[];
-  projectsList: { id: string; title: string }[];
+  projectsList: { id: string; title: string; category?: string | null }[];
   /** Staff file only as themselves — show their name instead of a picker. */
   lockedToEmployee?: boolean;
 }
@@ -54,6 +55,24 @@ export default function DailyLogsClient({
   const [proofUrl, setProofUrl] = useState("");
   const [shareWithClient, setShareWithClient] = useState(true);
   const [progressDelta, setProgressDelta] = useState("0");
+  // Answers to the per-service fields, keyed by field id.
+  const [metrics, setMetrics] = useState<Record<string, string | boolean>>({});
+
+  /**
+   * An SEO day and an engineering day are not the same shape. The project's
+   * service category decides which extra inputs appear below the shared
+   * "what you did / hours" block — same page, same button, different fields.
+   */
+  const activeProject = projectsList.find((p) => p.id === selectedProjectId);
+  const fieldSet = useMemo(
+    () => fieldSetFor(activeProject?.category, activeProject?.title),
+    [activeProject?.category, activeProject?.title]
+  );
+
+  // Switching to a project of a different kind must not carry the old answers
+  // across — they would be saved against fields that are no longer on screen.
+  const setMetric = (id: string, v: string | boolean) =>
+    setMetrics((m) => ({ ...m, [id]: v }));
 
   // Check if selected workDate or Today is Sunday
   const isSundayDate = useMemo(() => {
@@ -66,6 +85,11 @@ export default function DailyLogsClient({
     value: e.id,
     label: e.name,
   }));
+
+  const chooseProject = (id: string) => {
+    setSelectedProjectId(id);
+    setMetrics({});
+  };
 
   const projectOptions: SelectOption[] = projectsList.map((p) => ({
     value: p.id,
@@ -100,6 +124,7 @@ export default function DailyLogsClient({
           proof_url: proofUrl || null,
           client_visible: shareWithClient && !!projObj,
           progress_delta: Number(progressDelta) || 0,
+          metrics,
         });
 
         toast.success(
@@ -112,6 +137,7 @@ export default function DailyLogsClient({
         setBlockers("");
         setProofUrl("");
         setProgressDelta("0");
+        setMetrics({});
         router.refresh();
       } catch (err: any) {
         toast.error(err.message || "Failed to submit work log.");
@@ -142,7 +168,7 @@ export default function DailyLogsClient({
         action={
           <button
             onClick={() => setShowAddModal(true)}
-            className="btn btn-primary h-9 px-4 text-xs flex items-center gap-2 cursor-pointer"
+            className="btn btn-primary h-9 px-4 text-sm flex items-center gap-2 cursor-pointer"
           >
             <Plus size={14} /> Submit Daily Work Log
           </button>
@@ -375,6 +401,52 @@ export default function DailyLogsClient({
                 />
               </div>
 
+              {/* Fields specific to the kind of work this project is. Driven by
+                  the service category, so an SEO log captures rankings and an
+                  engineering log captures shipped features — same form. */}
+              {fieldSet && (
+                <div className="space-y-3 rounded-lg border border-lime-400/20 bg-lime-400/[0.04] p-3.5">
+                  <p className="mono-tag text-[11px] text-lime-300">{fieldSet.label} detail</p>
+
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    {fieldSet.fields.map((f) => (
+                      <div key={f.id} className={f.type === "textarea" ? "sm:col-span-2" : undefined}>
+                        {f.type === "boolean" ? (
+                          <label className="flex cursor-pointer items-start gap-2.5 pt-5 text-xs">
+                            <input
+                              type="checkbox"
+                              checked={!!metrics[f.id]}
+                              onChange={(e) => setMetric(f.id, e.target.checked)}
+                              className="mt-0.5 accent-[color:var(--color-lime-400)]"
+                            />
+                            <span className="text-bone-100">{f.label}</span>
+                          </label>
+                        ) : (
+                          <>
+                            <label className="mono-tag mb-1 block text-[11px]">{f.label}</label>
+                            <input
+                              className="w-full rounded-lg border border-ink-500 bg-ink-800 px-3 py-2 text-sm text-bone-50 focus:border-lime-400 focus:outline-none"
+                              type={f.type === "number" ? "number" : "text"}
+                              placeholder={f.placeholder}
+                              value={String(metrics[f.id] ?? "")}
+                              onChange={(e) => setMetric(f.id, e.target.value)}
+                            />
+                          </>
+                        )}
+                        {f.hint && (
+                          <p className="mt-1 text-[11px] leading-relaxed text-bone-300">{f.hint}</p>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+
+                  <p className="text-[11px] leading-relaxed text-bone-300">
+                    Optional, but this is what makes a monthly report possible. Leave anything
+                    blank that does not apply today.
+                  </p>
+                </div>
+              )}
+
               <div>
                 <label className="mono-tag text-xs mb-1 block">Proof / Staging URL (Optional)</label>
                 <input
@@ -429,7 +501,7 @@ export default function DailyLogsClient({
             <div className="mt-6 flex justify-end gap-2 border-t border-ink-700/80 pt-4">
               <button
                 type="button"
-                className="btn h-9 px-4 text-xs cursor-pointer"
+                className="btn h-9 px-4 text-sm cursor-pointer"
                 onClick={() => setShowAddModal(false)}
                 disabled={pending}
               >
@@ -437,7 +509,7 @@ export default function DailyLogsClient({
               </button>
               <button
                 type="button"
-                className="btn btn-primary h-9 px-4 text-xs cursor-pointer"
+                className="btn btn-primary h-9 px-4 text-sm cursor-pointer"
                 onClick={handleSaveLog}
                 disabled={pending}
               >

@@ -282,7 +282,7 @@ export default function FaqsClient({ faqs }: { faqs: IFaq[] }) {
             <div className="mt-6 flex justify-end gap-2 border-t border-ink-700/80 pt-4">
               <button
                 type="button"
-                className="btn h-9 px-4 text-xs cursor-pointer"
+                className="btn h-9 px-4 text-sm cursor-pointer"
                 onClick={() => setEditing(null)}
                 disabled={pending}
               >
@@ -290,7 +290,7 @@ export default function FaqsClient({ faqs }: { faqs: IFaq[] }) {
               </button>
               <button
                 type="button"
-                className="btn btn-primary h-9 px-4 text-xs cursor-pointer"
+                className="btn btn-primary h-9 px-4 text-sm cursor-pointer"
                 onClick={handleSave}
                 disabled={pending}
               >

@@ -46,13 +46,13 @@ export default function SubscribersClient({ subscribers }: { subscribers: Subscr
         </div>
 
         <div className="flex items-center gap-3">
-          <button onClick={exportCSV} className="btn h-9 px-3 text-xs flex items-center gap-2">
+          <button onClick={exportCSV} className="btn h-9 px-3 text-sm flex items-center gap-2">
             <Download size={14} />
             Export CSV
           </button>
           <button
             onClick={() => setModalOpen(true)}
-            className="btn btn-primary h-9 px-4 text-xs flex items-center gap-2"
+            className="btn btn-primary h-9 px-4 text-sm flex items-center gap-2"
           >
             <Send size={14} />
             Send Broadcast Campaign

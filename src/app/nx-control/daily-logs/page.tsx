@@ -30,7 +30,12 @@ export default async function DailyLogsPage() {
 
   // The column is `name`, not `title` — selecting/ordering by `title` errored
   // out, left the list empty, and pushed the form onto its free-text fallback.
-  let projectsQuery = db.from("projects").select("id, name").order("name");
+  // `deals.service_slugs` is what tells us what KIND of work a project is, which
+  // decides the extra fields on the log form.
+  let projectsQuery = db
+    .from("projects")
+    .select("id, name, deals(service_slugs)")
+    .order("name");
   if (!canManage) {
     if (!assignedIds?.length) projectsQuery = projectsQuery.eq("id", "00000000-0000-0000-0000-000000000000");
     else projectsQuery = projectsQuery.in("client_id", assignedIds);
@@ -61,10 +66,27 @@ export default async function DailyLogsPage() {
     name: e.full_name,
   }));
 
-  const projectsList = (projects ?? []).map((p: any) => ({
-    id: p.id,
-    title: p.name,
-  }));
+  // Resolve each project's service category once, here, rather than making the
+  // browser do a second round trip for it.
+  const slugs = Array.from(
+    new Set((projects ?? []).flatMap((p: any) => (p.deals?.service_slugs as string[]) ?? []))
+  );
+  const { data: serviceRows } = slugs.length
+    ? await db.from("services").select("slug, category").in("slug", slugs)
+    : { data: [] as any[] };
+  const categoryBySlug = new Map((serviceRows ?? []).map((s: any) => [s.slug, s.category]));
+
+  const projectsList = (projects ?? []).map((p: any) => {
+    const projectSlugs = (p.deals?.service_slugs as string[]) ?? [];
+    return {
+      id: p.id,
+      title: p.name,
+      category:
+        projectSlugs.map((s) => categoryBySlug.get(s)).find(Boolean) ??
+        projectSlugs[0] ??
+        null,
+    };
+  });
 
   return (
     <DailyLogsClient

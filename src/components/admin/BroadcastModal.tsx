@@ -231,11 +231,11 @@ export default function BroadcastModal({ subscribers, isOpen, onClose }: Broadca
           </p>
 
           <div className="flex gap-2">
-            <button className="btn h-9 px-4 text-xs" onClick={onClose} disabled={pending}>
+            <button className="btn h-9 px-4 text-sm" onClick={onClose} disabled={pending}>
               Cancel
             </button>
             <button
-              className="btn btn-primary h-9 px-4 text-xs flex items-center gap-2"
+              className="btn btn-primary h-9 px-4 text-sm flex items-center gap-2"
               onClick={handleSend}
               disabled={pending || !recipients.length}
             >

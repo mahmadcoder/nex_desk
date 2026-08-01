@@ -54,6 +54,9 @@ function ContactFormContent() {
   const [form, setForm] = useState({
     name: "", email: "", phone: "", company: "", city: "", country: "Pakistan",
     service_slugs: [] as string[], budget_range: "", timeline: "", message: "",
+    // Word of mouth is the best channel an agency has; capturing it here means
+    // the referrer can actually be thanked once the lead converts.
+    referred_by: "",
     // Honeypot. It has always been in the API schema and checked server-side,
     // but was never rendered — so the bot trap did nothing. See the hidden
     // input in step 3.
@@ -350,6 +353,15 @@ function ContactFormContent() {
             placeholder="Tell us about the project. Links to anything you like help."
             value={form.message}
             onChange={(e) => set("message", e.target.value)}
+          />
+
+          {/* Optional, and worth asking: most agency work arrives by word of
+              mouth, and knowing who sent someone lets us thank them. */}
+          <input
+            className={`${field} mt-4`}
+            placeholder="Did someone refer you? (optional)"
+            value={form.referred_by}
+            onChange={(e) => set("referred_by", e.target.value)}
           />
         </>
       )}

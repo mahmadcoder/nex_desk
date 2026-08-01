@@ -6,14 +6,23 @@ import DealForm from "@/components/admin/DealForm";
 const BASE = `/${process.env.ADMIN_PATH || "nx-control"}`;
 export const dynamic = "force-dynamic";
 
-export default async function NewDeal() {
+export default async function NewDeal({
+  searchParams,
+}: {
+  searchParams: Promise<{ client?: string }>;
+}) {
+  const { client: preselectedClient } = await searchParams;
   const db = createAdminClient();
-  const [{ data: clients }, { data: services }, { data: settings }] = await Promise.all([
+  const [{ data: clients }, { data: services }, { data: settings }, { data: templates }] =
+    await Promise.all([
     db.from("clients")
       .select("id,name,email,company,preferred_currency")
       .eq("is_active", true).order("name"),
     db.from("services").select("slug,title,starting_at").eq("is_active", true).order("sort_order"),
     db.from("settings").select("default_terms, tax_percent, default_currency").eq("id", 1).single(),
+    // Standard packages, so a "SEO retainer" is two clicks rather than
+    // retyping the deliverables, schedule and terms every time.
+    db.from("deal_templates").select("*").order("use_count", { ascending: false }),
   ]);
 
   if (!clients?.length) {
@@ -43,6 +52,8 @@ export default async function NewDeal() {
         defaultTerms={settings?.default_terms ?? ""}
         taxDefault={Number(settings?.tax_percent ?? 0)}
         defaultCurrency={settings?.default_currency ?? "PKR"}
+        initialClientId={preselectedClient}
+        templates={templates ?? []}
       />
     </>
   );

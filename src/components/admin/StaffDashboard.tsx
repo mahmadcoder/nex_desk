@@ -3,6 +3,8 @@ import { createAdminClient } from "@/lib/supabase/server";
 import { assignedClientIds, type CurrentStaff } from "@/lib/auth/staff";
 import { PageHead, Stat, Table, Empty } from "@/components/admin/ui";
 import { Clock, AlertCircle } from "lucide-react";
+import PerformanceCard from "@/components/admin/PerformanceCard";
+import { staffPerformance } from "@/lib/insights";
 
 const BASE = `/${process.env.ADMIN_PATH || "nx-control"}`;
 
@@ -56,6 +58,10 @@ export default async function StaffDashboard({ me }: { me: CurrentStaff }) {
   const hoursThisWeek = logs.reduce((s, l) => s + Number(l.hours_spent || 0), 0);
   const blockers = (openBlockers ?? []).filter((b) => String(b.blockers || "").trim());
 
+  // Staff see exactly the same 30-day figures an admin sees about them. A
+  // performance number someone cannot check is just a rumour.
+  const stats = me.employeeId ? await staffPerformance(me.employeeId) : null;
+
   return (
     <>
       <PageHead
@@ -80,6 +86,12 @@ export default async function StaffDashboard({ me }: { me: CurrentStaff }) {
           tone={blockers.length ? "warn" : "default"}
         />
       </div>
+
+      {stats && (
+        <div className="mt-6">
+          <PerformanceCard stats={stats} ownView />
+        </div>
+      )}
 
       {!!blockers.length && (
         <section className="mt-8">
