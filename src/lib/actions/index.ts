@@ -286,6 +286,28 @@ export async function getClientEmailByToken(token: string) {
   return data?.email || null;
 }
 
+/**
+ * Who is arriving, from the token in their emailed portal link.
+ *
+ * Lets the sign-in page greet them by name before they have signed in — the
+ * link came from us, so we already know who we sent it to. Returns only a
+ * first name and the email: enough to be welcoming, nothing worth harvesting
+ * if someone guesses a token.
+ */
+export async function getPortalGreeting(token: string) {
+  if (!token) return null;
+  const db = createAdminClient();
+  const { data } = await db
+    .from("clients").select("name, email, company").eq("portal_access_token", token).maybeSingle();
+  if (!data) return null;
+
+  return {
+    firstName: String(data.name || "").trim().split(/\s+/)[0] || null,
+    email: data.email as string,
+    company: (data.company as string) || null,
+  };
+}
+
 export async function ensureClientPortalAccount(clientId: string, customPassword?: string) {
   const me = await requireOwnerAdmin();
   const db = createAdminClient();
