@@ -21,23 +21,34 @@ const ADMIN = process.env.ADMIN_PATH || "nx-control";
  * today. Dormant is not a demotion — it is how you tell the difference between
  * a quiet client and a live one.
  */
-export async function setClientDormant(clientId: string, note?: string) {
+export async function setClientDormant(
+  clientId: string,
+  note?: string
+): Promise<{ ok: boolean; error?: string }> {
   const me = await requireOwnerAdmin();
   const db = createAdminClient();
 
   const id = asUuid(clientId);
-  if (!id) throw new Error("Invalid client reference.");
+  if (!id) return { ok: false, error: "Invalid client reference." };
 
   const { data: open } = await db
     .from("projects")
-    .select("id, name")
+    .select("id, name, status")
     .eq("client_id", id)
     .not("status", "in", "(completed,cancelled)");
 
+  // Returned, never thrown. Next.js strips the message from any error thrown
+  // inside a Server Action in production, so a thrown refusal reaches the
+  // browser as an anonymous 500 and the person is left guessing.
   if (open?.length) {
-    throw new Error(
-      `${open.length} project${open.length === 1 ? " is" : "s are"} still open. Close them first.`
-    );
+    const names = open.map((p) => `${p.name} (${String(p.status).replace(/_/g, " ")})`);
+    return {
+      ok: false,
+      error:
+        `Still open: ${names.join(", ")}. ` +
+        `Mark ${open.length === 1 ? "it" : "them"} completed or cancelled first — ` +
+        `a dormant client should have no live work.`,
+    };
   }
 
   // The error is checked rather than discarded. An unchecked Supabase error
@@ -51,25 +62,21 @@ export async function setClientDormant(clientId: string, note?: string) {
 
   if (error) {
     // 42703 = undefined column: the lifecycle migration has not been run.
-    if (error.code === "42703") {
-      throw new Error(
-        "The client lifecycle columns are missing. Run supabase/idempotent_fixes_2026_11.sql, then try again."
-      );
-    }
-    throw new Error(error.message);
+    return {
+      ok: false,
+      error:
+        error.code === "42703"
+          ? "The client lifecycle columns are missing. Run supabase/idempotent_fixes_2026_11.sql, then try again."
+          : error.message,
+    };
   }
 
-  await recordAudit(
-    me.userId,
-    "client.dormant",
-    "clients",
-    id,
-    {}
-  );
+  await recordAudit(me.userId, "client.dormant", "clients", id, {});
 
   revalidatePath(`/${ADMIN}/clients`);
   revalidatePath(`/${ADMIN}/clients/${id}`);
-  return { ok: true as const };
+  revalidatePath(`/${ADMIN}/completed`);
+  return { ok: true };
 }
 
 /**
@@ -79,17 +86,22 @@ export async function setClientDormant(clientId: string, note?: string) {
  * trust you — so this is a deliberate, recorded action with a welcome-back
  * email, not just a flag flip. `return_count` makes repeat business visible.
  */
-export async function reactivateClient(clientId: string, notify = true) {
+export async function reactivateClient(
+  clientId: string,
+  notify = true
+): Promise<{ ok: boolean; error?: string; emailed?: boolean }> {
   const me = await requireOwnerAdmin();
   const db = createAdminClient();
 
   const id = asUuid(clientId);
-  if (!id) throw new Error("Invalid client reference.");
+  if (!id) return { ok: false, error: "Invalid client reference." };
 
   const { data: client } = await db
     .from("clients").select("id, name, email, lifecycle, return_count").eq("id", id).maybeSingle();
-  if (!client) throw new Error("Client not found.");
-  if (client.lifecycle === "active") throw new Error("This client is already active.");
+  if (!client) return { ok: false, error: "Client not found." };
+  if (client.lifecycle === "active") {
+    return { ok: false, error: `${client.name} is already active.` };
+  }
 
   const { error: reErr } = await db.from("clients").update({
     lifecycle: "active",
@@ -99,12 +111,13 @@ export async function reactivateClient(clientId: string, notify = true) {
   }).eq("id", id);
 
   if (reErr) {
-    if (reErr.code === "42703") {
-      throw new Error(
-        "The client lifecycle columns are missing. Run supabase/idempotent_fixes_2026_11.sql, then try again."
-      );
-    }
-    throw new Error(reErr.message);
+    return {
+      ok: false,
+      error:
+        reErr.code === "42703"
+          ? "The client lifecycle columns are missing. Run supabase/idempotent_fixes_2026_11.sql, then try again."
+          : reErr.message,
+    };
   }
 
   let emailed = false;
@@ -133,8 +146,9 @@ export async function reactivateClient(clientId: string, notify = true) {
 
   revalidatePath(`/${ADMIN}/clients`);
   revalidatePath(`/${ADMIN}/clients/${id}`);
+  revalidatePath(`/${ADMIN}/completed`);
   revalidatePath("/portal");
-  return { ok: true as const, emailed };
+  return { ok: true, emailed };
 }
 
 /* ============================================================

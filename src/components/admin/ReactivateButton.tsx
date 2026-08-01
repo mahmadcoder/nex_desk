@@ -37,6 +37,10 @@ export default function ReactivateButton({
           start(async () => {
             try {
               const res = await reactivateClient(clientId);
+              if (!res.ok) {
+                toast.error(res.error || "Could not reactivate that client.");
+                return;
+              }
               toast.success(res.emailed ? "Reactivated and welcomed back." : "Reactivated.");
               setOpen(false);
               router.refresh();

@@ -61,10 +61,20 @@ export default function ClientLifecycleCard({
 
   const state = LIFECYCLE_COPY[client.lifecycle ?? "active"] ?? LIFECYCLE_COPY.active;
 
+  /**
+   * Actions RETURN their errors rather than throwing them: Next.js strips the
+   * message from anything thrown inside a Server Action in production, so a
+   * thrown refusal arrives as an anonymous 500 with nothing to show the user.
+   */
   const run = (fn: () => Promise<any>, onOk: (r: any) => void) =>
     start(async () => {
       try {
-        onOk(await fn());
+        const res = await fn();
+        if (res && res.ok === false) {
+          toast.error(res.error || "That didn't work.");
+          return;
+        }
+        onOk(res);
         router.refresh();
       } catch (e: any) {
         toast.error(e?.message || "That didn't work.");
