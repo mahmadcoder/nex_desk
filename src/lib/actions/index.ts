@@ -298,13 +298,52 @@ export async function getPortalGreeting(token: string) {
   if (!token) return null;
   const db = createAdminClient();
   const { data } = await db
-    .from("clients").select("name, email, company").eq("portal_access_token", token).maybeSingle();
+    .from("clients")
+    .select("name, email, company, portal_login_count")
+    .eq("portal_access_token", token)
+    .maybeSingle();
   if (!data) return null;
 
   return {
     firstName: String(data.name || "").trim().split(/\s+/)[0] || null,
     email: data.email as string,
     company: (data.company as string) || null,
+    // Never signed in → "Welcome". Been here before → "Welcome back".
+    isFirstTime: Number(data.portal_login_count ?? 0) === 0,
+  };
+}
+
+/**
+ * Records a successful portal sign-in.
+ *
+ * Called by the login page once Supabase has authenticated, so it is the real
+ * sign-in count rather than a page-view count — opening the portal in three
+ * tabs is one visit, not three.
+ *
+ * Identity comes from the authenticated session, never from an argument.
+ */
+export async function recordPortalLogin() {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user?.email) return { ok: false as const };
+
+  const db = createAdminClient();
+  const { data: client } = await db
+    .from("clients").select("id, name, portal_login_count").eq("email", user.email).maybeSingle();
+  if (!client) return { ok: false as const };
+
+  const count = Number(client.portal_login_count ?? 0);
+
+  await db.from("clients").update({
+    portal_login_count: count + 1,
+    last_portal_login_at: new Date().toISOString(),
+  }).eq("id", client.id);
+
+  return {
+    ok: true as const,
+    // What the greeting should say NEXT, i.e. before this visit was counted.
+    isFirstTime: count === 0,
+    firstName: String(client.name || "").trim().split(/\s+/)[0] || null,
   };
 }
 

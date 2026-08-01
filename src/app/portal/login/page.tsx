@@ -6,7 +6,34 @@ import { createClient } from "@/lib/supabase/client";
 import { toast } from "sonner";
 import { Eye, EyeOff, Check } from "lucide-react";
 
-import { getPortalGreeting } from "@/lib/actions";
+import { getPortalGreeting, recordPortalLogin } from "@/lib/actions";
+
+/**
+ * Who signed in here last, remembered on this device only.
+ *
+ * Before sign-in the server has no way to know who is at the keyboard unless
+ * they arrived from an emailed link, so a returning visitor typing the URL
+ * directly would get an anonymous greeting. This is presentation only — a name
+ * and a flag, never a credential.
+ */
+const REMEMBER_KEY = "nx_portal_visitor";
+
+function readVisitor(): { firstName: string | null; seen: boolean } {
+  try {
+    const raw = localStorage.getItem(REMEMBER_KEY);
+    return raw ? JSON.parse(raw) : { firstName: null, seen: false };
+  } catch {
+    return { firstName: null, seen: false };
+  }
+}
+
+function rememberVisitor(firstName: string | null) {
+  try {
+    localStorage.setItem(REMEMBER_KEY, JSON.stringify({ firstName, seen: true }));
+  } catch {
+    /* private browsing — the greeting is simply less personal */
+  }
+}
 
 const field =
   "w-full rounded-lg border border-ink-500 bg-ink-800 px-4 py-3 text-sm text-bone-50 placeholder:text-bone-600 focus:border-lime-400 focus:outline-none transition-colors";
@@ -25,6 +52,7 @@ function PortalLoginForm() {
   const [showPassword, setShowPassword] = useState(false);
   const [busy, setBusy] = useState(false);
   const [firstName, setFirstName] = useState<string | null>(null);
+  const [returning, setReturning] = useState(false);
 
   useEffect(() => {
     const queryKey = searchParams.get("key");
@@ -35,10 +63,16 @@ function PortalLoginForm() {
         if (!who) return;
         setEmail(who.email);
         setFirstName(who.firstName);
+        setReturning(!who.isFirstTime);
       });
     } else {
       const queryEmail = searchParams.get("email");
       if (queryEmail) setEmail(queryEmail);
+
+      // No token: fall back to whoever signed in on this device last.
+      const visitor = readVisitor();
+      if (visitor.firstName) setFirstName(visitor.firstName);
+      if (visitor.seen) setReturning(true);
     }
 
     if (searchParams.get("logged_out") === "1") {
@@ -62,6 +96,9 @@ function PortalLoginForm() {
       if (error) {
         toast.error("That email and password don't match. Check the welcome email we sent you.");
       } else {
+        // Counted here, once, on a real sign-in — not on every page view.
+        const visit = await recordPortalLogin().catch(() => null);
+        rememberVisitor(visit?.firstName ?? firstName);
         router.push("/portal");
         router.refresh();
       }
@@ -79,9 +116,19 @@ function PortalLoginForm() {
         {/* Named when they arrive from the emailed link; a plain welcome
             otherwise, rather than a greeting addressed to nobody. */}
         <h1 className="mt-2 text-2xl leading-tight font-semibold text-bone-50">
-          {firstName ? `Welcome back, ${firstName}.` : "Welcome back."}
+          {firstName
+            ? returning
+              ? `Welcome back, ${firstName}.`
+              : `Welcome, ${firstName}.`
+            : returning
+              ? "Welcome back."
+              : "Welcome."}
         </h1>
-        <p className="mt-1.5 text-xs text-bone-300">Sign in to pick up where you left off.</p>
+        <p className="mt-1.5 text-xs text-bone-300">
+          {returning
+            ? "Sign in to pick up where you left off."
+            : "Use the password from your welcome email to get started."}
+        </p>
       </div>
 
       <form onSubmit={handleLogin} className="space-y-4">

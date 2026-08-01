@@ -161,9 +161,17 @@ export default async function Portal() {
               directly under an eyebrow rides up into it. mt-2 + leading-tight
               gives the pair room without loosening the heading itself. */}
           <p className="mono-tag text-lime-400">Nex Desk Client Portal</p>
-          <h1 className="mt-2 text-3xl leading-tight font-semibold text-bone-50">Welcome, {client.name}.</h1>
+          {/* "Welcome" the first time, "Welcome back" every time after — a
+              greeting that never changes stops reading as a greeting. */}
+          <h1 className="mt-2 text-3xl leading-tight font-semibold text-bone-50">
+            {Number(client.portal_login_count ?? 0) > 1 ? "Welcome back" : "Welcome"},{" "}
+            {String(client.name || "").trim().split(/\s+/)[0] || client.name}.
+          </h1>
           <p className="mt-2 text-sm text-bone-300">
-            {client.company ? `${client.company} · ` : ""}Tracking live progress, payment summaries, and documents.
+            {client.company ? `${client.company} · ` : ""}
+            {Number(client.portal_login_count ?? 0) > 1
+              ? "Here is where everything stands right now."
+              : "Everything about your project lives here — progress, invoices and documents."}
           </p>
         </div>
 
