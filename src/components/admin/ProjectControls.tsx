@@ -3,6 +3,8 @@ import { useState, useTransition } from "react";
 import { toast } from "sonner";
 import { updateProject, sendProgressUpdate } from "@/lib/actions";
 import CustomSelect from "@/components/ui/CustomSelect";
+import { externalUrl } from "@/lib/utils";
+import { Loader2 } from "lucide-react";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
@@ -20,18 +22,44 @@ export default function ProjectControls({
   });
   const [pending, start] = useTransition();
 
-  const save = () => start(async () => {
-    await updateProject(project.id, {
-      ...f,
-      deadline: f.deadline || null,
-      delivered_at: f.status === "delivered" ? new Date().toISOString() : project.delivered_at,
+  // Which button is working, so only that one shows a spinner rather than both
+  // going disabled with no explanation.
+  const [busy, setBusy] = useState<"save" | "email" | null>(null);
+
+  const save = () => {
+    setBusy("save");
+    start(async () => {
+      try {
+        await updateProject(project.id, {
+          ...f,
+          // Normalised before saving: a bare "client.com" is a relative path to
+          // the browser, so the portal link resolved to OUR domain instead of
+          // the client's site.
+          staging_url: externalUrl(f.staging_url),
+          live_url: externalUrl(f.live_url),
+          deadline: f.deadline || null,
+          delivered_at: f.status === "delivered" ? new Date().toISOString() : project.delivered_at,
+        });
+        // Reflect what was actually stored, so the field shows https:// too.
+        setF((p) => ({
+          ...p,
+          staging_url: externalUrl(p.staging_url) ?? "",
+          live_url: externalUrl(p.live_url) ?? "",
+        }));
+        toast.success("Project updated.");
+      } catch (e: any) {
+        toast.error(e?.message || "Could not save those changes.");
+      } finally {
+        setBusy(null);
+      }
     });
-    toast.success("Project updated.");
-  });
+  };
 
   // Content (recent shared work logs + milestone state) is assembled on the
   // server so the email matches what the client sees in their portal.
-  const emailProgress = () => start(async () => {
+  const emailProgress = () => {
+    setBusy("email");
+    start(async () => {
     try {
       const res = await sendProgressUpdate(project.id);
       res.ok
@@ -39,8 +67,11 @@ export default function ProjectControls({
         : toast.error(res.error ?? "Send failed.");
     } catch (e: any) {
       toast.error(e?.message ?? "Send failed.");
+    } finally {
+      setBusy(null);
     }
-  });
+    });
+  };
 
   return (
     <div className="card space-y-4 p-5">
@@ -66,12 +97,34 @@ export default function ProjectControls({
         <input className={field} type="date" value={f.deadline} onChange={(e) => setF({ ...f, deadline: e.target.value })} />
       </div>
 
+      {/* Each button reports its own progress. Both simply greying out told you
+          something was happening but not what, or whether it had finished. */}
       <div className="flex gap-2 border-t border-ink-600 pt-4">
-        <button className="btn btn-primary h-9 flex-1 justify-center text-sm" onClick={save} disabled={pending}>
-          Save changes
+        <button
+          className="btn btn-primary h-9 flex-1 justify-center text-sm"
+          onClick={save}
+          disabled={pending}
+        >
+          {busy === "save" ? (
+            <>
+              <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> Saving…
+            </>
+          ) : (
+            "Save changes"
+          )}
         </button>
-        <button className="btn h-9 flex-1 justify-center text-sm" onClick={emailProgress} disabled={pending}>
-          Email progress
+        <button
+          className="btn h-9 flex-1 justify-center text-sm"
+          onClick={emailProgress}
+          disabled={pending}
+        >
+          {busy === "email" ? (
+            <>
+              <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> Sending…
+            </>
+          ) : (
+            "Email progress"
+          )}
         </button>
       </div>
     </div>

@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient, createAdminClient } from "@/lib/supabase/server";
-import { money, moneyMulti, sumByCurrency, pdfFilename, CONTACT_EMAIL, CONTACT_WHATSAPP, whatsappLink } from "@/lib/utils";
+import { money, moneyMulti, sumByCurrency, pdfFilename, externalUrl, CONTACT_EMAIL, CONTACT_WHATSAPP, whatsappLink } from "@/lib/utils";
 import { Badge, Stat } from "@/components/admin/ui";
 import { ExternalLink, CheckCircle, Circle, DollarSign, Calendar, FileText, Download, MessageCircle } from "lucide-react";
 import ClientDocumentUploader from "@/components/portal/ClientDocumentUploader";
@@ -377,11 +377,13 @@ export default async function Portal() {
             {/* Links to the actual site. The live URL was stored and editable
                 in the admin panel but never rendered here, so a client whose
                 site had gone live had no link to it. */}
-            {perms.show_staging && (p.staging_url || p.live_url) && (
+            {/* Normalised: a bare "client.com" is a relative path to the
+                browser and resolved against OUR domain. */}
+            {perms.show_staging && (externalUrl(p.staging_url) || externalUrl(p.live_url)) && (
               <div className="mt-6 flex flex-wrap justify-end gap-2">
-                {p.staging_url && (
+                {externalUrl(p.staging_url) && (
                   <a
-                    href={p.staging_url}
+                    href={externalUrl(p.staging_url)!}
                     target="_blank"
                     rel="noreferrer"
                     className={`btn h-10 gap-2 px-5 text-sm ${p.live_url ? "" : "btn-primary"}`}
@@ -389,9 +391,9 @@ export default async function Portal() {
                     Staging preview <ExternalLink className="h-4 w-4" />
                   </a>
                 )}
-                {p.live_url && (
+                {externalUrl(p.live_url) && (
                   <a
-                    href={p.live_url}
+                    href={externalUrl(p.live_url)!}
                     target="_blank"
                     rel="noreferrer"
                     className="btn btn-primary h-10 gap-2 px-5 text-sm"

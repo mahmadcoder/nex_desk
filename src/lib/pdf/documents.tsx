@@ -1,7 +1,7 @@
 import { Document, Page, Text, View } from "@react-pdf/renderer";
 import { s, C } from "./theme";
 import { DocHeader, DocFooter, Field, fmt, date } from "./parts";
-import { CONTACT_EMAIL, getSiteBaseUrl } from "@/lib/utils";
+import { CONTACT_EMAIL, CONTACT_WHATSAPP, getSiteBaseUrl } from "@/lib/utils";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
@@ -312,7 +312,8 @@ export function InvoiceDoc({ invoice, client, bank }: { invoice: any; client: Pa
             <Text style={s.muted}>Bank details are set in admin under Settings.</Text>
           )}
           <Text style={{ marginTop: 8 }}>
-            Send the payment screenshot to {CONTACT_EMAIL} and you get a receipt the same day.
+            Send the payment screenshot to {CONTACT_EMAIL}, or on WhatsApp to{" "}
+            {CONTACT_WHATSAPP} — whichever is easier. You get a receipt the same day.
           </Text>
         </View>
 
@@ -335,12 +336,17 @@ export function ReceiptDoc({ payment, invoice, client }: { payment: any; invoice
       <Page size="A4" style={s.page}>
         <DocHeader type="Payment receipt" number={no} />
 
-        <View style={{ marginTop: 30, alignItems: "center", paddingVertical: 26, borderWidth: 1, borderColor: C.line, borderRadius: 6, backgroundColor: "#F1EEE4" }}>
-          <Text style={s.label}>Amount received</Text>
-          <Text style={{ fontSize: 32, fontWeight: 500, letterSpacing: -1, marginVertical: 4 }}>
+        {/* The amount inherits the page line-height (1.55). At 32px that box is
+            ~50pt tall, and react-pdf lays the following line inside it — which
+            is what printed the date on top of the figure. An explicit
+            line-height on the large text, and real margins instead of a shared
+            marginVertical, keep the three lines apart. */}
+        <View style={{ marginTop: 30, alignItems: "center", paddingVertical: 24, paddingHorizontal: 20, borderWidth: 1, borderColor: C.line, borderRadius: 6, backgroundColor: "#F1EEE4" }}>
+          <Text style={[s.label, { marginBottom: 10 }]}>Amount received</Text>
+          <Text style={{ fontSize: 30, fontWeight: 500, letterSpacing: -0.8, lineHeight: 1.15, marginBottom: 10 }}>
             {fmt(Number(payment.amount), payment.currency)}
           </Text>
-          <Text style={s.muted}>Received on {date(payment.paid_on)}</Text>
+          <Text style={[s.muted, { lineHeight: 1.4 }]}>Received on {date(payment.paid_on)}</Text>
         </View>
 
         <View style={s.cols}>

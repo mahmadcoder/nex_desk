@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { toast } from "sonner";
 import { Logo } from "@/components/brand/Logo";
-import { Eye, EyeOff } from "lucide-react";
+import { Eye, EyeOff, Check } from "lucide-react";
 
 import { getClientEmailByToken } from "@/lib/actions";
 
@@ -115,13 +115,32 @@ export default function PortalLogin() {
     <div className="min-h-[calc(100vh-140px)] flex flex-col justify-center items-center py-4 px-4">
       <div className="w-full max-w-sm">
         <div className="card p-6 sm:p-7 shadow-2xl border-ink-600">
+          {/* This is often the first thing a paying client sees from us after
+              the agreement, so it says what is waiting behind it rather than
+              just demanding credentials. */}
           <div className="mb-5">
-            <p className="mono-tag text-lime-400">Client Portal</p>
-            <h1 className="mt-1.5 text-2xl font-semibold text-bone-50">Client Sign In</h1>
-            <p className="mt-1 text-xs text-bone-400">
-              Enter the login credentials sent to your email upon locking your project.
+            <p className="mono-tag text-lime-400">Nex Desk Client Portal</p>
+            <h1 className="mt-2 text-2xl leading-tight font-semibold text-bone-50">
+              Welcome back.
+            </h1>
+            <p className="mt-2 text-sm leading-relaxed text-bone-300">
+              Sign in to see exactly where your project stands — live progress, what the team
+              did each day, your milestones, invoices and every document in one place.
             </p>
           </div>
+
+          <ul className="mb-5 space-y-1.5 border-y border-ink-600 py-3.5">
+            {[
+              "Live progress, updated as the work happens",
+              "Every agreement, invoice and receipt to download",
+              "Request a change and get it priced before we start",
+            ].map((line) => (
+              <li key={line} className="flex items-start gap-2 text-xs leading-relaxed text-bone-300">
+                <Check size={13} strokeWidth={2.5} aria-hidden className="mt-[2px] shrink-0 text-lime-400" />
+                {line}
+              </li>
+            ))}
+          </ul>
 
           <Suspense fallback={<div className="py-8 text-center text-xs text-bone-400">Loading login form…</div>}>
             <PortalLoginForm />

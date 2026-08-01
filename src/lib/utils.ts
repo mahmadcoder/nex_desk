@@ -156,6 +156,28 @@ export const CONTACT_EMAIL =
 export const CONTACT_WHATSAPP =
   process.env.NEXT_PUBLIC_CONTACT_WHATSAPP || "+92 302 6101761";
 
+/**
+ * Makes a user-typed address safe to put in an href.
+ *
+ * Someone typing "physicianmeds.com" into the staging or live URL field is
+ * writing a RELATIVE path as far as the browser is concerned, so the link
+ * resolved to `nex-desk-tech.vercel.app/physicianmeds.com` — our domain, not
+ * the client's. Anything without a scheme gets https://.
+ *
+ * Returns null for empty input so callers can skip rendering the link at all,
+ * and refuses `javascript:` and `data:` outright — these fields are typed by
+ * an admin but rendered to clients.
+ */
+export function externalUrl(raw?: string | null): string | null {
+  const v = (raw || "").trim();
+  if (!v) return null;
+
+  if (/^(javascript|data|vbscript):/i.test(v)) return null;
+  if (/^https?:\/\//i.test(v)) return v;
+  if (v.startsWith("//")) return `https:${v}`;
+  return `https://${v.replace(/^\/+/, "")}`;
+}
+
 /** `wa.me` deep link — digits only, no plus, no spaces. */
 export function whatsappLink(number: string = CONTACT_WHATSAPP, message?: string) {
   const digits = String(number).replace(/\D/g, "");
