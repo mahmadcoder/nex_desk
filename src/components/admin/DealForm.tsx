@@ -63,6 +63,10 @@ export default function DealForm({
   });
 
   const [items, setItems] = useState([{ item: "", qty: 1, price: 0, note: "" }]);
+  // Which catalogue services this deal covers. Saved on the deal so the daily
+  // work log can ask SEO questions on an SEO project and engineering questions
+  // on a build.
+  const [serviceSlugs, setServiceSlugs] = useState<string[]>([]);
   const [schedule, setSchedule] = useState([
     { label: "Advance to start", percent: 50, due_on: "" },
     { label: "On delivery", percent: 50, due_on: "" },
@@ -93,6 +97,9 @@ export default function DealForm({
       revisions_included: Number(tpl.revisions_included ?? p.revisions_included),
     }));
 
+    if (Array.isArray(tpl.service_slugs) && tpl.service_slugs.length) {
+      setServiceSlugs(tpl.service_slugs);
+    }
     if (Array.isArray(tpl.deliverables) && tpl.deliverables.length) {
       setItems(tpl.deliverables);
     }
@@ -145,6 +152,7 @@ export default function DealForm({
           advance_percent: Number(schedule[0]?.percent ?? 50),
           subtotal,
           total,
+          service_slugs: serviceSlugs,
           deliverables: items.filter((i) => i.item),
           payment_schedule: schedule.map((p) => ({
             ...p,
@@ -254,6 +262,9 @@ export default function DealForm({
                       ...p.filter((i) => i.item),
                       { item: s.title, qty: 1, price: Number(s.starting_at ?? 0), note: "" },
                     ]);
+                    setServiceSlugs((prev) =>
+                      prev.includes(s.slug) ? prev : [...prev, s.slug]
+                    );
                   }
                 }}
                 options={services.map((s) => ({ value: s.slug, label: s.title }))}

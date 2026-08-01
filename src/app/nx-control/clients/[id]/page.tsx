@@ -66,7 +66,7 @@ export default async function ClientDetail({ params }: { params: Promise<{ id: s
     { data: invoices },
     { data: docs },
     { data: emails },
-    { data: deals },
+    { data: deals, error: dealsError },
     { data: assignedEmployees, error: assignedEmployeesError },
     { data: allEmployees },
   ] = await Promise.all([
@@ -78,6 +78,14 @@ export default async function ClientDetail({ params }: { params: Promise<{ id: s
     db.from("client_employee_assignments").select("*, employees(id, full_name, email, job_title, seniority, avatar_url)").eq("client_id", id),
     db.from("employees").select("id, full_name, email, job_title, seniority"),
   ]);
+
+  // Never swallow this. A select naming a column that does not exist returns an
+  // error and NULL data, so the page renders a client with no contract value
+  // and no services and looks merely empty rather than broken — which is
+  // exactly how a missing `deals.service_slugs` hid for so long.
+  if (dealsError) {
+    console.error("Failed to load deals for client", id, dealsError);
+  }
 
   if (assignedEmployeesError) {
     console.error("Failed to load assigned employees for client", id, assignedEmployeesError);

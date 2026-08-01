@@ -41,11 +41,18 @@ export default async function DailyLogsPage() {
     else projectsQuery = projectsQuery.in("client_id", assignedIds);
   }
 
-  const [{ data: logs }, { data: employees }, { data: projects }] = await Promise.all([
+  const [{ data: logs }, { data: employees }, { data: projects, error: projectsError }] =
+    await Promise.all([
     logsQuery,
     employeesQuery,
     projectsQuery,
   ]);
+
+  // An empty project dropdown with no explanation is indistinguishable from
+  // "you have no projects", so a failed query has to say so in the logs.
+  if (projectsError) {
+    console.error("Failed to load projects for the work-log form:", projectsError);
+  }
 
   const formattedLogs = (logs ?? []).map((l: any) => ({
     id: l.id,
