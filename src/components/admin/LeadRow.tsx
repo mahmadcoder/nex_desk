@@ -9,6 +9,7 @@ import { adminPath, LEAD_STATUSES } from "@/lib/utils";
 import { Badge } from "./ui";
 import Modal from "./Modal";
 import ConfirmModal from "./ConfirmModal";
+import AIAssist from "@/components/ui/AIAssist";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
@@ -256,6 +257,16 @@ export default function LeadRow({
               className={`${field} min-h-56 resize-y`}
               value={mail.body}
               onChange={(e) => setMail({ ...mail, body: e.target.value })}
+            />
+            <AIAssist
+              field="client_email"
+              getText={() => mail.body}
+              context={{
+                recipient: lead.name ?? "",
+                their_enquiry: (lead.message ?? "").slice(0, 400),
+                services_asked_for: (lead.service_slugs ?? []).join(", "),
+              }}
+              onApply={(v) => setMail((m) => ({ ...m, body: v }))}
             />
             <p className="mt-1.5 text-[11px] text-bone-400">
               Sent on the Nex Desk letterhead. Blank lines separate paragraphs, a

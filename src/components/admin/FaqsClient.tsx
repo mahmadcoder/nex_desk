@@ -9,6 +9,7 @@ import { PageHead } from "@/components/admin/ui";
 import { IFaq } from "@/types/cms";
 import ConfirmModal from "@/components/admin/ConfirmModal";
 import CustomSelect, { SelectOption } from "@/components/ui/CustomSelect";
+import AIAssist from "@/components/ui/AIAssist";
 
 const CATEGORY_OPTIONS: SelectOption[] = [
   { value: "General", label: "General Questions" },
@@ -263,6 +264,12 @@ export default function FaqsClient({ faqs }: { faqs: IFaq[] }) {
                   placeholder="Write clear, transparent answer..."
                   value={editing.answer ?? ""}
                   onChange={(e) => setEditing({ ...editing, answer: e.target.value })}
+                />
+                <AIAssist
+                  field="faq_answer"
+                  getText={() => editing.answer ?? ""}
+                  context={{ question: editing.question ?? "", category: editing.category ?? "" }}
+                  onApply={(v) => setEditing((p) => ({ ...p, answer: v }))}
                 />
               </div>
 

@@ -7,6 +7,7 @@ import { saveService, deleteService, toggleServiceActive, seedDefaultServices } 
 import { Plus, Trash2, Edit3, Eye, EyeOff, RefreshCw, DollarSign, Layers, X } from "lucide-react";
 import { PageHead } from "@/components/admin/ui";
 import ConfirmModal from "@/components/admin/ConfirmModal";
+import AIAssist from "@/components/ui/AIAssist";
 import { money } from "@/lib/utils";
 
 import { IService } from "@/types/cms";
@@ -336,6 +337,12 @@ export default function ServicesClient({ services }: { services: IService[] }) {
                   className="w-full rounded-lg border border-ink-500 bg-ink-800 p-2.5 text-xs text-bone-50 focus:border-lime-400 focus:outline-none"
                   value={editing.short_desc ?? ""}
                   onChange={(e) => setEditing({ ...editing, short_desc: e.target.value })}
+                />
+                <AIAssist
+                  field="service_desc"
+                  getText={() => editing.short_desc ?? ""}
+                  context={{ service_title: editing.title ?? "", category: editing.category ?? "" }}
+                  onApply={(v) => setEditing((prev: any) => ({ ...prev, short_desc: v }))}
                 />
               </div>
 

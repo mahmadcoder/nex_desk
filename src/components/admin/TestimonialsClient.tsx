@@ -8,6 +8,7 @@ import { Plus, Trash2, Edit3, Star, Eye, EyeOff, RefreshCw, X } from "lucide-rea
 import { PageHead } from "@/components/admin/ui";
 import { ITestimonial } from "@/types/cms";
 import ConfirmModal from "@/components/admin/ConfirmModal";
+import AIAssist from "@/components/ui/AIAssist";
 
 export default function TestimonialsClient({ testimonials }: { testimonials: ITestimonial[] }) {
   const router = useRouter();
@@ -246,6 +247,15 @@ export default function TestimonialsClient({ testimonials }: { testimonials: ITe
                   className="w-full rounded-lg border border-ink-500 bg-ink-800 p-3 text-sm text-bone-50 focus:border-lime-400 focus:outline-none"
                   value={editing.quote ?? ""}
                   onChange={(e) => setEditing({ ...editing, quote: e.target.value })}
+                />
+                {/* Grammar-only: the prompt forbids strengthening the praise.
+                    A polished-up testimonial the client never wrote defeats
+                    the point of having one. */}
+                <AIAssist
+                  field="testimonial"
+                  getText={() => editing.quote ?? ""}
+                  context={{ client_name: editing.client_name ?? "", company: editing.company ?? "" }}
+                  onApply={(v) => setEditing((prev: any) => ({ ...prev, quote: v }))}
                 />
               </div>
 

@@ -6,6 +6,7 @@ import { sendClientEmail } from "@/lib/actions";
 import { fillTemplate, getSiteBaseUrl } from "@/lib/utils";
 
 import CustomSelect from "@/components/ui/CustomSelect";
+import AIAssist from "@/components/ui/AIAssist";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
@@ -169,6 +170,12 @@ export default function EmailComposer({
             className={`${field} min-h-72 resize-y leading-relaxed ${language === "ar" ? "text-right font-arabic" : ""}`}
             value={body}
             onChange={(e) => setBody(e.target.value)}
+          />
+          <AIAssist
+            field="client_email"
+            getText={() => body}
+            context={{ recipient: client?.name ?? "", company: client?.company ?? "" }}
+            onApply={setBody}
           />
           <p className="mt-1.5 text-xs text-bone-400">
             Variables like {"{{client_name}}"} are already filled in for the client you picked. Edit freely before sending.

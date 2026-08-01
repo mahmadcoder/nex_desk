@@ -7,6 +7,7 @@ import { lockDeal } from "@/lib/actions";
 import { noteTemplateUsed } from "@/lib/actions/agreements";
 import { money, CURRENCIES } from "@/lib/utils";
 import CustomSelect from "@/components/ui/CustomSelect";
+import AIAssist from "@/components/ui/AIAssist";
 import { Trash2, Plus } from "lucide-react";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -230,18 +231,36 @@ export default function DealForm({
             <label className={label}>One-line summary</label>
             <input className={field} value={d.summary} onChange={(e) => set("summary", e.target.value)}
               placeholder="Six-page marketing site with CMS and lead capture." />
+            <AIAssist
+              field="deal_summary"
+              getText={() => d.summary}
+              context={{ project_title: d.title, client_company: client?.company ?? client?.name, deliverables: items.map((i) => i.item).filter(Boolean).join(", ") }}
+              onApply={(v) => set("summary", v)}
+            />
           </div>
 
           <div className="mt-4">
             <label className={label}>Scope of work</label>
             <textarea className={`${field} min-h-28 resize-y`} value={d.scope} onChange={(e) => set("scope", e.target.value)}
               placeholder="Be specific. This is what the client can hold you to, and what protects you from silent scope creep." />
+            <AIAssist
+              field="deal_scope"
+              getText={() => d.scope}
+              context={{ project_title: d.title, deliverables: items.map((i) => i.item).filter(Boolean).join(", ") }}
+              onApply={(v) => set("scope", v)}
+            />
           </div>
 
           <div className="mt-4">
             <label className={label}>Explicitly not included</label>
             <textarea className={`${field} min-h-20 resize-y`} value={d.exclusions} onChange={(e) => set("exclusions", e.target.value)}
               placeholder="Content writing, product photography, ad spend, third-party licences." />
+            <AIAssist
+              field="deal_exclusions"
+              getText={() => d.exclusions}
+              context={{ project_title: d.title, scope: d.scope }}
+              onApply={(v) => set("exclusions", v)}
+            />
           </div>
         </section>
 

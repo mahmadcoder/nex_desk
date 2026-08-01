@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { submitDailyWorkLog, deleteDailyWorkLog } from "@/lib/actions/cms";
 import { fieldSetFor } from "@/config/logFields";
+import AIAssist from "@/components/ui/AIAssist";
 import { PageHead } from "@/components/admin/ui";
 import ConfirmModal from "@/components/admin/ConfirmModal";
 import CustomSelect, { SelectOption } from "@/components/ui/CustomSelect";
@@ -388,6 +389,14 @@ export default function DailyLogsClient({
                   placeholder="- Built user dashboard UI&#10;- Fixed API server action auth bug&#10;- Tested end-to-end payment flow"
                   value={tasksCompleted}
                   onChange={(e) => setTasksCompleted(e.target.value)}
+                />
+                {/* Staff write these fast; clients read them on the timeline.
+                    The prompt keeps every fact and only translates the jargon. */}
+                <AIAssist
+                  field="work_log"
+                  getText={() => tasksCompleted}
+                  context={{ project: activeProject?.title ?? "", service_category: activeProject?.category ?? "" }}
+                  onApply={setTasksCompleted}
                 />
               </div>
 
