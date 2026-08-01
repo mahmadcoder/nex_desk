@@ -6,6 +6,7 @@ import { createClient, createAdminClient } from "@/lib/supabase/server";
 import { requireOwnerAdmin } from "@/lib/auth/guards";
 import { sendEmail, adminNotifyAddress } from "@/lib/email/send";
 import { asUuid, getSiteBaseUrl, money } from "@/lib/utils";
+import { recordAudit } from "@/lib/actions/audit";
 
 const ADMIN = process.env.ADMIN_PATH || "nx-control";
 
@@ -61,14 +62,13 @@ export async function acceptAgreement(dealId: string, typedName: string) {
     accepted_ua: h.get("user-agent")?.slice(0, 300) ?? null,
   }).eq("id", id);
 
-  await db.from("audit_log").insert({
-    actor_id: null,
-    action: "deal.accepted",
-    entity: "deals",
-    entity_id: id,
-    ip,
-    meta: { name: typedName.trim(), deal_no: deal.deal_no },
-  });
+  await recordAudit(
+    null,
+    "deal.accepted",
+    "deals",
+    id,
+    { name: typedName.trim(), deal_no: deal.deal_no }
+  );
 
   await sendEmail({
     templateKey: "admin_agreement_accepted",
@@ -143,10 +143,13 @@ export async function setRetainer(
     retainer_ends_on: config.enabled ? (config.endsOn || null) : null,
   }).eq("id", id);
 
-  await db.from("audit_log").insert({
-    actor_id: me.userId, action: "deal.retainer", entity: "deals", entity_id: id,
-    meta: { enabled: config.enabled, cycle: config.cycle ?? null },
-  });
+  await recordAudit(
+    me.userId,
+    "deal.retainer",
+    "deals",
+    id,
+    { enabled: config.enabled, cycle: config.cycle ?? null }
+  );
 
   revalidatePath(`/${ADMIN}/clients/${deal.client_id}`);
   revalidatePath(`/${ADMIN}/invoices`);

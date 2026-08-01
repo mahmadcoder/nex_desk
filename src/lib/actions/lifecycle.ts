@@ -5,6 +5,7 @@ import { createAdminClient } from "@/lib/supabase/server";
 import { requireOwnerAdmin } from "@/lib/auth/guards";
 import { sendEmail, adminNotifyAddress } from "@/lib/email/send";
 import { asUuid, getSiteBaseUrl } from "@/lib/utils";
+import { recordAudit } from "@/lib/actions/audit";
 
 const ADMIN = process.env.ADMIN_PATH || "nx-control";
 
@@ -39,15 +40,32 @@ export async function setClientDormant(clientId: string, note?: string) {
     );
   }
 
-  await db.from("clients").update({
+  // The error is checked rather than discarded. An unchecked Supabase error
+  // makes the action throw with no message, which Next.js renders as a bare
+  // 500 in the browser console and tells you nothing at all.
+  const { error } = await db.from("clients").update({
     lifecycle: "dormant",
     dormant_at: new Date().toISOString(),
-    notes: note?.trim() ? note.trim() : undefined,
+    ...(note?.trim() ? { notes: note.trim() } : {}),
   }).eq("id", id);
 
-  await db.from("audit_log").insert({
-    actor_id: me.userId, action: "client.dormant", entity: "clients", entity_id: id, meta: {},
-  });
+  if (error) {
+    // 42703 = undefined column: the lifecycle migration has not been run.
+    if (error.code === "42703") {
+      throw new Error(
+        "The client lifecycle columns are missing. Run supabase/idempotent_fixes_2026_11.sql, then try again."
+      );
+    }
+    throw new Error(error.message);
+  }
+
+  await recordAudit(
+    me.userId,
+    "client.dormant",
+    "clients",
+    id,
+    {}
+  );
 
   revalidatePath(`/${ADMIN}/clients`);
   revalidatePath(`/${ADMIN}/clients/${id}`);
@@ -73,12 +91,21 @@ export async function reactivateClient(clientId: string, notify = true) {
   if (!client) throw new Error("Client not found.");
   if (client.lifecycle === "active") throw new Error("This client is already active.");
 
-  await db.from("clients").update({
+  const { error: reErr } = await db.from("clients").update({
     lifecycle: "active",
     is_active: true,
     reactivated_at: new Date().toISOString(),
     return_count: Number(client.return_count ?? 0) + 1,
   }).eq("id", id);
+
+  if (reErr) {
+    if (reErr.code === "42703") {
+      throw new Error(
+        "The client lifecycle columns are missing. Run supabase/idempotent_fixes_2026_11.sql, then try again."
+      );
+    }
+    throw new Error(reErr.message);
+  }
 
   let emailed = false;
   if (notify && client.email) {
@@ -96,10 +123,13 @@ export async function reactivateClient(clientId: string, notify = true) {
     emailed = res.ok;
   }
 
-  await db.from("audit_log").insert({
-    actor_id: me.userId, action: "client.reactivate", entity: "clients", entity_id: id,
-    meta: { return_count: Number(client.return_count ?? 0) + 1 },
-  });
+  await recordAudit(
+    me.userId,
+    "client.reactivate",
+    "clients",
+    id,
+    { return_count: Number(client.return_count ?? 0) + 1 }
+  );
 
   revalidatePath(`/${ADMIN}/clients`);
   revalidatePath(`/${ADMIN}/clients/${id}`);
@@ -161,10 +191,13 @@ export async function setClientReferrer(
     }
   }
 
-  await db.from("audit_log").insert({
-    actor_id: me.userId, action: "client.referrer", entity: "clients", entity_id: id,
-    meta: { referred_by: referrer },
-  });
+  await recordAudit(
+    me.userId,
+    "client.referrer",
+    "clients",
+    id,
+    { referred_by: referrer }
+  );
 
   revalidatePath(`/${ADMIN}/clients/${id}`);
   if (referrer) revalidatePath(`/${ADMIN}/clients/${referrer}`);

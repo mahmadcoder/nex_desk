@@ -5,6 +5,7 @@ import { createAdminClient } from "@/lib/supabase/server";
 import { requireOwnerAdmin } from "@/lib/auth/guards";
 import { asUuid } from "@/lib/utils";
 import { encryptCredentials, decryptCredentials, type Credential } from "@/lib/crypto";
+import { recordAudit } from "@/lib/actions/audit";
 
 const ADMIN = process.env.ADMIN_PATH || "nx-control";
 
@@ -45,13 +46,13 @@ export async function saveProjectCredentials(projectId: string, items: Credentia
 
   // The values themselves are never written to the audit log — only that they
   // changed, and by whom.
-  await db.from("audit_log").insert({
-    actor_id: me.userId,
-    action: "project.credentials",
-    entity: "projects",
-    entity_id: id,
-    meta: { count: clean.length },
-  });
+  await recordAudit(
+    me.userId,
+    "project.credentials",
+    "projects",
+    id,
+    { count: clean.length }
+  );
 
   revalidatePath(`/${ADMIN}/projects/${id}`);
   return { ok: true as const, count: clean.length };
@@ -73,13 +74,13 @@ export async function revealProjectCredentials(projectId: string) {
     .from("projects").select("credentials").eq("id", id).maybeSingle();
   if (!project) throw new Error("Project not found.");
 
-  await db.from("audit_log").insert({
-    actor_id: me.userId,
-    action: "project.credentials.reveal",
-    entity: "projects",
-    entity_id: id,
-    meta: {},
-  });
+  await recordAudit(
+    me.userId,
+    "project.credentials.reveal",
+    "projects",
+    id,
+    {}
+  );
 
   return { ok: true as const, items: decryptCredentials(project.credentials as Credential[]) };
 }

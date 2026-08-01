@@ -7,6 +7,7 @@ import { getCurrentStaff } from "@/lib/auth/staff";
 import { sendEmail, adminNotifyAddress } from "@/lib/email/send";
 import { buildStaffOfferPdf } from "@/lib/pdf/staffDocs";
 import { asUuid, getSiteBaseUrl, money } from "@/lib/utils";
+import { recordAudit } from "@/lib/actions/audit";
 
 const ADMIN = process.env.ADMIN_PATH || "nx-control";
 
@@ -129,10 +130,13 @@ export async function recordCompensation(data: {
 
   // `gift` sends nothing at all, by design.
 
-  await db.from("audit_log").insert({
-    actor_id: me.userId, action: `compensation.${data.kind}`, entity: "employees",
-    entity_id: employeeId, meta: { amount, currency: data.currency },
-  });
+  await recordAudit(
+    me.userId,
+    `compensation.${data.kind}`,
+    "employees",
+    employeeId,
+    { amount, currency: data.currency }
+  );
 
   revalidatePath(`/${ADMIN}/employees`);
   revalidatePath(`/${ADMIN}/employees/${employeeId}`);
@@ -160,10 +164,13 @@ export async function deleteCompensation(id: string) {
   }
 
   await db.from("employee_compensation").delete().eq("id", rowId);
-  await db.from("audit_log").insert({
-    actor_id: me.userId, action: "compensation.delete", entity: "employees",
-    entity_id: row.employee_id, meta: { kind: row.kind },
-  });
+  await recordAudit(
+    me.userId,
+    "compensation.delete",
+    "employees",
+    row.employee_id,
+    { kind: row.kind }
+  );
 
   revalidatePath(`/${ADMIN}/employees/${row.employee_id}`);
   return { ok: true as const };
@@ -341,10 +348,13 @@ export async function decideLeave(
     emailed = res.ok;
   }
 
-  await db.from("audit_log").insert({
-    actor_id: me.userId, action: `leave.${decision}`, entity: "leave_requests",
-    entity_id: id, meta: { days: row.days },
-  });
+  await recordAudit(
+    me.userId,
+    `leave.${decision}`,
+    "leave_requests",
+    id,
+    { days: row.days }
+  );
 
   revalidatePath(`/${ADMIN}/leave`);
   revalidatePath(`/${ADMIN}`);

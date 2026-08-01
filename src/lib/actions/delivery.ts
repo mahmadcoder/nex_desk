@@ -6,6 +6,7 @@ import { requireStaff, requireOwnerAdmin } from "@/lib/auth/guards";
 import { sendEmail, adminNotifyAddress } from "@/lib/email/send";
 import { generateDocument } from "@/lib/pdf/generate";
 import { asUuid, getSiteBaseUrl, moneyMulti, sumByCurrency, pdfFilename } from "@/lib/utils";
+import { recordAudit } from "@/lib/actions/audit";
 
 const ADMIN = process.env.ADMIN_PATH || "nx-control";
 
@@ -177,13 +178,13 @@ export async function handoverProject(projectId: string) {
     })
     .eq("id", id);
 
-  await db.from("audit_log").insert({
-    actor_id: me.userId,
-    action: "project.handover",
-    entity: "projects",
-    entity_id: id,
-    meta: { client: client.email, staff_notified: staffEmailed },
-  });
+  await recordAudit(
+    me.userId,
+    "project.handover",
+    "projects",
+    id,
+    { client: client.email, staff_notified: staffEmailed }
+  );
 
   revalidatePath(`/${ADMIN}/projects/${id}`);
   revalidatePath(`/${ADMIN}/clients/${project.client_id}`);
@@ -234,9 +235,13 @@ export async function sendProjectThankYou(projectId: string) {
     await db.from("projects").update({ thanked_at: new Date().toISOString() }).eq("id", id);
   }
 
-  await db.from("audit_log").insert({
-    actor_id: me.userId, action: "project.thank_you", entity: "projects", entity_id: id, meta: {},
-  });
+  await recordAudit(
+    me.userId,
+    "project.thank_you",
+    "projects",
+    id,
+    {}
+  );
 
   revalidatePath(`/${ADMIN}/projects/${id}`);
   return { ok: res.ok, error: res.ok ? undefined : res.error };
@@ -365,10 +370,13 @@ export async function quoteChangeRequest(
     emailed = res.ok;
   }
 
-  await db.from("audit_log").insert({
-    actor_id: me.userId, action: "change_request.quote", entity: "change_requests",
-    entity_id: id, meta: { amount: quote.amount, currency: quote.currency },
-  });
+  await recordAudit(
+    me.userId,
+    "change_request.quote",
+    "change_requests",
+    id,
+    { amount: quote.amount, currency: quote.currency }
+  );
 
   revalidatePath(`/${ADMIN}/projects/${cr.project_id}`);
   revalidatePath("/portal");
@@ -448,10 +456,13 @@ export async function approveChangeRequest(requestId: string) {
     emailed = res.ok;
   }
 
-  await db.from("audit_log").insert({
-    actor_id: me.userId, action: "change_request.approve", entity: "change_requests",
-    entity_id: id, meta: { invoice_no: invoice.invoice_no, amount },
-  });
+  await recordAudit(
+    me.userId,
+    "change_request.approve",
+    "change_requests",
+    id,
+    { invoice_no: invoice.invoice_no, amount }
+  );
 
   revalidatePath(`/${ADMIN}/projects/${cr.project_id}`);
   revalidatePath(`/${ADMIN}/invoices`);
@@ -483,10 +494,13 @@ export async function completeChangeRequest(requestId: string) {
   await db.from("change_requests")
     .update({ status: "completed", completed_at: new Date().toISOString() }).eq("id", id);
 
-  await db.from("audit_log").insert({
-    actor_id: me.userId, action: "change_request.complete", entity: "change_requests",
-    entity_id: id, meta: {},
-  });
+  await recordAudit(
+    me.userId,
+    "change_request.complete",
+    "change_requests",
+    id,
+    {}
+  );
 
   revalidatePath(`/${ADMIN}/projects/${cr.project_id}`);
   revalidatePath("/portal");
@@ -512,10 +526,13 @@ export async function declineChangeRequest(requestId: string, reason?: string) {
       : cr.description,
   }).eq("id", id);
 
-  await db.from("audit_log").insert({
-    actor_id: me.userId, action: "change_request.decline", entity: "change_requests",
-    entity_id: id, meta: { reason: reason ?? null },
-  });
+  await recordAudit(
+    me.userId,
+    "change_request.decline",
+    "change_requests",
+    id,
+    { reason: reason ?? null }
+  );
 
   revalidatePath(`/${ADMIN}/projects/${cr.project_id}`);
   revalidatePath("/portal");
