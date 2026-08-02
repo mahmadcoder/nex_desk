@@ -46,7 +46,7 @@ export async function GET(req: Request) {
   const db = createAdminClient();
   const ran: Record<string, number> = {
     marked_overdue: 0, reminders_sent: 0, overdue_sent: 0,
-    retainers_billed: 0, deadline_warnings: 0, passwords_purged: 0, errors: 0,
+    retainers_billed: 0, deadline_warnings: 0, kickoff_nudges: 0, passwords_purged: 0, errors: 0,
   };
 
   /* ---------- 1. Mark unpaid invoices overdue ------------------------- */
@@ -211,6 +211,55 @@ export async function GET(req: Request) {
     }
   } catch (e) {
     console.error("cron: retainers failed", e);
+    ran.errors++;
+  }
+
+  /* ---------- 4b. Chase unticked kickoff items ------------------------- */
+  try {
+    // Three days after the start date, then at most once a week: enough to
+    // keep it moving, not enough to feel nagged.
+    const { data: stalled } = await db
+      .from("projects")
+      .select("id, name, start_date, kickoff_items, kickoff_nudged_at, clients(id, name, email)")
+      .in("status", ["not_started", "in_progress"])
+      .not("kickoff_items", "is", null)
+      .lte("start_date", dayOffset(-3));
+
+    for (const p of stalled ?? []) {
+      const items = Array.isArray(p.kickoff_items) ? (p.kickoff_items as any[]) : [];
+      const missing = items.filter((i) => !i.done);
+      if (!missing.length) continue;
+
+      if (p.kickoff_nudged_at && Date.now() - new Date(p.kickoff_nudged_at).getTime() < 7 * 864e5) {
+        continue;
+      }
+
+      const client = (p.clients as any) ?? null;
+      if (!client?.email) continue;
+
+      const res = await sendEmail({
+        templateKey: "kickoff_reminder",
+        to: client.email,
+        clientId: client.id,
+        projectId: p.id,
+        vars: {
+          client_name: client.name,
+          project_name: p.name,
+          missing_items: missing.map((i: any) => `• ${i.label}`).join("\n"),
+          missing_count: missing.length,
+          portal_url: `${getSiteBaseUrl()}/portal`,
+        },
+      });
+
+      if (res.ok) {
+        await db.from("projects")
+          .update({ kickoff_nudged_at: new Date().toISOString() })
+          .eq("id", p.id);
+        ran.kickoff_nudges++;
+      }
+    }
+  } catch (e) {
+    console.error("cron: kickoff nudges failed", e);
     ran.errors++;
   }
 

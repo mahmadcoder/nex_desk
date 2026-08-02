@@ -1,6 +1,7 @@
 import { getCurrentStaff } from "@/lib/auth/staff";
 import Sidebar from "@/components/admin/Sidebar";
 import LoginToastListener from "@/components/admin/LoginToastListener";
+import CommandPalette from "@/components/admin/CommandPalette";
 
 const BASE = `/${process.env.ADMIN_PATH || "nx-control"}`;
 
@@ -21,6 +22,8 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   return (
     <div className="admin flex min-h-screen bg-ink-900">
       <LoginToastListener />
+      {/* Ctrl+K search, scoped server-side by role. */}
+      <CommandPalette />
       <Sidebar base={BASE} user={{ name: me.fullName, role: me.role }} />
       <div className="min-w-0 flex-1 p-4 pt-[calc(3.5rem+1rem)] lg:p-8 lg:pt-8">{children}</div>
     </div>

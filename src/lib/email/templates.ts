@@ -899,6 +899,62 @@ The employee has been emailed. Remember to include it in the next payroll run �
 {{employee_url}}`,
   },
 
+  kickoff_reminder: {
+    subject: "⏳ {{project_name}} is waiting on {{missing_count}} thing(s) from you",
+    body: `Hi {{client_name}},
+
+{{project_name}} is moving, but part of it is waiting on material only you can provide.
+
+## Still needed
+
+{{missing_items}}
+
+Tick each one off in your portal as you send it — upload files there, or send them on WhatsApp at {{whatsapp}} if that is easier:
+
+{{portal_url}}
+
+The sooner these land, the sooner we can finish. Nothing else is blocking on our side.
+
+Best regards,
+{{sender_name}}`,
+  },
+
+  client_monthly_report: {
+    subject: "📊 Your monthly report from Nex Desk",
+    body: `Hi {{client_name}},
+
+Your monthly report is attached above this line — if you are reading this exact text, the report body was not filled in before sending. Reply and we will resend it properly.
+
+Best regards,
+{{sender_name}}`,
+  },
+
+  admin_milestone_approved: {
+    subject: "👍 {{client_name}} approved: {{milestone_title}}",
+    body: `The client has signed off a milestone in their portal.
+
+• Client: {{client_name}}
+• Project: {{project_name}}
+• Milestone: {{milestone_title}}
+
+That approval is recorded against their signed-in session with a timestamp — it is your acceptance record for this stage.
+
+## Worth doing now
+
+If a payment stage was tied to this milestone, send its invoice — approval is the natural moment to bill.
+
+{{admin_url}}`,
+  },
+
+  admin_kickoff_complete: {
+    subject: "✅ {{client_name}} has sent everything — {{project_name}} is unblocked",
+    body: `Every kickoff item for {{project_name}} is now ticked.
+
+Nothing is waiting on the client any more. From here, any delay is ours — worth telling the team the runway is clear.
+
+{{admin_url}}`,
+  },
+
   /* ─────────────── Internal notices (to the agency) ─────────────── */
 
   internal_new_lead: {

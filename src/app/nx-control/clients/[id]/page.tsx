@@ -9,6 +9,7 @@ import ClientManagerCard from "@/components/admin/ClientManagerCard";
 import SendInvoiceButton from "@/components/admin/SendInvoiceButton";
 import ClientServices from "@/components/admin/ClientServices";
 import ClientLifecycleCard from "@/components/admin/ClientLifecycleCard";
+import MonthlyReportButton from "@/components/admin/MonthlyReportButton";
 import ActivityTimeline from "@/components/admin/ActivityTimeline";
 import { clientActivity } from "@/lib/insights";
 import { revealPreview } from "@/lib/crypto";
@@ -206,9 +207,12 @@ export default async function ClientDetail({ params }: { params: Promise<{ id: s
               </Link>
             ) : undefined
           ) : services.length ? (
-            <Link href={`${BASE}/deals/new?client=${id}`} className="btn btn-primary h-10">
-              <Plus size={14} /> Add another service
-            </Link>
+            <span className="flex flex-wrap items-center gap-2">
+              <MonthlyReportButton clientId={id} clientName={client.name} />
+              <Link href={`${BASE}/deals/new?client=${id}`} className="btn btn-primary h-10">
+                <Plus size={14} /> Add another service
+              </Link>
+            </span>
           ) : (
             <Link href={`${BASE}/deals/new?client=${id}`} className="btn btn-primary h-10">
               <Lock size={14} /> Lock the first deal

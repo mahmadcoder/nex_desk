@@ -41,6 +41,16 @@ export async function aiComplete(prompt: string): Promise<AIResult> {
   }
 }
 
+/**
+ * Tried in order until one answers. Google retires model versions out from
+ * under old code — `gemini-2.0-flash` now refuses NEW keys entirely, which is
+ * exactly how this list earned its existence. `gemini-flash-latest` is
+ * Google's own moving alias for the current flash model, so it goes first;
+ * the pinned names behind it cover keys old enough to predate the alias.
+ * `GEMINI_MODEL` in the environment overrides the whole list.
+ */
+const GEMINI_MODELS = ["gemini-flash-latest", "gemini-2.5-flash", "gemini-2.0-flash"];
+
 async function gemini(prompt: string): Promise<AIResult> {
   const key = process.env.GEMINI_API_KEY?.trim();
   if (!key) {
@@ -52,46 +62,71 @@ async function gemini(prompt: string): Promise<AIResult> {
     };
   }
 
-  const res = await fetch(
-    // Flash: the fast, free-tier model. Quality is more than enough for
-    // polishing form copy, and the daily allowance is effectively unlimited
-    // for one agency.
-    "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent",
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "x-goog-api-key": key },
-      body: JSON.stringify({
-        contents: [{ parts: [{ text: prompt }] }],
-        generationConfig: { temperature: 0.6, maxOutputTokens: 1024 },
-      }),
-      signal: AbortSignal.timeout(TIMEOUT_MS),
-    }
-  );
+  const models = process.env.GEMINI_MODEL?.trim()
+    ? [process.env.GEMINI_MODEL.trim()]
+    : GEMINI_MODELS;
 
-  if (!res.ok) {
+  let lastError = "The AI service returned an error. Try again in a moment.";
+
+  for (const model of models) {
+    const res = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-goog-api-key": key },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: prompt }] }],
+          // Newer flash models spend output tokens on internal "thinking"
+          // before the visible answer, so the budget is generous — 1024 was
+          // getting eaten before the reply finished.
+          generationConfig: { temperature: 0.6, maxOutputTokens: 2048 },
+        }),
+        signal: AbortSignal.timeout(TIMEOUT_MS),
+      }
+    );
+
+    if (res.ok) {
+      const data = await res.json();
+      const text: string | undefined = data?.candidates?.[0]?.content?.parts
+        ?.map((p: { text?: string }) => p.text ?? "")
+        .join("");
+      if (!text?.trim()) {
+        return { ok: false, error: "The AI returned nothing usable. Try again." };
+      }
+      return { ok: true, text: text.trim() };
+    }
+
     const detail = await res.text().catch(() => "");
-    console.error("Gemini error", res.status, detail.slice(0, 300));
+    console.error(`Gemini error on ${model}:`, res.status, detail.slice(0, 300));
+
+    if (/API_KEY_INVALID|API key not valid/i.test(detail)) {
+      return {
+        ok: false,
+        error:
+          "Google rejected GEMINI_API_KEY as invalid. Create a fresh key at " +
+          "aistudio.google.com/apikey and replace it in the environment.",
+      };
+    }
+
+    // 403/404 here usually means THIS MODEL is retired or gated for this key
+    // — the next candidate may well work, so fall through to it.
+    if (res.status === 403 || res.status === 404) {
+      lastError =
+        "None of the configured Gemini models are available to this key. " +
+        "Set GEMINI_MODEL in the environment to a model your key lists.";
+      continue;
+    }
+
     return {
       ok: false,
       error:
         res.status === 429
           ? "The free AI limit was hit for this minute — wait a moment and try again."
-          : res.status === 400 || res.status === 403
-            ? "The AI key was rejected. Check GEMINI_API_KEY in the environment."
-            : "The AI service returned an error. Try again in a moment.",
+          : "The AI service returned an error. Try again in a moment.",
     };
   }
 
-  const data = await res.json();
-  const text: string | undefined =
-    data?.candidates?.[0]?.content?.parts
-      ?.map((p: { text?: string }) => p.text ?? "")
-      .join("");
-
-  if (!text?.trim()) {
-    return { ok: false, error: "The AI returned nothing usable. Try again." };
-  }
-  return { ok: true, text: text.trim() };
+  return { ok: false, error: lastError };
 }
 
 async function groq(prompt: string): Promise<AIResult> {

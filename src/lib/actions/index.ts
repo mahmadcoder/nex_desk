@@ -505,6 +505,15 @@ export async function lockDeal(dealData: any, options: { sendEmail: boolean } = 
     start_date: deal.start_date,
     deadline: deal.deadline,
     lead_member: me.userId,
+    // The five things the kickoff email asks for, tickable by the client in
+    // their portal and chased by the daily cron until they all arrive.
+    kickoff_items: [
+      { id: "brand",    label: "Logo & brand files (AI, SVG or high-res PNG)", done: false, done_at: null },
+      { id: "content",  label: "Text content for each page, or a rough draft", done: false, done_at: null },
+      { id: "imagery",  label: "Photos or product images",                     done: false, done_at: null },
+      { id: "access",   label: "Domain & hosting access",                      done: false, done_at: null },
+      { id: "accounts", label: "Analytics or social accounts to connect",      done: false, done_at: null },
+    ],
   }).select().single();
 
 

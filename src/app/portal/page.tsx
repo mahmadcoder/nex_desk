@@ -8,6 +8,8 @@ import ClientDocumentUploader from "@/components/portal/ClientDocumentUploader";
 import ClientPortalSignOutButton from "@/components/portal/ClientPortalSignOutButton";
 import ClientChangeRequest from "@/components/portal/ClientChangeRequest";
 import AcceptAgreement from "@/components/portal/AcceptAgreement";
+import ApproveMilestone from "@/components/portal/ApproveMilestone";
+import KickoffChecklist from "@/components/portal/KickoffChecklist";
 import { describeMetrics } from "@/config/logFields";
 
 export const dynamic = "force-dynamic";
@@ -373,9 +375,16 @@ export default async function Portal() {
                           {m.title}
                         </span>
                       </div>
-                      {m.due_date && (
-                        <span className="mono-tag text-xs text-bone-300">{m.due_date}</span>
-                      )}
+                      <span className="flex shrink-0 items-center gap-2">
+                        {m.due_date && !m.is_done && (
+                          <span className="mono-tag text-xs text-bone-300">{m.due_date}</span>
+                        )}
+                        {/* Sign-off becomes a recorded click, not a WhatsApp
+                            message. Only offered once the team marks it done. */}
+                        {m.is_done && (
+                          <ApproveMilestone milestoneId={m.id} approvedAt={m.approved_at ?? null} />
+                        )}
+                      </span>
                     </li>
                   ))}
                 </ul>
@@ -410,6 +419,10 @@ export default async function Portal() {
                   </a>
                 )}
               </div>
+            )}
+
+            {Array.isArray(p.kickoff_items) && p.kickoff_items.length > 0 && (
+              <KickoffChecklist projectId={p.id} items={p.kickoff_items} />
             )}
 
             <ClientChangeRequest
