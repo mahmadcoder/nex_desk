@@ -4,11 +4,12 @@ import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { lockDeal } from "@/lib/actions";
+import { sendQuote } from "@/lib/actions/quotes";
 import { noteTemplateUsed } from "@/lib/actions/agreements";
 import { money, CURRENCIES } from "@/lib/utils";
 import CustomSelect from "@/components/ui/CustomSelect";
 import AIAssist from "@/components/ui/AIAssist";
-import { Trash2, Plus } from "lucide-react";
+import { Trash2, Plus, Send } from "lucide-react";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
@@ -26,6 +27,7 @@ const label = "mono-tag mb-1.5 block";
 
 export default function DealForm({
   clients, services, defaultTerms, taxDefault, defaultCurrency, initialClientId, templates = [],
+  initialDeal,
 }: {
   clients: Client[];
   services: { slug: string; title: string; starting_at: number | null }[];
@@ -36,42 +38,68 @@ export default function DealForm({
   initialClientId?: string;
   /** Saved standard packages. */
   templates?: any[];
+  /**
+   * An existing deal to edit. Set on the deal page so a quote can be revised
+   * after negotiation — previously the only way to change a sent quote was to
+   * build a second deal from scratch.
+   */
+  initialDeal?: any;
 }) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
   const [notify, setNotify] = useState(true);
 
+  const editing = !!initialDeal?.id;
+
   // Adopting the client's currency up front matters: the form is often opened
   // straight from a client profile to sell them a second service.
-  const preselected = clients.find((c) => c.id === initialClientId);
+  const preselected = clients.find((c) => c.id === (initialDeal?.client_id ?? initialClientId));
 
   const [d, setD] = useState({
     client_id: preselected?.id ?? "",
-    title: "",
-    summary: "",
-    scope: "",
-    exclusions: "",
-    currency: preselected?.preferred_currency || defaultCurrency,
-    discount: 0,
-    tax_percent: taxDefault,
-    advance_percent: 50,
-    duration_days: 30,
-    start_date: new Date().toISOString().slice(0, 10),
-    deadline: new Date(Date.now() + 30 * 864e5).toISOString().slice(0, 10),
-    revisions_included: 2,
-    terms: defaultTerms,
-    signature_name: "",
+    title: initialDeal?.title ?? "",
+    summary: initialDeal?.summary ?? "",
+    scope: initialDeal?.scope ?? "",
+    exclusions: initialDeal?.exclusions ?? "",
+    currency: initialDeal?.currency || preselected?.preferred_currency || defaultCurrency,
+    discount: Number(initialDeal?.discount ?? 0),
+    tax_percent: Number(initialDeal?.tax_percent ?? taxDefault),
+    advance_percent: Number(initialDeal?.advance_percent ?? 50),
+    duration_days: Number(initialDeal?.duration_days ?? 30),
+    start_date: initialDeal?.start_date ?? new Date().toISOString().slice(0, 10),
+    deadline: initialDeal?.deadline ?? new Date(Date.now() + 30 * 864e5).toISOString().slice(0, 10),
+    revisions_included: Number(initialDeal?.revisions_included ?? 2),
+    terms: initialDeal?.terms ?? defaultTerms,
+    signature_name: initialDeal?.signature_name ?? "",
   });
 
-  const [items, setItems] = useState([{ item: "", qty: 1, price: 0, note: "" }]);
+  // Typed explicitly: `initialDeal` is `any`, so inferring the state from the
+  // ternary would silently widen every deliverable to `any`.
+  type Deliverable = { item: string; qty: number; price: number; note: string };
+  type Stage = { label: string; percent: number; due_on: string };
+
+  const [items, setItems] = useState<Deliverable[]>(
+    initialDeal?.deliverables?.length
+      ? (initialDeal.deliverables as Deliverable[])
+      : [{ item: "", qty: 1, price: 0, note: "" }]
+  );
   // Which catalogue services this deal covers. Saved on the deal so the daily
   // work log can ask SEO questions on an SEO project and engineering questions
   // on a build.
-  const [serviceSlugs, setServiceSlugs] = useState<string[]>([]);
-  const [schedule, setSchedule] = useState([
-    { label: "Advance to start", percent: 50, due_on: "" },
-    { label: "On delivery", percent: 50, due_on: "" },
-  ]);
+  const [serviceSlugs, setServiceSlugs] = useState<string[]>(initialDeal?.service_slugs ?? []);
+  const [schedule, setSchedule] = useState<Stage[]>(
+    initialDeal?.payment_schedule?.length
+      ? initialDeal.payment_schedule.map((p: any) => ({
+          label: String(p.label ?? ""),
+          percent: Number(p.percent ?? 0),
+          // A null due date round-trips as an empty input, not the string "null".
+          due_on: p.due_on ?? "",
+        }))
+      : [
+          { label: "Advance to start", percent: 50, due_on: "" },
+          { label: "On delivery", percent: 50, due_on: "" },
+        ]
+  );
 
   const set = (k: string, v: unknown) => setD((p) => ({ ...p, [k]: v }));
 
@@ -135,34 +163,46 @@ export default function DealForm({
 
   const client = clients.find((c) => c.id === d.client_id);
 
+  /** Shared by both exits — the payload is identical either way. */
+  function validate() {
+    if (!d.client_id) { toast.error("Pick a client first."); return false; }
+    if (!d.title) { toast.error("Give the project a name."); return false; }
+    if (total <= 0) { toast.error("Add at least one deliverable with a price."); return false; }
+    if (scheduleSum !== 100) {
+      toast.error(`Payment schedule adds up to ${scheduleSum}%, not 100%.`);
+      return false;
+    }
+    return true;
+  }
+
+  const payload = () => ({
+    // Carrying the id turns the upsert into an update. Without it, revising a
+    // quote would insert a SECOND deal with a fresh number while the original
+    // sat in `sent`, still being chased by the cron.
+    ...(editing ? { id: initialDeal.id } : {}),
+    ...d,
+    discount: Number(d.discount),
+    tax_percent: Number(d.tax_percent),
+    duration_days: Number(d.duration_days),
+    revisions_included: Number(d.revisions_included),
+    advance_percent: Number(schedule[0]?.percent ?? 50),
+    subtotal,
+    total,
+    service_slugs: serviceSlugs,
+    deliverables: items.filter((i) => i.item),
+    payment_schedule: schedule.map((p) => ({
+      ...p,
+      amount: (total * Number(p.percent)) / 100,
+      due_on: p.due_on || null,
+    })),
+  });
+
   async function submit() {
-    if (!d.client_id) return toast.error("Pick a client first.");
-    if (!d.title) return toast.error("Give the project a name.");
-    if (total <= 0) return toast.error("Add at least one deliverable with a price.");
-    if (scheduleSum !== 100) return toast.error(`Payment schedule adds up to ${scheduleSum}%, not 100%.`);
+    if (!validate()) return;
 
     setBusy(true);
     try {
-      const res = await lockDeal(
-        {
-          ...d,
-          discount: Number(d.discount),
-          tax_percent: Number(d.tax_percent),
-          duration_days: Number(d.duration_days),
-          revisions_included: Number(d.revisions_included),
-          advance_percent: Number(schedule[0]?.percent ?? 50),
-          subtotal,
-          total,
-          service_slugs: serviceSlugs,
-          deliverables: items.filter((i) => i.item),
-          payment_schedule: schedule.map((p) => ({
-            ...p,
-            amount: (total * Number(p.percent)) / 100,
-            due_on: p.due_on || null,
-          })),
-        },
-        { sendEmail: notify }
-      );
+      const res = await lockDeal(payload(), { sendEmail: notify });
 
       toast.success(
         notify
@@ -172,6 +212,38 @@ export default function DealForm({
       router.push(`/${process.env.NEXT_PUBLIC_ADMIN_PATH || "nx-control"}/projects/${res.projectId}`);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Couldn't lock the deal.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  /**
+   * The other exit: email it as a quotation and park it in the pipeline.
+   *
+   * No project, no milestones, no invoice — none of that should exist until
+   * the client has actually said yes. `lockQuote` runs the whole provisioning
+   * step later, from the deal page.
+   */
+  async function submitQuote() {
+    if (!validate()) return;
+
+    setBusy(true);
+    try {
+      const res = await sendQuote(payload());
+      if (!res.ok) {
+        toast.error(res.error);
+        return;
+      }
+      // The save and the send are separate outcomes — a saved quote that could
+      // not be emailed must not report itself as sent.
+      if (res.emailed) {
+        toast.success(`Quote ${res.dealNo} sent. It will be chased on day 3, 7 and 14.`);
+      } else {
+        toast.warning(`Quote ${res.dealNo} saved, but the email did not go out. Send it from the deal page.`);
+      }
+      router.push(`/${process.env.NEXT_PUBLIC_ADMIN_PATH || "nx-control"}/deals/${res.dealId}`);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Couldn't send the quote.");
     } finally {
       setBusy(false);
     }
@@ -459,10 +531,28 @@ export default function DealForm({
             {busy ? "Locking…" : "Lock the deal"}
           </button>
 
-          <p className="mt-4 text-xs leading-relaxed text-bone-400">
+          <p className="mt-3 text-xs leading-relaxed text-bone-400">
             Locking creates the project and its milestones, raises the advance invoice,
             generates the signed agreement PDF and emails it — all in one step.
           </p>
+
+          {/* The second exit. Deliberately the quieter button: work agreed on a
+              call should still go straight to locked without a detour. */}
+          <div className="mt-5 border-t border-ink-600 pt-5">
+            <button
+              className="btn w-full justify-center gap-2"
+              onClick={submitQuote}
+              disabled={busy}
+            >
+              <Send size={14} />
+              {busy ? "Sending…" : editing ? "Send the revised quote" : "Send as a quote instead"}
+            </button>
+            <p className="mt-3 text-xs leading-relaxed text-bone-400">
+              {editing
+                ? "Re-sends the quotation with these figures and restarts the follow-up clock — the numbers changed, so the conversation starts again."
+                : "Emails the quotation and waits for their answer. No project, no invoice and nothing committed until you mark it won. Chased for you on day 3, 7 and 14."}
+            </p>
+          </div>
         </div>
       </aside>
     </div>

@@ -139,9 +139,13 @@ Nex Desk`,
 
 Here is your quote for {{project_name}}. The attached PDF sets out the full scope, the price, what is included, what is not, and how long it will take.
 
-Total: {{currency}} {{amount}}
+• Reference: {{deal_no}}
+• Total: {{currency}} {{amount}}
+• Valid until: {{valid_until}}
 
-Read it over and tell us what you would like changed. Nothing is locked until you say so.
+Read it over and tell us what you would like changed. Nothing is committed until you say so, and there is no obligation either way.
+
+If the budget or the timing is off, say so rather than walking away — we would rather adjust the scope than lose the conversation.
 
 {{sender_name}}
 Nex Desk`,
@@ -151,9 +155,9 @@ Nex Desk`,
     subject: "💬 Any thoughts on the quote for {{project_name}}?",
     body: `Hi {{client_name}},
 
-Just checking in on the quote we sent for {{project_name}}.
+Just checking in on the quote we sent for {{project_name}} — {{currency}} {{amount}}, sent {{days_since}} days ago.
 
-No pressure at all. If the timing is wrong or the budget does not fit, say so and we will adjust the scope rather than push.
+No pressure at all. If the timing is wrong or the budget does not fit, say so and we will adjust the scope rather than push. A straight no is genuinely fine too — it is more useful to us than silence.
 
 Happy to jump on a ten-minute call if that is easier.
 
@@ -378,7 +382,11 @@ Nex Desk`,
     subject: "⏳ Waiting on your feedback for {{project_name}}",
     body: `Hi {{client_name}},
 
-We are blocked on {{project_name}} until we hear back on the last round.
+We are blocked on {{project_name}} until we hear back on the last round — it has been {{days_waiting}} days since we sent it over.
+
+Here it is again:
+
+{{staging_url}}
 
 Worth flagging: the {{deadline}} deadline moves by however long we wait. That is not a penalty, just how the schedule works.
 
@@ -1062,5 +1070,170 @@ Best regards,
   admin_work_log_notice: {
     subject: "📝 Daily work log submitted",
     body: "A team member submitted their daily work log.",
+  },
+
+  /* ─────────────── Costs paid on the client's behalf ─────────────── */
+
+  client_expense_added: {
+    subject: "🧾 {{category}} bought for {{project_name}} — receipt attached",
+    body: `Hi {{client_name}},
+
+We've bought something for {{project_name}} on your behalf, and here are the details while they're fresh.
+
+## What it is
+
+• {{category}}: {{item}}
+• Supplier: {{vendor}}
+• Bought on: {{purchased_on}}
+• Amount: {{amount}}
+
+{{charge_line}}
+
+{{details}}
+
+{{renewal_line}}
+
+{{receipt_line}}
+
+Everything we buy for you is recorded in your portal with its receipt, so you can check any charge yourself at any time:
+
+{{portal_url}}
+
+Any question at all about this, just reply.
+
+{{sender_name}}
+Nex Desk`,
+  },
+
+  admin_expense_notice: {
+    subject: "🧾 Recorded: {{item}} for {{client_name}} — {{amount}}",
+    body: `A cost has been recorded against {{client_name}}.
+
+• {{category}}: {{item}}
+• Supplier: {{vendor}}
+• Paid: {{cost}}
+• Charged to client: {{amount}}
+• Margin on it: {{margin}}
+• Bought on: {{purchased_on}}
+
+{{renewal_line}}
+
+Open the client:
+{{admin_url}}`,
+  },
+
+  expenses_invoiced: {
+    subject: "🧾 Invoice {{invoice_no}} — costs paid on your behalf",
+    body: `Hi {{client_name}},
+
+Invoice {{invoice_no}} is attached. It covers things we bought for you rather than any of our own work.
+
+## What's on it
+
+{{items}}
+
+• Total: {{amount}}
+• Due: {{due_date}}
+
+Every one of these has its receipt saved in your portal, so you can check any line against what we actually paid:
+
+{{portal_url}}
+
+If anything on here looks wrong, tell us before you pay it and we'll sort it out.
+
+{{sender_name}}
+Nex Desk`,
+  },
+
+  expense_renewal: {
+    subject: "🔔 {{item}} renews on {{due_date}}",
+    body: `Hi {{client_name}},
+
+A quick heads-up so nothing lapses without you knowing.
+
+• {{category}}: {{item}}
+• Renews on: {{due_date}}
+• Last time it cost: {{amount}}
+
+{{consequence_line}}
+
+Would you like us to renew it for you? Reply and we will handle it and invoice at cost — no markup, and the receipt goes into your portal as usual.
+
+If you would rather take it over yourself, say so and we will send you everything you need to do it.
+
+{{sender_name}}
+Nex Desk`,
+  },
+
+  admin_renewals_due: {
+    subject: "🔔 {{count}} renewal(s) coming up",
+    body: `Renewals falling due soon.
+
+{{items}}
+
+Chase whichever the client has not confirmed. A lapsed domain or hosting account is the one failure a client never forgets.
+
+Open the panel:
+{{admin_url}}`,
+  },
+
+  /* ─────────────── Safety nets ───────────────
+   *
+   * Every key below is SENT with a bodyOverride, so these bodies normally
+   * never appear. They exist because `sendEmail` refuses to send a template it
+   * has no copy for and logs a failure nobody reads — so the day an override
+   * is dropped or arrives empty, this is what goes out instead of nothing.
+   */
+
+  admin_deadline_warning: {
+    subject: "📅 Project deadlines coming up",
+    body: `Deadlines are approaching on one or more projects.
+
+Open the board to see which:
+{{admin_url}}`,
+  },
+
+  admin_quotes_cold: {
+    subject: "🥶 Quotes with no answer",
+    body: `One or more quotes have been chased to the end of the sequence with no reply.
+
+Close them out or pick up the phone — a quote with no decision is worse than a no.
+
+Open the pipeline:
+{{admin_url}}`,
+  },
+
+  lead_reply: {
+    subject: "Re: your enquiry to Nex Desk",
+    body: `Hi {{client_name}},
+
+Thanks again for getting in touch about {{service_interest}}.
+
+{{message}}
+
+If you have any questions, just reply to this email — it comes straight to us.
+
+{{sender_name}}
+Nex Desk`,
+  },
+
+  newsletter_broadcast: {
+    subject: "📬 An update from Nex Desk",
+    body: `Hi {{client_name}},
+
+{{message}}
+
+{{sender_name}}
+Nex Desk`,
+  },
+
+  manual: {
+    subject: "A message from Nex Desk",
+    body: `Hi {{client_name}},
+
+{{message}}
+
+{{sender_name}}
+Nex Desk`,
   },
 };

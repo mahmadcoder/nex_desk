@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/server";
 import { sendEmail, adminNotifyAddress } from "@/lib/email/send";
-import { getSiteBaseUrl } from "@/lib/utils";
+import { getSiteBaseUrl, money } from "@/lib/utils";
+import { expenseCategoryLabel, isCriticalCategory } from "@/config/expenseCategories";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -46,7 +47,10 @@ export async function GET(req: Request) {
   const db = createAdminClient();
   const ran: Record<string, number> = {
     marked_overdue: 0, reminders_sent: 0, overdue_sent: 0,
-    retainers_billed: 0, deadline_warnings: 0, kickoff_nudges: 0, passwords_purged: 0, errors: 0,
+    retainers_billed: 0, deadline_warnings: 0, kickoff_nudges: 0,
+    renewal_notices: 0, quote_followups: 0, quotes_cold: 0,
+    feedback_chases: 0, testimonial_asks: 0,
+    passwords_purged: 0, errors: 0,
   };
 
   /* ---------- 1. Mark unpaid invoices overdue ------------------------- */
@@ -260,6 +264,338 @@ export async function GET(req: Request) {
     }
   } catch (e) {
     console.error("cron: kickoff nudges failed", e);
+    ran.errors++;
+  }
+
+  /* ---------- 4c. Renewals coming due ---------------------------------- */
+  try {
+    // Exactly 30, 14 and 3 days out. Three warnings is enough to act on and
+    // few enough not to be ignored; matching on the date itself means no
+    // throttle state to get wrong.
+    const windows = [30, 14, 3];
+    const dates = windows.map(dayOffset);
+
+    const { data: dueRenewals, error: renewErr } = await db
+      .from("project_expenses")
+      .select("id, label, category, currency, cost, bill_amount, renews_on, client_id, project_id, clients(id, name, email)")
+      .in("renews_on", dates);
+
+    // 42P01 = the table is not there yet. Say so once rather than failing
+    // silently for weeks until someone notices the emails never arrive.
+    if (renewErr) {
+      console.error(
+        renewErr.code === "42P01"
+          ? "cron: project_expenses missing — run supabase/idempotent_fixes_2027_06.sql"
+          : "cron: renewal sweep failed",
+        renewErr
+      );
+      ran.errors++;
+    }
+
+    const upcoming: string[] = [];
+
+    for (const x of dueRenewals ?? []) {
+      const client = (x.clients as any) ?? null;
+      const daysLeft = Math.round(
+        (new Date(x.renews_on!).getTime() - Date.now()) / 864e5
+      );
+      upcoming.push(
+        `• ${x.label} (${client?.name ?? "—"}) — renews ${x.renews_on}, in ${daysLeft} days`
+      );
+
+      if (!client?.email) continue;
+
+      // The existing domain_expiry copy is written about a site going offline,
+      // which is true of a domain or hosting account and misleading about a
+      // plugin licence. Everything else gets the neutral wording.
+      const isInfrastructure = x.category === "domain" || x.category === "hosting";
+
+      const res = await sendEmail({
+        templateKey: isInfrastructure ? "domain_expiry" : "expense_renewal",
+        to: client.email,
+        clientId: client.id,
+        projectId: x.project_id ?? undefined,
+        vars: {
+          client_name: client.name,
+          category: expenseCategoryLabel(x.category),
+          item: x.label,
+          due_date: x.renews_on!,
+          amount: money(Number(x.bill_amount || x.cost || 0), x.currency),
+          consequence_line: isCriticalCategory(x.category)
+            ? "If this lapses it stops working immediately, and getting it back is slower and more expensive than renewing it."
+            : "If this lapses, whatever it powers stops working until it is renewed.",
+        },
+      });
+
+      if (res.ok) {
+        await db.from("project_expenses")
+          .update({ renewal_notified_at: new Date().toISOString() })
+          .eq("id", x.id);
+        ran.renewal_notices++;
+      }
+    }
+
+    if (upcoming.length) {
+      await sendEmail({
+        templateKey: "admin_renewals_due",
+        to: await adminNotifyAddress(),
+        vars: {
+          count: upcoming.length,
+          items: upcoming.join("\n"),
+          admin_url: `${getSiteBaseUrl()}/${ADMIN}/clients`,
+        },
+      });
+    }
+  } catch (e) {
+    console.error("cron: renewals failed", e);
+    ran.errors++;
+  }
+
+  /* ---------- 4d. Chase open quotes ------------------------------------ */
+  try {
+    // Day 3, then 7, then 14. Three chases over a fortnight is enough to get
+    // an answer and few enough that the answer is not "stop emailing me".
+    // After that the deal goes into the admin digest instead of being chased
+    // further — and it is never auto-cancelled, because deciding a quote is
+    // dead is a judgement call, not a timer.
+    const FOLLOWUP_DAYS = [3, 7, 14];
+
+    const { data: openQuotes, error: quoteErr } = await db
+      .from("deals")
+      .select("id, deal_no, title, total, currency, quote_sent_at, followup_count, last_followup_at, client_id, clients(id, name, email)")
+      .eq("status", "sent")
+      .not("quote_sent_at", "is", null);
+
+    // 42703 = the quote columns are not there yet. Say so once, rather than
+    // failing quietly for weeks until someone notices no chase ever went out.
+    if (quoteErr) {
+      console.error(
+        quoteErr.code === "42703"
+          ? "cron: deals.quote_sent_at missing — run supabase/idempotent_fixes_2027_07.sql"
+          : "cron: quote sweep failed",
+        quoteErr
+      );
+      ran.errors++;
+    }
+
+    const cold: string[] = [];
+
+    for (const q of openQuotes ?? []) {
+      const daysSince = Math.floor(
+        (Date.now() - new Date(q.quote_sent_at!).getTime()) / 864e5
+      );
+      const done = Number(q.followup_count ?? 0);
+
+      // Out of chases: report it once it has also been quiet for a week, then
+      // leave it alone.
+      if (done >= FOLLOWUP_DAYS.length) {
+        if (daysSince >= FOLLOWUP_DAYS[FOLLOWUP_DAYS.length - 1] + 7) {
+          cold.push(
+            `• ${q.deal_no} — ${q.title} (${(q.clients as any)?.name ?? "—"}), ` +
+            `${money(Number(q.total), q.currency)}, quoted ${daysSince} days ago, ${done} chases, no answer`
+          );
+        }
+        continue;
+      }
+
+      if (daysSince < FOLLOWUP_DAYS[done]) continue;
+
+      // Hard floor regardless of the cadence: after a cron outage the backlog
+      // must not fire two chases at the same client on the same morning.
+      if (q.last_followup_at && Date.now() - new Date(q.last_followup_at).getTime() < 2 * 864e5) {
+        continue;
+      }
+
+      const client = (q.clients as any) ?? null;
+      if (!client?.email) continue;
+
+      // No attachment, on purpose. `sendEmail({ attach })` regenerates the PDF
+      // and writes a fresh `documents` row on every call, so chasing three
+      // times would put three identical quotations in the client's portal.
+      const res = await sendEmail({
+        templateKey: "quotation_followup",
+        to: client.email,
+        clientId: q.client_id,
+        vars: {
+          client_name: client.name,
+          project_name: q.title,
+          deal_no: q.deal_no,
+          amount: money(Number(q.total), q.currency),
+          currency: q.currency,
+          days_since: daysSince,
+        },
+      });
+
+      if (res.ok) {
+        await db.from("deals")
+          .update({ followup_count: done + 1, last_followup_at: new Date().toISOString() })
+          .eq("id", q.id);
+        ran.quote_followups++;
+      }
+    }
+
+    if (cold.length) {
+      ran.quotes_cold = cold.length;
+      await sendEmail({
+        templateKey: "admin_quotes_cold",
+        to: await adminNotifyAddress(),
+        vars: {},
+        subjectOverride: `${cold.length} quote${cold.length === 1 ? " has" : "s have"} gone cold`,
+        bodyOverride:
+          `These were quoted, chased three times and never answered. Close them out or pick up the phone — ` +
+          `a quote with no decision is worse than a no.\n\n` +
+          cold.join("\n") +
+          `\n\nOpen the pipeline:\n${getSiteBaseUrl()}/${ADMIN}/deals?status=sent`,
+      });
+    }
+  } catch (e) {
+    console.error("cron: quote follow-ups failed", e);
+    ran.errors++;
+  }
+
+  /* ---------- 4e. Chase silent reviews --------------------------------- */
+  try {
+    // A staging link was shared and nothing came back. Chased from day 3, then
+    // weekly, three times, then left alone — past that it is a phone call, not
+    // another email.
+    const { data: awaiting, error: reviewErr } = await db
+      .from("projects")
+      .select("id, name, deadline, staging_url, staging_shared_at, feedback_nudged_at, feedback_nudge_count, status, client_id, clients(id, name, email)")
+      .not("staging_shared_at", "is", null)
+      .in("status", ["in_progress", "review"])
+      .lt("feedback_nudge_count", 3);
+
+    if (reviewErr) {
+      console.error(
+        reviewErr.code === "42703"
+          ? "cron: projects.staging_shared_at missing — run supabase/idempotent_fixes_2027_08.sql"
+          : "cron: review sweep failed",
+        reviewErr
+      );
+      ran.errors++;
+    }
+
+    const candidates = (awaiting ?? []).filter((p) => {
+      const shared = new Date(p.staging_shared_at!).getTime();
+      if (Date.now() - shared < 3 * 864e5) return false;
+      if (p.feedback_nudged_at && Date.now() - new Date(p.feedback_nudged_at).getTime() < 7 * 864e5) {
+        return false;
+      }
+      return !!(p.clients as any)?.email;
+    });
+
+    if (candidates.length) {
+      const ids = candidates.map((p) => p.id);
+
+      // What counts as the client having answered — real actions of theirs,
+      // not a guess. Chasing someone who already replied through the portal is
+      // the fastest way to make these emails get filtered.
+      const [{ data: requests }, { data: approvals }] = await Promise.all([
+        db.from("change_requests").select("project_id, created_at").in("project_id", ids),
+        db.from("milestones").select("project_id, approved_at").in("project_id", ids).not("approved_at", "is", null),
+      ]);
+
+      for (const p of candidates) {
+        const shared = new Date(p.staging_shared_at!).getTime();
+
+        const responded =
+          (requests ?? []).some(
+            (r) => r.project_id === p.id && new Date(r.created_at).getTime() > shared
+          ) ||
+          (approvals ?? []).some(
+            (m) => m.project_id === p.id && new Date(m.approved_at!).getTime() > shared
+          );
+
+        if (responded) continue;
+
+        const client = (p.clients as any)!;
+        const res = await sendEmail({
+          templateKey: "feedback_needed",
+          to: client.email,
+          clientId: p.client_id,
+          projectId: p.id,
+          vars: {
+            client_name: client.name,
+            project_name: p.name,
+            staging_url: p.staging_url ?? "",
+            deadline: p.deadline ?? "the agreed date",
+            days_waiting: Math.floor((Date.now() - shared) / 864e5),
+          },
+        });
+
+        if (res.ok) {
+          await db.from("projects").update({
+            feedback_nudged_at: new Date().toISOString(),
+            feedback_nudge_count: Number(p.feedback_nudge_count ?? 0) + 1,
+          }).eq("id", p.id);
+          ran.feedback_chases++;
+        }
+      }
+    }
+  } catch (e) {
+    console.error("cron: review chases failed", e);
+    ran.errors++;
+  }
+
+  /* ---------- 4f. Ask for a testimonial -------------------------------- */
+  try {
+    // Fourteen days after handover: long enough that they have actually lived
+    // with the thing, soon enough that it is still fresh. Asked once, ever.
+    const { data: settled, error: tErr } = await db
+      .from("projects")
+      .select("id, name, handed_over_at, client_id, clients(id, name, email)")
+      .not("handed_over_at", "is", null)
+      .is("testimonial_requested_at", null)
+      .lte("handed_over_at", new Date(Date.now() - 14 * 864e5).toISOString());
+
+    if (tErr) {
+      console.error(
+        tErr.code === "42703"
+          ? "cron: projects.testimonial_requested_at missing — run supabase/idempotent_fixes_2027_08.sql"
+          : "cron: testimonial sweep failed",
+        tErr
+      );
+      ran.errors++;
+    }
+
+    if (settled?.length) {
+      // Somebody who already wrote one should not be asked again.
+      const { data: existing } = await db
+        .from("testimonials")
+        .select("project_id")
+        .in("project_id", settled.map((p) => p.id));
+      const alreadyGave = new Set((existing ?? []).map((t) => t.project_id));
+
+      for (const p of settled) {
+        const client = (p.clients as any) ?? null;
+
+        // Stamp regardless of whether it sends, so a client with no email —
+        // or one who already left a testimonial — is not re-examined daily
+        // forever.
+        const skip = alreadyGave.has(p.id) || !client?.email;
+
+        if (!skip) {
+          const res = await sendEmail({
+            templateKey: "testimonial_request",
+            to: client.email,
+            clientId: p.client_id,
+            projectId: p.id,
+            vars: {
+              client_name: client.name,
+              project_name: p.name,
+              portal_url: `${getSiteBaseUrl()}/portal`,
+            },
+          });
+          if (res.ok) ran.testimonial_asks++;
+        }
+
+        await db.from("projects")
+          .update({ testimonial_requested_at: new Date().toISOString() })
+          .eq("id", p.id);
+      }
+    }
+  } catch (e) {
+    console.error("cron: testimonial asks failed", e);
     ran.errors++;
   }
 

@@ -3,15 +3,24 @@ import Link from "next/link";
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { Trash2, Mail, MessageCircle, Copy } from "lucide-react";
+import { Trash2, Mail, MessageCircle, Copy, Sparkles, Loader2 } from "lucide-react";
 import { updateLead, deleteLead, convertLeadToClient, sendClientEmail } from "@/lib/actions";
 import { adminPath, LEAD_STATUSES } from "@/lib/utils";
 import { Badge } from "./ui";
 import Modal from "./Modal";
 import ConfirmModal from "./ConfirmModal";
 import AIAssist from "@/components/ui/AIAssist";
+import { triageLead, setLeadPriority, type LeadPriority } from "@/lib/actions/leads";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
+
+/** Loud enough to spot in a list, quiet enough not to shout on every row. */
+const PRIORITY_STYLE: Record<string, string> = {
+  urgent: "border-rose-400/50 bg-rose-400/15 text-rose-200",
+  high: "border-amber-400/50 bg-amber-400/15 text-amber-200",
+  normal: "border-lime-400/50 bg-lime-400/10 text-lime-300",
+  low: "border-ink-400 bg-ink-700 text-bone-400",
+};
 
 const field =
   "w-full rounded-lg border border-ink-500 bg-ink-800 px-3 py-2.5 text-sm focus:border-lime-400 focus:outline-none";
@@ -40,7 +49,40 @@ export default function LeadRow({
 
   const [confirmDelete, setConfirmDelete] = useState(false);
 
+  const [priority, setPriorityState] = useState<LeadPriority>(lead.priority ?? "normal");
+  const [triaging, setTriaging] = useState(false);
+  const [triageSummary, setTriageSummary] = useState<string>(
+    // A saved triage survives a refresh, so the row is not blank next time.
+    lead.notes?.startsWith("AI triage: ") ? lead.notes.slice("AI triage: ".length) : ""
+  );
+  const [triageReply, setTriageReply] = useState("");
+
   const isSpam = status === "spam";
+
+  const setPriority = (p: LeadPriority) => {
+    setPriorityState(p);
+    start(async () => {
+      const res = await setLeadPriority(lead.id, p);
+      if (!res.ok) toast.error(res.error);
+    });
+  };
+
+  const triage = async () => {
+    setTriaging(true);
+    try {
+      const res = await triageLead(lead.id);
+      if (!res.ok) {
+        toast.error(res.error);
+        return;
+      }
+      setPriorityState(res.priority);
+      setTriageSummary(res.summary);
+      setTriageReply(res.reply);
+      toast.success(`Read it — looks ${res.priority}.`);
+    } finally {
+      setTriaging(false);
+    }
+  };
 
   const change = (s: string) => {
     setStatus(s);
@@ -99,7 +141,20 @@ export default function LeadRow({
         onClick={() => setOpen((v) => !v)}
       >
         <td className="px-5 py-3">
-          <p className={isSpam ? "line-through" : undefined}>{lead.name}</p>
+          <div className="flex items-center gap-2">
+            {/* Only the two that mean "look at this now". A dot on every row
+                would carry no information at all. */}
+            {(priority === "urgent" || priority === "high") && !isSpam && (
+              <span
+                title={`${priority} priority`}
+                aria-label={`${priority} priority`}
+                className={`h-1.5 w-1.5 shrink-0 rounded-full ${
+                  priority === "urgent" ? "bg-rose-400" : "bg-amber-400"
+                }`}
+              />
+            )}
+            <p className={isSpam ? "line-through" : undefined}>{lead.name}</p>
+          </div>
           <p className="text-xs text-bone-400">{lead.email}</p>
         </td>
         <td className="px-5 py-3 text-bone-400">{(lead.service_slugs ?? []).join(", ") || "—"}</td>
@@ -137,6 +192,59 @@ export default function LeadRow({
               </div>
 
               <div className="space-y-4">
+                {/* Triage. `leads.priority` and `leads.notes` have been in the
+                    schema since launch with no UI, so every enquiry looked
+                    exactly as important as every other one. */}
+                <div className="rounded-lg border border-ink-600 bg-ink-800/60 p-3.5">
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="mono-tag">Priority</p>
+                    <button
+                      className="btn btn-sm gap-1.5"
+                      disabled={triaging}
+                      onClick={(e) => { e.stopPropagation(); triage(); }}
+                    >
+                      {triaging ? <Loader2 size={12} className="animate-spin" /> : <Sparkles size={12} />}
+                      {triaging ? "Reading…" : "Triage with AI"}
+                    </button>
+                  </div>
+
+                  <div className="mt-2.5 flex flex-wrap gap-1.5">
+                    {(["low", "normal", "high", "urgent"] as const).map((p) => (
+                      <button
+                        key={p}
+                        disabled={pending}
+                        onClick={(e) => { e.stopPropagation(); setPriority(p); }}
+                        className={`rounded-full border px-2.5 py-1 text-[11px] transition-colors ${
+                          priority === p
+                            ? PRIORITY_STYLE[p]
+                            : "border-ink-500 text-bone-300 hover:border-ink-400"
+                        }`}
+                      >
+                        {p}
+                      </button>
+                    ))}
+                  </div>
+
+                  {triageSummary && (
+                    <p className="mt-2.5 border-t border-ink-700 pt-2.5 text-[11px] leading-relaxed text-bone-300">
+                      {triageSummary}
+                    </p>
+                  )}
+
+                  {triageReply && (
+                    <button
+                      className="btn btn-sm mt-2.5 w-full justify-center"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setMail((m) => ({ ...m, body: `${triageReply}\n\nNex Desk` }));
+                        setComposeOpen(true);
+                      }}
+                    >
+                      Open the drafted reply
+                    </button>
+                  )}
+                </div>
+
                 <div>
                   <p className="mono-tag mb-2">Move to</p>
                   <div className="flex flex-wrap gap-1.5">

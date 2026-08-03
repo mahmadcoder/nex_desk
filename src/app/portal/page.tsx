@@ -3,7 +3,8 @@ import { redirect } from "next/navigation";
 import { createClient, createAdminClient } from "@/lib/supabase/server";
 import { money, moneyMulti, sumByCurrency, pdfFilename, externalUrl, CONTACT_EMAIL, CONTACT_WHATSAPP, whatsappLink } from "@/lib/utils";
 import { Badge, Stat } from "@/components/admin/ui";
-import { ExternalLink, CheckCircle, Circle, DollarSign, Calendar, FileText, Download, MessageCircle } from "lucide-react";
+import { ExternalLink, CheckCircle, Circle, DollarSign, Calendar, FileText, Download, MessageCircle, Receipt } from "lucide-react";
+import { expenseCategoryLabel } from "@/config/expenseCategories";
 import ClientDocumentUploader from "@/components/portal/ClientDocumentUploader";
 import ClientPortalSignOutButton from "@/components/portal/ClientPortalSignOutButton";
 import ClientChangeRequest from "@/components/portal/ClientChangeRequest";
@@ -54,6 +55,24 @@ export default async function Portal() {
       // 750 contract.
       db.from("deals").select("id, deal_no, title, total, currency, accepted_at, accepted_name").eq("client_id", client.id).eq("status", "locked"),
     ]);
+
+  // Costs paid on their behalf. Only the ones marked visible — an internal
+  // note about a tool the agency absorbed is not the client's business.
+  //
+  // Read separately rather than in the Promise.all above so that a missing
+  // 2027-06 migration degrades to "no extras shown" instead of taking the
+  // whole portal down with a destructuring error.
+  const { data: expenseRows, error: expensesError } = await db
+    .from("project_expenses")
+    .select("id, category, label, vendor, details, bill_amount, currency, incurred_on, renews_on, receipt_url")
+    .eq("client_id", client.id)
+    .eq("visible_to_client", true)
+    .order("incurred_on", { ascending: false });
+
+  if (expensesError) {
+    console.error("Portal: could not load expenses", expensesError);
+  }
+  const visibleExpenses = expenseRows ?? [];
 
   const assignedTeam = Array.from(
     new Map(
@@ -433,6 +452,73 @@ export default async function Portal() {
           </section>
         );
       })}
+
+      {/* What we bought on their behalf, with the receipt for each. Shown
+          whenever there is anything to show, so a charge on an invoice can
+          always be traced back to a document without having to ask us. */}
+      {!!visibleExpenses.length && (
+        <section className="card mt-8 p-6">
+          <div className="border-b border-ink-600 pb-4">
+            <h2 className="flex items-center gap-2 text-lg leading-tight font-medium text-bone-50">
+              <Receipt className="h-4 w-4 text-lime-400" /> Paid on your behalf
+            </h2>
+            <p className="mt-1.5 text-xs text-bone-300">
+              Domains, hosting, licences and anything else we bought for you outside the
+              agreed fee. Every receipt is here.
+            </p>
+          </div>
+
+          <ul className="mt-4 divide-y divide-ink-600">
+            {visibleExpenses.map((x) => {
+              const renewsIn = x.renews_on
+                ? Math.ceil((new Date(x.renews_on).getTime() - Date.now()) / 864e5)
+                : null;
+
+              return (
+                <li key={x.id} className="flex flex-wrap items-start justify-between gap-3 py-3.5">
+                  <div className="min-w-0">
+                    <p className="mono-tag text-[10px] text-lime-300">
+                      {expenseCategoryLabel(x.category)}
+                    </p>
+                    <p className="mt-0.5 text-sm text-bone-100">{x.label}</p>
+                    <p className="mt-0.5 text-xs text-bone-300">
+                      {x.vendor ? `${x.vendor} · ` : ""}
+                      {x.incurred_on}
+                      {renewsIn !== null && renewsIn >= 0 && (
+                        <span className={renewsIn <= 30 ? "text-amber-400" : ""}>
+                          {" "}· renews {x.renews_on}
+                        </span>
+                      )}
+                    </p>
+                    {x.details && (
+                      <p className="mt-1 text-xs leading-relaxed text-bone-300">{x.details}</p>
+                    )}
+                  </div>
+
+                  <div className="flex shrink-0 flex-col items-end gap-1">
+                    {/* Zero is not "free of charge by accident" — say so. */}
+                    <span className="font-mono text-sm text-bone-100">
+                      {Number(x.bill_amount) > 0
+                        ? money(Number(x.bill_amount), x.currency)
+                        : "Covered by us"}
+                    </span>
+                    {x.receipt_url && (
+                      <a
+                        href={x.receipt_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1 text-xs text-lime-400 hover:underline"
+                      >
+                        <FileText className="h-3 w-3" /> Receipt
+                      </a>
+                    )}
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+        </section>
+      )}
 
       {/* Invoices & Documents Section */}
       <div className="mt-8 grid gap-6 lg:grid-cols-2">

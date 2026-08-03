@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { createAdminClient } from "@/lib/supabase/server";
 import { getCurrentStaff, assignedClientIds } from "@/lib/auth/staff";
 import { PageHead, Badge, Stat } from "@/components/admin/ui";
-import { PackageCheck } from "lucide-react";
+import { PackageCheck, Clock } from "lucide-react";
 import { money, moneyMulti, sumByCurrency } from "@/lib/utils";
 import { describeMetrics } from "@/config/logFields";
 import DocButton from "@/components/admin/DocButton";
@@ -14,6 +14,8 @@ import HandoverPanel from "@/components/admin/HandoverPanel";
 import ChangeRequestsCard from "@/components/admin/ChangeRequestsCard";
 import DealExtrasCard from "@/components/admin/DealExtrasCard";
 import CredentialsCard from "@/components/admin/CredentialsCard";
+import ExpensesCard from "@/components/admin/ExpensesCard";
+import TasksCard from "@/components/admin/TasksCard";
 
 const BASE = `/${process.env.ADMIN_PATH || "nx-control"}`;
 export const dynamic = "force-dynamic";
@@ -37,8 +39,15 @@ export default async function ProjectDetail({ params }: { params: Promise<{ id: 
     if (!allowed.includes(project.client_id)) notFound();
   }
 
-  const [{ data: milestones }, { data: invoices }, { data: workLogs }, { data: changeRequests }] =
-    await Promise.all([
+  const [
+    { data: milestones },
+    { data: invoices },
+    { data: workLogs },
+    { data: changeRequests },
+    { data: expenses, error: expensesError },
+    { data: tasks, error: tasksError },
+    { data: teamList },
+  ] = await Promise.all([
       db.from("milestones").select("*").eq("project_id", id).order("sort_order"),
       db.from("invoices").select("*").eq("project_id", id).order("issue_date"),
       db.from("daily_work_logs")
@@ -48,7 +57,24 @@ export default async function ProjectDetail({ params }: { params: Promise<{ id: 
         .limit(20),
       db.from("change_requests")
         .select("*").eq("project_id", id).order("created_at", { ascending: false }),
+      db.from("project_expenses")
+        .select("*").eq("project_id", id).order("incurred_on", { ascending: false }),
+      db.from("tasks")
+        .select("*").eq("project_id", id).order("sort_order").order("created_at"),
+      db.from("employees").select("id, full_name").ilike("status", "active").order("full_name"),
     ]);
+
+  // Before the 2027-06 migration this select errors and returns null, which
+  // would render as an empty card rather than as the broken thing it is.
+  if (expensesError) {
+    console.error("Failed to load expenses for project", id, expensesError);
+  }
+
+  // Before the 2027-09 migration this select errors and returns null, which
+  // would render as "no tasks" rather than as the broken thing it is.
+  if (tasksError) {
+    console.error("Failed to load tasks for project", id, tasksError);
+  }
 
   const invoiceRows = invoices ?? [];
   const paid = sumByCurrency(invoiceRows, (i) => i.currency, (i) => Number(i.amount_paid));
@@ -150,6 +176,17 @@ export default async function ProjectDetail({ params }: { params: Promise<{ id: 
             <MilestoneList milestones={milestones ?? []} projectId={project.id} />
           </section>
 
+          {/* Milestones are what the client sees; tasks are how the work
+              actually gets divided up. Staff see this too — they need their
+              own work — but only owner/admin can hand it out. */}
+          <TasksCard
+            projectId={project.id}
+            tasks={tasks ?? []}
+            employees={teamList ?? []}
+            canManage={canManage}
+            myEmployeeId={me.employeeId}
+          />
+
           {/* The work log feed. Entries marked "shared" are what the client
               sees on their portal timeline. */}
           <section>
@@ -241,12 +278,53 @@ export default async function ProjectDetail({ params }: { params: Promise<{ id: 
 
           {canManage && deal && <DealExtrasCard deal={deal} />}
 
+          {/* Domains, licences, hosting bought for this project. Scoped to the
+              project here; the client page shows every one across the account. */}
+          {canManage && (
+            <ExpensesCard
+              clientId={project.client_id}
+              clientName={client?.name ?? "this client"}
+              projectId={project.id}
+              defaultCurrency={contractCurrency || client?.preferred_currency || "USD"}
+              expenses={expenses ?? []}
+            />
+          )}
+
           {canManage && (
             <ChangeRequestsCard
               projectId={project.id}
               defaultCurrency={contractCurrency || client?.preferred_currency || "USD"}
               requests={changeRequests ?? []}
             />
+          )}
+
+          {/* Whose move it is. A project that looks stalled is usually waiting
+              on the client, and without this the delay reads as the agency's
+              fault by default. */}
+          {canManage && project.staging_shared_at && !project.handed_over_at && (
+            <section className="card border-ink-600 p-5">
+              <h2 className="mb-2 flex items-center gap-2 text-base">
+                <Clock size={15} className="text-lime-400" /> Review
+              </h2>
+              <p className="text-sm leading-relaxed text-bone-200">
+                Staging shared with {client?.name ?? "the client"}{" "}
+                {new Date(project.staging_shared_at).toLocaleDateString("en-GB")} —{" "}
+                <strong>
+                  {Math.floor(
+                    (Date.now() - new Date(project.staging_shared_at).getTime()) / 864e5
+                  )}{" "}
+                  days ago
+                </strong>
+                .
+              </p>
+              <p className="mt-1.5 text-xs leading-relaxed text-bone-400">
+                {Number(project.feedback_nudge_count ?? 0) === 0
+                  ? "Not chased yet. The first reminder goes out three days after sharing."
+                  : Number(project.feedback_nudge_count) >= 3
+                    ? "Chased three times with no answer — automatic reminders have stopped. Worth a call."
+                    : `Chased ${project.feedback_nudge_count} of 3 times. Reminders stop after the third.`}
+              </p>
+            </section>
           )}
 
           {canManage && (

@@ -39,6 +39,20 @@ export default async function ProfitPage() {
       getLiveExchangeRates(),
     ]);
 
+  // Money that actually left the account for this project — a domain, a
+  // licence, ad spend. Without it a $200 domain rebilled at $200 shows as
+  // $200 of pure profit, which is the opposite of the truth.
+  const { data: outlays, error: outlayErr } = await db
+    .from("project_expenses")
+    .select("project_id, cost, bill_amount, currency, status");
+  if (outlayErr) {
+    console.error("Profitability: could not load expenses", outlayErr);
+  }
+
+  // Expenses with no project attached cannot be charged to any one row; they
+  // are surfaced separately rather than silently dropped.
+  const unattributed = (outlays ?? []).filter((x) => !x.project_id);
+
   const HOURS_PER_MONTH = 26 * 8;
   const rateOf = new Map(
     (employees ?? []).map((e) => [
@@ -75,7 +89,15 @@ export default async function ProfitPage() {
         }
       }
 
-      const margin = revenue - cost;
+      const outlay = (outlays ?? [])
+        .filter((x) => x.project_id === p.id)
+        .reduce(
+          (s, x) => s + convertCurrency(Number(x.cost || 0), x.currency || currency, currency, rates),
+          0
+        );
+
+      const totalCost = cost + outlay;
+      const margin = revenue - totalCost;
       return {
         id: p.id,
         name: p.name,
@@ -86,14 +108,16 @@ export default async function ProfitPage() {
         contract: Number(p.deals?.total || 0),
         revenue,
         hours,
-        cost,
+        labour: cost,
+        outlay,
+        cost: totalCost,
         margin,
         marginPct: revenue > 0 ? Math.round((margin / revenue) * 100) : null,
         team: [...who.entries()].map(([n, h]) => `${n} ${h.toFixed(0)}h`).join(", "),
       };
     })
-    // Projects with neither money nor hours are noise here.
-    .filter((r) => r.revenue > 0 || r.hours > 0)
+    // Projects with neither money, hours nor spend are noise here.
+    .filter((r) => r.revenue > 0 || r.hours > 0 || r.outlay > 0)
     .sort((a, b) => b.revenue - a.revenue);
 
   // Portfolio totals only make sense inside one currency; group rather than sum.
@@ -120,7 +144,7 @@ export default async function ProfitPage() {
           tone="good"
         />
         <Stat
-          label="Labour cost of it"
+          label="What it cost to deliver"
           value={totals.map(([c, t]) => money(t.cost, c)).join(" · ") || "—"}
         />
         <Stat
@@ -137,7 +161,7 @@ export default async function ProfitPage() {
             body="This page fills itself in from payments and daily work logs. Once staff log hours against projects with money on them, the margins appear."
           />
         ) : (
-          <Table head={["Project", "Client", "Collected", "Hours", "Labour cost", "Margin", ""]}>
+          <Table head={["Project", "Client", "Collected", "Hours", "Cost", "Margin", ""]}>
             {rows.map((r) => (
               <tr key={r.id} className="hover:bg-ink-700/30">
                 <td className="px-5 py-3">
@@ -153,7 +177,16 @@ export default async function ProfitPage() {
                 </td>
                 <td className="px-5 py-3 font-mono text-xs">{money(r.revenue, r.currency)}</td>
                 <td className="px-5 py-3 font-mono text-xs text-bone-300">{r.hours.toFixed(1)}</td>
-                <td className="px-5 py-3 font-mono text-xs text-bone-300">{money(r.cost, r.currency)}</td>
+                <td className="px-5 py-3 font-mono text-xs text-bone-300">
+                  {money(r.cost, r.currency)}
+                  {/* Split it out only when there is spend to split, so the
+                      common labour-only row stays clean. */}
+                  {r.outlay > 0 && (
+                    <span className="mt-0.5 block text-[10px] text-bone-400">
+                      {money(r.labour, r.currency)} labour + {money(r.outlay, r.currency)} bought
+                    </span>
+                  )}
+                </td>
                 <td className="px-5 py-3">
                   <span
                     className={`inline-flex items-center gap-1 font-mono text-xs ${
@@ -186,10 +219,21 @@ export default async function ProfitPage() {
       </div>
 
       <p className="mt-4 text-[11px] leading-relaxed text-bone-300">
-        Cost = each person&rsquo;s monthly salary ÷ 208 hours (26 working days × 8), times the
-        hours they logged on the project, converted at live rates. Hours logged with no salary
-        on file cost nothing here — set salaries on the employee profiles to make this true.
+        Cost = labour + outlay. Labour is each person&rsquo;s monthly salary ÷ 208 hours (26
+        working days × 8) times the hours they logged, converted at live rates. Outlay is what
+        was actually paid for domains, hosting, licences and ad spend recorded against the
+        project. Hours logged with no salary on file cost nothing here — set salaries on the
+        employee profiles to make this true.
       </p>
+
+      {unattributed.length > 0 && (
+        <p className="mt-2 text-[11px] leading-relaxed text-amber-300/90">
+          {unattributed.length} recorded cost{unattributed.length === 1 ? " is" : "s are"} not
+          attached to any project, so {unattributed.length === 1 ? "it is" : "they are"} not in
+          the margins above. Open the client and set a project on{" "}
+          {unattributed.length === 1 ? "it" : "them"} to count {unattributed.length === 1 ? "it" : "them"}.
+        </p>
+      )}
     </>
   );
 }

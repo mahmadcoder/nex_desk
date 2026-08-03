@@ -10,6 +10,7 @@ import SendInvoiceButton from "@/components/admin/SendInvoiceButton";
 import ClientServices from "@/components/admin/ClientServices";
 import ClientLifecycleCard from "@/components/admin/ClientLifecycleCard";
 import MonthlyReportButton from "@/components/admin/MonthlyReportButton";
+import ExpensesCard from "@/components/admin/ExpensesCard";
 import ActivityTimeline from "@/components/admin/ActivityTimeline";
 import { clientActivity } from "@/lib/insights";
 import { revealPreview } from "@/lib/crypto";
@@ -70,6 +71,7 @@ export default async function ClientDetail({ params }: { params: Promise<{ id: s
     { data: deals, error: dealsError },
     { data: assignedEmployees, error: assignedEmployeesError },
     { data: allEmployees },
+    { data: expenses, error: expensesError },
   ] = await Promise.all([
     db.from("projects").select("*").eq("client_id", id).order("created_at", { ascending: false }),
     db.from("invoices").select("*").eq("client_id", id).order("issue_date", { ascending: false }),
@@ -78,7 +80,15 @@ export default async function ClientDetail({ params }: { params: Promise<{ id: s
     db.from("deals").select("id, title, status, service_slugs, total, currency").eq("client_id", id),
     db.from("client_employee_assignments").select("*, employees(id, full_name, email, job_title, seniority, avatar_url)").eq("client_id", id),
     db.from("employees").select("id, full_name, email, job_title, seniority"),
+    db.from("project_expenses").select("*").eq("client_id", id).order("incurred_on", { ascending: false }),
   ]);
+
+  // Loud on purpose: before the 2027-06 migration this select returns an error
+  // and null data, and a silently empty card looks identical to a client who
+  // simply has no extras.
+  if (expensesError) {
+    console.error("Failed to load expenses for client", id, expensesError);
+  }
 
   // Never swallow this. A select naming a column that does not exist returns an
   // error and NULL data, so the page renders a client with no contract value
@@ -290,6 +300,19 @@ export default async function ClientDetail({ params }: { params: Promise<{ id: s
       {canManage && (
         <div className="mt-6">
           <ActivityTimeline entries={activity} />
+        </div>
+      )}
+
+      {/* Domains, hosting, licences, ad spend — bought for them, outside the
+          agreed fee. Owner/admin only: it exposes what the agency paid. */}
+      {canManage && (
+        <div className="mt-6">
+          <ExpensesCard
+            clientId={id}
+            clientName={client.name}
+            defaultCurrency={client.preferred_currency || "USD"}
+            expenses={expenses ?? []}
+          />
         </div>
       )}
 

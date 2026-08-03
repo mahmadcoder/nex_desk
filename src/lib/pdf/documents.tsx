@@ -226,8 +226,17 @@ export function QuotationDoc({ deal, client }: { deal: any; client: Party }) {
         <Parties
           client={client}
           meta={[
-            ["Issued", date(deal.created_at)],
-            ["Valid until", date(new Date(Date.now() + 14 * 864e5).toISOString())],
+            ["Issued", date(deal.quote_sent_at ?? deal.created_at)],
+            // The stored expiry, not "14 days from whenever this was rendered".
+            // Computing it at render time meant re-opening a month-old quote
+            // silently claimed another fortnight of validity.
+            [
+              "Valid until",
+              date(
+                deal.quote_expires_on ??
+                  new Date(new Date(deal.created_at).getTime() + 14 * 864e5).toISOString()
+              ),
+            ],
             ["Est. duration", `${deal.duration_days ?? "—"} days`],
           ]}
         />
@@ -246,8 +255,11 @@ export function QuotationDoc({ deal, client }: { deal: any; client: Party }) {
 
         <View style={s.callout}>
           <Text>
-            This quote is valid for 14 days. Nothing is committed until you approve it in
-            writing, at which point it becomes a signed agreement.
+            {deal.quote_expires_on
+              ? `This quote stands until ${date(deal.quote_expires_on)}. `
+              : "This quote is valid for 14 days. "}
+            Nothing is committed until you approve it in writing, at which point it becomes
+            a signed agreement.
           </Text>
         </View>
 
