@@ -3,6 +3,7 @@ import { createElement } from "react";
 import { createAdminClient } from "@/lib/supabase/server";
 import { moneyMulti, sumByCurrency, pdfFilename } from "@/lib/utils";
 import { decryptCredentials } from "@/lib/crypto";
+import { handoverGate } from "@/lib/delivery/gate";
 import {
   AgreementDoc, QuotationDoc, InvoiceDoc, ReceiptDoc,
   ChangeOrderDoc, ProgressDoc, HandoverDoc,
@@ -24,10 +25,17 @@ export async function generateDocument(type: DocType, id: string, actorId?: stri
     const { data: deal } = await db.from("deals").select("*, clients(*)").eq("id", id).single();
     if (!deal) throw new Error("Deal not found");
     const client = deal.clients;
+    // The cancellation policy is printed in the agreement so it is agreed at
+    // signing rather than negotiated under pressure later.
+    const { data: agreementSettings } = await db
+      .from("settings").select("refund_policy").eq("id", 1).maybeSingle();
     title = `${type === "agreement" ? "Agreement" : "Quote"} ${deal.deal_no} — ${deal.title}`;
     meta = { client_id: client.id, deal_id: deal.id };
     snapshot = deal;
-    element = createElement(type === "agreement" ? AgreementDoc : QuotationDoc, { deal, client });
+    element = createElement(
+      type === "agreement" ? AgreementDoc : QuotationDoc,
+      { deal, client, settings: agreementSettings }
+    );
   }
 
   if (type === "invoice") {
@@ -65,42 +73,18 @@ export async function generateDocument(type: DocType, id: string, actorId?: stri
     if (!project) throw new Error("Project not found");
 
     // Handover transfers ownership of the work, so it must not be produced
-    // while money is outstanding. Enforced here, not just on the button.
-    const { data: projectInvoices } = await db
-      .from("invoices").select("total, amount_paid, currency").eq("project_id", id);
-
-    const paidTotals = sumByCurrency(
-      projectInvoices ?? [],
-      (i) => i.currency,
-      (i) => Number(i.amount_paid)
-    );
-
-    const deal = (project.deals as any) ?? null;
-    let owing: Array<{ currency: string; total: number }>;
-
-    if (deal && Number(deal.total) > 0) {
-      // Measure against the agreement. Invoice-vs-invoice would clear the gate
-      // as soon as the advance was paid, because the later stages of a payment
-      // schedule may not have been issued yet.
-      const currency = String(deal.currency).toUpperCase();
-      const paid = paidTotals.find((p) => p.currency === currency)?.total ?? 0;
-      owing = [{ currency, total: Number(deal.total) - paid }].filter((t) => t.total > 0.009);
-    } else {
-      // No deal behind this project — the invoices are the only record of price.
-      if (!projectInvoices?.length) {
-        throw new Error("Raise and settle an invoice for this project before handing it over.");
+    // while money is outstanding. Enforced here, not just on the button — and
+    // through the same shared gate the button uses, so the two can never
+    // disagree about what "paid" means.
+    //
+    // Skipped once the project has actually been handed over: reprinting the
+    // paperwork for a delivered project must not fail, and you cannot un-hand
+    // something over by asking for another copy of the document.
+    if (!project.handed_over_at) {
+      const { reasons } = await handoverGate(id);
+      if (reasons.length) {
+        throw new Error(`Handover is locked. ${reasons.join(" ")}`);
       }
-      owing = sumByCurrency(
-        projectInvoices,
-        (i) => i.currency,
-        (i) => Number(i.total) - Number(i.amount_paid)
-      ).filter((t) => t.total > 0.009);
-    }
-
-    if (owing.length) {
-      throw new Error(
-        `Handover is locked until this project is paid in full. Outstanding: ${moneyMulti(owing)}.`
-      );
     }
 
     title = `Handover — ${project.name}`;

@@ -5,12 +5,16 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { saveCaseStudy, deleteCaseStudy, toggleCaseStudyPublished, seedDefaultCaseStudies } from "@/lib/actions/cms";
 import { Plus, Trash2, Edit3, X, Tag, Eye, EyeOff, RefreshCw } from "lucide-react";
+import { CmsSearch, NoMatches, matchesQuery } from "@/components/admin/CmsSearch";
 import { PageHead } from "@/components/admin/ui";
 import ImageUpload from "@/components/admin/ImageUpload";
 import { ICaseStudy } from "@/types/cms";
 import ConfirmModal from "@/components/admin/ConfirmModal";
 
 export default function WorkClient({ caseStudies }: { caseStudies: ICaseStudy[] }) {
+  const [q, setQ] = useState("");
+  const shown = caseStudies.filter((x: any) => matchesQuery(q, x.title, x.client_name, x.industry, x.outcome));
+
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [editing, setEditing] = useState<Partial<ICaseStudy> | null>(null);
@@ -180,8 +184,20 @@ export default function WorkClient({ caseStudies }: { caseStudies: ICaseStudy[] 
         }
       />
 
+      <CmsSearch
+        value={q}
+        onChange={setQ}
+        placeholder="Search titles, clients or industries…"
+        count={shown.length}
+        total={caseStudies.length}
+      />
+
+      {!shown.length && (
+        <NoMatches query={q} noun="case study" />
+      )}
+
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {caseStudies.map((c) => (
+        {shown.map((c) => (
           <div
             key={c.id}
             className={`card p-5 border-ink-600 flex flex-col justify-between space-y-4 transition-opacity ${

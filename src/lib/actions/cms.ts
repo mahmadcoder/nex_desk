@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { notify } from "@/lib/actions/notify";
 import { createClient, createAdminClient } from "@/lib/supabase/server";
 import { requireStaff, requireOwnerAdmin } from "@/lib/auth/guards";
 import { asUuid, getSiteBaseUrl, money, pdfFilename } from "@/lib/utils";
@@ -858,6 +859,18 @@ export async function uploadClientSignedDocument(data: {
 
   if (error) throw new Error(error.message || "Failed to upload document.");
 
+  await notify({
+    kind: "document.uploaded",
+    title: `${clientObj?.name ?? "A client"} uploaded “${data.title}”`,
+    body: "Signed paperwork is waiting in their documents.",
+    href: `/${ADMIN}/clients/${clientId}`,
+    entity: "documents",
+    entityId: res.id,
+    actorLabel: clientObj?.name ?? null,
+    actorKind: ownsRecord ? "client" : "staff",
+    clientId,
+  });
+
   // Pull the file back out of storage so the notice carries the actual
   // document. The admin previously got a link to go and find it, which defeats
   // the point of being told at all.
@@ -1011,6 +1024,21 @@ export async function submitDailyWorkLog(data: {
       emailed.client = res.ok;
     }
   }
+
+  await notify({
+    kind: "worklog.submitted",
+    title: `${data.employee_name} logged ${data.hours_spent}h on ${data.project_title || "agency work"}`,
+    body: data.blockers?.trim()
+      ? `Blocked: ${data.blockers.trim()}`
+      : String(data.tasks_completed).split("\n")[0].slice(0, 140),
+    href: `/${ADMIN}/daily-logs`,
+    entity: "daily_work_logs",
+    entityId: res?.id ?? null,
+    actorLabel: data.employee_name,
+    actorKind: "staff",
+    clientId: null,
+    meta: { blocked: !!data.blockers?.trim() },
+  });
 
   // Awaited, not fire-and-forget: a detached promise is killed when the
   // serverless function returns, which is why some of these never arrived.

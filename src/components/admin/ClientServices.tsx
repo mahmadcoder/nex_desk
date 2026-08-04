@@ -27,7 +27,10 @@ export default function ClientServices({
   services: Array<{
     deal: any;
     project: any | null;
+    /** Contract payment stages only. */
     invoices: any[];
+    /** Retainer renewals on the same deal — priced per period, not per contract. */
+    renewals?: any[];
   }>;
   canManage: boolean;
 }) {
@@ -60,11 +63,20 @@ export default function ClientServices({
         </div>
       ) : (
         <div className="space-y-3">
-          {services.map(({ deal, project, invoices }, i) => {
+          {services.map(({ deal, project, invoices, renewals = [] }, i) => {
+            // `invoices` is contract payment stages only. A retainer's monthly
+            // renewals carry the same deal_id, and counting them here summed
+            // month after month against a single period's price — so every
+            // retainer read "settled" from month two onwards.
             const issued = invoices.filter((v) => v.status !== "draft");
             const paid = issued.reduce((s, v) => s + Number(v.amount_paid || 0), 0);
             const total = Number(deal.total || 0);
             const settled = total > 0 && paid >= total - 0.01;
+
+            const issuedRenewals = renewals.filter((v: any) => v.status !== "draft");
+            const renewalPaid = issuedRenewals.reduce(
+              (s: number, v: any) => s + Number(v.amount_paid || 0), 0
+            );
 
             return (
               <details key={deal.id} className="card group border-ink-600" open={i === 0}>
@@ -81,6 +93,17 @@ export default function ClientServices({
                       {deal.deal_no}
                       {project ? ` · ${project.progress}% complete` : " · no project"}
                     </span>
+                    {/* The client typed their name in the portal to accept
+                        this. It was recorded correctly and never displayed —
+                        the page simply never asked for the columns. */}
+                    {deal.accepted_at && (
+                      <span className="mt-1 block text-[11px] text-emerald-300">
+                        Accepted by {deal.accepted_name} on{" "}
+                        {new Date(deal.accepted_at).toLocaleDateString("en-GB", {
+                          day: "2-digit", month: "short", year: "numeric",
+                        })}
+                      </span>
+                    )}
                   </span>
 
                   {canManage && (
@@ -146,6 +169,33 @@ export default function ClientServices({
                               {v.status === "draft"
                                 ? `${money(Number(v.total), v.currency)} · not billed yet`
                                 : `${money(Number(v.amount_paid), v.currency)} of ${money(Number(v.total), v.currency)}`}
+                            </span>
+                            <Badge>{v.status}</Badge>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+
+                  {/* Renewals are their own list. They belong to this deal but
+                      are priced per period, so they must not be read as
+                      progress towards the contract total above. */}
+                  {!!issuedRenewals.length && (
+                    <div>
+                      <p className="mono-tag mb-2 text-[11px]">
+                        Recurring renewals · {money(renewalPaid, deal.currency)} collected
+                      </p>
+                      <ul className="divide-y divide-ink-700 rounded-lg border border-ink-700">
+                        {issuedRenewals.map((v: any) => (
+                          <li
+                            key={v.id}
+                            className="flex flex-wrap items-center justify-between gap-2 px-3 py-2 text-xs"
+                          >
+                            <span className="font-mono text-bone-200">{v.invoice_no}</span>
+                            <span className="text-bone-300">
+                              {money(Number(v.amount_paid), v.currency)} of{" "}
+                              {money(Number(v.total), v.currency)}
+                              <span className="ml-1.5 text-bone-400">· {v.issue_date}</span>
                             </span>
                             <Badge>{v.status}</Badge>
                           </li>

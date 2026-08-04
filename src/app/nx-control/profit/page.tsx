@@ -4,7 +4,7 @@ import { getCurrentStaff } from "@/lib/auth/staff";
 import { PageHead, Stat, Table, Empty } from "@/components/admin/ui";
 import { money } from "@/lib/utils";
 import { getLiveExchangeRates, convertCurrency } from "@/lib/currency";
-import { TrendingUp, TrendingDown } from "lucide-react";
+import { TrendingUp, TrendingDown, Info } from "lucide-react";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
@@ -225,6 +225,23 @@ export default async function ProfitPage() {
         project. Hours logged with no salary on file cost nothing here — set salaries on the
         employee profiles to make this true.
       </p>
+
+      {/* The counterpart of the banner on the books page. Someone comparing
+          the two numbers and finding they disagree should find the reason
+          here rather than assuming one of them is broken. */}
+      <div className="mt-4 flex items-start gap-2.5 rounded-lg border border-ink-600 bg-ink-800/50 p-4">
+        <Info size={15} className="mt-0.5 shrink-0 text-bone-400" />
+        <p className="text-[11px] leading-relaxed text-bone-300">
+          <strong className="text-bone-100">This is an estimate, not your bank balance.</strong>{" "}
+          Labour here is salary spread over logged hours, so it will not match what you actually
+          paid anyone — somebody logging few hours has only part of their salary charged, and
+          somebody logging many has more than all of it.{" "}
+          <Link href={`${BASE}/books`} className="text-lime-400 hover:underline">
+            Money In &amp; Out
+          </Link>{" "}
+          has the real cash. The two answer different questions and must not be added together.
+        </p>
+      </div>
 
       {unattributed.length > 0 && (
         <p className="mt-2 text-[11px] leading-relaxed text-amber-300/90">

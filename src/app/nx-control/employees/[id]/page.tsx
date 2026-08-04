@@ -9,6 +9,7 @@ import {
 import EmployeeClientAssignments from "@/components/admin/EmployeeClientAssignments";
 import EmployeeAccessCard from "@/components/admin/EmployeeAccessCard";
 import CompensationCard from "@/components/admin/CompensationCard";
+import SalaryPaymentsCard from "@/components/admin/SalaryPaymentsCard";
 import PerformanceCard from "@/components/admin/PerformanceCard";
 import { staffPerformance } from "@/lib/insights";
 import { revealPreview } from "@/lib/crypto";
@@ -42,6 +43,7 @@ export default async function EmployeeDetailPage({
     { data: allClients },
     { data: compensation },
     { data: leave },
+    { data: salaryPayments, error: salaryError },
   ] = await Promise.all([
     db.from("employees").select("*").eq("id", id).single(),
     db.from("client_employee_assignments")
@@ -55,7 +57,17 @@ export default async function EmployeeDetailPage({
       .eq("employee_id", id)
       .eq("status", "approved")
       .gte("start_date", `2026-01-01`),
+    db.from("salary_payments")
+      .select("*").eq("employee_id", id)
+      .order("period_month", { ascending: false })
+      .order("paid_on", { ascending: false }),
   ]);
+
+  // Before the 2027-14 migration this errors and returns null, which would
+  // render as "nothing paid yet" rather than as the broken thing it is.
+  if (salaryError) {
+    console.error("Failed to load salary payments for employee", id, salaryError);
+  }
 
   if (!employee) notFound();
 
@@ -211,6 +223,9 @@ export default async function EmployeeDetailPage({
 
           {/* Pay history and leave taken — owner/admin territory. */}
           <CompensationCard employee={employee} history={compensation ?? []} />
+
+          {/* The transfers themselves, as opposed to the decisions above. */}
+          <SalaryPaymentsCard employee={employee} payments={salaryPayments ?? []} />
 
           <section className="card border-ink-600 p-5">
             <h2 className="mb-3 flex items-center gap-2 border-b border-ink-700 pb-3 text-base font-semibold text-bone-50">

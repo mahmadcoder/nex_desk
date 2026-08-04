@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { saveFaq, deleteFaq, toggleFaqActive, seedDefaultFaqs } from "@/lib/actions/cms";
 import { Plus, Trash2, Edit3, Eye, EyeOff, RefreshCw, X } from "lucide-react";
+import { CmsSearch, NoMatches, matchesQuery } from "@/components/admin/CmsSearch";
 import { PageHead } from "@/components/admin/ui";
 import { IFaq } from "@/types/cms";
 import ConfirmModal from "@/components/admin/ConfirmModal";
@@ -23,6 +24,9 @@ const CATEGORY_OPTIONS: SelectOption[] = [
 ];
 
 export default function FaqsClient({ faqs }: { faqs: IFaq[] }) {
+  const [q, setQ] = useState("");
+  const shown = faqs.filter((x: any) => matchesQuery(q, x.question, x.answer, x.category));
+
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [editing, setEditing] = useState<Partial<IFaq> | null>(null);
@@ -128,8 +132,20 @@ export default function FaqsClient({ faqs }: { faqs: IFaq[] }) {
         }
       />
 
+      <CmsSearch
+        value={q}
+        onChange={setQ}
+        placeholder="Search questions or answers…"
+        count={shown.length}
+        total={faqs.length}
+      />
+
+      {!shown.length && (
+        <NoMatches query={q} noun="question" />
+      )}
+
       <div className="space-y-3">
-        {faqs.map((f) => (
+        {shown.map((f) => (
           <div
             key={f.id}
             className={`card p-5 border-ink-600 flex items-start justify-between gap-3 sm:gap-4 transition-opacity ${

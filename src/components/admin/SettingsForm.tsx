@@ -27,6 +27,9 @@ export default function SettingsForm({ settings, staff }: { settings: any; staff
     invoice_prefix: settings?.invoice_prefix ?? "ND",
     email_signature: settings?.email_signature ?? "",
     default_terms: settings?.default_terms ?? "",
+    refund_policy: settings?.refund_policy ?? "",
+    booking_fee_pct: settings?.booking_fee_pct ?? 25,
+    refund_grace_hours: settings?.refund_grace_hours ?? 48,
   });
   const [bank, setBank] = useState<Record<string, string>>(settings?.bank_details ?? {
     "Account title": "", "Bank": "", "Account number": "", "IBAN": "", "Branch code": "",
@@ -104,6 +107,43 @@ export default function SettingsForm({ settings, staff }: { settings: any; staff
         </p>
         <textarea className={`${field} min-h-64 resize-y font-mono text-xs leading-relaxed`}
           value={f.default_terms} onChange={(e) => set("default_terms", e.target.value)} />
+
+        <div className="mt-6 border-t border-ink-600 pt-5">
+          <label className={label}>Cancellation and refund policy</label>
+          <p className="mb-2 mt-1 text-xs leading-relaxed text-bone-400">
+            Printed in every agreement, so it is agreed up front rather than argued afterwards.
+            The Cancel-project panel works to these rules.
+          </p>
+          <div className="mb-3 grid gap-3 sm:grid-cols-2">
+            <div>
+              <label className={label}>Booking fee (%)</label>
+              <input className={field} type="number" min={0} max={100}
+                value={f.booking_fee_pct}
+                onChange={(e) => set("booking_fee_pct", Number(e.target.value))} />
+              <p className="mt-1 text-[11px] leading-relaxed text-bone-400">
+                The least you keep on a cancellation, charged on what the client actually paid.
+                Only applies when it is more than the work delivered. 0 turns it off.
+              </p>
+            </div>
+            <div>
+              <label className={label}>Grace window (hours)</label>
+              <input className={field} type="number" min={0} max={336}
+                value={f.refund_grace_hours}
+                onChange={(e) => set("refund_grace_hours", Number(e.target.value))} />
+              <p className="mt-1 text-[11px] leading-relaxed text-bone-400">
+                Cancel within this long of the first payment, before work starts, and the
+                booking fee is waived entirely.
+              </p>
+            </div>
+          </div>
+
+          <textarea className={`${field} min-h-40 resize-y font-mono text-xs leading-relaxed`}
+            value={f.refund_policy} onChange={(e) => set("refund_policy", e.target.value)} />
+          <p className="mt-2 text-[11px] leading-relaxed text-bone-400">
+            Changing these does not alter agreements already signed — each PDF carries the
+            wording that was in force when it was generated.
+          </p>
+        </div>
 
         <div className="mt-4">
           <label className={label}>Email signature</label>

@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { Lock, PackageCheck, Heart, Send } from "lucide-react";
+import { Lock, PackageCheck, Heart, Send, AlertTriangle } from "lucide-react";
 import { handoverProject, sendProjectThankYou } from "@/lib/actions/delivery";
 import ConfirmModal from "@/components/admin/ConfirmModal";
 import DocButton from "@/components/admin/DocButton";
@@ -20,10 +20,16 @@ export default function HandoverPanel({
   project,
   ready,
   reasons,
+  warnings = [],
 }: {
   project: { id: string; name: string; handed_over_at: string | null; thanked_at: string | null };
   ready: boolean;
   reasons: string[];
+  /**
+   * Worth saying, but not a block — an unpaid £15 domain should not hold up a
+   * £5,000 delivery. Shown whether or not the button is enabled.
+   */
+  warnings?: string[];
 }) {
   const router = useRouter();
   const [pending, start] = useTransition();
@@ -120,9 +126,24 @@ export default function HandoverPanel({
       ) : ready ? (
         <>
           <p className="text-xs leading-relaxed text-bone-300">
-            Everything is paid. Handing over emails the client the pack with all credentials,
-            copies you and every assigned staff member, and marks the project delivered.
+            The agreement is paid in full. Handing over emails the client the pack with all
+            credentials, copies you and every assigned staff member, and marks the project
+            delivered.
           </p>
+
+          {/* Unpaid extras do not block, but you are about to give up the
+              leverage to collect them — so say it while the button is right
+              there. */}
+          {!!warnings.length && (
+            <div className="flex items-start gap-2.5 rounded-lg border border-amber-400/25 bg-amber-400/[0.07] p-3">
+              <AlertTriangle size={14} className="mt-0.5 shrink-0 text-amber-400" />
+              <div className="space-y-1 text-xs leading-relaxed text-amber-200">
+                {warnings.map((w) => (
+                  <p key={w}>{w}</p>
+                ))}
+              </div>
+            </div>
+          )}
           <button
             className="btn btn-primary h-10 w-full justify-center text-sm"
             disabled={pending}

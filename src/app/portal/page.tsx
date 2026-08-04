@@ -5,6 +5,7 @@ import { money, moneyMulti, sumByCurrency, pdfFilename, externalUrl, CONTACT_EMA
 import { Badge, Stat } from "@/components/admin/ui";
 import { ExternalLink, CheckCircle, Circle, DollarSign, Calendar, FileText, Download, MessageCircle, Receipt } from "lucide-react";
 import { expenseCategoryLabel } from "@/config/expenseCategories";
+import { contractPosition, extrasPosition, mergeTotals, invoiceOriginLabel } from "@/lib/billing";
 import ClientDocumentUploader from "@/components/portal/ClientDocumentUploader";
 import ClientPortalSignOutButton from "@/components/portal/ClientPortalSignOutButton";
 import ClientChangeRequest from "@/components/portal/ClientChangeRequest";
@@ -146,24 +147,26 @@ export default async function Portal() {
   // client must not see it at all, so it is filtered out before anything else.
   const invoiceRows = (invoices ?? []).filter((i) => i.status !== "draft");
 
-  const contractValue = sumByCurrency(lockedDeals, (d: any) => d.currency, (d: any) => Number(d.total));
-  const totalInvoiced = sumByCurrency(invoiceRows, (i) => i.currency, (i) => Number(i.total));
-  const totalPaid = sumByCurrency(invoiceRows, (i) => i.currency, (i) => Number(i.amount_paid));
+  // Contract money and additional items are counted apart.
+  //
+  // This screen used to subtract EVERY payment from the agreed contract total,
+  // so a client who paid for a domain was shown a smaller balance on their
+  // agreement than they actually owed. Wrong on our side is bad; wrong on the
+  // client's own screen is worse.
+  const contractPos = contractPosition(
+    lockedDeals.map((d: any) => ({ ...d, status: "locked" })),
+    invoiceRows
+  );
+  const extrasPos = extrasPosition(invoiceRows);
 
-  // What is still owed on the agreement, not merely on the invoices raised so
-  // far. Falls back to the invoice view for clients with no locked deal.
-  const paidByCurrency = new Map(totalPaid.map((t) => [t.currency, t.total]));
-  const balanceOwed = (
-    contractValue.length
-      ? contractValue.map((c) => ({
-          currency: c.currency,
-          total: c.total - (paidByCurrency.get(c.currency) ?? 0),
-        }))
-      : totalInvoiced.map((t) => ({
-          currency: t.currency,
-          total: t.total - (paidByCurrency.get(t.currency) ?? 0),
-        }))
-  ).filter((t) => t.total > 0.009);
+  const contractValue = contractPos.contracted;
+  const totalPaid = mergeTotals(contractPos.paid, extrasPos.paid);
+
+  // What is still owed on the agreement specifically — not on any extra.
+  const balanceOwed = contractPos.outstanding;
+  // Everything owed, of every kind. "What do I owe you in total" is a fair
+  // question and merging per currency is safe.
+  const totalOwed = mergeTotals(contractPos.outstanding, extrasPos.outstanding);
 
   const hasBilling = contractValue.length > 0 || invoiceRows.length > 0;
 
@@ -234,23 +237,43 @@ export default async function Portal() {
             <p className="text-2xl font-mono text-bone-50">{moneyMulti(contractValue, "—")}</p>
             <p className="mt-1 text-[11px] text-bone-300">Agreed total across your signed agreements</p>
           </div>
-          <div className="card p-5">
-            <span className="text-xs text-bone-300 block mono-tag mb-1">Invoiced To Date</span>
-            <p className="text-2xl font-mono text-bone-50">{moneyMulti(totalInvoiced, "—")}</p>
-            <p className="mt-1 text-[11px] text-bone-300">Issued so far — later stages are billed on schedule</p>
-          </div>
           <div className="card p-5 border-lime-500/30">
             <span className="text-xs text-lime-400 block mono-tag mb-1">Total Amount Paid</span>
             <p className="text-2xl font-mono text-lime-400">{moneyMulti(totalPaid, "—")}</p>
-            <p className="mt-1 text-[11px] text-bone-300">Payments received and receipted</p>
+            <p className="mt-1 text-[11px] text-bone-300">
+              Across your agreements and any additional items
+            </p>
           </div>
           <div className="card p-5">
-            <span className="text-xs text-bone-300 block mono-tag mb-1">Balance Remaining</span>
+            <span className="text-xs text-bone-300 block mono-tag mb-1">Balance On Contract</span>
             <p className={`text-2xl font-mono ${balanceOwed.length ? "text-amber-400" : "text-bone-200"}`}>
               {balanceOwed.length ? moneyMulti(balanceOwed) : hasBilling ? "Settled in full" : "—"}
             </p>
             <p className="mt-1 text-[11px] text-bone-300">
-              {contractValue.length ? "Against the contract value" : "Against the invoices issued"}
+              {contractValue.length ? "Against your signed agreement" : "Against the invoices issued"}
+            </p>
+          </div>
+          {/* Kept apart from the contract on purpose. Change requests, renewals
+              and costs we paid on their behalf are their own agreements, and
+              folding them into the contract balance is what made this screen
+              understate what was owed. */}
+          <div className="card p-5">
+            <span className="text-xs text-bone-300 block mono-tag mb-1">Additional Items</span>
+            <p
+              className={`text-2xl font-mono ${
+                extrasPos.outstanding.length ? "text-amber-400" : "text-bone-200"
+              }`}
+            >
+              {extrasPos.outstanding.length
+                ? moneyMulti(extrasPos.outstanding)
+                : extrasPos.billed.length
+                  ? "Nothing outstanding"
+                  : "—"}
+            </p>
+            <p className="mt-1 text-[11px] text-bone-300">
+              {extrasPos.billed.length
+                ? `${moneyMulti(extrasPos.billed)} billed for change requests, renewals and costs paid on your behalf`
+                : "Anything billed outside your agreement appears here"}
             </p>
           </div>
         </section>
@@ -528,8 +551,8 @@ export default async function Portal() {
               <h2 className="flex items-center gap-2 text-lg leading-tight font-medium text-bone-50">
                 <DollarSign className="h-4 w-4 text-lime-400" /> Invoices & Receipts
               </h2>
-              {!!balanceOwed.length && (
-                <span className="mono-tag text-amber-400 text-xs">{moneyMulti(balanceOwed)} due</span>
+              {!!totalOwed.length && (
+                <span className="mono-tag text-amber-400 text-xs">{moneyMulti(totalOwed)} due</span>
               )}
             </div>
 
@@ -537,7 +560,16 @@ export default async function Portal() {
               {invoiceRows.map((i) => (
                 <li key={i.id} className="flex items-center justify-between py-3.5 text-sm">
                   <div>
-                    <p className="font-mono text-bone-100">{i.invoice_no}</p>
+                    <p className="flex flex-wrap items-center gap-2 font-mono text-bone-100">
+                      {i.invoice_no}
+                      {/* So a client can tell a payment stage from a domain
+                          re-bill without having to ask us. */}
+                      {invoiceOriginLabel(i) && (
+                        <span className="mono-tag rounded-full border border-ink-500 px-1.5 py-0.5 text-[9px] leading-none text-bone-300">
+                          {invoiceOriginLabel(i)}
+                        </span>
+                      )}
+                    </p>
                     <p className="text-xs text-bone-300">
                       Paid: {money(Number(i.amount_paid), i.currency)} / Total: {money(Number(i.total), i.currency)}
                     </p>

@@ -6,6 +6,7 @@ import { getCurrentStaff, assignedClientIds } from "@/lib/auth/staff";
 import { requireOwnerAdmin } from "@/lib/auth/guards";
 import { asUuid } from "@/lib/utils";
 import { recordAudit } from "@/lib/actions/audit";
+import { notify } from "@/lib/actions/notify";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
@@ -87,6 +88,15 @@ export async function saveTask(input: TaskInput): Promise<Result<{ id: string }>
 
   const existingId = input.id ? asUuid(input.id) : null;
 
+  // Read before writing, so "was this just handed to someone new?" can be
+  // answered afterwards.
+  let previousAssignee: string | null = null;
+  if (existingId) {
+    const { data: before } = await db
+      .from("tasks").select("assigned_employee_id").eq("id", existingId).maybeSingle();
+    previousAssignee = before?.assigned_employee_id ?? null;
+  }
+
   const { data, error } = existingId
     ? await db.from("tasks").update(row).eq("id", existingId).select().single()
     : await db.from("tasks")
@@ -109,6 +119,32 @@ export async function saveTask(input: TaskInput): Promise<Result<{ id: string }>
     title,
     assigned: row.assigned_employee_id,
   });
+
+  // Tell the person, but only when the assignment is actually new to them.
+  // Editing a typo on a task somebody already has is not news, and a board
+  // that pings on every keystroke gets muted.
+  const assignedToSomeoneNew =
+    !!row.assigned_employee_id &&
+    (!existingId || previousAssignee !== row.assigned_employee_id);
+
+  if (assignedToSomeoneNew) {
+    const { data: project } = await db
+      .from("projects").select("name").eq("id", projectId).maybeSingle();
+
+    await notify({
+      kind: "task.assigned",
+      title: `New task: ${title}`,
+      body: [project?.name, row.due_date ? `due ${row.due_date}` : null]
+        .filter(Boolean)
+        .join(" · ") || undefined,
+      href: `/${ADMIN}/projects/${projectId}`,
+      entity: "tasks",
+      entityId: data.id,
+      actorLabel: me.fullName ?? null,
+      actorKind: "staff",
+      employeeId: row.assigned_employee_id,
+    });
+  }
 
   revalidatePath(`/${ADMIN}/projects/${projectId}`);
   revalidatePath(`/${ADMIN}`);

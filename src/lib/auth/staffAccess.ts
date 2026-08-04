@@ -15,6 +15,12 @@ const STAFF_ALLOWED_SEGMENTS = [
   // Their own leave balance and requests. The page itself scopes to the
   // signed-in employee, so this exposes nobody else's.
   "leave",
+  // Their own notifications: task assignments and leave decisions. The
+  // query in lib/notifications.ts scopes staff to their own rows only.
+  "notifications",
+  // Their OWN pay only — the page scopes every query to the signed-in
+  // employee id and never accepts one from the URL.
+  "my-pay",
   "login",
 ];
 

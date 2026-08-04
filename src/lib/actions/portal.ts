@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { createClient, createAdminClient } from "@/lib/supabase/server";
 import { sendEmail, adminNotifyAddress } from "@/lib/email/send";
 import { recordAudit } from "@/lib/actions/audit";
+import { notify } from "@/lib/actions/notify";
 import { asUuid, getSiteBaseUrl } from "@/lib/utils";
 
 const ADMIN = process.env.ADMIN_PATH || "nx-control";
@@ -87,6 +88,18 @@ export async function approveMilestone(
     by: own.userEmail,
   });
 
+  await notify({
+    kind: "milestone.approved",
+    title: `${own.client.name} approved “${milestone.title}”`,
+    body: "If a payment stage was tied to this milestone, it is ready to invoice.",
+    href: `/${ADMIN}/projects/${milestone.project_id}`,
+    entity: "milestones",
+    entityId: id,
+    actorLabel: own.client.name,
+    actorKind: "client",
+    clientId: own.client.id,
+  });
+
   await sendEmail({
     templateKey: "admin_milestone_approved",
     to: await adminNotifyAddress(),
@@ -142,6 +155,40 @@ export async function toggleKickoffItem(
     .update({ kickoff_items: next })
     .eq("id", project.id);
   if (error) return { ok: false, error: error.message };
+
+  const item = next.find((i) => i.id === itemId);
+  const doneCount = next.filter((i) => i.done).length;
+
+  // Every tick is now visible in the panel, one by one — the client sending
+  // something is worth knowing about when it happens, not only when the last
+  // one lands. Unticking is not: that is a correction, not news.
+  //
+  // Email stays reserved for completion. A message per tick would train
+  // everyone to ignore the whole thread.
+  if (done) {
+    await notify({
+      kind: allDone ? "kickoff.complete" : "kickoff.item",
+      title: allDone
+        ? `${client.name} has sent everything for ${project.name}`
+        : `${client.name} ticked “${item?.label ?? "an item"}”`,
+      body: allDone
+        ? "All kickoff items are in — nothing is blocking the start of work."
+        : `${doneCount} of ${next.length} kickoff items done.`,
+      href: `/${ADMIN}/projects/${project.id}`,
+      entity: "projects",
+      entityId: project.id,
+      actorLabel: client.name,
+      actorKind: "client",
+      clientId: client.id,
+      meta: { item: item?.label ?? null, done: doneCount, total: next.length },
+    });
+  }
+
+  await recordAudit(null, "kickoff.toggle", "projects", project.id, {
+    item: item?.label ?? itemId,
+    done,
+    client: client.name,
+  });
 
   // One email at the moment of completion, not one per tick.
   if (allDone && !wasAllDone) {

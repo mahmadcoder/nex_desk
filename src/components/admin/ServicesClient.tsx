@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { saveService, deleteService, toggleServiceActive, seedDefaultServices } from "@/lib/actions/cms";
 import { Plus, Trash2, Edit3, Eye, EyeOff, RefreshCw, DollarSign, Layers, X } from "lucide-react";
+import { CmsSearch, NoMatches, matchesQuery } from "@/components/admin/CmsSearch";
 import { PageHead } from "@/components/admin/ui";
 import ConfirmModal from "@/components/admin/ConfirmModal";
 import AIAssist from "@/components/ui/AIAssist";
@@ -13,6 +14,9 @@ import { money } from "@/lib/utils";
 import { IService } from "@/types/cms";
 
 export default function ServicesClient({ services }: { services: IService[] }) {
+  const [q, setQ] = useState("");
+  const shown = services.filter((x: any) => matchesQuery(q, x.title, x.category, x.short_desc, x.slug));
+
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [editing, setEditing] = useState<Partial<IService> | null>(null);
@@ -177,8 +181,20 @@ export default function ServicesClient({ services }: { services: IService[] }) {
         }
       />
 
+      <CmsSearch
+        value={q}
+        onChange={setQ}
+        placeholder="Search services or categories…"
+        count={shown.length}
+        total={services.length}
+      />
+
+      {!shown.length && (
+        <NoMatches query={q} noun="service" />
+      )}
+
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {services.map((s) => (
+        {shown.map((s) => (
           <div
             key={s.id}
             className={`card p-5 border-ink-600 flex flex-col justify-between space-y-4 transition-opacity ${

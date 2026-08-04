@@ -11,6 +11,7 @@ import { getLiveExchangeRates, convertCurrency, DEFAULT_RATES } from "@/lib/curr
 import { getSiteBaseUrl, currencyForCountry, money } from "@/lib/utils";
 import { tryEncrypt, decryptSecret } from "@/lib/crypto";
 import { provisionLockedDeal } from "@/lib/deals/provision";
+import { isContractInvoice } from "@/lib/billing";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
@@ -578,9 +579,15 @@ export async function recordPayment(data: any, notify = true) {
 
   const realizedBase = data.realized_base_amount ?? convertCurrency(payAmount, payCurrency, "PKR", DEFAULT_RATES);
 
+  // The bank charge cannot exceed the payment it was taken from. The database
+  // enforces that too, but a mistyped figure should be quietly corrected here
+  // rather than surfacing as a constraint violation.
+  const payFee = Math.max(0, Math.min(Number(data.fee) || 0, payAmount));
+
   const { data: payment, error } = await db.from("payments")
     .insert({
       ...data,
+      fee: payFee,
       recorded_by: me.userId,
       exchange_rate: exRate,
       realized_base_amount: realizedBase,
@@ -599,16 +606,27 @@ export async function recordPayment(data: any, notify = true) {
 
     if (inv?.deal_id) {
       const [{ data: deal }, { data: dealInvoices }] = await Promise.all([
-        db.from("deals").select("total, currency").eq("id", inv.deal_id).maybeSingle(),
-        db.from("invoices").select("amount_paid, currency").eq("deal_id", inv.deal_id),
+        db.from("deals").select("total, currency, is_retainer").eq("id", inv.deal_id).maybeSingle(),
+        db.from("invoices")
+          .select("amount_paid, currency, deal_id, stage_index").eq("deal_id", inv.deal_id),
       ]);
 
       if (deal) {
         contractTotal = Number(deal.total || 0);
+
+        // Payment STAGES only. Retainer renewals carry the same deal_id, so
+        // counting them here meant month two of a monthly retainer pushed the
+        // running total past the contract value and emailed a live client
+        // "settled in full — nothing more is coming".
         const paidOnDeal = (dealInvoices ?? [])
+          .filter(isContractInvoice)
           .filter((i) => String(i.currency).toUpperCase() === String(deal.currency).toUpperCase())
           .reduce((s, i) => s + Number(i.amount_paid || 0), 0);
-        settledInFull = contractTotal > 0 && paidOnDeal >= contractTotal - 0.01;
+
+        // A recurring agreement is never "settled in full" — that is the whole
+        // point of it.
+        settledInFull =
+          !deal.is_retainer && contractTotal > 0 && paidOnDeal >= contractTotal - 0.01;
       }
     }
   }

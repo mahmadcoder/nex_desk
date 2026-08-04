@@ -16,6 +16,9 @@ import DealExtrasCard from "@/components/admin/DealExtrasCard";
 import CredentialsCard from "@/components/admin/CredentialsCard";
 import ExpensesCard from "@/components/admin/ExpensesCard";
 import TasksCard from "@/components/admin/TasksCard";
+import CancelProjectPanel from "@/components/admin/CancelProjectPanel";
+import { handoverGate } from "@/lib/delivery/gate";
+import { invoiceOriginLabel } from "@/lib/billing";
 
 const BASE = `/${process.env.ADMIN_PATH || "nx-control"}`;
 export const dynamic = "force-dynamic";
@@ -77,55 +80,33 @@ export default async function ProjectDetail({ params }: { params: Promise<{ id: 
   }
 
   const invoiceRows = invoices ?? [];
-  const paid = sumByCurrency(invoiceRows, (i) => i.currency, (i) => Number(i.amount_paid));
   const client = project.clients as any;
   const deal = (project.deals as any) ?? null;
 
-  // Handover transfers ownership, so it stays locked until the balance clears.
-  // The same check runs server-side in generateDocument — the disabled button
-  // is a courtesy, not the control.
-  //
-  // It has to measure against the CONTRACT, not against the invoices raised so
-  // far. A 1500 deal billed 50/50 has only a 750 invoice on day one, so an
-  // invoice-vs-invoice check called the project settled after the advance.
+  // The gate that decides whether ownership changes hands is defined once, in
+  // lib/delivery/gate.ts, and shared with the handover action and the handover
+  // PDF. This page used to re-derive it by hand, which is how the three copies
+  // drifted apart in the first place.
+  const gate = await handoverGate(id);
+  const { contract, extras } = gate;
+
   const contractValue = deal ? Number(deal.total) : 0;
   const contractCurrency: string | null = deal?.currency ?? null;
 
+  // Only money that actually paid a stage of the agreement. Counting every
+  // payment on the project meant a domain re-bill read as progress against the
+  // contract — and drove this stat, and the gate below, to "settled".
   const paidInContractCurrency = contractCurrency
-    ? (paid.find((p) => p.currency === contractCurrency.toUpperCase())?.total ?? 0)
+    ? (contract.paid.find((p) => p.currency === contractCurrency.toUpperCase())?.total ?? 0)
     : 0;
 
-  const outstanding = deal
-    ? // What is still owed on the agreement, whether or not it has been invoiced.
-      [{ currency: contractCurrency!, total: contractValue - paidInContractCurrency }]
-        .filter((t) => t.total > 0.009)
-    : // No deal on this project — the invoices are all we have to go on.
-      sumByCurrency(
-        invoiceRows,
-        (i) => i.currency,
-        (i) => Number(i.total) - Number(i.amount_paid)
-      ).filter((t) => t.total > 0.009);
-
+  const outstanding = contract.outstanding;
   const isSettled = deal
     ? contractValue > 0 && outstanding.length === 0
     : invoiceRows.length > 0 && outstanding.length === 0;
 
-  // An approved-but-unpaid change request re-locks handover, so the reasons
-  // shown on the panel have to account for it as well as the contract balance.
-  const openChanges = (changeRequests ?? []).filter((c) =>
-    ["approved", "invoiced"].includes(c.status)
-  );
-
-  const handoverReasons = [
-    !deal && !invoiceRows.length
-      ? "Lock a deal, or raise and settle an invoice, before handing this project over."
-      : null,
-    outstanding.length ? `Outstanding balance: ${moneyMulti(outstanding)}.` : null,
-    openChanges.length
-      ? `${openChanges.length} approved change request${openChanges.length === 1 ? "" : "s"} not yet paid.`
-      : null,
-  ].filter(Boolean) as string[];
-
+  const handoverReasons = gate.reasons;
+  const handoverWarnings = gate.warnings;
   const handoverReady = handoverReasons.length === 0;
 
   return (
@@ -159,10 +140,14 @@ export default async function ProjectDetail({ params }: { params: Promise<{ id: 
             value={
               deal
                 ? `${money(paidInContractCurrency, contractCurrency!)} / ${money(contractValue, contractCurrency!)}`
-                : `${moneyMulti(paid, "—")} / ${moneyMulti(
-                    sumByCurrency(invoiceRows, (i) => i.currency, (i) => Number(i.total)),
-                    "—"
-                  )}`
+                : `${moneyMulti(contract.paid, "—")} / ${moneyMulti(contract.billed, "—")}`
+            }
+            // Extras are shown beside the contract, never inside it. Folding
+            // them in is what made a paid domain look like a paid milestone.
+            hint={
+              extras.billed.length
+                ? `Plus ${moneyMulti(extras.billed)} of extras · ${moneyMulti(extras.outstanding, "all paid")}`
+                : undefined
             }
             tone={isSettled ? "good" : "default"}
           />
@@ -266,6 +251,7 @@ export default async function ProjectDetail({ params }: { params: Promise<{ id: 
               }}
               ready={handoverReady}
               reasons={handoverReasons}
+              warnings={handoverWarnings}
             />
           )}
 
@@ -277,6 +263,10 @@ export default async function ProjectDetail({ params }: { params: Promise<{ id: 
           )}
 
           {canManage && deal && <DealExtrasCard deal={deal} />}
+
+          {/* Cancelling is a settlement, not a status change — the panel works
+              out what goes back before anything is written. */}
+          {canManage && <CancelProjectPanel project={project} />}
 
           {/* Domains, licences, hosting bought for this project. Scoped to the
               project here; the client page shows every one across the account. */}

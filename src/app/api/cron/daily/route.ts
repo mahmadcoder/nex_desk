@@ -3,6 +3,7 @@ import { createAdminClient } from "@/lib/supabase/server";
 import { sendEmail, adminNotifyAddress } from "@/lib/email/send";
 import { getSiteBaseUrl, money } from "@/lib/utils";
 import { expenseCategoryLabel, isCriticalCategory } from "@/config/expenseCategories";
+import { notify } from "@/lib/actions/notify";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -49,7 +50,7 @@ export async function GET(req: Request) {
     marked_overdue: 0, reminders_sent: 0, overdue_sent: 0,
     retainers_billed: 0, deadline_warnings: 0, kickoff_nudges: 0,
     renewal_notices: 0, quote_followups: 0, quotes_cold: 0,
-    feedback_chases: 0, testimonial_asks: 0,
+    feedback_chases: 0, testimonial_asks: 0, agency_renewals: 0,
     passwords_purged: 0, errors: 0,
   };
 
@@ -596,6 +597,69 @@ export async function GET(req: Request) {
     }
   } catch (e) {
     console.error("cron: testimonial asks failed", e);
+    ran.errors++;
+  }
+
+  /* ---------- 4g. Our own subscriptions coming up for renewal ---------- */
+  try {
+    // Same 30/14/3 cadence as client domains, but pointed at ourselves. A
+    // subscription that renews silently is a decision nobody got to make.
+    const windows = [30, 14, 3].map(dayOffset);
+
+    const { data: dueTools, error: toolErr } = await db
+      .from("agency_expenses")
+      .select("id, label, vendor, category, amount, currency, renews_on")
+      .in("renews_on", windows);
+
+    if (toolErr) {
+      console.error(
+        toolErr.code === "42P01"
+          ? "cron: agency_expenses missing — run supabase/idempotent_fixes_2027_14.sql"
+          : "cron: agency renewal sweep failed",
+        toolErr
+      );
+      ran.errors++;
+    }
+
+    if (dueTools?.length) {
+      const lines = dueTools.map((t) => {
+        const days = Math.round((new Date(t.renews_on!).getTime() - Date.now()) / 864e5);
+        return `• ${t.label}${t.vendor ? ` (${t.vendor})` : ""} — ${money(Number(t.amount), t.currency)} on ${t.renews_on}, in ${days} days`;
+      });
+
+      const res = await sendEmail({
+        templateKey: "admin_agency_renewals",
+        to: await adminNotifyAddress(),
+        vars: {},
+        subjectOverride:
+          `${dueTools.length} agency subscription${dueTools.length === 1 ? "" : "s"} renewing soon`,
+        bodyOverride:
+          `These charge your card automatically unless you cancel first.\n\n` +
+          lines.join("\n") +
+          `\n\nCancel anything you are no longer using — an unused seat renews just as reliably as a used one.\n\n` +
+          `Open the ledger:\n${getSiteBaseUrl()}/${ADMIN}/expenses`,
+      });
+
+      if (res.ok) {
+        await db.from("agency_expenses")
+          .update({ renewal_notified_at: new Date().toISOString() })
+          .in("id", dueTools.map((t) => t.id));
+        ran.agency_renewals = dueTools.length;
+      }
+
+      // In-app as well, so it is waiting in the panel rather than only in an
+      // inbox that may not be checked before the card is charged.
+      await notify({
+        kind: "expense.renewal",
+        title: `${dueTools.length} subscription${dueTools.length === 1 ? "" : "s"} renewing soon`,
+        body: dueTools.map((t) => t.label).join(", "),
+        href: `/${ADMIN}/expenses`,
+        entity: "agency_expenses",
+        actorKind: "system",
+      });
+    }
+  } catch (e) {
+    console.error("cron: agency renewals failed", e);
     ran.errors++;
   }
 

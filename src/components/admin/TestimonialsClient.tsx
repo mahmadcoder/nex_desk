@@ -5,12 +5,16 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { saveTestimonial, deleteTestimonial, toggleTestimonialPublished, seedDefaultTestimonials } from "@/lib/actions/cms";
 import { Plus, Trash2, Edit3, Star, Eye, EyeOff, RefreshCw, X } from "lucide-react";
+import { CmsSearch, NoMatches, matchesQuery } from "@/components/admin/CmsSearch";
 import { PageHead } from "@/components/admin/ui";
 import { ITestimonial } from "@/types/cms";
 import ConfirmModal from "@/components/admin/ConfirmModal";
 import AIAssist from "@/components/ui/AIAssist";
 
 export default function TestimonialsClient({ testimonials }: { testimonials: ITestimonial[] }) {
+  const [q, setQ] = useState("");
+  const shown = testimonials.filter((x: any) => matchesQuery(q, x.client_name, x.company, x.role, x.quote));
+
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [editing, setEditing] = useState<Partial<ITestimonial> | null>(null);
@@ -120,8 +124,20 @@ export default function TestimonialsClient({ testimonials }: { testimonials: ITe
       />
 
       {/* Grid of Testimonials */}
+      <CmsSearch
+        value={q}
+        onChange={setQ}
+        placeholder="Search names, companies or quotes…"
+        count={shown.length}
+        total={testimonials.length}
+      />
+
+      {!shown.length && (
+        <NoMatches query={q} noun="testimonial" />
+      )}
+
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {testimonials.map((t) => (
+        {shown.map((t) => (
           <div
             key={t.id}
             className={`card p-5 border-ink-600 flex flex-col justify-between space-y-4 transition-opacity ${

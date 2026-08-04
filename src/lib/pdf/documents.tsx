@@ -94,7 +94,7 @@ function LineItems({
 /* ============================================================
    1. AGREEMENT — the deal-locked document
    ============================================================ */
-export function AgreementDoc({ deal, client }: { deal: any; client: Party }) {
+export function AgreementDoc({ deal, client, settings }: { deal: any; client: Party; settings?: any }) {
   const items = (deal.deliverables ?? []) as any[];
   const schedule = (deal.payment_schedule ?? []) as any[];
 
@@ -182,7 +182,16 @@ export function AgreementDoc({ deal, client }: { deal: any; client: Party }) {
         <Text style={s.h2}>5. Terms and conditions</Text>
         <Text style={s.terms}>{deal.terms}</Text>
 
-        <Text style={s.h2}>6. Acceptance</Text>
+        {/* What happens if this is called off. Agreed at signing rather than
+            negotiated under pressure later. */}
+        {settings?.refund_policy && (
+          <>
+            <Text style={s.h2}>6. If the project is cancelled</Text>
+            <Text style={s.terms}>{settings.refund_policy}</Text>
+          </>
+        )}
+
+        <Text style={s.h2}>{settings?.refund_policy ? "7" : "6"}. Acceptance</Text>
         <Text style={s.terms}>
           By approving this agreement in writing or by paying the advance invoice, both
           parties accept the scope, price, timeline and terms set out above. This document
@@ -192,9 +201,22 @@ export function AgreementDoc({ deal, client }: { deal: any; client: Party }) {
         <View style={s.signRow}>
           <View style={s.signBox}>
             <Text style={s.label}>For the client</Text>
-            <Text style={{ marginTop: 12, fontWeight: 500 }}>{deal.signature_name || client.name}</Text>
+            {/* The name the client actually typed when accepting in the portal.
+                That IS the signature — it was being ignored in favour of
+                `signature_name`, a field the admin fills in. */}
+            <Text style={{ marginTop: 12, fontWeight: 500 }}>
+              {deal.accepted_name || deal.signature_name || client.name}
+            </Text>
             <Text style={s.muted}>{client.company || client.email}</Text>
-            <Text style={[s.muted, { marginTop: 6 }]}>Date: {date(deal.signature_date ?? deal.locked_at)}</Text>
+            <Text style={[s.muted, { marginTop: 6 }]}>
+              Date: {date(deal.accepted_at ?? deal.signature_date ?? deal.locked_at)}
+            </Text>
+            {deal.accepted_at && (
+              <Text style={[s.muted, { marginTop: 4, fontSize: 7 }]}>
+                Accepted electronically in the client portal
+                {deal.accepted_ip ? ` from ${deal.accepted_ip}` : ""}
+              </Text>
+            )}
           </View>
           <View style={s.signBox}>
             <Text style={s.label}>For Nex Desk</Text>

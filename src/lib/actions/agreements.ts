@@ -7,6 +7,7 @@ import { requireOwnerAdmin } from "@/lib/auth/guards";
 import { sendEmail, adminNotifyAddress } from "@/lib/email/send";
 import { asUuid, getSiteBaseUrl, money } from "@/lib/utils";
 import { recordAudit } from "@/lib/actions/audit";
+import { notify } from "@/lib/actions/notify";
 
 const ADMIN = process.env.ADMIN_PATH || "nx-control";
 
@@ -69,6 +70,18 @@ export async function acceptAgreement(dealId: string, typedName: string) {
     id,
     { name: typedName.trim(), deal_no: deal.deal_no }
   );
+
+  await notify({
+    kind: "agreement.accepted",
+    title: `${client?.name ?? "A client"} accepted ${deal.deal_no}`,
+    body: `Signed as “${typedName.trim()}”. The advance invoice can go out.`,
+    href: `/${ADMIN}/deals/${id}`,
+    entity: "deals",
+    entityId: id,
+    actorLabel: client?.name ?? null,
+    actorKind: "client",
+    clientId: deal.client_id,
+  });
 
   await sendEmail({
     templateKey: "admin_agreement_accepted",

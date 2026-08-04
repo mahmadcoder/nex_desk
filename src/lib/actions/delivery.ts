@@ -7,6 +7,8 @@ import { sendEmail, adminNotifyAddress } from "@/lib/email/send";
 import { generateDocument } from "@/lib/pdf/generate";
 import { asUuid, getSiteBaseUrl, moneyMulti, sumByCurrency, pdfFilename } from "@/lib/utils";
 import { recordAudit } from "@/lib/actions/audit";
+import { notify } from "@/lib/actions/notify";
+import { handoverGate } from "@/lib/delivery/gate";
 
 const ADMIN = process.env.ADMIN_PATH || "nx-control";
 
@@ -17,65 +19,25 @@ const ADMIN = process.env.ADMIN_PATH || "nx-control";
 /**
  * Everything standing between a project and its handover.
  *
- * Two gates, not one:
- *   1. the contract itself must be paid in full, and
- *   2. no approved change request may still be unpaid.
+ * The rule itself now lives in `lib/delivery/gate.ts`, shared with the handover
+ * PDF and the project page — it decides whether ownership of the work changes
+ * hands, and three separate copies of that is two too many.
  *
- * The second gate is what makes post-handover change work behave: a client
- * asks for something, it is quoted and approved, and handover re-locks until
- * that invoice clears.
+ * `owing` is kept in the return shape for callers, and is now the outstanding
+ * balance on the CONTRACT specifically. It previously counted every payment on
+ * the project, so paying for domains and change work drove it to zero and
+ * unlocked handover on a project that was still owed for.
  */
 async function handoverBlockers(projectId: string) {
-  const db = createAdminClient();
-
-  const { data: project } = await db
-    .from("projects")
-    .select("*, clients(id, name, email), deals(id, deal_no, total, currency)")
-    .eq("id", projectId)
-    .maybeSingle();
-  if (!project) throw new Error("Project not found.");
-
-  const { data: invoices } = await db
-    .from("invoices").select("total, amount_paid, currency").eq("project_id", projectId);
-
-  const paid = sumByCurrency(invoices ?? [], (i) => i.currency, (i) => Number(i.amount_paid));
-  const deal = (project.deals as any) ?? null;
-
-  let owing: Array<{ currency: string; total: number }>;
-  if (deal && Number(deal.total) > 0) {
-    const currency = String(deal.currency).toUpperCase();
-    const paidHere = paid.find((p) => p.currency === currency)?.total ?? 0;
-    owing = [{ currency, total: Number(deal.total) - paidHere }].filter((t) => t.total > 0.009);
-  } else if (invoices?.length) {
-    owing = sumByCurrency(
-      invoices, (i) => i.currency, (i) => Number(i.total) - Number(i.amount_paid)
-    ).filter((t) => t.total > 0.009);
-  } else {
-    owing = [];
-  }
-
-  // An approved change is work the client has committed to pay for. Handing
-  // the project over while it is outstanding gives away the leverage.
-  const { data: openChanges } = await db
-    .from("change_requests")
-    .select("id, title, quoted_amount, currency, status")
-    .eq("project_id", projectId)
-    .in("status", ["approved", "invoiced"]);
-
-  const reasons: string[] = [];
-  if (!deal && !invoices?.length) {
-    reasons.push("Lock a deal, or raise and settle an invoice, before handing this project over.");
-  }
-  if (owing.length) {
-    reasons.push(`Outstanding balance: ${moneyMulti(owing)}.`);
-  }
-  if (openChanges?.length) {
-    reasons.push(
-      `${openChanges.length} approved change request${openChanges.length === 1 ? "" : "s"} not yet paid.`
-    );
-  }
-
-  return { project, deal, owing, openChanges: openChanges ?? [], reasons };
+  const gate = await handoverGate(projectId);
+  return {
+    project: gate.project,
+    deal: gate.deal,
+    owing: gate.contract.outstanding,
+    openChanges: gate.openChanges,
+    reasons: gate.reasons,
+    warnings: gate.warnings,
+  };
 }
 
 /**
@@ -301,6 +263,23 @@ export async function raiseChangeRequest(data: {
     created_by: actorId,
   }).select().single();
   if (error) throw new Error(error.message);
+
+  await notify({
+    kind: "change_request.raised",
+    title: `${ownsRecord ? (client?.name ?? "A client") : "Someone"} asked for “${data.title.trim()}”`,
+    body: "Quote it before any work starts — an unquoted change is unpaid work.",
+    href: `/${ADMIN}/projects/${projectId}`,
+    entity: "change_requests",
+    entityId: row.id,
+    actorLabel: ownsRecord ? (client?.name ?? null) : null,
+    actorKind: ownsRecord ? "client" : "staff",
+    clientId: project.client_id,
+  });
+
+  await recordAudit(actorId, "change_request.raised", "change_requests", row.id, {
+    title: data.title.trim(),
+    by: ownsRecord ? "client" : "admin",
+  });
 
   await sendEmail({
     templateKey: "admin_change_request_notice",

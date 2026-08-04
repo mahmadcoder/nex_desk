@@ -8,7 +8,7 @@ import { cn } from "@/lib/utils";
 import {
   LayoutDashboard, Inbox, Users, Handshake, FolderKanban,
   Receipt, FileText, Mail, Settings, LogOut, Menu, X,
-  MessageSquareQuote, Briefcase, Layers, BookOpen, HelpCircle, UserCheck, Clock, CalendarDays, PackageCheck, TrendingUp, CalendarClock
+  MessageSquareQuote, Briefcase, Layers, BookOpen, HelpCircle, UserCheck, Clock, CalendarDays, PackageCheck, TrendingUp, CalendarClock, Bell, Wallet, Scale
 } from "lucide-react";
 
 const NAV_SECTIONS = [
@@ -16,6 +16,7 @@ const NAV_SECTIONS = [
     title: "CRM & REVENUE",
     items: [
       { href: "", label: "Dashboard", icon: LayoutDashboard },
+      { href: "/notifications", label: "Notifications", icon: Bell },
       { href: "/leads", label: "Leads", icon: Inbox },
       { href: "/clients", label: "Clients", icon: Users },
       { href: "/employees", label: "Employees & Staff", icon: UserCheck },
@@ -25,8 +26,10 @@ const NAV_SECTIONS = [
       { href: "/projects", label: "Projects", icon: FolderKanban },
       { href: "/completed", label: "Completed", icon: PackageCheck },
       { href: "/invoices", label: "Invoices", icon: Receipt },
+      { href: "/expenses", label: "Agency Expenses", icon: Wallet },
       { href: "/profit", label: "Profitability", icon: TrendingUp },
       { href: "/forecast", label: "Cash Flow", icon: CalendarClock },
+      { href: "/books", label: "Money In & Out", icon: Scale },
       { href: "/documents", label: "Documents", icon: FileText },
       { href: "/emails", label: "Email Centre", icon: Mail },
     ],
@@ -60,15 +63,30 @@ const STAFF_NAV = [
     title: "MY WORK",
     items: [
       { href: "", label: "Dashboard", icon: LayoutDashboard },
+      { href: "/notifications", label: "Notifications", icon: Bell },
       { href: "/clients", label: "My Clients", icon: Users },
       { href: "/projects", label: "My Projects", icon: FolderKanban },
       { href: "/daily-logs", label: "Daily Work Logs", icon: Clock },
       { href: "/leave", label: "My Leave", icon: CalendarDays },
+      { href: "/my-pay", label: "My Pay", icon: Wallet },
     ],
   },
 ];
 
-export default function Sidebar({ base, user }: { base: string; user: { name: string; role: string } }) {
+export default function Sidebar({
+  base,
+  user,
+  counts = {},
+}: {
+  base: string;
+  user: { name: string; role: string };
+  /**
+   * Badge numbers keyed by item href. Deliberately generic rather than an
+   * `unread` prop — a pending-leave count can use the same slot later without
+   * another prop.
+   */
+  counts?: Record<string, number>;
+}) {
   const path = usePathname();
   const [open, setOpen] = useState(false);
   const sections = user.role === "staff" ? STAFF_NAV : NAV_SECTIONS;
@@ -119,6 +137,11 @@ export default function Sidebar({ base, user }: { base: string; user: { name: st
                   >
                     <Icon size={15} strokeWidth={1.75} className={active ? "text-lime-400" : "text-bone-400"} />
                     <span className="truncate">{label}</span>
+                    {!!counts[href] && (
+                      <span className="ml-auto shrink-0 rounded-full bg-lime-400 px-1.5 py-0.5 text-[10px] font-semibold leading-none text-lime-950">
+                        {counts[href] > 99 ? "99+" : counts[href]}
+                      </span>
+                    )}
                   </Link>
                 );
               })}

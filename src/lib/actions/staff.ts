@@ -8,6 +8,7 @@ import { sendEmail, adminNotifyAddress } from "@/lib/email/send";
 import { buildStaffOfferPdf } from "@/lib/pdf/staffDocs";
 import { asUuid, getSiteBaseUrl, money } from "@/lib/utils";
 import { recordAudit } from "@/lib/actions/audit";
+import { notify } from "@/lib/actions/notify";
 
 const ADMIN = process.env.ADMIN_PATH || "nx-control";
 
@@ -283,6 +284,21 @@ export async function requestLeave(data: {
 
   const employee = (row.employees as any) ?? null;
 
+  await notify({
+    kind: "leave.requested",
+    title: `${employee?.full_name ?? "A team member"} requested leave`,
+    body: `${data.leaveType ?? "Leave"} · ${data.startDate} to ${data.endDate}`,
+    href: `/${ADMIN}/leave`,
+    entity: "leave_requests",
+    entityId: row.id,
+    actorLabel: employee?.full_name ?? null,
+    actorKind: "staff",
+  });
+
+  await recordAudit(me.userId, "leave.requested", "leave_requests", row.id, {
+    from: data.startDate, to: data.endDate,
+  });
+
   await sendEmail({
     templateKey: "admin_leave_request",
     to: await adminNotifyAddress(),
@@ -347,6 +363,19 @@ export async function decideLeave(
     });
     emailed = res.ok;
   }
+
+  // Addressed to the one person it concerns, not to the admin stream.
+  await notify({
+    kind: "leave.decided",
+    title: `Your leave was ${decision}`,
+    body: `${row.leave_type} · ${row.start_date} to ${row.end_date}${note?.trim() ? ` — ${note.trim()}` : ""}`,
+    href: `/${ADMIN}/leave`,
+    entity: "leave_requests",
+    entityId: id,
+    actorLabel: me.fullName ?? null,
+    actorKind: "staff",
+    employeeId: row.employee_id,
+  });
 
   await recordAudit(
     me.userId,

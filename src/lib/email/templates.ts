@@ -307,10 +307,18 @@ Nex Desk`,
 
 Confirming that {{project_name}} is cancelled as of today.
 
-A full statement of work completed to date and any refund due to you is set out below this line by your project manager.
+## Where things stand
 
-Refunds are processed within seven working days. Every file completed so far remains available in your portal:
+• Reason recorded: {{reason}}
+• Work delivered: {{work_done}}
+• Refund due to you: {{refund_amount}}
+
+{{settlement_note}}
+
+Everything produced up to this point is yours to keep, and stays available in your portal:
 {{portal_url}}
+
+Any refund is sent within seven working days. Bank and transfer charges are not ours to refund — we return what actually reached us, less the cost of sending it back.
 
 If circumstances change we would be glad to pick this back up.
 
@@ -892,6 +900,29 @@ We can't approve your {{leave_type}} for {{start_date}} → {{end_date}}.
 This is about timing, not about the request. Come back with alternative dates and we'll do our best to make them work.
 
 {{sender_name}}`,
+  },
+
+  salary_paid: {
+    subject: "💸 Your pay for {{period}} has been sent",
+    body: `Hi {{employee_name}},
+
+Your salary for {{period}} has been transferred.
+
+• Amount: {{amount}}
+• Sent on: {{paid_on}}
+• Method: {{method}}
+• Reference: {{reference}}
+
+{{note}}
+
+{{slip_line}}
+
+Depending on your bank this can take a day or two to show up. If it has not arrived after that, tell us and we will chase it with our side.
+
+Every payment we have made to you, with its slip, is on your My Pay page when you sign in.
+
+{{sender_name}}
+Nex Desk`,
   },
 
   admin_bonus_notice: {

@@ -27,6 +27,10 @@ export default function PaymentDialog({
 
   const [f, setF] = useState({
     amount: invoice.balance,
+    // What the bank kept on the way in. Recorded separately because the
+    // client DID pay the full amount — this must never reduce what the
+    // invoice counts as settled, only what a refund can draw on.
+    fee: 0,
     method: "bank_transfer",
     reference: "",
     paid_on: new Date().toISOString().slice(0, 10),
@@ -84,6 +88,15 @@ export default function PaymentDialog({
               <label className="mono-tag mb-1.5 block">Amount received</label>
               <input className={field} type="number" min={0} value={f.amount}
                 onChange={(e) => setF({ ...f, amount: Number(e.target.value) })} />
+            </div>
+            <div>
+              <label className="mono-tag mb-1.5 block">Bank charge deducted</label>
+              <input className={field} type="number" min={0} step="0.01" value={f.fee}
+                onChange={(e) => setF({ ...f, fee: Number(e.target.value) })} />
+              <p className="mt-1 text-[11px] leading-relaxed text-bone-400">
+                Optional. What the bank or gateway took, so {money(Math.max(0, Number(f.amount) - Number(f.fee)), invoice.currency)} actually
+                reached you. The invoice still counts the full amount as paid.
+              </p>
             </div>
             <div>
               <label className="mono-tag mb-1.5 block">Date paid</label>

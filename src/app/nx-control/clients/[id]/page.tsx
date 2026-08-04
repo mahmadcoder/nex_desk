@@ -11,6 +11,8 @@ import ClientServices from "@/components/admin/ClientServices";
 import ClientLifecycleCard from "@/components/admin/ClientLifecycleCard";
 import MonthlyReportButton from "@/components/admin/MonthlyReportButton";
 import ExpensesCard from "@/components/admin/ExpensesCard";
+import ClientExtrasCard from "@/components/admin/ClientExtrasCard";
+import { contractPosition, extrasPosition, isContractInvoice, splitInvoices } from "@/lib/billing";
 import ActivityTimeline from "@/components/admin/ActivityTimeline";
 import { clientActivity } from "@/lib/insights";
 import { revealPreview } from "@/lib/crypto";
@@ -77,7 +79,7 @@ export default async function ClientDetail({ params }: { params: Promise<{ id: s
     db.from("invoices").select("*").eq("client_id", id).order("issue_date", { ascending: false }),
     db.from("documents").select("*").eq("client_id", id).order("created_at", { ascending: false }),
     db.from("email_log").select("subject, status, sent_at").eq("client_id", id).order("sent_at", { ascending: false }).limit(8),
-    db.from("deals").select("id, title, status, service_slugs, total, currency").eq("client_id", id),
+    db.from("deals").select("id, deal_no, title, status, service_slugs, total, currency, is_retainer, accepted_at, accepted_name").eq("client_id", id),
     db.from("client_employee_assignments").select("*, employees(id, full_name, email, job_title, seniority, avatar_url)").eq("client_id", id),
     db.from("employees").select("id, full_name, email, job_title, seniority"),
     db.from("project_expenses").select("*").eq("client_id", id).order("incurred_on", { ascending: false }),
@@ -110,7 +112,7 @@ export default async function ClientDetail({ params }: { params: Promise<{ id: s
   const dealIdsViaProjects = (projects ?? []).map((p) => p.deal_id).filter(Boolean) as string[];
   const { data: dealsViaProjects } = dealIdsViaProjects.length
     ? await db.from("deals")
-        .select("id, title, status, service_slugs, total, currency")
+        .select("id, deal_no, title, status, service_slugs, total, currency, is_retainer, accepted_at, accepted_name")
         .in("id", dealIdsViaProjects)
     : { data: [] as any[] };
 
@@ -127,30 +129,33 @@ export default async function ClientDetail({ params }: { params: Promise<{ id: s
   // has not been billed yet, so it is neither invoiced nor owed today. Summing
   // raw numbers and labelling the result `preferred_currency` used to show a
   // USD client their total in Rs.
-  const issuedInvoices = (invoices ?? []).filter((i) => i.status !== "draft");
-  const contract = sumByCurrency(
-    allDeals.filter((d: any) => d.status === "locked"),
-    (d: any) => d.currency,
-    (d: any) => Number(d.total)
-  );
-  const billed = sumByCurrency(issuedInvoices, (i) => i.currency, (i) => Number(i.total));
-  const paid = sumByCurrency(issuedInvoices, (i) => i.currency, (i) => Number(i.amount_paid));
+  // Contract money and everything else are counted separately.
+  //
+  // These four figures used to be `deal.total` measured against payments on
+  // EVERY invoice, so a client who paid $110 for a domain appeared to owe $110
+  // less on a $4,000 agreement. The stat row then disagreed with the Services
+  // card directly beneath it, which had always filtered by `deal_id`.
+  const contractPos = contractPosition(allDeals, invoices ?? []);
+  const extrasPos = extrasPosition(invoices ?? []);
 
-  const paidByCurrency = new Map(paid.map((t) => [t.currency, t.total]));
-  const outstanding = (contract.length ? contract : billed)
-    .map((t) => ({ currency: t.currency, total: t.total - (paidByCurrency.get(t.currency) ?? 0) }))
-    .filter((t) => t.total > 0.009);
+  const contract = contractPos.contracted;
+  const outstanding = contractPos.outstanding;
 
   const tenure = getClientTenure(client.created_at || new Date().toISOString());
 
   // Each locked deal is one service the client bought, with its own project and
   // its own invoices. Numbered in the order they were sold.
+  //
+  // Renewals are split out from stages: a retainer's monthly invoices also
+  // carry this `deal_id`, and summing them against a per-period `deal.total`
+  // marked every retainer "settled" from month two onwards.
   const services = allDeals
     .filter((d: any) => d.status === "locked")
     .map((d: any) => ({
       deal: d,
       project: (projects ?? []).find((p) => p.deal_id === d.id) ?? null,
-      invoices: (invoices ?? []).filter((v) => v.deal_id === d.id),
+      invoices: (invoices ?? []).filter((v) => v.deal_id === d.id && isContractInvoice(v)),
+      renewals: (invoices ?? []).filter((v) => v.deal_id === d.id && !isContractInvoice(v)),
     }))
     .sort(
       (a, b) =>
@@ -274,16 +279,44 @@ export default async function ClientDetail({ params }: { params: Promise<{ id: s
         )}
       </div>
 
-      {/* Financial Overview — owner/admin only. Staff must not see billing. */}
+      {/* Financial Overview — owner/admin only. Staff must not see billing.
+          "Invoiced to date" used to sit here. It counted contract stages and
+          extras together, so it silently disagreed with the Services card
+          below — and it is already visible per-deal inside that card. */}
       {canManage ? (
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-          <Stat label="Contract value" value={moneyMulti(contract, "—")} />
-          <Stat label="Invoiced to date" value={moneyMulti(billed, "—")} />
-          <Stat label="Total paid" value={moneyMulti(paid, "—")} tone="good" />
           <Stat
-            label="Outstanding balance"
-            value={moneyMulti(outstanding, contract.length || billed.length ? "Settled in full" : "—")}
+            label="Contract value"
+            value={moneyMulti(contract, "—")}
+            hint={
+              contract.length
+                ? `Across ${services.length} signed agreement${services.length === 1 ? "" : "s"}`
+                : undefined
+            }
+          />
+          <Stat
+            label="Contract paid"
+            value={moneyMulti(contractPos.paid, "—")}
+            tone="good"
+            hint="Payment stages only"
+          />
+          <Stat
+            label="Contract outstanding"
+            value={moneyMulti(
+              outstanding,
+              contract.length || contractPos.billed.length ? "Settled in full" : "—"
+            )}
             tone={outstanding.length ? "warn" : "default"}
+          />
+          <Stat
+            label="Extras billed"
+            value={moneyMulti(extrasPos.billed, "—")}
+            tone={extrasPos.outstanding.length ? "warn" : "default"}
+            hint={
+              extrasPos.billed.length
+                ? `${moneyMulti(extrasPos.outstanding, "nothing")} still owed`
+                : "Change requests, renewals and costs paid on their behalf"
+            }
           />
         </div>
       ) : (
@@ -296,6 +329,10 @@ export default async function ClientDetail({ params }: { params: Promise<{ id: s
       {/* Every service they bought, numbered and expandable. A flat badge bar
           stopped making sense the moment anyone bought a second thing. */}
       <ClientServices clientId={id} services={services} canManage={canManage} />
+
+      {/* Anything billed outside the agreements. Without this the money was
+          counted in the stat row and shown in no list. */}
+      {canManage && <ClientExtrasCard invoices={invoices ?? []} />}
 
       {canManage && (
         <div className="mt-6">
