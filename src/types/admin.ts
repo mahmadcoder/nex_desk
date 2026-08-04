@@ -14,6 +14,11 @@ export interface Employee {
   salary_currency: string;
   employment_type: string;
   joining_date: string;
+  /**
+   * Last working day, when known. Used only to pro-rate the final month's pay
+   * — `status` is what controls whether the account works.
+   */
+  leaving_date?: string | null;
   status: string;
   skills: string[];
   notes?: string | null;

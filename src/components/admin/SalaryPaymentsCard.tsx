@@ -10,6 +10,7 @@ import CustomSelect from "@/components/ui/CustomSelect";
 import ReceiptUpload from "@/components/admin/ReceiptUpload";
 import { money, CURRENCIES } from "@/lib/utils";
 import { recordSalaryPayment, deleteSalaryPayment } from "@/lib/actions/payroll";
+import { proRataSalary } from "@/lib/payroll";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
@@ -48,9 +49,21 @@ export default function SalaryPaymentsCard({
   const [open, setOpen] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState<any>(null);
 
-  const [f, setF] = useState({
-    periodMonth: firstOfThisMonth(),
-    amount: String(employee.salary_amount ?? ""),
+  const [f, setF] = useState(() => {
+    // Pro-rated from the first render, not only after the month is changed —
+    // opening the form in somebody's joining month and seeing a full salary
+    // pre-filled is exactly how the wrong amount gets sent.
+    const opening = firstOfThisMonth();
+    return {
+    periodMonth: opening,
+    amount: String(
+      proRataSalary({
+        salary: Number(employee.salary_amount || 0),
+        periodMonth: opening,
+        joiningDate: employee.joining_date,
+        leavingDate: employee.leaving_date,
+      }).amount || ""
+    ),
     currency: String(employee.salary_currency || "USD").toUpperCase(),
     paidOn: new Date().toISOString().slice(0, 10),
     method: "bank_transfer",
@@ -58,7 +71,21 @@ export default function SalaryPaymentsCard({
     slipUrl: "",
     note: "",
     notifyEmployee: true,
+    };
   });
+
+  // What this month is actually worth for this person. Somebody who joined on
+  // the 10th of a 31-day month has earned 22/31 of a month, not all of it.
+  const proRata = useMemo(
+    () =>
+      proRataSalary({
+        salary: Number(employee.salary_amount || 0),
+        periodMonth: f.periodMonth,
+        joiningDate: employee.joining_date,
+        leavingDate: employee.leaving_date,
+      }),
+    [employee.salary_amount, employee.joining_date, employee.leaving_date, f.periodMonth]
+  );
 
   // Paying a month in two instalments is normal, so this is a warning rather
   // than a block — but paying the same month twice by accident is not, and
@@ -216,7 +243,18 @@ export default function SalaryPaymentsCard({
                 className={field}
                 type="month"
                 value={f.periodMonth.slice(0, 7)}
-                onChange={(e) => setF({ ...f, periodMonth: `${e.target.value}-01` })}
+                onChange={(e) => {
+                  const periodMonth = `${e.target.value}-01`;
+                  const next = proRataSalary({
+                    salary: Number(employee.salary_amount || 0),
+                    periodMonth,
+                    joiningDate: employee.joining_date,
+                    leavingDate: employee.leaving_date,
+                  });
+                  // Re-suggest the figure for the month just chosen. Still
+                  // editable — a part month is a starting point, not a rule.
+                  setF({ ...f, periodMonth, amount: String(next.amount) });
+                }}
               />
               <p className="mt-1 text-[11px] text-bone-400">
                 The month the work was done, not the day you sent it.
@@ -255,8 +293,10 @@ export default function SalaryPaymentsCard({
                 value={f.amount}
                 onChange={(e) => setF({ ...f, amount: e.target.value })}
               />
-              <p className="mt-1 text-[11px] text-bone-400">
-                Their salary is {money(Number(employee.salary_amount || 0), employee.salary_currency)}.
+              <p className={`mt-1 text-[11px] leading-relaxed ${proRata.isPartial ? "text-amber-300" : "text-bone-400"}`}>
+                {proRata.isPartial
+                  ? proRata.reason
+                  : `Their full monthly salary is ${money(Number(employee.salary_amount || 0), employee.salary_currency)}.`}
               </p>
             </div>
             <div>

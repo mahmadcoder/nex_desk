@@ -60,7 +60,7 @@ function LineItems({
           <View key={i} style={s.tr}>
             <View style={{ flex: 5 }}>
               <Text>{it.item}</Text>
-              {it.note && <Text style={[s.muted, { fontSize: 8, marginTop: 2 }]}>{it.note}</Text>}
+              {it.note && <Text style={[s.muted, { fontSize: 9, marginTop: 2 }]}>{it.note}</Text>}
             </View>
             <Text style={{ flex: 1, textAlign: "center" }}>{it.qty ?? 1}</Text>
             <Text style={{ flex: 1.6, textAlign: "right" }}>{fmt(it.price, currency)}</Text>
@@ -212,7 +212,7 @@ export function AgreementDoc({ deal, client, settings }: { deal: any; client: Pa
               Date: {date(deal.accepted_at ?? deal.signature_date ?? deal.locked_at)}
             </Text>
             {deal.accepted_at && (
-              <Text style={[s.muted, { marginTop: 4, fontSize: 7 }]}>
+              <Text style={[s.muted, { marginTop: 4, fontSize: 9 }]}>
                 Accepted electronically in the client portal
                 {deal.accepted_ip ? ` from ${deal.accepted_ip}` : ""}
               </Text>
@@ -539,7 +539,7 @@ export function ProgressDoc({ project, client, milestones }: { project: any; cli
             <View key={m.id} style={s.tr}>
               <View style={{ flex: 5 }}>
                 <Text>{m.title}</Text>
-                {m.description && <Text style={[s.muted, { fontSize: 8 }]}>{m.description}</Text>}
+                {m.description && <Text style={[s.muted, { fontSize: 9 }]}>{m.description}</Text>}
               </View>
               <Text style={{ flex: 2 }}>{date(m.due_date)}</Text>
               <Text style={{ flex: 2, textAlign: "right", color: m.is_done ? C.ok : C.muted }}>
@@ -862,8 +862,8 @@ export function AgencyTemplatePdfDocument({
         <DocHeader type={badge || "AGENCY DOCUMENT"} number={no} />
 
         <View style={{ marginTop: 8, marginBottom: 12, borderBottomWidth: 1, borderBottomColor: C.line, paddingBottom: 6 }}>
-          <Text style={[s.h1, { fontSize: 15, color: C.ink }]}>{title.toUpperCase()}</Text>
-          <Text style={{ fontSize: 8, color: C.muted, marginTop: 3 }}>
+          <Text style={[s.h1, { fontSize: 20, color: C.ink }]}>{title.toUpperCase()}</Text>
+          <Text style={{ fontSize: 10, color: C.muted, marginTop: 4 }}>
             Nex Desk Software Agency · {getSiteBaseUrl().replace(/^https?:\/\//, "")} · {CONTACT_EMAIL} · Multan, PK
           </Text>
         </View>
@@ -890,13 +890,13 @@ export function AgencyTemplatePdfDocument({
 
             if (isHeading) {
               return (
-                <Text key={idx} style={[s.h2, { fontSize: 9.5, marginTop: 8, marginBottom: 3, color: C.ink }]} wrap={false}>
+                <Text key={idx} style={[s.h2, { fontSize: 13.5, marginTop: 18, marginBottom: 6, color: C.ink }]} wrap={false}>
                   {line}
                 </Text>
               );
             }
             return (
-              <Text key={idx} style={{ fontSize: 8.5, lineHeight: 1.4, color: C.ink, marginBottom: 4 }}>
+              <Text key={idx} style={{ fontSize: 10.5, lineHeight: 1.65, color: C.ink, marginBottom: 4 }}>
                 {line}
               </Text>
             );
@@ -906,11 +906,11 @@ export function AgencyTemplatePdfDocument({
         <View style={[s.signRow, { marginTop: 16 }]} wrap={false}>
           <View style={s.signBox}>
             <Text style={s.label}>Authorized Representative</Text>
-            <Text style={{ marginTop: 8, fontSize: 8.5, color: C.ink }}>Nex Desk Software Agency</Text>
+            <Text style={{ marginTop: 8, fontSize: 10.5, color: C.ink }}>Nex Desk Software Agency</Text>
           </View>
           <View style={s.signBox}>
             <Text style={s.label}>Client Acceptance & Sign-Off</Text>
-            <Text style={{ marginTop: 8, fontSize: 8.5, color: C.ink }}>Client Organization</Text>
+            <Text style={{ marginTop: 8, fontSize: 10.5, color: C.ink }}>Client Organization</Text>
           </View>
         </View>
 

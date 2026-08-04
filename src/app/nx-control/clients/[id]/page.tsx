@@ -74,6 +74,7 @@ export default async function ClientDetail({ params }: { params: Promise<{ id: s
     { data: assignedEmployees, error: assignedEmployeesError },
     { data: allEmployees },
     { data: expenses, error: expensesError },
+    { data: changeRequests },
   ] = await Promise.all([
     db.from("projects").select("*").eq("client_id", id).order("created_at", { ascending: false }),
     db.from("invoices").select("*").eq("client_id", id).order("issue_date", { ascending: false }),
@@ -83,6 +84,11 @@ export default async function ClientDetail({ params }: { params: Promise<{ id: s
     db.from("client_employee_assignments").select("*, employees(id, full_name, email, job_title, seniority, avatar_url)").eq("client_id", id),
     db.from("employees").select("id, full_name, email, job_title, seniority"),
     db.from("project_expenses").select("*").eq("client_id", id).order("incurred_on", { ascending: false }),
+    // Agreed change requests are extra work the client bought, so they count
+    // towards the contract — and their invoices count as contract invoices.
+    db.from("change_requests")
+      .select("id, status, quoted_amount, currency, invoice_id, title")
+      .eq("client_id", id),
   ]);
 
   // Loud on purpose: before the 2027-06 migration this select returns an error
@@ -135,8 +141,8 @@ export default async function ClientDetail({ params }: { params: Promise<{ id: s
   // EVERY invoice, so a client who paid $110 for a domain appeared to owe $110
   // less on a $4,000 agreement. The stat row then disagreed with the Services
   // card directly beneath it, which had always filtered by `deal_id`.
-  const contractPos = contractPosition(allDeals, invoices ?? []);
-  const extrasPos = extrasPosition(invoices ?? []);
+  const contractPos = contractPosition(allDeals, invoices ?? [], changeRequests ?? []);
+  const extrasPos = extrasPosition(invoices ?? [], changeRequests ?? []);
 
   const contract = contractPos.contracted;
   const outstanding = contractPos.outstanding;

@@ -67,13 +67,46 @@ export function isRecurringInvoice(inv: any): boolean {
   );
 }
 
-export function splitInvoices(invoices: any[] = []) {
+/**
+ * Change-request statuses that represent work the client has actually agreed
+ * to buy. `requested` and `quoted` are still conversations; `declined` is a no.
+ *
+ * `approved` is in the enum but `approveChangeRequest` writes `invoiced`
+ * directly — it is accepted here anyway, so a status that exists cannot go
+ * quietly uncounted if it ever starts being used.
+ */
+const AGREED_CR_STATUSES = new Set(["approved", "invoiced", "completed"]);
+
+export function agreedChangeRequests(changeRequests: any[] = []) {
+  return changeRequests.filter((c) => AGREED_CR_STATUSES.has(String(c?.status)));
+}
+
+/** The invoices raised by agreed change requests, so they can be recognised. */
+export function changeRequestInvoiceIds(changeRequests: any[] = []): Set<string> {
+  return new Set(
+    agreedChangeRequests(changeRequests)
+      .map((c) => c?.invoice_id)
+      .filter(Boolean) as string[]
+  );
+}
+
+/**
+ * Sorts invoices by where they came from.
+ *
+ * A change-request invoice and a re-billed domain look identical by column —
+ * both carry `deal_id` NULL and `stage_index` NULL — so the only way to tell
+ * them apart is the link stored on `change_requests.invoice_id`. Pass those ids
+ * in and a change request is treated as contract work, which is what it is:
+ * extra scope the client agreed to buy. A re-billed cost is not, and stays an
+ * extra.
+ */
+export function splitInvoices(invoices: any[] = [], crInvoiceIds?: Set<string>) {
   const contract: any[] = [];
   const recurring: any[] = [];
   const extras: any[] = [];
 
   for (const inv of invoices) {
-    if (isContractInvoice(inv)) contract.push(inv);
+    if (isContractInvoice(inv) || crInvoiceIds?.has(inv?.id)) contract.push(inv);
     else if (isRecurringInvoice(inv)) recurring.push(inv);
     else extras.push(inv);
   }
@@ -95,12 +128,33 @@ const issued = (rows: any[]) => rows.filter((i) => i.status !== "draft");
  * Subtraction happens per currency code. A USD contract part-paid by a PKR
  * invoice stays fully outstanding in USD rather than being quietly netted off.
  */
-export function contractPosition(deals: any[] = [], invoices: any[] = []): Position {
+export function contractPosition(
+  deals: any[] = [],
+  invoices: any[] = [],
+  changeRequests: any[] = []
+): Position {
   const locked = deals.filter((d) => d?.status === "locked");
-  const { contract } = splitInvoices(invoices);
+
+  // Agreed extra work counts towards the contract, and its invoices count as
+  // contract invoices. Both sides come from the SAME filtered list — take the
+  // value from one set and the invoices from another and `outstanding` drifts
+  // by exactly the difference.
+  const agreedCRs = agreedChangeRequests(changeRequests);
+  const { contract } = splitInvoices(invoices, changeRequestInvoiceIds(changeRequests));
   const sent = issued(contract);
 
-  const contracted = sumByCurrency(locked, (d: any) => d.currency, (d: any) => Number(d.total));
+  const contracted = sumByCurrency(
+    [
+      ...locked.map((d: any) => ({ currency: d.currency, value: Number(d.total) })),
+      ...agreedCRs.map((c: any) => ({
+        // A change request may be quoted in a different currency from the deal.
+        currency: c.currency || "USD",
+        value: Number(c.quoted_amount || 0),
+      })),
+    ],
+    (r: any) => r.currency,
+    (r: any) => r.value
+  );
   const billed = sumByCurrency(sent, (i: any) => i.currency, (i: any) => Number(i.total));
   const paid = sumByCurrency(sent, (i: any) => i.currency, (i: any) => Number(i.amount_paid));
 
@@ -122,14 +176,20 @@ export function contractPosition(deals: any[] = [], invoices: any[] = []): Posit
 }
 
 /**
- * Everything that is not the contract: change requests, re-billed costs, and
- * retainer renewals.
+ * Everything that is not the contract: re-billed costs and retainer renewals.
+ *
+ * `changeRequests` must be passed the SAME list given to `contractPosition`.
+ * Agreed change requests moved to the contract side, and leaving them here too
+ * would count the same money twice — once as contract, once as an extra.
  *
  * Outstanding here is per invoice (`total − amount_paid`) because there is no
  * agreed total to measure against — each of these is its own small agreement.
  */
-export function extrasPosition(invoices: any[] = []): Position {
-  const { recurring, extras } = splitInvoices(invoices);
+export function extrasPosition(invoices: any[] = [], changeRequests: any[] = []): Position {
+  const { recurring, extras } = splitInvoices(
+    invoices,
+    changeRequestInvoiceIds(changeRequests)
+  );
   const sent = issued([...recurring, ...extras]);
 
   const billed = sumByCurrency(sent, (i: any) => i.currency, (i: any) => Number(i.total));

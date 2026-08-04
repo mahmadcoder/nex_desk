@@ -39,7 +39,7 @@ export default async function Dashboard({
   const db = createAdminClient();
   const monthStart = new Date(new Date().setDate(1)).toISOString().slice(0, 10);
 
-  const [payments, invoices, projects, leads, deals, rates] = await Promise.all([
+  const [payments, invoices, projects, leads, deals, changeRequests, rates] = await Promise.all([
     db.from("payments").select("amount, currency, paid_on, exchange_rate, realized_base_amount").gte("paid_on", monthStart),
     db.from("invoices").select("id, invoice_no, total, amount_paid, currency, status, due_date, clients(name)")
       .in("status", ["sent", "partial", "overdue"]).order("due_date"),
@@ -51,6 +51,11 @@ export default async function Dashboard({
       .neq("status", "spam")
       .order("created_at", { ascending: false }).limit(6),
     db.from("deals").select("total, currency, status").eq("status", "locked"),
+    // Extra work the client agreed to buy is booked revenue too — it just
+    // lives in a different table, which is why it never appeared here.
+    db.from("change_requests")
+      .select("quoted_amount, currency, status")
+      .in("status", ["approved", "invoiced", "completed"]),
     getLiveExchangeRates(),
   ]);
 
@@ -70,7 +75,10 @@ export default async function Dashboard({
       outstanding = displayInvoices.reduce((s, i) => s + (Number(i.total) - Number(i.amount_paid)), 0);
 
       const dList = (deals.data ?? []).filter((d) => d.currency === filterCurr);
-      booked = dList.reduce((s, d) => s + Number(d.total), 0);
+      const cList = (changeRequests.data ?? []).filter((c) => c.currency === filterCurr);
+      booked =
+        dList.reduce((s, d) => s + Number(d.total), 0) +
+        cList.reduce((s, c) => s + Number(c.quoted_amount || 0), 0);
     } else {
       // ALL Currencies -> Sum in PKR equivalent using realized / contract base
       revenue = (payments.data ?? []).reduce((s, p) => {
@@ -78,7 +86,9 @@ export default async function Dashboard({
         return s + convertCurrency(Number(p.amount), p.currency || "PKR", "PKR", rates);
       }, 0);
       outstanding = (invoices.data ?? []).reduce((s, i) => s + convertCurrency(Number(i.total) - Number(i.amount_paid), i.currency || "PKR", "PKR", rates), 0);
-      booked = (deals.data ?? []).reduce((s, d) => s + convertCurrency(Number(d.total), d.currency || "PKR", "PKR", rates), 0);
+      booked =
+        (deals.data ?? []).reduce((s, d) => s + convertCurrency(Number(d.total), d.currency || "PKR", "PKR", rates), 0) +
+        (changeRequests.data ?? []).reduce((s, c) => s + convertCurrency(Number(c.quoted_amount || 0), c.currency || "PKR", "PKR", rates), 0);
       displayCurrency = "PKR";
     }
   } else {
@@ -98,9 +108,13 @@ export default async function Dashboard({
       return sum + convertCurrency(balanceNum, i.currency || "PKR", displayCurrency, rates);
     }, 0);
 
-    booked = (deals.data ?? []).reduce((sum, d) => {
-      return sum + convertCurrency(Number(d.total), d.currency || "PKR", displayCurrency, rates);
-    }, 0);
+    booked =
+      (deals.data ?? []).reduce((sum, d) => {
+        return sum + convertCurrency(Number(d.total), d.currency || "PKR", displayCurrency, rates);
+      }, 0) +
+      (changeRequests.data ?? []).reduce((sum, c) => {
+        return sum + convertCurrency(Number(c.quoted_amount || 0), c.currency || "PKR", displayCurrency, rates);
+      }, 0);
   }
 
   // Who is off, and what is waiting on a decision. Leave that nobody sees is

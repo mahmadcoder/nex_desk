@@ -31,7 +31,7 @@ export function DocHeader({ type, number }: { type: string; number: string }) {
         <Mark />
         <View>
           <Text style={s.brandName}>Nex Desk</Text>
-          <Text style={{ fontSize: 7.5, color: C.muted }}>Software agency</Text>
+          <Text style={{ fontSize: 9, color: C.muted }}>Software agency</Text>
         </View>
       </View>
       <View style={{ alignItems: "flex-end" }}>

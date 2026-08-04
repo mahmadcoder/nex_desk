@@ -60,22 +60,29 @@ export async function handoverGate(projectId: string): Promise<HandoverGate> {
   const deal = (project.deals as any) ?? null;
   const rows = invoices ?? [];
 
+  // All of them: the agreed ones count towards the contract, and the
+  // not-yet-invoiced ones are the only case the contract balance cannot see.
+  const { data: changeRequests } = await db
+    .from("change_requests")
+    .select("id, title, quoted_amount, currency, status, invoice_id")
+    .eq("project_id", projectId);
+
   // A deal with a zero total carries no agreed figure, so it falls through to
   // the invoice-based basis inside contractPosition rather than reporting
   // nothing owed — which would silently unlock the gate.
   const contract = contractPosition(
     deal && Number(deal.total) > 0 ? [{ ...deal, status: "locked" }] : [],
-    rows
+    rows,
+    changeRequests ?? []
   );
-  const extras = extrasPosition(rows);
+  const extras = extrasPosition(rows, changeRequests ?? []);
 
-  // An approved change is work the client has committed to pay for. Handing
-  // the project over while it is outstanding gives away the leverage.
-  const { data: openChanges } = await db
-    .from("change_requests")
-    .select("id, title, quoted_amount, currency, status")
-    .eq("project_id", projectId)
-    .in("status", ["approved", "invoiced"]);
+  // Agreed but NOT yet invoiced. Once a change request is invoiced its unpaid
+  // balance is already inside contract.outstanding above, so listing it here
+  // as well would block the handover twice for one reason.
+  const openChanges = (changeRequests ?? []).filter((c) =>
+    ["quoted", "approved"].includes(String(c.status))
+  );
 
   const reasons: string[] = [];
   const warnings: string[] = [];
@@ -88,7 +95,7 @@ export async function handoverGate(projectId: string): Promise<HandoverGate> {
   }
   if (openChanges?.length) {
     reasons.push(
-      `${openChanges.length} approved change request${openChanges.length === 1 ? "" : "s"} not yet paid.`
+      `${openChanges.length} agreed change request${openChanges.length === 1 ? "" : "s"} still to be invoiced.`
     );
   }
 
@@ -104,7 +111,7 @@ export async function handoverGate(projectId: string): Promise<HandoverGate> {
     deal,
     contract,
     extras,
-    openChanges: openChanges ?? [],
+    openChanges,
     reasons,
     warnings,
   };

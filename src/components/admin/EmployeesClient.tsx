@@ -107,6 +107,7 @@ export default function EmployeesClient({
             salary_currency: editing.salary_currency ?? "USD",
             employment_type: editing.employment_type ?? "Full-Time",
             joining_date: editing.joining_date ?? new Date().toISOString().slice(0, 10),
+            leaving_date: editing.leaving_date || null,
             status: editing.status ?? "Active",
             skills: editing.skills ?? [],
             notes: editing.notes ?? null,
@@ -552,6 +553,22 @@ export default function EmployeesClient({
                     onChange={(e) => setEditing({ ...editing, joining_date: e.target.value })}
                   />
                 </div>
+              </div>
+
+              <div>
+                <label className="mono-tag text-xs mb-1 block">Last Working Day (optional)</label>
+                <input
+                  type="date"
+                  min={editing.joining_date ?? undefined}
+                  className="w-full rounded-lg border border-ink-500 bg-ink-800 px-3 py-2 text-xs text-bone-50 focus:border-lime-400 focus:outline-none font-mono"
+                  value={editing.leaving_date ?? ""}
+                  onChange={(e) => setEditing({ ...editing, leaving_date: e.target.value || null })}
+                />
+                <p className="mt-1 text-[11px] leading-relaxed text-bone-400">
+                  Used to work out the final month&rsquo;s pay from the days actually worked.
+                  It does <strong>not</strong> switch off their account — set Status to
+                  Terminated for that, so recording a future last day cannot cut someone off today.
+                </p>
               </div>
 
               <div className="grid grid-cols-3 gap-3">

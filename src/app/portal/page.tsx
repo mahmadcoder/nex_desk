@@ -108,6 +108,15 @@ export default async function Portal() {
         .order("created_at", { ascending: false })
     : { data: [] as any[] };
 
+  // The query above is deliberately filtered to OPEN requests for the
+  // client-facing list. Contract value needs the AGREED ones, which is a
+  // different set — so it is read separately rather than reusing that one.
+  const { data: agreedChanges } = projectIds.length
+    ? await db.from("change_requests")
+        .select("id, status, quoted_amount, currency, invoice_id")
+        .in("project_id", projectIds)
+    : { data: [] as any[] };
+
   const [{ data: milestones }, { data: sharedLogs }] = projectIds.length
     ? await Promise.all([
         db.from("milestones").select("*").in("project_id", projectIds).order("sort_order"),
@@ -155,9 +164,10 @@ export default async function Portal() {
   // client's own screen is worse.
   const contractPos = contractPosition(
     lockedDeals.map((d: any) => ({ ...d, status: "locked" })),
-    invoiceRows
+    invoiceRows,
+    agreedChanges ?? []
   );
-  const extrasPos = extrasPosition(invoiceRows);
+  const extrasPos = extrasPosition(invoiceRows, agreedChanges ?? []);
 
   const contractValue = contractPos.contracted;
   const totalPaid = mergeTotals(contractPos.paid, extrasPos.paid);

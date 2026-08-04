@@ -45,6 +45,14 @@ export default async function ProfitPage() {
   const { data: outlays, error: outlayErr } = await db
     .from("project_expenses")
     .select("project_id, cost, bill_amount, currency, status");
+
+  // Agreed change requests are extra work the client bought, so they belong in
+  // the contract figure. Revenue below already counts their invoices — this
+  // stops the contract column reading lower than the revenue beside it.
+  const { data: agreedChanges } = await db
+    .from("change_requests")
+    .select("project_id, quoted_amount, currency, status")
+    .in("status", ["approved", "invoiced", "completed"]);
   if (outlayErr) {
     console.error("Profitability: could not load expenses", outlayErr);
   }
@@ -105,7 +113,14 @@ export default async function ProfitPage() {
         clientId: p.client_id,
         status: String(p.status).replace(/_/g, " "),
         currency,
-        contract: Number(p.deals?.total || 0),
+        contract:
+          Number(p.deals?.total || 0) +
+          (agreedChanges ?? [])
+            .filter((c) => c.project_id === p.id)
+            .reduce(
+              (s, c) => s + convertCurrency(Number(c.quoted_amount || 0), c.currency || currency, currency, rates),
+              0
+            ),
         revenue,
         hours,
         labour: cost,
