@@ -438,6 +438,10 @@ Anything that turns out to be **broken in what we built** we fix free until **{{
 
 Anything **new** — a feature, a page, a change of mind — is quoted first, so you always know the cost before we start rather than after. Raise one from your portal any time.
 
+## Your account
+
+{{settled_line}}
+
 It has been a pleasure working with you.
 
 {{sender_name}}
@@ -1215,6 +1219,21 @@ Open the panel:
    * has no copy for and logs a failure nobody reads — so the day an override
    * is dropped or arrives empty, this is what goes out instead of nothing.
    */
+
+  admin_client_return_request: {
+    subject: "👋 {{client_name}} wants to work together again",
+    body: `{{client_name}} has asked to reactivate their account from their portal.
+
+• Client: {{client_name}}
+• Email: {{client_email}}
+
+What they said:
+
+{{message}}
+
+Reactivating them from their profile sends the welcome-back email and reopens their portal:
+{{admin_url}}`,
+  },
 
   admin_deadline_warning: {
     subject: "📅 Project deadlines coming up",

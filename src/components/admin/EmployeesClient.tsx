@@ -556,6 +556,24 @@ export default function EmployeesClient({
               </div>
 
               <div>
+                <label className="mono-tag text-xs mb-1 block">Status</label>
+                <CustomSelect
+                  options={[
+                    { value: "Active", label: "Active" },
+                    { value: "On Leave", label: "On Leave" },
+                    { value: "Terminated", label: "Terminated" },
+                  ]}
+                  value={editing.status ?? "Active"}
+                  onChange={(v) => setEditing({ ...editing, status: v })}
+                />
+                <p className="mt-1 text-[11px] leading-relaxed text-bone-400">
+                  <strong>Terminated blocks sign-in immediately</strong> — they lose the panel the
+                  moment you save. On Leave keeps access, since somebody on leave still needs
+                  their pay and leave pages.
+                </p>
+              </div>
+
+              <div>
                 <label className="mono-tag text-xs mb-1 block">Last Working Day (optional)</label>
                 <input
                   type="date"

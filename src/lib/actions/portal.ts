@@ -119,6 +119,99 @@ export async function approveMilestone(
 }
 
 /* ============================================================
+   COMING BACK
+   ============================================================ */
+
+/**
+ * A dormant client asking to work together again.
+ *
+ * Their portal goes read-only when the account is paused, so this is the one
+ * action left to them — deliberately, because the alternative was hiding the
+ * change-request form and leaving them to hunt for an email address while they
+ * were sitting in front of us already thinking about it.
+ *
+ * Limited to one open request: the button emails the admin, and without the
+ * limit it is a way to flood that address from a logged-in session.
+ */
+export async function requestReactivation(
+  message: string
+): Promise<{ ok: boolean; error?: string }> {
+  const db = createAdminClient();
+
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user?.email) return { ok: false, error: "Sign in to your portal first." };
+
+  const { data: client } = await db
+    .from("clients")
+    .select("id, name, email, lifecycle, return_requested_at")
+    .eq("email", user.email)
+    .maybeSingle();
+  if (!client) return { ok: false, error: "No client profile found for this account." };
+
+  if (client.lifecycle === "active") {
+    return { ok: false, error: "Your account is already active." };
+  }
+
+  // One at a time. A second press before we have answered the first would only
+  // send us the same thing twice.
+  if (client.return_requested_at) {
+    return {
+      ok: false,
+      error: "We already have your request and will be in touch — no need to send it again.",
+    };
+  }
+
+  const note = message?.trim() || null;
+
+  const { error } = await db.from("clients").update({
+    return_requested_at: new Date().toISOString(),
+    return_request_note: note,
+  }).eq("id", client.id);
+
+  if (error) {
+    console.error("requestReactivation failed:", error);
+    return {
+      ok: false,
+      error:
+        error.code === "42703"
+          ? "This is not set up yet — run supabase/idempotent_fixes_2027_16.sql."
+          : "Could not send that just now. Try again in a moment.",
+    };
+  }
+
+  await notify({
+    kind: "client.return_request",
+    title: `${client.name} wants to work together again`,
+    body: note || "No message left — worth a call.",
+    href: `/${ADMIN}/clients/${client.id}`,
+    entity: "clients",
+    entityId: client.id,
+    actorLabel: client.name,
+    actorKind: "client",
+    clientId: client.id,
+  });
+
+  await sendEmail({
+    templateKey: "admin_client_return_request",
+    to: await adminNotifyAddress(),
+    clientId: client.id,
+    vars: {
+      client_name: client.name,
+      client_email: client.email ?? "—",
+      message: note || "(no message left)",
+      admin_url: `${getSiteBaseUrl()}/${ADMIN}/clients/${client.id}`,
+    },
+  }).catch((e) => console.error("Return-request notice failed:", e));
+
+  await recordAudit(null, "client.return_request", "clients", client.id, { note });
+
+  revalidatePath("/portal");
+  revalidatePath(`/${ADMIN}/clients/${client.id}`);
+  return { ok: true };
+}
+
+/* ============================================================
    KICKOFF CHECKLIST
    ============================================================ */
 

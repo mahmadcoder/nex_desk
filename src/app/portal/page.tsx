@@ -12,6 +12,7 @@ import ClientChangeRequest from "@/components/portal/ClientChangeRequest";
 import AcceptAgreement from "@/components/portal/AcceptAgreement";
 import ApproveMilestone from "@/components/portal/ApproveMilestone";
 import KickoffChecklist from "@/components/portal/KickoffChecklist";
+import ReturnRequest from "@/components/portal/ReturnRequest";
 import { describeMetrics } from "@/config/logFields";
 
 export const dynamic = "force-dynamic";
@@ -35,6 +36,13 @@ export default async function Portal() {
       </div>
     );
   }
+
+  // A paused account keeps its portal — every invoice and document a client
+  // may need years later stays reachable — but goes read-only. Uploading and
+  // raising new work are replaced by one button to ask us to pick things back
+  // up. The same rule is enforced server-side in raiseChangeRequest; hiding a
+  // form is not a control.
+  const isPaused = String(client.lifecycle ?? "active") !== "active";
 
   const perms = {
     show_financials: true,
@@ -218,6 +226,32 @@ export default async function Portal() {
           <ClientPortalSignOutButton />
         </div>
       </div>
+
+      {/* A paused account. Said plainly and without blame — a dormant client is
+          a past client, not a problem account, and this page is very often the
+          last thing they see of us. Everything below stays readable. */}
+      {isPaused && (
+        <section className="mt-8 card border-lime-400/25 bg-lime-400/[0.04] p-6">
+          <div className="flex flex-wrap items-start justify-between gap-5">
+            <div className="max-w-xl">
+              <span className="mono-tag text-xs text-lime-400">Account paused</span>
+              <h2 className="mt-2 text-lg font-semibold text-bone-50">
+                We are not working on anything for you right now.
+              </h2>
+              <p className="mt-2 text-sm leading-relaxed text-bone-300">
+                Everything from our work together stays here — invoices, receipts, documents and
+                the full history — and it is yours to download at any time. New requests and
+                uploads are switched off while things are paused. Whenever you want to start
+                something again, tell us here and we will pick it straight back up.
+              </p>
+            </div>
+            <ReturnRequest
+              clientName={String(client.name ?? "")}
+              alreadyRequested={!!client.return_requested_at}
+            />
+          </div>
+        </section>
+      )}
 
       {/* Agreements waiting on the client. Accepting here replaces print,
           sign, scan and upload — three chances to lose momentum. */}
@@ -477,11 +511,13 @@ export default async function Portal() {
               <KickoffChecklist projectId={p.id} items={p.kickoff_items} />
             )}
 
-            <ClientChangeRequest
-              projectId={p.id}
-              projectName={p.name}
-              openRequests={(myChangeRequests ?? []).filter((c) => c.project_id === p.id)}
-            />
+            {!isPaused && (
+              <ClientChangeRequest
+                projectId={p.id}
+                projectName={p.name}
+                openRequests={(myChangeRequests ?? []).filter((c) => c.project_id === p.id)}
+              />
+            )}
           </section>
         );
       })}
@@ -596,7 +632,7 @@ export default async function Portal() {
 
         {perms.show_files && (
           <div className="space-y-6">
-            <ClientDocumentUploader clientId={client.id} />
+            {!isPaused && <ClientDocumentUploader clientId={client.id} />}
 
             <section className="card p-6">
               <div className="border-b border-ink-600 pb-4">

@@ -91,6 +91,21 @@ export function changeRequestInvoiceIds(changeRequests: any[] = []): Set<string>
 }
 
 /**
+ * The invoices raised by re-billing costs paid on a client's behalf.
+ *
+ * Same mechanism as `changeRequestInvoiceIds` — the link lives on the row that
+ * caused the invoice, because the invoice itself carries nothing to
+ * distinguish it. Used to keep purchases out of the service-work figures on
+ * Profitability and Money In & Out, where their margin is deliberately not
+ * shown.
+ */
+export function expenseInvoiceIds(expenses: any[] = []): Set<string> {
+  return new Set(
+    expenses.map((x) => x?.invoice_id).filter(Boolean) as string[]
+  );
+}
+
+/**
  * Sorts invoices by where they came from.
  *
  * A change-request invoice and a re-billed domain look identical by column —

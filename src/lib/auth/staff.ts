@@ -82,9 +82,25 @@ export async function getCurrentStaff(): Promise<CurrentStaff | null> {
   let employeeId: string | null = null;
   try {
     const { data: employee } = await db
-      .from("employees").select("id").eq("user_id", user.id).maybeSingle();
+      .from("employees").select("id, status").eq("user_id", user.id).maybeSingle();
+
+    // `employees.status` was recorded and never checked, so somebody marked
+    // Terminated kept full access to the panel — the only working kill switch
+    // was `profiles.is_active`, in a different table from the one the admin
+    // was editing. Refusing the session outright is the point of the field.
+    //
+    // "On Leave" deliberately still works: someone on leave still needs their
+    // own pay and leave pages, and locking them out would create a support
+    // request every single time anyone took a holiday.
+    if (employee && String(employee.status) === "Terminated") {
+      return null;
+    }
+
     employeeId = employee?.id ?? null;
   } catch {
+    // A missing `status` column (pre-2027-16) lands here. Failing open on the
+    // status check is right: the alternative is locking every employee out of
+    // the panel because a migration has not been run yet.
     employeeId = null;
   }
 

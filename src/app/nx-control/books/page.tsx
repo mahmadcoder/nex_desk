@@ -4,7 +4,7 @@ import { getCurrentStaff } from "@/lib/auth/staff";
 import { PageHead, Stat } from "@/components/admin/ui";
 import { money, moneyMulti, sumByCurrency, cn } from "@/lib/utils";
 import { getLiveExchangeRates, convertCurrency } from "@/lib/currency";
-import { mergeTotals, type Money } from "@/lib/billing";
+import { mergeTotals, expenseInvoiceIds, type Money } from "@/lib/billing";
 import { ArrowDownLeft, ArrowUpRight, Info, ChevronLeft, ChevronRight } from "lucide-react";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -60,24 +60,22 @@ export default async function BooksPage({
     { data: payments },
     { data: salaries, error: salaryErr },
     { data: agency, error: agencyErr },
-    { data: clientCosts },
+    { data: purchases },
     { data: refunds },
     rates,
   ] = await Promise.all([
-    db.from("payments").select("amount, fee, currency, paid_on").gte("paid_on", from).lte("paid_on", to),
+    db.from("payments").select("amount, fee, currency, paid_on, invoice_id").gte("paid_on", from).lte("paid_on", to),
     db.from("salary_payments")
       .select("amount, currency, paid_on, employees(full_name)")
       .gte("paid_on", from).lte("paid_on", to),
     db.from("agency_expenses")
       .select("amount, currency, incurred_on, label, category")
       .gte("incurred_on", from).lte("incurred_on", to),
-    // Every client cost counts, whatever its billing status: you really did pay
-    // the registrar. A re-billed one shows here as money out AND as money in
-    // through the client's payment, which nets correctly. Filtering to
-    // `absorbed` would understate what actually left the account.
-    db.from("project_expenses")
-      .select("cost, currency, incurred_on, label")
-      .gte("incurred_on", from).lte("incurred_on", to),
+    // Loaded only to identify which invoices were purchase re-bills, so the
+    // payments against them can be excluded from Money In. The costs
+    // themselves are NOT counted here — purchases live on their own page,
+    // deliberately kept out of this one on both sides.
+    db.from("project_expenses").select("invoice_id, currency, incurred_on"),
     db.from("projects")
       .select("name, refund_amount, refund_fee, refund_currency, refunded_at")
       .not("refunded_at", "is", null)
@@ -89,11 +87,20 @@ export default async function BooksPage({
   if (agencyErr) console.error("Books: agency_expenses unavailable", agencyErr);
 
   /* ---------- IN ---------------------------------------------------- */
-  const received = sumByCurrency(payments ?? [], (p: any) => p.currency, (p: any) => Number(p.amount));
+  // Payments settling a purchase re-bill are excluded. Purchases are held
+  // entirely on their own page — both the cost and the client's payment — so
+  // counting the income here while the cost sits elsewhere would overstate
+  // this month by the full purchase price.
+  const purchaseInvoices = expenseInvoiceIds(purchases ?? []);
+  const tradingPayments = (payments ?? []).filter(
+    (p: any) => !p.invoice_id || !purchaseInvoices.has(p.invoice_id)
+  );
+
+  const received = sumByCurrency(tradingPayments, (p: any) => p.currency, (p: any) => Number(p.amount));
   // Bank charges reduce what arrived; they are not a separate expense line.
   // That is exactly what `payments.fee` records, and booking it twice — once
   // here and once as a cost — would overstate outgoings.
-  const bankCharges = sumByCurrency(payments ?? [], (p: any) => p.currency, (p: any) => Number(p.fee || 0));
+  const bankCharges = sumByCurrency(tradingPayments, (p: any) => p.currency, (p: any) => Number(p.fee || 0));
   const netIn = mergeTotals(
     received,
     bankCharges.map((t) => ({ ...t, total: -t.total }))
@@ -102,14 +109,13 @@ export default async function BooksPage({
   /* ---------- OUT --------------------------------------------------- */
   const salaryOut = sumByCurrency(salaries ?? [], (s: any) => s.currency, (s: any) => Number(s.amount));
   const agencyOut = sumByCurrency(agency ?? [], (a: any) => a.currency, (a: any) => Number(a.amount));
-  const clientOut = sumByCurrency(clientCosts ?? [], (c: any) => c.currency, (c: any) => Number(c.cost || 0));
   const refundOut = sumByCurrency(
     refunds ?? [],
     (r: any) => r.refund_currency || "USD",
     (r: any) => Number(r.refund_amount || 0) + Number(r.refund_fee || 0)
   );
 
-  const totalOut = mergeTotals(mergeTotals(salaryOut, agencyOut), mergeTotals(clientOut, refundOut));
+  const totalOut = mergeTotals(mergeTotals(salaryOut, agencyOut), refundOut);
   const left = mergeTotals(netIn, totalOut.map((t) => ({ ...t, total: -t.total })));
 
   /* ---------- One combined figure, clearly caveated ------------------ */
@@ -126,7 +132,6 @@ export default async function BooksPage({
   const outRows: Array<{ label: string; totals: Money; href?: string; note?: string }> = [
     { label: "Salaries paid", totals: salaryOut, href: `${BASE}/employees`, note: "What actually left the account, not an estimate." },
     { label: "Agency expenses", totals: agencyOut, href: `${BASE}/expenses`, note: "Tools, subscriptions, hardware, office." },
-    { label: "Costs paid for clients", totals: clientOut, note: "Domains and licences bought on their behalf. Re-billed ones appear above as money in." },
     { label: "Refunds sent", totals: refundOut, note: "Including the transfer fee." },
   ].filter((r) => r.totals.length);
 
@@ -165,7 +170,7 @@ export default async function BooksPage({
 
       <div className="grid gap-4 sm:grid-cols-3">
         <Stat label="Money in" value={moneyMulti(netIn, "—")} tone="good" hint="After bank charges" />
-        <Stat label="Money out" value={moneyMulti(totalOut, "—")} hint="Salaries, tools, client costs, refunds" />
+        <Stat label="Money out" value={moneyMulti(totalOut, "—")} hint="Salaries, tools, refunds" />
         <Stat
           label="What's left"
           value={moneyMulti(left, "—")}
@@ -191,7 +196,7 @@ export default async function BooksPage({
                 note="Taken before the money reached you. Recorded per payment."
               />
             )}
-            {!payments?.length && (
+            {!tradingPayments.length && (
               <p className="px-5 py-6 text-center text-sm text-bone-300">
                 No payments received in {monthLabel(month)}.
               </p>
@@ -250,6 +255,11 @@ export default async function BooksPage({
           <em>what did we actually keep</em> and uses the payments you really made. The same
           salary appears in both at different values, on purpose — they are two questions, and
           adding them together means nothing.
+          <br /><br />
+          Purchases made on clients&rsquo; behalf are left out of this page entirely — both what
+          they cost and what the client paid for them — and are tracked on{" "}
+          <Link href={`${BASE}/purchases`} className="text-lime-400 hover:underline">Purchases</Link>.
+          So this will not tie out to your bank statement by exactly that amount.
         </p>
       </div>
     </>

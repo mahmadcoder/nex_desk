@@ -33,7 +33,8 @@ export type NotifyKind =
   | "task.assigned"
   | "leave.decided"
   | "salary.paid"
-  | "expense.renewal";
+  | "expense.renewal"
+  | "client.return_request";
 
 export async function notify(n: {
   kind: NotifyKind;

@@ -5,6 +5,7 @@ import { PageHead, Stat, Table, Empty } from "@/components/admin/ui";
 import { money } from "@/lib/utils";
 import { getLiveExchangeRates, convertCurrency } from "@/lib/currency";
 import { TrendingUp, TrendingDown, Info } from "lucide-react";
+import { expenseInvoiceIds } from "@/lib/billing";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
@@ -35,7 +36,7 @@ export default async function ProfitPage() {
       db.from("projects").select("id, name, status, client_id, clients(name), deals(total, currency)"),
       db.from("daily_work_logs").select("project_id, employee_id, hours_spent"),
       db.from("employees").select("id, full_name, salary_amount, salary_currency"),
-      db.from("invoices").select("project_id, amount_paid, currency"),
+      db.from("invoices").select("id, project_id, amount_paid, currency"),
       getLiveExchangeRates(),
     ]);
 
@@ -44,7 +45,7 @@ export default async function ProfitPage() {
   // $200 of pure profit, which is the opposite of the truth.
   const { data: outlays, error: outlayErr } = await db
     .from("project_expenses")
-    .select("project_id, cost, bill_amount, currency, status");
+    .select("project_id, cost, bill_amount, currency, status, invoice_id");
 
   // Agreed change requests are extra work the client bought, so they belong in
   // the contract figure. Revenue below already counts their invoices — this
@@ -56,6 +57,12 @@ export default async function ProfitPage() {
   if (outlayErr) {
     console.error("Profitability: could not load expenses", outlayErr);
   }
+
+  // Both sides of a purchase are excluded here: the cost above, and the
+  // client's payment for it, which arrives on an invoice raised by the
+  // re-bill. Keeping only one side would make every domain look like pure
+  // margin, or like a cost with no income against it.
+  const purchaseInvoiceIds = expenseInvoiceIds(outlays ?? []);
 
   // Expenses with no project attached cannot be charged to any one row; they
   // are surfaced separately rather than silently dropped.
@@ -78,7 +85,7 @@ export default async function ProfitPage() {
       const currency: string = p.deals?.currency || "USD";
 
       const revenue = (invoices ?? [])
-        .filter((i) => i.project_id === p.id)
+        .filter((i) => i.project_id === p.id && !purchaseInvoiceIds.has(i.id))
         .reduce(
           (s, i) => s + convertCurrency(Number(i.amount_paid || 0), i.currency || currency, currency, rates),
           0
@@ -97,14 +104,12 @@ export default async function ProfitPage() {
         }
       }
 
-      const outlay = (outlays ?? [])
-        .filter((x) => x.project_id === p.id)
-        .reduce(
-          (s, x) => s + convertCurrency(Number(x.cost || 0), x.currency || currency, currency, rates),
-          0
-        );
+      // Purchases are deliberately absent from this page — both what they cost
+      // and what the client paid for them. They are reselling, not the work
+      // this page measures, and their margin is held privately on Purchases.
+      const outlay = 0;
 
-      const totalCost = cost + outlay;
+      const totalCost = cost;
       const margin = revenue - totalCost;
       return {
         id: p.id,
@@ -132,7 +137,7 @@ export default async function ProfitPage() {
       };
     })
     // Projects with neither money, hours nor spend are noise here.
-    .filter((r) => r.revenue > 0 || r.hours > 0 || r.outlay > 0)
+    .filter((r) => r.revenue > 0 || r.hours > 0)
     .sort((a, b) => b.revenue - a.revenue);
 
   // Portfolio totals only make sense inside one currency; group rather than sum.
@@ -149,7 +154,7 @@ export default async function ProfitPage() {
     <>
       <PageHead
         title="Profitability"
-        sub="Payments received vs what the logged hours cost in salary. Estimates, not accounting — but honest ones."
+        sub="Your own work: payments received vs what the logged hours cost in salary. Estimates, not accounting — but honest ones."
       />
 
       <div className="grid gap-4 sm:grid-cols-3">
@@ -255,6 +260,8 @@ export default async function ProfitPage() {
             Money In &amp; Out
           </Link>{" "}
           has the real cash. The two answer different questions and must not be added together.
+          Purchases made on clients&rsquo; behalf are left out of both and tracked separately on{" "}
+          <Link href={`${BASE}/purchases`} className="text-lime-400 hover:underline">Purchases</Link>.
         </p>
       </div>
 

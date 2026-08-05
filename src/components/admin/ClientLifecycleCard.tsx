@@ -4,7 +4,7 @@ import { useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { UserCheck, Moon, Handshake, Users } from "lucide-react";
+import { UserCheck, Moon, Handshake, Users, Sparkles } from "lucide-react";
 import { reactivateClient, setClientDormant, setClientReferrer } from "@/lib/actions/lifecycle";
 import { adminPath } from "@/lib/utils";
 import Modal from "@/components/admin/Modal";
@@ -150,6 +150,38 @@ export default function ClientLifecycleCard({
           </ul>
           <p className="mt-2 text-[11px] leading-relaxed text-bone-300">
             Look after this one. People who refer once usually refer again.
+          </p>
+        </div>
+      )}
+
+      {/* They asked to come back. Shown directly above the Reactivate button so
+          the request and the one action that answers it are never more than a
+          few pixels apart — the notification that brought you here is easy to
+          read and then forget to act on. */}
+      {!!client.return_requested_at && client.lifecycle !== "active" && (
+        <div className="rounded-lg border border-lime-400/35 bg-lime-400/[0.08] p-3.5">
+          <p className="mono-tag mb-1.5 flex items-center gap-1.5 text-[11px] text-lime-300">
+            <Sparkles size={12} /> They want to work with us again
+          </p>
+          <p className="text-xs leading-relaxed text-bone-200">
+            Asked on{" "}
+            {new Date(client.return_requested_at).toLocaleDateString(undefined, {
+              day: "numeric",
+              month: "short",
+              year: "numeric",
+            })}
+            .
+          </p>
+          {client.return_request_note ? (
+            <p className="mt-2 border-l-2 border-lime-400/40 pl-2.5 text-xs leading-relaxed whitespace-pre-wrap text-bone-100 italic">
+              {client.return_request_note}
+            </p>
+          ) : (
+            <p className="mt-1.5 text-[11px] text-bone-300">They did not leave a message.</p>
+          )}
+          <p className="mt-2 text-[11px] leading-relaxed text-bone-300">
+            Reactivating below reopens their portal and emails them. Their request clears at the
+            same time.
           </p>
         </div>
       )}

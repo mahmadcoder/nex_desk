@@ -108,6 +108,11 @@ export async function reactivateClient(
     is_active: true,
     reactivated_at: new Date().toISOString(),
     return_count: Number(client.return_count ?? 0) + 1,
+    // Answering the request closes it. Leaving the stamp behind would tell a
+    // client who is paused a second time that we already have their message,
+    // and their new one would never be sent.
+    return_requested_at: null,
+    return_request_note: null,
   }).eq("id", id);
 
   if (reErr) {
@@ -115,7 +120,7 @@ export async function reactivateClient(
       ok: false,
       error:
         reErr.code === "42703"
-          ? "The client lifecycle columns are missing. Run supabase/idempotent_fixes_2026_11.sql, then try again."
+          ? "The client lifecycle columns are missing. Run supabase/idempotent_fixes_2026_11.sql and idempotent_fixes_2027_16.sql, then try again."
           : reErr.message,
     };
   }

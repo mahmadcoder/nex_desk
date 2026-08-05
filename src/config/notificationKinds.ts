@@ -36,6 +36,7 @@ const KINDS: Record<string, KindStyle> = {
   "leave.decided":         { icon: UserCheck,         tone: "good",    label: "Leave" },
   "salary.paid":           { icon: Wallet,            tone: "good",    label: "Pay" },
   "expense.renewal":       { icon: CalendarClock,     tone: "warn",    label: "Renewal" },
+  "client.return_request": { icon: PartyPopper,       tone: "good",    label: "Return" },
 };
 
 export function describeKind(kind: string): KindStyle {

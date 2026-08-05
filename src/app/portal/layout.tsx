@@ -8,7 +8,10 @@ export default function PortalLayout({ children }: { children: React.ReactNode }
     <div className="min-h-screen bg-ink-900 flex flex-col">
       <header className="sticky top-0 z-40 border-b border-ink-600 bg-ink-900/90 backdrop-blur-md">
         <div className="shell flex h-[68px] items-center justify-between">
-          <Link href="/"><Logo /></Link>
+          {/* Stays inside the portal. This pointed at "/", so a client
+              clicking the logo was thrown out to the marketing site and had to
+              find their way back. */}
+          <Link href="/portal"><Logo /></Link>
           <span className="mono-tag text-lime-400">client portal</span>
         </div>
       </header>

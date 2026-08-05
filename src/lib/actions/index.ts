@@ -8,10 +8,10 @@ import { requireStaff, requireOwnerAdmin } from "@/lib/auth/guards";
 import { sendEmail, adminNotifyAddress, notifyEmailChange } from "@/lib/email/send";
 import type { DocType } from "@/lib/pdf/generate";
 import { getLiveExchangeRates, convertCurrency, DEFAULT_RATES } from "@/lib/currency";
-import { getSiteBaseUrl, currencyForCountry, money } from "@/lib/utils";
+import { getSiteBaseUrl, currencyForCountry, money, moneyMulti } from "@/lib/utils";
 import { tryEncrypt, decryptSecret } from "@/lib/crypto";
 import { provisionLockedDeal } from "@/lib/deals/provision";
-import { isContractInvoice } from "@/lib/billing";
+import { contractPosition } from "@/lib/billing";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
@@ -595,46 +595,93 @@ export async function recordPayment(data: any, notify = true) {
     .select("*, clients(*)").single();
   if (error) throw error;
 
-  // Is this the payment that clears the whole contract? The trigger has already
-  // synced the invoice by now, so compare paid against the deal, not against
-  // the invoices raised so far.
+  /* ---------- Is this the payment that clears everything? ----------------
+   *
+   * This used to walk from the paid invoice to its deal, and only that deal.
+   * Three levels of nesting with no `else` at any of them, so any miss fell
+   * through in silence to the ordinary receipt — which reads "your next
+   * progress update will follow shortly", the opposite message.
+   *
+   * The miss that actually happened: the last thing paid before handover is
+   * very often a change request or a re-billed cost, and both carry
+   * `deal_id = NULL`. The walk stopped at the first step and the client was
+   * never told they were square.
+   *
+   * So the question is asked of the CLIENT'S WHOLE POSITION instead, through
+   * the same `contractPosition` every screen uses. That fixes the reverse case
+   * too: paying the final stage while an agreed change request is still
+   * outstanding no longer claims everything is settled.
+   * -------------------------------------------------------------------- */
   let settledInFull = false;
   let contractTotal = 0;
-  if (data.invoice_id) {
-    const { data: inv } = await db
-      .from("invoices").select("deal_id, currency").eq("id", data.invoice_id).maybeSingle();
+  let contractCurrency = payment.currency;
+  let projectName = "your project";
+  let skipReason: string | null = null;
 
-    if (inv?.deal_id) {
-      const [{ data: deal }, { data: dealInvoices }] = await Promise.all([
-        db.from("deals").select("total, currency, is_retainer").eq("id", inv.deal_id).maybeSingle(),
+  try {
+    const [{ data: clientDeals }, { data: clientInvoices }, { data: clientCRs }] =
+      await Promise.all([
+        db.from("deals")
+          .select("id, total, currency, status, is_retainer")
+          .eq("client_id", payment.client_id),
         db.from("invoices")
-          .select("amount_paid, currency, deal_id, stage_index").eq("deal_id", inv.deal_id),
+          .select("id, total, amount_paid, currency, status, deal_id, stage_index, project_id")
+          .eq("client_id", payment.client_id),
+        db.from("change_requests")
+          .select("id, status, quoted_amount, currency, invoice_id")
+          .eq("client_id", payment.client_id),
       ]);
 
-      if (deal) {
-        contractTotal = Number(deal.total || 0);
+    const locked = (clientDeals ?? []).filter((d) => d.status === "locked");
 
-        // Payment STAGES only. Retainer renewals carry the same deal_id, so
-        // counting them here meant month two of a monthly retainer pushed the
-        // running total past the contract value and emailed a live client
-        // "settled in full — nothing more is coming".
-        const paidOnDeal = (dealInvoices ?? [])
-          .filter(isContractInvoice)
-          .filter((i) => String(i.currency).toUpperCase() === String(deal.currency).toUpperCase())
-          .reduce((s, i) => s + Number(i.amount_paid || 0), 0);
+    // A recurring agreement is never "settled in full" — that is the point of
+    // one. Any retainer on the account suppresses the claim entirely.
+    const hasRetainer = locked.some((d) => d.is_retainer);
 
-        // A recurring agreement is never "settled in full" — that is the whole
-        // point of it.
-        settledInFull =
-          !deal.is_retainer && contractTotal > 0 && paidOnDeal >= contractTotal - 0.01;
+    const pos = contractPosition(locked, clientInvoices ?? [], clientCRs ?? []);
+
+    contractTotal = pos.contracted.reduce((s, t) => s + t.total, 0);
+    contractCurrency = pos.contracted[0]?.currency ?? payment.currency;
+
+    if (hasRetainer) {
+      skipReason = "the client is on a retainer, which never settles in full";
+    } else if (!pos.contracted.length) {
+      skipReason = "no locked agreement to measure against";
+    } else {
+      settledInFull = pos.outstanding.length === 0;
+      if (!settledInFull) {
+        skipReason = `still outstanding: ${moneyMulti(pos.outstanding)}`;
       }
     }
+
+    // The template names the project, and no caller has ever passed it — so
+    // every settlement email that did send read "no further invoices for your
+    // project". It cannot come through `data`, which is spread straight into
+    // the payments insert, so it is resolved from the invoice here.
+    const paidInvoice = (clientInvoices ?? []).find((i) => i.id === data.invoice_id);
+    if (paidInvoice?.project_id) {
+      const { data: proj } = await db
+        .from("projects").select("name").eq("id", paidInvoice.project_id).maybeSingle();
+      if (proj?.name) projectName = proj.name;
+    }
+  } catch (e) {
+    skipReason = "the settlement check itself failed";
+    console.error("recordPayment: could not work out the settlement position", e);
+  }
+
+  // Every fall-through used to be invisible. Saying why turns the next report
+  // of "the client never got the final email" into a one-minute diagnosis.
+  if (!settledInFull && skipReason) {
+    console.info(
+      `recordPayment: sending the ordinary receipt — ${skipReason}. ` +
+      `(payment ${payment.id}, client ${payment.client_id})`
+    );
   }
 
   if (notify) {
     // 1. Client Receipt Email — the final one says so, so nobody is left
     //    wondering whether another invoice is still coming.
-    await sendEmail({
+    const receipt = await sendEmail({
       templateKey: settledInFull ? "invoice_final_settled" : "payment_received",
       to: payment.clients.email,
       clientId: payment.client_id,
@@ -644,11 +691,23 @@ export async function recordPayment(data: any, notify = true) {
         client_name: payment.clients.name,
         amount: Number(payment.amount).toLocaleString(),
         currency: payment.currency,
-        contract_total: contractTotal ? money(contractTotal, payment.currency) : "",
-        project_name: data.project_name ?? "your project",
+        // Labelled in the CONTRACT's currency. It was taking the figure from
+        // the agreement and the symbol from the payment, so a USD contract
+        // paid in rupees printed the USD total marked "Rs".
+        contract_total: contractTotal ? money(contractTotal, contractCurrency) : "",
+        project_name: projectName,
         sender_name: me.fullName ?? "Nex Desk",
       },
     });
+
+    // The result was discarded, so a template that refused to render — a blank
+    // row in the Email Centre is enough — reported success and nobody knew.
+    if (!receipt.ok) {
+      console.error(
+        `recordPayment: the client receipt did not send (payment ${payment.id}):`,
+        receipt.error
+      );
+    }
 
     // 2. Owner Payment Alert Email
     const proofMsg = payment.proof_url ? `\nPayment Slip URL: ${payment.proof_url}` : "";

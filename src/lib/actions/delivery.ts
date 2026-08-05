@@ -85,6 +85,13 @@ export async function handoverProject(projectId: string) {
     warranty_days: Number(project.warranty_days ?? 14),
     warranty_ends: new Date(Date.now() + Number(project.warranty_days ?? 14) * 864e5)
       .toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" }),
+    // Handover only unlocks once the contract is paid, so by definition there
+    // is nothing left owing on it. Saying so here matters: this is the moment
+    // a client expects to hear it, and until now the delivery email talked
+    // about warranties and files without ever mentioning the money.
+    settled_line:
+      "Your account for this project is fully settled — there is nothing further to pay. " +
+      "If you ever receive another invoice for it, query it; it would be a mistake on our side.",
     sender_name: me.fullName ?? "Nex Desk",
   };
 
@@ -232,7 +239,7 @@ export async function raiseChangeRequest(data: {
   if (!data.title?.trim()) throw new Error("Describe what is being asked for.");
 
   const { data: project } = await db
-    .from("projects").select("id, name, client_id, clients(id, name, email, profile_id)")
+    .from("projects").select("id, name, client_id, clients(id, name, email, profile_id, lifecycle)")
     .eq("id", projectId).maybeSingle();
   if (!project) throw new Error("Project not found.");
 
@@ -251,6 +258,21 @@ export async function raiseChangeRequest(data: {
   if (!ownsRecord) {
     const me = await requireStaff();
     actorId = me.userId;
+  }
+
+  // A paused account cannot raise new work. The portal hides the form, but
+  // hiding a form is not a control — this is the one that counts. Thrown
+  // rather than returned to match the rest of this function, whose caller
+  // relies on the throw; returning an error object here would be swallowed and
+  // the client would be told their request was sent.
+  //
+  // Staff are exempt: an admin may well be logging a request that arrived by
+  // phone from a client they are about to reactivate.
+  if (ownsRecord && client?.lifecycle && client.lifecycle !== "active") {
+    throw new Error(
+      "This account is paused, so new work cannot be requested here. " +
+      "Use the button on the portal to ask us to pick things back up."
+    );
   }
 
   const { data: row, error } = await db.from("change_requests").insert({
