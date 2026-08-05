@@ -386,6 +386,28 @@ h1, h2, h3, h4 {
 
 }
 
+/* ── The actions column, at every width ────────────────────────────
+   Applies from desktop down, NOT just on a phone. `open →` was breaking
+   across two lines at 1366px because nothing stopped it wrapping, and the
+   column was being handed a share of a `w-full` table rather than just the
+   width its buttons need — so the actions sat cramped against the right
+   edge while other columns had room to spare.
+
+   `width: 1%` + nowrap is the standard shrink-to-content trick for a table
+   cell: the browser gives it the smallest width that fits its content and
+   shares the remainder among the real columns. The phone rules further
+   down override both, so this does not fight the card stacking. */
+.nd-actions-last th:last-child,
+.nd-actions-last td:last-child {
+  width: 1%;
+  white-space: nowrap;
+}
+
+.nd-actions-last td:last-child a,
+.nd-actions-last td:last-child button {
+  white-space: nowrap;
+}
+
 /* ── Tables become cards on a phone ────────────────────────────────
    The `Table` primitive (components/admin/ui.tsx) writes its column
    headings onto the <table> as --c1…--cN. Below `sm` the header row is
@@ -460,6 +482,11 @@ h1, h2, h3, h4 {
     content: none;
   }
   .nd-actions-last td:last-child {
+    /* Explicitly back to full width: the desktop `width: 1%` rule above is
+       `.nd-actions-last td:last-child` (0,2,1) and would otherwise outrank
+       the `.nd-table td` (0,1,1) block-and-100% rule in here. */
+    display: flex;
+    width: 100%;
     justify-content: flex-end;
     gap: 0.75rem;
     border-top: 1px solid var(--color-ink-700);

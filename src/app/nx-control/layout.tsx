@@ -31,7 +31,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
           whole panel down. */}
       <Sidebar
         base={BASE}
-        user={{ name: me.fullName, role: me.role }}
+        user={{ name: me.fullName, role: me.role, avatarUrl: me.avatarUrl }}
         counts={{ "/notifications": await unreadNotificationCount(me) }}
       />
       <div className="min-w-0 flex-1 p-4 pt-[calc(3.5rem+1rem)] lg:p-8 lg:pt-8">{children}</div>

@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { createAdminClient } from "@/lib/supabase/server";
-import { assignedClientIds, type CurrentStaff } from "@/lib/auth/staff";
-import { PageHead, Stat, Table, Empty } from "@/components/admin/ui";
+import { assignedClientIds, firstName, type CurrentStaff } from "@/lib/auth/staff";
+import { Stat, Table, Empty } from "@/components/admin/ui";
+import Avatar from "@/components/Avatar";
 import { Clock, AlertCircle, ListChecks } from "lucide-react";
 import PerformanceCard from "@/components/admin/PerformanceCard";
 import { staffPerformance } from "@/lib/insights";
@@ -85,17 +86,27 @@ export default async function StaffDashboard({ me }: { me: CurrentStaff }) {
 
   return (
     <>
-      <PageHead
-        title={`Welcome back, ${me.fullName.split(" ")[0]}`}
-        sub={new Date().toLocaleDateString("en-GB", {
-          weekday: "long", day: "numeric", month: "long", year: "numeric",
-        })}
-        action={
-          <Link href={`${BASE}/daily-logs`} className="btn btn-primary h-10">
-            <Clock size={15} /> Log today&apos;s work
+      {/* Written out rather than passed to PageHead, whose `title` is a string
+          and so cannot carry the avatar. flex-wrap + min-w-0 so a long name
+          wraps instead of squeezing the photo on a phone. */}
+      <div className="mb-6 flex flex-wrap items-center justify-between gap-x-4 gap-y-3">
+        <div className="flex min-w-0 items-center gap-3.5">
+          <Link href={`${BASE}/profile`} className="shrink-0" aria-label="My profile">
+            <Avatar name={me.fullName} src={me.avatarUrl} size="md" />
           </Link>
-        }
-      />
+          <div className="min-w-0">
+            <h1 className="truncate text-xl sm:text-2xl">Welcome back, {firstName(me.fullName)}</h1>
+            <p className="mt-0.5 text-xs text-bone-300">
+              {new Date().toLocaleDateString("en-GB", {
+                weekday: "long", day: "numeric", month: "long", year: "numeric",
+              })}
+            </p>
+          </div>
+        </div>
+        <Link href={`${BASE}/daily-logs`} className="btn btn-primary h-10 shrink-0">
+          <Clock size={15} /> Log today&apos;s work
+        </Link>
+      </div>
 
       <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
         <Stat label="My active projects" value={String(projects?.length ?? 0)} />

@@ -454,6 +454,7 @@ export default function EmployeesClient({
                   value={editing.avatar_url ?? ""}
                   onChange={(url) => setEditing({ ...editing, avatar_url: url })}
                   folder="employees"
+                  shape="circle"
                 />
               </div>
 

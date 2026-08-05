@@ -8,8 +8,9 @@ import { cn } from "@/lib/utils";
 import {
   LayoutDashboard, Inbox, Users, Handshake, FolderKanban,
   Receipt, FileText, Mail, Settings, LogOut, Menu, X,
-  MessageSquareQuote, Briefcase, Layers, BookOpen, HelpCircle, UserCheck, Clock, CalendarDays, PackageCheck, TrendingUp, CalendarClock, Bell, Wallet, Scale, ShoppingBag
+  MessageSquareQuote, Briefcase, Layers, BookOpen, HelpCircle, UserCheck, Clock, CalendarDays, PackageCheck, TrendingUp, CalendarClock, Bell, Wallet, Scale, ShoppingBag, UserCircle
 } from "lucide-react";
+import Avatar from "@/components/Avatar";
 
 const NAV_SECTIONS = [
   {
@@ -70,6 +71,7 @@ const STAFF_NAV = [
       { href: "/daily-logs", label: "Daily Work Logs", icon: Clock },
       { href: "/leave", label: "My Leave", icon: CalendarDays },
       { href: "/my-pay", label: "My Pay", icon: Wallet },
+      { href: "/profile", label: "My Profile", icon: UserCircle },
     ],
   },
 ];
@@ -80,7 +82,7 @@ export default function Sidebar({
   counts = {},
 }: {
   base: string;
-  user: { name: string; role: string };
+  user: { name: string; role: string; avatarUrl?: string | null };
   /**
    * Badge numbers keyed by item href. Deliberately generic rather than an
    * `unread` prop — a pending-leave count can use the same slot later without
@@ -152,10 +154,18 @@ export default function Sidebar({
       </nav>
 
       <div className="border-t border-ink-600/80 pt-3 shrink-0 mt-2">
-        <div className="px-3 pb-2">
-          <p className="truncate text-xs font-medium text-bone-200">{user.name}</p>
-          <p className="mono-tag text-[0.625rem] capitalize text-lime-400/80">{user.role}</p>
-        </div>
+        {/* min-w-0 on the text column so a long name truncates instead of
+            pushing the avatar out of the 240px sidebar. */}
+        <Link
+          href={`${base}/profile`}
+          className="flex items-center gap-2.5 rounded-md px-3 py-1.5 pb-2 hover:bg-ink-800/60 transition-colors"
+        >
+          <Avatar name={user.name} src={user.avatarUrl} size="sm" />
+          <div className="min-w-0">
+            <p className="truncate text-xs font-medium text-bone-200">{user.name}</p>
+            <p className="mono-tag text-[0.625rem] capitalize text-lime-400/80">{user.role}</p>
+          </div>
+        </Link>
         <form action={signOut}>
           <button className="flex w-full items-center gap-2.5 rounded-md px-3 py-1.5 text-xs text-bone-400 hover:bg-ink-800/60 hover:text-rose-400 transition-colors">
             <LogOut size={15} strokeWidth={1.75} /> Sign out
@@ -173,13 +183,20 @@ export default function Sidebar({
           <LogoMark className="h-5 w-5 text-bone-50" />
           <span className="text-sm font-medium" style={{ fontFamily: "var(--font-display)" }}>Nex Desk</span>
         </Link>
-        <button
-          onClick={() => setOpen((v) => !v)}
-          className="rounded-lg p-2 text-bone-400 hover:bg-ink-800 hover:text-bone-50"
-          aria-label={open ? "Close menu" : "Open menu"}
-        >
-          {open ? <X size={20} /> : <Menu size={20} />}
-        </button>
+        {/* On a phone this bar is the only chrome that is always on screen, so
+            it is where the avatar earns its place. */}
+        <div className="flex items-center gap-2">
+          <Link href={`${base}/profile`} aria-label="My profile">
+            <Avatar name={user.name} src={user.avatarUrl} size="sm" />
+          </Link>
+          <button
+            onClick={() => setOpen((v) => !v)}
+            className="rounded-lg p-2 text-bone-400 hover:bg-ink-800 hover:text-bone-50"
+            aria-label={open ? "Close menu" : "Open menu"}
+          >
+            {open ? <X size={20} /> : <Menu size={20} />}
+          </button>
+        </div>
       </div>
 
       {/* ── Mobile drawer backdrop ── */}

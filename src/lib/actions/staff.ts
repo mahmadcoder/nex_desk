@@ -415,3 +415,49 @@ export async function cancelLeave(requestId: string) {
   revalidatePath(`/${ADMIN}`);
   return { ok: true as const };
 }
+
+/* ============================================================
+   MY OWN PROFILE
+   ============================================================ */
+
+/**
+ * Sets the signed-in employee's own photo.
+ *
+ * Until now the only writer of `employees.avatar_url` was `saveEmployee`, which
+ * is `requireOwnerAdmin`-guarded — so the photo a client sees in the portal was
+ * one the person themselves could neither set nor change.
+ *
+ * Takes a URL and nothing else. There is deliberately no employee-id parameter:
+ * the row is matched on the caller's own `user_id`, so there is no argument
+ * that could be pointed at somebody else's record.
+ *
+ * Returns its error rather than throwing — Next.js strips the message from
+ * anything thrown inside a Server Action in production, which arrives at the
+ * browser as an anonymous 500.
+ */
+export async function updateMyPhoto(url: string | null) {
+  const me = await requireStaff();
+
+  const clean = String(url ?? "").trim();
+
+  // The upload action used to fall back to a base64 data URL when storage
+  // failed, which put megabytes of text in this column. That is fixed at the
+  // source, but refusing it here too means a stale client cannot reintroduce it.
+  if (clean && !/^https?:\/\//i.test(clean)) {
+    return { ok: false as const, error: "That does not look like an uploaded image." };
+  }
+
+  const { error } = await createAdminClient()
+    .from("employees")
+    .update({ avatar_url: clean || null })
+    .eq("user_id", me.userId);
+
+  if (error) {
+    console.error("updateMyPhoto failed:", error);
+    return { ok: false as const, error: error.message };
+  }
+
+  revalidatePath(`/${ADMIN}/profile`);
+  revalidatePath(`/${ADMIN}`);
+  return { ok: true as const };
+}

@@ -15,11 +15,41 @@ export type CurrentStaff = {
   userId: string;
   role: StaffRole;
   fullName: string;
+  /** `employees.avatar_url` — a public URL, or null when no photo is set. */
+  avatarUrl: string | null;
   /** The employees row for this login, when they are an employee. */
   employeeId: string | null;
   /** owner | admin — may see money and perform destructive actions. */
   isPrivileged: boolean;
 };
+
+/**
+ * A readable name out of an email address, for the case where no table has a
+ * real one. `iam.afaq0101@gmail.com` becomes "Iam Afaq".
+ *
+ * Often not someone's actual name — but never worse than showing them the raw
+ * address, which is what every staff surface did before.
+ */
+export function nameFromEmail(email?: string | null): string | null {
+  const local = String(email ?? "").split("@")[0];
+  if (!local) return null;
+
+  const words = local
+    .replace(/\d+/g, " ")
+    .split(/[._\-+]+/)
+    .map((w) => w.trim())
+    .filter(Boolean)
+    .map((w) => w[0].toUpperCase() + w.slice(1).toLowerCase());
+
+  return words.length ? words.join(" ") : null;
+}
+
+/** First name for a greeting. `split(" ")[0]` returns the whole string when
+ *  there is no space in it, which is how an email ended up in "Welcome back". */
+export function firstName(name: string): string {
+  const first = String(name ?? "").trim().split(/\s+/)[0];
+  return first || "there";
+}
 
 export type StaffCheck =
   | { ok: true; userId: string; role: StaffRole }
@@ -80,9 +110,13 @@ export async function getCurrentStaff(): Promise<CurrentStaff | null> {
   if (!role) return null;
 
   let employeeId: string | null = null;
+  let avatarUrl: string | null = null;
   try {
     const { data: employee } = await db
-      .from("employees").select("id, status").eq("user_id", user.id).maybeSingle();
+      .from("employees")
+      .select("id, status, avatar_url, full_name")
+      .eq("user_id", user.id)
+      .maybeSingle();
 
     // `employees.status` was recorded and never checked, so somebody marked
     // Terminated kept full access to the panel — the only working kill switch
@@ -97,14 +131,33 @@ export async function getCurrentStaff(): Promise<CurrentStaff | null> {
     }
 
     employeeId = employee?.id ?? null;
+    avatarUrl = employee?.avatar_url ?? null;
+
+    // `employees.full_name` wins over everything above it. It is the one an
+    // admin actually types during hiring, whereas `profiles.full_name` and
+    // `user_metadata.full_name` are usually blank — which is why the sidebar
+    // and the staff dashboard greeting used to render the raw email address.
+    if (employee?.full_name) fullName = String(employee.full_name);
   } catch {
-    // A missing `status` column (pre-2027-16) lands here. Failing open on the
-    // status check is right: the alternative is locking every employee out of
-    // the panel because a migration has not been run yet.
+    // A missing `status` column (pre-2027-16) lands here, and a missing
+    // `avatar_url` would too. Failing open on the status check is right: the
+    // alternative is locking every employee out of the panel because a
+    // migration has not been run yet.
     employeeId = null;
+    avatarUrl = null;
   }
 
-  return { userId: user.id, role, fullName, employeeId, isPrivileged: isPrivilegedRole(role) };
+  // Last resort before printing an email address at somebody.
+  if (fullName === user.email) fullName = nameFromEmail(user.email) ?? fullName;
+
+  return {
+    userId: user.id,
+    role,
+    fullName,
+    avatarUrl,
+    employeeId,
+    isPrivileged: isPrivilegedRole(role),
+  };
 }
 
 /**

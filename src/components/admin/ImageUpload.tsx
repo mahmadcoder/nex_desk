@@ -9,6 +9,12 @@ interface ImageUploadProps {
   value?: string;
   onChange: (url: string) => void;
   folder?: string;
+  /**
+   * The defaults here are cover-image defaults — a wide preview and
+   * "recommended 1200x630". The hire form used them unchanged, so it asked an
+   * admin to upload a banner for a person's face. "circle" is for avatars.
+   */
+  shape?: "wide" | "circle";
 }
 
 export default function ImageUpload({
@@ -16,7 +22,9 @@ export default function ImageUpload({
   value = "",
   onChange,
   folder = "covers",
+  shape = "wide",
 }: ImageUploadProps) {
+  const isAvatar = shape === "circle";
   const [uploading, setUploading] = useState(false);
   const [imageUrl, setImageUrl] = useState(value);
 
@@ -67,8 +75,12 @@ export default function ImageUpload({
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src={imageUrl}
-              alt="Uploaded cover"
-              className="h-16 w-24 rounded object-cover border border-ink-700 shrink-0"
+              alt={isAvatar ? "Your photo" : "Uploaded cover"}
+              className={
+                isAvatar
+                  ? "h-14 w-14 rounded-full object-cover border border-ink-700 shrink-0"
+                  : "h-16 w-24 rounded object-cover border border-ink-700 shrink-0"
+              }
             />
             <div className="flex-1 truncate text-xs">
               <p className="font-medium text-bone-100 truncate">{imageUrl.split("/").pop()}</p>
@@ -109,10 +121,12 @@ export default function ImageUpload({
             <div className="flex flex-col items-center gap-1 text-center">
               <ImageIcon className="h-5 w-5 text-bone-400 mb-1" />
               <span className="text-xs font-medium text-bone-200">
-                Upload Cover Image (PNG, JPG, WEBP)
+                {isAvatar ? "Upload a photo (PNG, JPG, WEBP)" : "Upload Cover Image (PNG, JPG, WEBP)"}
               </span>
               <span className="text-[11px] text-bone-500">
-                Recommended 1200x630px for high DPI displays
+                {isAvatar
+                  ? "A square photo works best — at least 400x400px"
+                  : "Recommended 1200x630px for high DPI displays"}
               </span>
             </div>
           )}

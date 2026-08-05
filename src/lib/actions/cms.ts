@@ -1123,10 +1123,17 @@ export async function uploadPublicAsset(formData: FormData): Promise<{ url?: str
 
     if (uploadError) {
       console.error("Supabase Storage admin upload error:", uploadError);
-      // Fallback to WebP base64 data URL if storage bucket fails
-      const base64 = buffer.toString("base64");
-      const mime = file.type || "image/jpeg";
-      return { url: `data:${mime};base64,${base64}` };
+      // This used to fall back to a base64 data URL of the whole file, which
+      // then got saved into the column the caller was filling — an 8MB photo
+      // became an ~11MB string in Postgres, re-downloaded on every page that
+      // rendered it. Worse, it failed silently: the upload looked like it had
+      // worked, and the first symptom was a slow app rather than an error.
+      //
+      // Failing loudly is the whole point. Every caller already shows `error`.
+      return {
+        error:
+          "The image could not be saved to storage. Nothing has been changed — try again, and if it keeps happening check the public-assets bucket.",
+      };
     }
 
     const { data: publicData } = db.storage

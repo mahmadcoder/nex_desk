@@ -21,6 +21,10 @@ const STAFF_ALLOWED_SEGMENTS = [
   // Their OWN pay only — the page scopes every query to the signed-in
   // employee id and never accepts one from the URL.
   "my-pay",
+  // Their own profile and photo. `/employees` stays closed: this page reads
+  // only the caller's own row, and the one action behind it writes
+  // `avatar_url` matched on the caller's user_id, never an id from the client.
+  "profile",
   "login",
 ];
 
