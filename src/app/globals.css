@@ -385,3 +385,106 @@ h1, h2, h3, h4 {
 .admin .card { border-radius: 10px; }
 
 }
+
+/* ── Tables become cards on a phone ────────────────────────────────
+   The `Table` primitive (components/admin/ui.tsx) writes its column
+   headings onto the <table> as --c1…--cN. Below `sm` the header row is
+   hidden and each cell prints its own heading from those variables, so a
+   row reads as a labelled card instead of scrolling sideways past the
+   edge of the screen.
+
+   Driven by nth-child rather than a data-label on every cell: sixteen
+   pages consume this component and every one of them already emits cells
+   in the same order as `head`, so there was nothing to gain from editing
+   several hundred <td>s by hand. */
+@media (max-width: 639px) {
+  .nd-table thead {
+    /* clip, not display:none — a hidden thead removes the header text
+       from the accessibility tree along with the visual row. */
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  .nd-table,
+  .nd-table tbody,
+  .nd-table tr,
+  .nd-table td {
+    display: block;
+    width: 100%;
+  }
+
+  .nd-table tr {
+    padding: 0.25rem 0;
+  }
+
+  .nd-table td {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 0.5rem 1rem;
+    text-align: left;
+  }
+
+  /* The column heading, from the variable set on the table. */
+  .nd-table td::before {
+    content: var(--label, "");
+    flex-shrink: 0;
+    font-family: var(--font-mono);
+    font-size: 0.6875rem;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--color-bone-400);
+  }
+
+  .nd-table td:nth-child(1) { --label: var(--c1); }
+  .nd-table td:nth-child(2) { --label: var(--c2); }
+  .nd-table td:nth-child(3) { --label: var(--c3); }
+  .nd-table td:nth-child(4) { --label: var(--c4); }
+  .nd-table td:nth-child(5) { --label: var(--c5); }
+  .nd-table td:nth-child(6) { --label: var(--c6); }
+  .nd-table td:nth-child(7) { --label: var(--c7); }
+  .nd-table td:nth-child(8) { --label: var(--c8); }
+
+  /* Only for tables whose last heading is empty — i.e. an actions column.
+     `Table` adds .nd-actions-last when that is the case. Eight of the
+     fourteen tables end on real data ("Status", "When", "Deadline") and
+     must keep their label, which is why this is not `td:last-child`. */
+  .nd-actions-last td:last-child::before {
+    content: none;
+  }
+  .nd-actions-last td:last-child {
+    justify-content: flex-end;
+    gap: 0.75rem;
+    border-top: 1px solid var(--color-ink-700);
+    margin-top: 0.25rem;
+    padding-top: 0.5rem;
+  }
+  /* Comfortable targets: these were ~28x18px `mono-tag` links before. */
+  .nd-actions-last td:last-child a,
+  .nd-actions-last td:last-child button {
+    min-height: 2.5rem;
+    padding-inline: 0.75rem;
+    border: 1px solid var(--color-ink-600);
+    border-radius: 999px;
+    white-space: nowrap;
+  }
+
+  /* Empty-state and expanded rows span every column and are already
+     centred prose — a heading in front of them would be nonsense. */
+  .nd-table td[colspan]::before {
+    content: none;
+  }
+  .nd-table td[colspan] {
+    display: block;
+    text-align: center;
+    border-top: 0;
+    margin-top: 0;
+  }
+}

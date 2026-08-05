@@ -11,7 +11,13 @@ import { ITestimonial } from "@/types/cms";
 import ConfirmModal from "@/components/admin/ConfirmModal";
 import AIAssist from "@/components/ui/AIAssist";
 
-export default function TestimonialsClient({ testimonials }: { testimonials: ITestimonial[] }) {
+export default function TestimonialsClient({
+  testimonials,
+  projects = [],
+}: {
+  testimonials: ITestimonial[];
+  projects?: any[];
+}) {
   const [q, setQ] = useState("");
   const shown = testimonials.filter((x: any) => matchesQuery(q, x.client_name, x.company, x.role, x.quote));
 
@@ -63,6 +69,10 @@ export default function TestimonialsClient({ testimonials }: { testimonials: ITe
           rating: editing.rating ?? 5,
           is_published: editing.is_published ?? true,
           sort_order: editing.sort_order ?? 0,
+          // The link that makes the day-14 cron stop asking someone who has
+          // already answered. Every testimonial saved before this existed has
+          // a null project, which is why that check has never once matched.
+          project_id: (editing as any).project_id || null,
         });
         toast.success(editing.id ? "Testimonial updated." : "Testimonial created.");
         setEditing(null);
@@ -235,7 +245,7 @@ export default function TestimonialsClient({ testimonials }: { testimonials: ITe
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="mono-tag text-xs mb-1 block">Role / Title</label>
                   <input
@@ -257,6 +267,31 @@ export default function TestimonialsClient({ testimonials }: { testimonials: ITe
               </div>
 
               <div>
+                <label className="mono-tag text-xs mb-1 block">Which project is this about?</label>
+                <select
+                  className="w-full rounded-lg border border-ink-500 bg-ink-800 px-3 py-2 text-sm text-bone-50 focus:border-lime-400 focus:outline-none"
+                  value={(editing as any).project_id ?? ""}
+                  onChange={(e) =>
+                    setEditing({ ...editing, project_id: e.target.value || null } as any)
+                  }
+                >
+                  <option value="">Not linked to a project</option>
+                  {projects.map((p: any) => {
+                    const who = p.clients?.company || p.clients?.name;
+                    return (
+                      <option key={p.id} value={p.id}>
+                        {who ? p.name + " — " + who : p.name}
+                      </option>
+                    );
+                  })}
+                </select>
+                <p className="mt-1 text-[11px] leading-relaxed text-bone-400">
+                  Linking it stops the automatic day-14 email asking this client for feedback they
+                  have already given.
+                </p>
+              </div>
+
+              <div>
                 <label className="mono-tag text-xs mb-1 block">Quote / Review *</label>
                 <textarea
                   rows={4}
@@ -275,7 +310,7 @@ export default function TestimonialsClient({ testimonials }: { testimonials: ITe
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="mono-tag text-xs mb-1 block">Rating (1 to 5 Stars)</label>
                   <input

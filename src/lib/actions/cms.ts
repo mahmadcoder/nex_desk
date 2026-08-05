@@ -253,7 +253,7 @@ export async function seedDefaultServices() {
           "Advanced admin control panel & dashboard",
           "GA4 Analytics & SEO optimization",
           "Priority API & webhook pipelines",
-          "30 days dedicated warranty support",
+          "2 weeks dedicated warranty support",
         ],
         is_popular: true,
         cta_text: "Select Growth Package",
@@ -358,7 +358,7 @@ export async function seedDefaultFaqs() {
     { question: "What if I need something outside the agreed scope?", category: "Scope", sort_order: 5, is_active: true, answer: "We issue a clear change order detailing the additional cost and timeline impact. Nothing is added silently and nothing is billed without your explicit written approval." },
     { question: "Do I own the code and design files?", category: "Ownership", sort_order: 6, is_active: true, answer: "Yes. Full ownership of all source code, Figma design files, graphics, and account credentials transfers entirely to you once the final payment clears." },
     { question: "What technologies do you use?", category: "Technical", sort_order: 7, is_active: true, answer: "We build modern, high-performance applications using Next.js, React, React Native, TypeScript, Tailwind CSS, Node.js, and Supabase — guaranteeing 90+ Lighthouse speed scores and clean maintainable code." },
-    { question: "What happens after launch?", category: "Support", sort_order: 8, is_active: true, answer: "You get 30 days of free post-launch support for bug fixes. After that, an optional monthly retainer covers regular updates, backups, security monitoring, and allocated development hours." },
+    { question: "What happens after launch?", category: "Support", sort_order: 8, is_active: true, answer: "You get 2 weeks of free post-launch support for bug fixes. After that, an optional monthly retainer covers regular updates, backups, security monitoring, and allocated development hours." },
   ];
 
   const { error } = await db.from("faqs").upsert(DEFAULT_FAQS, { onConflict: "question" });

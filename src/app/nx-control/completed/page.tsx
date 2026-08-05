@@ -87,7 +87,10 @@ export default async function CompletedPage() {
                     {p.handed_over_at
                       ? ` · handed over ${new Date(p.handed_over_at).toLocaleDateString("en-GB")}`
                       : ""}
-                    {p.warranty_ends_on ? ` · warranty to ${p.warranty_ends_on}` : ""}
+                    {/* Was printing a raw YYYY-MM-DD beside en-GB neighbours. */}
+                    {p.warranty_ends_on
+                      ? ` · support to ${new Date(p.warranty_ends_on).toLocaleDateString("en-GB")}`
+                      : ""}
                   </p>
                 </div>
                 <div className="flex shrink-0 items-center gap-2">

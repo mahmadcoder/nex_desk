@@ -588,6 +588,21 @@ export async function GET(req: Request) {
             },
           });
           if (res.ok) ran.testimonial_asks++;
+
+          // The email is only half of the ask. The other half is a WhatsApp
+          // message, which this app cannot send — there is no API, only a
+          // click-to-send link on the project page. So tell somebody the
+          // fortnight is up; without this the button is never pressed.
+          await notify({
+            kind: "feedback.due",
+            title: `Ask ${client.name} for a video`,
+            body: `${p.name} was delivered two weeks ago and the email has just gone out. The WhatsApp ask is on the project page — it opens the chat with the message written.`,
+            href: `/${ADMIN}/projects/${p.id}`,
+            entity: "project",
+            entityId: p.id,
+            clientId: p.client_id,
+            actorKind: "system",
+          });
         }
 
         await db.from("projects")

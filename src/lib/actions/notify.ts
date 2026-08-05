@@ -34,7 +34,9 @@ export type NotifyKind =
   | "leave.decided"
   | "salary.paid"
   | "expense.renewal"
-  | "client.return_request";
+  | "client.return_request"
+  // raised by the daily cron, 14 days after handover
+  | "feedback.due";
 
 export async function notify(n: {
   kind: NotifyKind;

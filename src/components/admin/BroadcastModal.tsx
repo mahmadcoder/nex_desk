@@ -127,7 +127,7 @@ export default function BroadcastModal({ subscribers, isOpen, onClose }: Broadca
           {/* Target Audience */}
           <div>
             <label className="mono-tag text-xs mb-2 block">1. Select Audience</label>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <button
                 type="button"
                 onClick={() => setTarget("all")}
@@ -181,7 +181,7 @@ export default function BroadcastModal({ subscribers, isOpen, onClose }: Broadca
           {/* Template Presets */}
           <div>
             <label className="mono-tag text-xs mb-2 block">2. Select Email Template</label>
-            <div className="grid grid-cols-3 gap-2">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
               {TEMPLATE_PRESETS.map((tpl) => (
                 <button
                   key={tpl.key}

@@ -8,6 +8,7 @@ import DashboardCurrencyTabs from "@/components/admin/DashboardCurrencyTabs";
 import StaffDashboard from "@/components/admin/StaffDashboard";
 import { getLiveExchangeRates, convertCurrency } from "@/lib/currency";
 import { atRiskClients } from "@/lib/insights";
+import { expenseInvoiceIds } from "@/lib/billing";
 import { AlertTriangle } from "lucide-react";
 
 const BASE = `/${process.env.ADMIN_PATH || "nx-control"}`;
@@ -39,8 +40,8 @@ export default async function Dashboard({
   const db = createAdminClient();
   const monthStart = new Date(new Date().setDate(1)).toISOString().slice(0, 10);
 
-  const [payments, invoices, projects, leads, deals, changeRequests, rates] = await Promise.all([
-    db.from("payments").select("amount, currency, paid_on, exchange_rate, realized_base_amount").gte("paid_on", monthStart),
+  const [payments, invoices, projects, leads, deals, changeRequests, purchases, rates] = await Promise.all([
+    db.from("payments").select("invoice_id, amount, currency, paid_on, exchange_rate, realized_base_amount").gte("paid_on", monthStart),
     db.from("invoices").select("id, invoice_no, total, amount_paid, currency, status, due_date, clients(name)")
       .in("status", ["sent", "partial", "overdue"]).order("due_date"),
     db.from("projects").select("id, name, status, progress, deadline, clients(name)")
@@ -56,8 +57,23 @@ export default async function Dashboard({
     db.from("change_requests")
       .select("quoted_amount, currency, status")
       .in("status", ["approved", "invoiced", "completed"]),
+    // Things bought on a client's behalf and re-billed. Only their invoice ids
+    // are wanted here — enough to take them back out of Revenue.
+    db.from("project_expenses").select("invoice_id").not("invoice_id", "is", null),
     getLiveExchangeRates(),
   ]);
+
+  // A domain bought at $110 and re-billed at $150 is not $150 of revenue: $110
+  // of it is money passing straight through us to a registrar. Both halves live
+  // on the Purchases page instead, so counting the client's payment here while
+  // the cost sits elsewhere would overstate what the agency actually earned.
+  //
+  // Change requests are deliberately NOT excluded — extra work a client agreed
+  // to buy is ordinary revenue and belongs in every total.
+  const purchaseInvoices = expenseInvoiceIds(purchases.data ?? []);
+  const tradingPayments = (payments.data ?? []).filter(
+    (p: any) => !p.invoice_id || !purchaseInvoices.has(p.invoice_id)
+  );
 
   let displayCurrency = filterCurr || "PKR";
   let revenue = 0;
@@ -68,7 +84,7 @@ export default async function Dashboard({
   if (mode === "strict") {
     // Mode 1: Strict Contract Currency (Exact Contract Values)
     if (filterCurr) {
-      const pList = (payments.data ?? []).filter((p) => p.currency === filterCurr);
+      const pList = tradingPayments.filter((p: any) => p.currency === filterCurr);
       revenue = pList.reduce((s, p) => s + Number(p.amount), 0);
 
       displayInvoices = (invoices.data ?? []).filter((i) => i.currency === filterCurr);
@@ -81,7 +97,7 @@ export default async function Dashboard({
         cList.reduce((s, c) => s + Number(c.quoted_amount || 0), 0);
     } else {
       // ALL Currencies -> Sum in PKR equivalent using realized / contract base
-      revenue = (payments.data ?? []).reduce((s, p) => {
+      revenue = tradingPayments.reduce((s: number, p: any) => {
         if (p.realized_base_amount) return s + Number(p.realized_base_amount);
         return s + convertCurrency(Number(p.amount), p.currency || "PKR", "PKR", rates);
       }, 0);
@@ -93,7 +109,7 @@ export default async function Dashboard({
     }
   } else {
     // Mode 2: Live Converted View
-    revenue = (payments.data ?? []).reduce((sum, p) => {
+    revenue = tradingPayments.reduce((sum: number, p: any) => {
       // Historical rate lock for payment revenue
       if (p.realized_base_amount) {
         return sum + convertCurrency(Number(p.realized_base_amount), "PKR", displayCurrency, rates);
@@ -212,7 +228,11 @@ export default async function Dashboard({
           label={`Revenue (${displayCurrency})`}
           value={money(revenue, displayCurrency)}
           tone="good"
-          hint={mode === "strict" ? "Historical realized rates locked" : `Converted to ${displayCurrency}`}
+          hint={
+            mode === "strict"
+              ? "Our own work. Historical rates locked"
+              : `Our own work. Converted to ${displayCurrency}`
+          }
         />
         <Stat
           label={`Outstanding (${displayCurrency})`}
@@ -225,7 +245,23 @@ export default async function Dashboard({
         <Stat label="New leads" value={String(newLeads)} hint={`${leads.data?.length ?? 0} total recent`} />
       </div>
 
-      <div className="mt-8 grid gap-6 lg:grid-cols-2">
+      {/* Without this line, Revenue quietly stops matching the bank and nothing
+          on screen says why. It carries no figure on purpose. */}
+      {!!purchaseInvoices.size && (
+        <p className="mt-3 text-xs text-bone-400">
+          Revenue counts our own work only. What clients paid for things we bought on their
+          behalf is kept in{" "}
+          <Link href={`${BASE}/purchases`} className="text-lime-400 hover:underline">
+            Purchases
+          </Link>
+          , with what each one cost us.
+        </p>
+      )}
+
+      {/* xl, not lg: each column here holds a table with its own 560px
+          minimum, and at 1024px minus the sidebar that leaves ~348px — so
+          lg:grid-cols-2 made both tables scroll sideways on a laptop. */}
+      <div className="mt-8 grid gap-6 xl:grid-cols-2">
         <section>
           <div className="mb-3 flex items-center justify-between">
             <h2 className="text-base">Projects in flight</h2>

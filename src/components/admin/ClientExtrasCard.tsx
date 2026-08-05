@@ -28,8 +28,10 @@ export default function ClientExtrasCard({ invoices }: { invoices: any[] }) {
   };
 
   return (
-    <section className="card my-6 border-ink-600 p-5">
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-ink-700 pb-3">
+    /* Collapsible, like the agreements above it. Both totals stay in the
+       summary, so closing this hides the line items and never the money. */
+    <details className="card group my-6 border-ink-600 p-5">
+      <summary className="flex cursor-pointer flex-wrap items-center justify-between gap-3 border-b border-ink-700 pb-3 marker:content-none [&::-webkit-details-marker]:hidden">
         <div>
           <h2 className="flex items-center gap-2 text-base font-semibold text-bone-50">
             <Layers size={16} className="text-lime-400" /> Extras &amp; one-offs
@@ -40,13 +42,17 @@ export default function ClientExtrasCard({ invoices }: { invoices: any[] }) {
             separately from the signed agreements.
           </p>
         </div>
-        <div className="text-right">
-          <p className="font-mono text-sm text-bone-100">{moneyMulti(pos.billed, "—")}</p>
-          <p className="mono-tag text-[11px]">
-            {pos.outstanding.length ? `${moneyMulti(pos.outstanding)} owed` : "all paid"}
-          </p>
+        <div className="flex items-center gap-4">
+          <div className="text-right">
+            <p className="font-mono text-sm text-bone-100">{moneyMulti(pos.billed, "—")}</p>
+            <p className="mono-tag text-[11px]">
+              {pos.outstanding.length ? `${moneyMulti(pos.outstanding)} owed` : "all paid"}
+            </p>
+          </div>
+          <span className="mono-tag shrink-0 text-bone-300 group-open:hidden">+</span>
+          <span className="mono-tag hidden shrink-0 text-bone-300 group-open:inline">−</span>
         </div>
-      </div>
+      </summary>
 
       <ul className="divide-y divide-ink-700">
         {rows.map((inv) => (
@@ -88,6 +94,6 @@ export default function ClientExtrasCard({ invoices }: { invoices: any[] }) {
           </li>
         ))}
       </ul>
-    </section>
+    </details>
   );
 }

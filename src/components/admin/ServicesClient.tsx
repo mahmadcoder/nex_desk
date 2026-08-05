@@ -112,7 +112,7 @@ export default function ServicesClient({ services }: { services: IService[] }) {
                 "Advanced admin control panel & dashboard",
                 "GA4 Analytics & SEO optimization",
                 "Priority API & webhook pipelines",
-                "30 days dedicated warranty support",
+                "2 weeks dedicated warranty support",
               ],
               is_popular: true,
               cta_text: "Select Growth Package",
@@ -299,7 +299,7 @@ export default function ServicesClient({ services }: { services: IService[] }) {
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="mono-tag text-xs mb-1 block">URL Slug *</label>
                   <input
@@ -318,7 +318,7 @@ export default function ServicesClient({ services }: { services: IService[] }) {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="mono-tag text-xs mb-1 block">Starting Price ($)</label>
                   <input

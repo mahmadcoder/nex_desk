@@ -498,7 +498,7 @@ export default function EmployeesClient({
                 </div>
               </div>
 
-              <div className="grid grid-cols-3 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div className="col-span-1">
                   <label className="mono-tag text-xs mb-1 block">Job Title Position *</label>
                   <CustomSelect
@@ -526,7 +526,7 @@ export default function EmployeesClient({
                 </div>
               </div>
 
-              <div className="grid grid-cols-3 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div>
                   <label className="mono-tag text-xs mb-1 block">Monthly Salary</label>
                   <input
@@ -589,7 +589,7 @@ export default function EmployeesClient({
                 </p>
               </div>
 
-              <div className="grid grid-cols-3 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div>
                   <label className="mono-tag text-xs mb-1 block">City</label>
                   <input

@@ -472,7 +472,7 @@ export default function DailyLogsClient({
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="mono-tag text-xs mb-1 block">Work Date *</label>
                   <input

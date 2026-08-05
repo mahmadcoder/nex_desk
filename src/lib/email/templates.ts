@@ -452,9 +452,21 @@ Nex Desk`,
     subject: "⭐ Could you spare two minutes, {{client_name}}?",
     body: `Hi {{client_name}},
 
-Now that {{project_name}} has been running for a couple of weeks — would you write us a few lines about how it went?
+Now that {{project_name}} has been running for a couple of weeks — could we ask a small favour?
 
-Anything honest is useful: what you were worried about beforehand, whether it turned out how you hoped, and whether you would work with us again.
+## A short video, if you have two minutes
+
+Just your phone, held up, talking for **30 to 60 seconds**. No script, no setup, nothing to prepare. Three things are all we need:
+
+• What you were worried about before you hired us
+• How {{project_name}} has actually gone
+• Whether you would work with us again
+
+Send it back however is easiest — reply to this email, or WhatsApp it to {{whatsapp}}. It does not need to be neat; the honest ones are always the ones people believe.
+
+## Or just write us a few lines
+
+If a video is not your thing, a couple of honest sentences by reply is just as welcome. Either helps us enormously.
 
 And if you know anyone who needs similar work, an introduction means a great deal to us.
 

@@ -11,10 +11,18 @@ import type { ActivityEntry } from "@/lib/insights";
  */
 export default function ActivityTimeline({ entries }: { entries: ActivityEntry[] }) {
   return (
-    <section className="card border-ink-600 p-5">
-      <h2 className="mb-4 flex items-center gap-2 border-b border-ink-700 pb-3 text-base font-semibold text-bone-50">
+    /* Collapsed by default. This is the longest thing on the page and grows
+       forever — every invoice, payment and password reset for the life of the
+       account — so left open it buries everything below it. <details> rather
+       than client state: no bundle, and it survives a page with JS still
+       loading. */
+    <details className="card group border-ink-600 p-5">
+      <summary className="mb-0 flex cursor-pointer items-center gap-2 border-b border-ink-700 pb-3 text-base font-semibold text-bone-50 marker:content-none group-open:mb-4 [&::-webkit-details-marker]:hidden">
         <History size={16} className="text-lime-400" /> Account history
-      </h2>
+        {!!entries.length && <span className="mono-tag text-[11px]">{entries.length}</span>}
+        <span className="mono-tag ml-auto shrink-0 text-bone-300 group-open:hidden">+</span>
+        <span className="mono-tag ml-auto hidden shrink-0 text-bone-300 group-open:inline">−</span>
+      </summary>
 
       {entries.length === 0 ? (
         <p className="text-xs leading-relaxed text-bone-300">
@@ -47,6 +55,6 @@ export default function ActivityTimeline({ entries }: { entries: ActivityEntry[]
           ))}
         </ol>
       )}
-    </section>
+    </details>
   );
 }

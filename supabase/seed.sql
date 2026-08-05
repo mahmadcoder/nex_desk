@@ -15,7 +15,7 @@ where id = 1;
 
 insert into services (slug, title, category, short_desc, icon, features, starting_at, currency, duration_note, scope_note, is_featured, sort_order) values
 ('web-development','Web development','Build','Fast, secure sites and web apps built to your exact spec — no page builders, no bloat.','code',
-  array['Next.js / React','Custom CMS','API integrations','90+ Lighthouse scores','1 month free support'], 1500,'USD','2–6 weeks','Up to 5 pages, standard design', true, 1),
+  array['Next.js / React','Custom CMS','API integrations','90+ Lighthouse scores','2 weeks free support'], 1500,'USD','2–6 weeks','Up to 5 pages, standard design', true, 1),
 
 ('web-design','Web design','Design','Interfaces designed around what your customer is trying to do, not around a template.','palette',
   array['Wireframes','High-fidelity UI','Design system','Responsive across devices','Figma handoff'], 900,'USD','1–3 weeks','Up to 5 pages, desktop + mobile', true, 2),
@@ -72,7 +72,7 @@ insert into faqs (question, answer, category, sort_order) values
 ('What if I need something outside the agreed scope?','We send a change order with the extra cost and extra days. Nothing gets added silently and nothing gets billed without your written approval.','payment',4),
 ('How many revisions are included?','It is written into your agreement — usually two full rounds per deliverable. Extra rounds are billed hourly at a rate you know in advance.','process',5),
 ('Do I own the code and design files?','Yes. Full ownership of source code, design files and credentials transfers to you once the final payment clears.','general',6),
-('What happens after launch?','You get one month of free support for bugs. After that, an optional monthly retainer covers updates, backups, monitoring and a set number of change hours.','process',7),
+('What happens after launch?','You get two weeks of free support for bugs. After that, an optional monthly retainer covers updates, backups, monitoring and a set number of change hours.','process',7),
 ('Do you work with clients outside Pakistan?','Yes. We work across timezones and invoice in PKR, USD, GBP, EUR or AED.','general',8)
 on conflict do nothing;
 

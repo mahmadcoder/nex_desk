@@ -13,7 +13,7 @@ import CustomSelect from "@/components/ui/CustomSelect";
 import ReceiptUpload from "@/components/admin/ReceiptUpload";
 import { saveExpense, deleteExpense, billExpenses } from "@/lib/actions/expenses";
 import { EXPENSE_CATEGORIES, expenseCategory } from "@/config/expenseCategories";
-import { money } from "@/lib/utils";
+import { money, daysUntil } from "@/lib/utils";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
@@ -50,12 +50,6 @@ function blank(currency: string, projectId: string | null) {
     visibleToClient: true,
     notifyClient: true,
   };
-}
-
-/** Days until a date, or null if there isn't one. */
-function daysUntil(date: string | null): number | null {
-  if (!date) return null;
-  return Math.ceil((new Date(date).getTime() - Date.now()) / 864e5);
 }
 
 /**
@@ -218,15 +212,29 @@ export default function ExpensesCard({
   }
 
   return (
-    <section className="card space-y-3 border-ink-600 p-5">
-      <div className="flex items-center justify-between gap-3 border-b border-ink-700 pb-3">
+    <details className="card group space-y-3 border-ink-600 p-5">
+      <summary className="flex cursor-pointer items-center justify-between gap-3 border-b border-ink-700 pb-3 marker:content-none [&::-webkit-details-marker]:hidden">
         <h2 className="flex items-center gap-2 text-base font-semibold text-bone-50">
           <Receipt size={16} className="text-lime-400" /> Paid on their behalf
+          {!!expenses.length && <span className="mono-tag text-[11px]">{expenses.length}</span>}
         </h2>
-        <button type="button" onClick={openNew} className="btn btn-sm gap-1.5">
-          <Plus size={13} /> Add
-        </button>
-      </div>
+        <div className="flex items-center gap-3">
+          <button
+            type="button"
+            /* Inside a <summary>, a click's default action is toggling the
+               panel. Cancelling it keeps Add as Add rather than Add-and-close. */
+            onClick={(ev) => {
+              ev.preventDefault();
+              openNew();
+            }}
+            className="btn btn-sm gap-1.5"
+          >
+            <Plus size={13} /> Add
+          </button>
+          <span className="mono-tag shrink-0 text-bone-300 group-open:hidden">+</span>
+          <span className="mono-tag hidden shrink-0 text-bone-300 group-open:inline">−</span>
+        </div>
+      </summary>
 
       {!expenses.length ? (
         <p className="text-xs leading-relaxed text-bone-300">
@@ -587,6 +595,6 @@ export default function ExpensesCard({
         }
         onConfirm={() => confirmDelete && remove(confirmDelete)}
       />
-    </section>
+    </details>
   );
 }

@@ -3,6 +3,7 @@ import { Layers, Lock, Plus, FileText } from "lucide-react";
 import { money, adminPath } from "@/lib/utils";
 import { Badge } from "./ui";
 import DocButton from "@/components/admin/DocButton";
+import SupportWindow from "@/components/SupportWindow";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
@@ -134,7 +135,7 @@ export default function ClientServices({
                         />
                       </div>
 
-                      <div className="grid gap-3 text-xs sm:grid-cols-3">
+                      <div className="grid gap-3 text-xs sm:grid-cols-2 lg:grid-cols-4">
                         <div>
                           <p className="mono-tag text-[11px]">Started</p>
                           <p className="mt-0.5 text-bone-100">{project.start_date ?? "—"}</p>
@@ -151,6 +152,9 @@ export default function ClientServices({
                               : "Not yet"}
                           </p>
                         </div>
+                        {/* Renders nothing until the project is handed over, so
+                            an in-flight project keeps its three-cell row. */}
+                        <SupportWindow project={project} tone="admin" />
                       </div>
                     </>
                   )}

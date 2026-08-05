@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient, createAdminClient } from "@/lib/supabase/server";
-import { money, moneyMulti, sumByCurrency, pdfFilename, externalUrl, CONTACT_EMAIL, CONTACT_WHATSAPP, whatsappLink } from "@/lib/utils";
+import { money, moneyMulti, sumByCurrency, pdfFilename, externalUrl, daysUntil, CONTACT_EMAIL, CONTACT_WHATSAPP, whatsappLink } from "@/lib/utils";
 import { Badge, Stat } from "@/components/admin/ui";
 import { ExternalLink, CheckCircle, Circle, DollarSign, Calendar, FileText, Download, MessageCircle, Receipt } from "lucide-react";
 import { expenseCategoryLabel } from "@/config/expenseCategories";
@@ -13,6 +13,7 @@ import AcceptAgreement from "@/components/portal/AcceptAgreement";
 import ApproveMilestone from "@/components/portal/ApproveMilestone";
 import KickoffChecklist from "@/components/portal/KickoffChecklist";
 import ReturnRequest from "@/components/portal/ReturnRequest";
+import SupportWindow from "@/components/SupportWindow";
 import { describeMetrics } from "@/config/logFields";
 
 export const dynamic = "force-dynamic";
@@ -195,8 +196,11 @@ export default async function Portal() {
     ]),
   ];
 
+  // No px-4 below: the portal layout wraps this in .shell, which already
+  // applies a clamp() gutter. The two together gave away 36px each side of a
+  // 390px screen.
   return (
-    <div className="max-w-5xl mx-auto py-10 px-4">
+    <div className="max-w-5xl mx-auto py-10">
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between border-b border-ink-600 pb-6">
         <div>
           {/* The global h1-h4 rule sets a very tight line-height, so a heading
@@ -366,7 +370,7 @@ export default async function Portal() {
         const ms = (milestones ?? []).filter((m) => m.project_id === p.id);
         const timeline = updates.filter((u) => u.project_id === p.id);
         return (
-          <section key={p.id} className="card mt-8 p-8">
+          <section key={p.id} className="card mt-8 p-5 sm:p-8">
             <div className="flex flex-wrap items-start justify-between gap-4 border-b border-ink-600 pb-5">
               <div>
                 <span className="mono-tag block text-xs text-lime-400">Active Project</span>
@@ -400,6 +404,11 @@ export default async function Portal() {
                 />
               </div>
             </div>
+
+            {/* Where the free-fix period stands. Sits directly above the
+                change-request form on purpose — this is the line between a bug
+                we owe them and new work we quote for. */}
+            <SupportWindow project={p} />
 
             {/* What the team actually did, newest first */}
             {!!timeline.length && (
@@ -539,9 +548,7 @@ export default async function Portal() {
 
           <ul className="mt-4 divide-y divide-ink-600">
             {visibleExpenses.map((x) => {
-              const renewsIn = x.renews_on
-                ? Math.ceil((new Date(x.renews_on).getTime() - Date.now()) / 864e5)
-                : null;
+              const renewsIn = daysUntil(x.renews_on);
 
               return (
                 <li key={x.id} className="flex flex-wrap items-start justify-between gap-3 py-3.5">
@@ -592,7 +599,7 @@ export default async function Portal() {
       {/* Invoices & Documents Section */}
       <div className="mt-8 grid gap-6 lg:grid-cols-2">
         {perms.show_invoices && (
-          <section className="card p-6">
+          <section className="card p-5 sm:p-6">
             <div className="flex items-center justify-between border-b border-ink-600 pb-4">
               <h2 className="flex items-center gap-2 text-lg leading-tight font-medium text-bone-50">
                 <DollarSign className="h-4 w-4 text-lime-400" /> Invoices & Receipts
@@ -602,10 +609,17 @@ export default async function Portal() {
               )}
             </div>
 
+            {/* min-w-0 + shrink-0 on the rows below, the same shape as the
+                documents list. Without them a long multi-currency
+                "Paid … / Total …" refuses to shrink and pushes the status badge
+                off the edge of the card. */}
             <ul className="mt-4 divide-y divide-ink-600">
               {invoiceRows.map((i) => (
-                <li key={i.id} className="flex items-center justify-between py-3.5 text-sm">
-                  <div>
+                <li
+                  key={i.id}
+                  className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1.5 py-3.5 text-sm"
+                >
+                  <div className="min-w-0">
                     <p className="flex flex-wrap items-center gap-2 font-mono text-bone-100">
                       {i.invoice_no}
                       {/* So a client can tell a payment stage from a domain
@@ -620,7 +634,9 @@ export default async function Portal() {
                       Paid: {money(Number(i.amount_paid), i.currency)} / Total: {money(Number(i.total), i.currency)}
                     </p>
                   </div>
-                  <Badge>{i.status}</Badge>
+                  <span className="shrink-0">
+                    <Badge>{i.status}</Badge>
+                  </span>
                 </li>
               ))}
               {!invoiceRows.length && (
@@ -634,7 +650,7 @@ export default async function Portal() {
           <div className="space-y-6">
             {!isPaused && <ClientDocumentUploader clientId={client.id} />}
 
-            <section className="card p-6">
+            <section className="card p-5 sm:p-6">
               <div className="border-b border-ink-600 pb-4">
                 <h2 className="flex items-center gap-2 text-lg leading-tight font-medium text-bone-50">
                   <FileText className="h-4 w-4 text-lime-400" /> Shared Documents & PDF Assets

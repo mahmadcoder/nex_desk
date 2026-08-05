@@ -235,7 +235,7 @@ export default function BlogClient({ posts }: { posts: Post[] }) {
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <label className="mono-tag text-xs mb-1 block">URL Slug *</label>
                 <input
@@ -303,7 +303,7 @@ export default function BlogClient({ posts }: { posts: Post[] }) {
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-3 pt-2">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
               <div>
                 <label className="mono-tag text-xs mb-1 block">SEO Meta Title</label>
                 <input

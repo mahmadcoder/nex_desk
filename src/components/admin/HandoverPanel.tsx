@@ -7,6 +7,7 @@ import { Lock, PackageCheck, Heart, Send, AlertTriangle } from "lucide-react";
 import { handoverProject, sendProjectThankYou } from "@/lib/actions/delivery";
 import ConfirmModal from "@/components/admin/ConfirmModal";
 import DocButton from "@/components/admin/DocButton";
+import AskFeedback from "@/components/admin/AskFeedback";
 
 /**
  * Handover as an event.
@@ -21,10 +22,15 @@ export default function HandoverPanel({
   ready,
   reasons,
   warnings = [],
+  clientName = "",
+  clientWhatsapp = null,
 }: {
   project: { id: string; name: string; handed_over_at: string | null; thanked_at: string | null };
   ready: boolean;
   reasons: string[];
+  clientName?: string;
+  /** clients.whatsapp ?? clients.phone — null disables the WhatsApp button. */
+  clientWhatsapp?: string | null;
   /**
    * Worth saying, but not a block — an unpaid £15 domain should not hold up a
    * £5,000 delivery. Shown whether or not the button is enabled.
@@ -114,6 +120,15 @@ export default function HandoverPanel({
                 <Heart className="mr-1.5 h-3.5 w-3.5" /> Send thank-you
               </button>
             )}
+            {/* The email half of this goes out on its own 14 days after
+                handover. This is the same ask on the channel people actually
+                reply on — but WhatsApp has no API here, so it opens the chat
+                with the message written and you press send. */}
+            <AskFeedback
+              projectName={project.name}
+              clientName={clientName}
+              number={clientWhatsapp}
+            />
           </div>
 
           {!project.thanked_at && (

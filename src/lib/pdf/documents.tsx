@@ -2,6 +2,7 @@ import { Document, Page, Text, View } from "@react-pdf/renderer";
 import { s, C } from "./theme";
 import { DocHeader, DocFooter, Field, fmt, date } from "./parts";
 import { CONTACT_EMAIL, CONTACT_WHATSAPP, getSiteBaseUrl } from "@/lib/utils";
+import { warrantyTerms } from "@/lib/warranty";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
@@ -567,6 +568,7 @@ export function ProgressDoc({ project, client, milestones }: { project: any; cli
    ============================================================ */
 export function HandoverDoc({ project, client, credentials }: { project: any; client: Party; credentials: any[] }) {
   const no = `HO-${String(project.id).slice(0, 6).toUpperCase()}`;
+  const warranty = warrantyTerms(project);
   return (
     <Document title={`Handover ${project.name}`} author="Nex Desk">
       <Page size="A4" style={s.page}>
@@ -585,7 +587,7 @@ export function HandoverDoc({ project, client, credentials }: { project: any; cl
           meta={[
             ["Live URL", project.live_url ?? "—"],
             ["Delivered", date(project.delivered_at)],
-            ["Warranty until", date(new Date(Date.now() + 30 * 864e5).toISOString())],
+            ["Warranty until", date(warranty.endsOn)],
           ]}
         />
 
@@ -622,10 +624,11 @@ export function HandoverDoc({ project, client, credentials }: { project: any; cl
 
         <Text style={s.h2}>Warranty and support</Text>
         <Text style={s.terms}>
-          Bugs in the delivered scope are fixed free of charge for 30 days from the handover
-          date above. This does not cover new features, third-party service outages, changes
-          made by others to the codebase, or content updates. A monthly retainer covering
-          updates, backups, monitoring and change hours is available on request.
+          Bugs in the delivered scope are fixed free of charge for {warranty.days} days from
+          the handover date above. This does not cover new features, third-party service
+          outages, changes made by others to the codebase, or content updates. A monthly
+          retainer covering updates, backups, monitoring and change hours is available on
+          request.
         </Text>
 
         <View style={s.signRow}>

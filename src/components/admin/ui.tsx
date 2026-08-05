@@ -80,15 +80,43 @@ export function Empty({ title, body, href, cta }: { title: string; body: string;
   );
 }
 
+/**
+ * The one table in the app, and on a phone it stops being a table.
+ *
+ * `min-w-[560px]` used to apply at every width. Seven columns at `px-5` is
+ * 280px of padding before a single character, so on a 390px screen the last
+ * column — always the actions — sat several hundred pixels off-screen, behind a
+ * scrollbar that mobile browsers hide at rest. It was unreachable rather than
+ * merely awkward.
+ *
+ * Below `sm` each row becomes a card and each cell gets its column heading
+ * printed beside it. The headings are passed down as CSS custom properties
+ * rather than as `data-label` on every cell, because that would have meant
+ * editing sixteen pages and several hundred `<td>`s — every consumer's cell
+ * order already matches `head` exactly, so `nth-child` is enough. The rules
+ * live in `globals.css` under `.nd-table`.
+ */
 export function Table({ head, children }: { head: string[]; children: React.ReactNode }) {
+  const labels = Object.fromEntries(
+    head.map((h, i) => [`--c${i + 1}`, JSON.stringify(h)])
+  ) as React.CSSProperties;
+
+  // Only some tables end in an actions column, marked by an empty heading.
+  // The other eight end on real data ("Status", "When", "Deadline"), which
+  // must keep its label rather than be turned into a button bar.
+  const actionsLast = head.length > 0 && head[head.length - 1].trim() === "";
+
   return (
     <div className="card overflow-hidden">
       <div className="overflow-x-auto">
-        <table className="w-full min-w-[560px] text-left text-sm">
+        <table
+          className={`nd-table w-full text-left text-sm sm:min-w-[560px] ${actionsLast ? "nd-actions-last" : ""}`}
+          style={labels}
+        >
           <thead className="bg-ink-700/50">
             <tr>
-              {head.map((h) => (
-                <th key={h} className="mono-tag px-5 py-3 font-normal">{h}</th>
+              {head.map((h, i) => (
+                <th key={h || `col-${i}`} className="mono-tag px-5 py-3 font-normal">{h}</th>
               ))}
             </tr>
           </thead>

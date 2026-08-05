@@ -9,7 +9,7 @@ export const HOMEPAGE_PROCESS_STEPS: [string, string][] = [
   ["Lock", "You approve, we send a signed agreement PDF and take the advance. Work starts when it clears."],
   ["Build", "Weekly progress emails and a staging link. You can see it as it happens, not at the end."],
   ["Ship", "Launch, handover document, all credentials transferred. You own everything."],
-  ["Stay", "One month free support, then an optional retainer for updates and monitoring."],
+  ["Stay", "Two weeks free support, then an optional retainer for updates and monitoring."],
 ];
 
 /**
@@ -117,7 +117,7 @@ export const DEFAULT_FAQS = [
     id: "10",
     question: "What happens after launch?",
     answer:
-      "You get 30 days of free post-launch support for bug fixes. After that, an optional monthly retainer covers regular updates, backups, security monitoring, and allocated development hours.",
+      "You get 2 weeks of free post-launch support for bug fixes. After that, an optional monthly retainer covers regular updates, backups, security monitoring, and allocated development hours.",
   },
   {
     id: "11",
@@ -234,7 +234,7 @@ export function getServiceFallbackTiers(startingAt?: number): PricingTier[] {
         "Advanced admin control panel & dashboard",
         "GA4 Analytics & SEO optimization",
         "Priority API & webhook pipelines",
-        "30 days dedicated warranty support",
+        "2 weeks dedicated warranty support",
       ],
       is_popular: true,
       cta_text: "Select Growth Package",
@@ -274,7 +274,7 @@ export function getServiceFallbackFaqs(serviceTitle: string): ServiceFaq[] {
     },
     {
       question: "What happens after the project launches?",
-      answer: "Every project includes 30 days of complimentary post-launch support for bug fixes. After that, an optional monthly retainer covers regular updates, security monitoring, and allocated development hours.",
+      answer: "Every project includes 2 weeks of complimentary post-launch support for bug fixes. After that, an optional monthly retainer covers regular updates, security monitoring, and allocated development hours.",
     },
     {
       question: "Can I upgrade my package or request custom features during development?",

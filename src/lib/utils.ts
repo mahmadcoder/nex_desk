@@ -185,6 +185,20 @@ export function whatsappLink(number: string = CONTACT_WHATSAPP, message?: string
   return `https://wa.me/${digits}${text}`;
 }
 
+/**
+ * Whole days from now until a date, or null if there isn't one. Negative once
+ * the date has passed.
+ *
+ * Existed as three identical private copies (ExpensesCard, AgencyExpensesClient,
+ * the portal's expense list) before living here.
+ */
+export function daysUntil(date: string | null | undefined): number | null {
+  if (!date) return null;
+  const t = new Date(date).getTime();
+  if (Number.isNaN(t)) return null;
+  return Math.ceil((t - Date.now()) / 864e5);
+}
+
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /**

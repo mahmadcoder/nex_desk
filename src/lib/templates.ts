@@ -156,7 +156,7 @@ HANDOVER CHECKLIST:
 [✓] User Documentation & Handoff Briefing
 
 SUPPORT PERIOD:
-As part of our commitment to quality, {{PROJECT_NAME}} includes 30 days of complimentary bug-fix support effective from today's date.
+As part of our commitment to quality, {{PROJECT_NAME}} includes 14 days of complimentary bug-fix support effective from today's date.
 
 ACCEPTANCE CONFIRMATION:
 By signing below, the Client confirms full receipt of deliverables and authorizes final project closure.

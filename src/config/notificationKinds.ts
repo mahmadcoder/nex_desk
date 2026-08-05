@@ -1,6 +1,6 @@
 import {
   FileSignature, CheckCircle2, ListChecks, PartyPopper, MessageSquarePlus,
-  FileUp, ClipboardList, CalendarClock, UserCheck, Bell, Wallet,
+  FileUp, ClipboardList, CalendarClock, UserCheck, Bell, Wallet, Star,
   type LucideIcon,
 } from "lucide-react";
 
@@ -37,6 +37,7 @@ const KINDS: Record<string, KindStyle> = {
   "salary.paid":           { icon: Wallet,            tone: "good",    label: "Pay" },
   "expense.renewal":       { icon: CalendarClock,     tone: "warn",    label: "Renewal" },
   "client.return_request": { icon: PartyPopper,       tone: "good",    label: "Return" },
+  "feedback.due":          { icon: Star,              tone: "good",    label: "Feedback" },
 };
 
 export function describeKind(kind: string): KindStyle {

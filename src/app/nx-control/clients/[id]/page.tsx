@@ -409,7 +409,10 @@ export default async function ClientDetail({ params }: { params: Promise<{ id: s
       )}
 
       {/* Projects & Invoices */}
-      <div className="mt-8 grid gap-6 lg:grid-cols-2">
+      {/* xl, not lg: each column here holds a table with its own 560px
+          minimum, and at 1024px minus the sidebar that leaves ~348px — so
+          lg:grid-cols-2 made both tables scroll sideways on a laptop. */}
+      <div className="mt-8 grid gap-6 xl:grid-cols-2">
         <section>
           <h2 className="mb-3 text-base font-medium text-bone-50">Projects ({projects?.length ?? 0})</h2>
           <Table head={["Project", "Progress", "Status"]}>

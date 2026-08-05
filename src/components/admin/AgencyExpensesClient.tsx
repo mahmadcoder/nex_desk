@@ -11,7 +11,7 @@ import Modal from "@/components/admin/Modal";
 import ConfirmModal from "@/components/admin/ConfirmModal";
 import CustomSelect from "@/components/ui/CustomSelect";
 import ReceiptUpload from "@/components/admin/ReceiptUpload";
-import { money, moneyMulti, sumByCurrency, CURRENCIES, cn } from "@/lib/utils";
+import { money, moneyMulti, sumByCurrency, daysUntil, CURRENCIES, cn } from "@/lib/utils";
 import {
   AGENCY_EXPENSE_CATEGORIES, agencyCategory, agencyCategoryLabel,
 } from "@/config/agencyExpenseCategories";
@@ -42,9 +42,6 @@ const blank = () => ({
   receiptUrl: "",
   notes: "",
 });
-
-const daysUntil = (d: string | null) =>
-  d ? Math.ceil((new Date(d).getTime() - Date.now()) / 864e5) : null;
 
 /**
  * What the agency spends on itself.

@@ -90,8 +90,17 @@ export default async function ProjectDetail({ params }: { params: Promise<{ id: 
   const gate = await handoverGate(id);
   const { contract, extras } = gate;
 
-  const contractValue = deal ? Number(deal.total) : 0;
   const contractCurrency: string | null = deal?.currency ?? null;
+
+  // The agreement PLUS every change request they have agreed to buy — which is
+  // what `contract.contracted` has meant since agreed changes started counting
+  // as contract work. Reading `deal.total` here instead measured payments that
+  // included a change request against a total that did not, so a $4,000 deal
+  // with a $20 change request, both paid, read "$4,020 / $4,000" — over-paid,
+  // when they were exactly square.
+  const contractValue = contractCurrency
+    ? (contract.contracted.find((t) => t.currency === contractCurrency.toUpperCase())?.total ?? 0)
+    : 0;
 
   // Only money that actually paid a stage of the agreement. Counting every
   // payment on the project meant a domain re-bill read as progress against the
@@ -99,6 +108,10 @@ export default async function ProjectDetail({ params }: { params: Promise<{ id: 
   const paidInContractCurrency = contractCurrency
     ? (contract.paid.find((p) => p.currency === contractCurrency.toUpperCase())?.total ?? 0)
     : 0;
+
+  // How much of the contract figure above is approved change requests rather
+  // than the signed agreement. Only used to explain the number on screen.
+  const agreedChangeValue = deal ? Math.max(0, contractValue - Number(deal.total)) : 0;
 
   const outstanding = contract.outstanding;
   const isSettled = deal
@@ -145,7 +158,11 @@ export default async function ProjectDetail({ params }: { params: Promise<{ id: 
             // Extras are shown beside the contract, never inside it. Folding
             // them in is what made a paid domain look like a paid milestone.
             hint={
-              extras.billed.length
+              // Why the total is not the deal figure. Without this, an agreed
+              // change request makes the contract look like it was typed wrong.
+              agreedChangeValue > 0
+                ? `${money(Number(deal.total), contractCurrency!)} agreed + ${money(agreedChangeValue, contractCurrency!)} of changes they approved`
+                : extras.billed.length
                 ? `Plus ${moneyMulti(extras.billed)} of extras · ${moneyMulti(extras.outstanding, "all paid")}`
                 : undefined
             }
@@ -252,6 +269,11 @@ export default async function ProjectDetail({ params }: { params: Promise<{ id: 
               ready={handoverReady}
               reasons={handoverReasons}
               warnings={handoverWarnings}
+              clientName={client?.name ?? ""}
+              // WhatsApp first, the ordinary phone number second — most clients
+              // have one number that is both, and only one of the two columns
+              // tends to get filled in.
+              clientWhatsapp={client?.whatsapp || client?.phone || null}
             />
           )}
 
