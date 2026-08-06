@@ -9,6 +9,7 @@ import {
   ExternalLink, Mail, Phone, Calendar, X
 } from "lucide-react";
 import ImageUpload from "@/components/admin/ImageUpload";
+import StatusControl, { STATUS_UI } from "@/components/admin/StatusControl";
 import CustomSelect from "@/components/ui/CustomSelect";
 import ConfirmModal from "@/components/admin/ConfirmModal";
 import { saveEmployee, deleteEmployee, saveJobTitle, deleteJobTitle } from "@/lib/actions/cms";
@@ -58,6 +59,7 @@ export default function EmployeesClient({
   const [pending, startTransition] = useTransition();
   const [query, setQuery] = useState("");
   const [seniorityFilter, setSeniorityFilter] = useState("all");
+  const [statusFilter, setStatusFilter] = useState("all");
   const [editing, setEditing] = useState<Partial<Employee> | null>(null);
   const [welcomeLang, setWelcomeLang] = useState<"en" | "ar" | "fr" | "de" | "es">("en");
   const [showJobTitlesModal, setShowJobTitlesModal] = useState(false);
@@ -78,7 +80,9 @@ export default function EmployeesClient({
     const matchesSeniority =
       seniorityFilter === "all" || e.seniority.toLowerCase() === seniorityFilter.toLowerCase();
 
-    return matchesQ && matchesSeniority;
+    const matchesStatus = statusFilter === "all" || (e.status ?? "Active") === statusFilter;
+
+    return matchesQ && matchesSeniority && matchesStatus;
   });
 
   const totalPayroll = employees.reduce((sum, e) => sum + (Number(e.salary_amount) || 0), 0);
@@ -317,12 +321,42 @@ export default function EmployeesClient({
         </div>
       </div>
 
+      {/* Access, as its own row. The grid gave no way to see who could still
+          sign in without opening every person one at a time. */}
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="mono-tag text-[11px]">Access:</span>
+        {(["all", "Active", "On Leave", "Terminated"] as const).map((st) => (
+          <button
+            key={st}
+            onClick={() => setStatusFilter(st)}
+            className={`rounded-lg px-2.5 py-1 text-xs transition-colors ${
+              statusFilter === st
+                ? "bg-lime-400/20 text-lime-400 border border-lime-400/30 font-medium"
+                : "text-bone-400 hover:text-bone-100 hover:bg-ink-800"
+            }`}
+          >
+            {st === "all" ? "Everyone" : STATUS_UI[st].label}
+            {st !== "all" && (
+              <span className="ml-1.5 text-bone-500">
+                {employees.filter((e) => (e.status ?? "Active") === st).length}
+              </span>
+            )}
+          </button>
+        ))}
+      </div>
+
       {/* Employee Cards Grid */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {filtered.map((e) => (
           <div
             key={e.id}
-            className="card p-5 border-ink-600 hover:border-lime-400/40 transition-all flex flex-col justify-between space-y-4 group"
+            /* Dimmed when they cannot sign in — the grid used to render a
+               terminated employee identically to an active one. */
+            className={`card p-5 hover:border-lime-400/40 transition-all flex flex-col justify-between space-y-4 group ${
+              e.status === "Terminated"
+                ? "border-ink-700/50 bg-ink-950/60 opacity-65"
+                : "border-ink-600"
+            }`}
           >
             <div>
               <div className="flex items-start justify-between">
@@ -349,9 +383,16 @@ export default function EmployeesClient({
                   </div>
                 </div>
 
-                <span className="mono-tag text-[10px] bg-lime-400/10 text-lime-400 px-2 py-0.5 rounded border border-lime-400/20">
-                  {e.seniority}
-                </span>
+                <div className="flex shrink-0 flex-col items-end gap-1.5">
+                  <StatusControl
+                    employeeId={e.id}
+                    name={e.full_name}
+                    status={e.status ?? "Active"}
+                  />
+                  <span className="mono-tag text-[10px] bg-lime-400/10 text-lime-400 px-2 py-0.5 rounded border border-lime-400/20">
+                    {e.seniority}
+                  </span>
+                </div>
               </div>
 
               <div className="mt-4 space-y-1.5 border-t border-ink-700/60 pt-3 text-xs text-bone-300">

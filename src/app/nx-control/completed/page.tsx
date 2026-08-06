@@ -5,6 +5,7 @@ import { PageHead, Badge, Empty, Stat } from "@/components/admin/ui";
 import { money, moneyMulti, sumByCurrency } from "@/lib/utils";
 import { PackageCheck, Moon } from "lucide-react";
 import ReactivateButton from "@/components/admin/ReactivateButton";
+import { fmtDate } from "@/lib/datetime";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
@@ -85,11 +86,11 @@ export default async function CompletedPage() {
                   <p className="mono-tag mt-1 text-[11px]">
                     {p.clients?.company || p.clients?.name}
                     {p.handed_over_at
-                      ? ` · handed over ${new Date(p.handed_over_at).toLocaleDateString("en-GB")}`
+                      ? ` · handed over ${fmtDate(p.handed_over_at)}`
                       : ""}
                     {/* Was printing a raw YYYY-MM-DD beside en-GB neighbours. */}
                     {p.warranty_ends_on
-                      ? ` · support to ${new Date(p.warranty_ends_on).toLocaleDateString("en-GB")}`
+                      ? ` · support to ${fmtDate(p.warranty_ends_on)}`
                       : ""}
                   </p>
                 </div>

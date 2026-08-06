@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
+import StatusControl from "@/components/admin/StatusControl";
 import { KeyRound, Copy, Send, Eye, EyeOff, FileDown } from "lucide-react";
 import { sendEmployeeCredentials } from "@/lib/actions/cms";
 import { getSiteBaseUrl, adminPath } from "@/lib/utils";
@@ -20,6 +21,8 @@ export default function EmployeeAccessCard({
     full_name: string;
     email: string;
     user_id: string | null;
+    /** Active | On Leave | Terminated — whether they may sign in at all. */
+    status?: string | null;
     portal_password_preview: string | null;
   };
 }) {
@@ -99,15 +102,26 @@ export default function EmployeeAccessCard({
         <h2 className="flex items-center gap-2 text-base font-semibold text-bone-50">
           <KeyRound size={16} className="text-lime-400" /> Staff Panel Access
         </h2>
-        <span
-          className={`mono-tag rounded-full border px-2.5 py-0.5 text-[10px] ${
-            hasAccount
-              ? "border-emerald-400/20 bg-emerald-400/10 text-emerald-400"
-              : "border-amber-400/20 bg-amber-400/10 text-amber-400"
-          }`}
-        >
-          {hasAccount ? "Account active" : "No login yet"}
-        </span>
+        {/* This said "Account active" from !!user_id alone — a card titled
+            "Staff Panel Access" reporting whether a login EXISTS, in the place
+            people look for the switch that turns access off. Two separate
+            facts, now shown as two. */}
+        <div className="flex items-center gap-2">
+          <span
+            className={`mono-tag rounded-full border px-2.5 py-0.5 text-[10px] ${
+              hasAccount
+                ? "border-ink-600 bg-ink-800 text-bone-300"
+                : "border-amber-400/20 bg-amber-400/10 text-amber-400"
+            }`}
+          >
+            {hasAccount ? "Login created" : "No login yet"}
+          </span>
+          <StatusControl
+            employeeId={employee.id}
+            name={employee.full_name}
+            status={employee.status ?? "Active"}
+          />
+        </div>
       </div>
 
       <div className="space-y-2.5 text-xs">

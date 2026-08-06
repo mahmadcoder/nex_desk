@@ -10,6 +10,7 @@ import { getLiveExchangeRates, convertCurrency } from "@/lib/currency";
 import { atRiskClients } from "@/lib/insights";
 import { expenseInvoiceIds } from "@/lib/billing";
 import { AlertTriangle } from "lucide-react";
+import { fmtDateLong, fmtDate } from "@/lib/datetime";
 
 const BASE = `/${process.env.ADMIN_PATH || "nx-control"}`;
 export const metadata = { title: "Control" };
@@ -158,7 +159,7 @@ export default async function Dashboard({
     <>
       <PageHead
         title="Dashboard"
-        sub={new Date().toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}
+        sub={fmtDateLong()}
         action={<Link href={`${BASE}/deals/new`} className="btn btn-primary h-10">Lock a deal</Link>}
       />
 
@@ -330,7 +331,7 @@ export default async function Dashboard({
               <td className="px-5 py-3 text-bone-400">{l.company ?? "—"}</td>
               <td className="hidden px-5 py-3 text-bone-400 sm:table-cell">{(l.service_slugs ?? []).join(", ") || "—"}</td>
               <td className="px-5 py-3"><Badge>{l.status}</Badge></td>
-              <td className="px-5 py-3 text-bone-400">{new Date(l.created_at).toLocaleDateString("en-GB")}</td>
+              <td className="px-5 py-3 text-bone-400">{fmtDate(l.created_at)}</td>
             </tr>
           ))}
           {!leads.data?.length && (

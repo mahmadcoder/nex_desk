@@ -9,62 +9,13 @@ import { money } from "@/lib/utils";
 export const metadata: Metadata = { title: "Pricing" };
 export const revalidate = 300;
 
-/**
- * Three signature engagement tiers. These are presentational and easy to edit
- * right here — no database needed. Ranges read as honest; a single number
- * reads as bait.
- */
-const TIERS = [
-  {
-    name: "Launch",
-    tagline: "For a sharp marketing site that converts.",
-    price: "$1,500 – $3,000",
-    timeline: "2–3 weeks",
-    features: [
-      "Up to 6 custom-designed pages",
-      "Mobile-first, fast (90+ Lighthouse)",
-      "CMS so you can edit content yourself",
-      "Contact forms & lead capture",
-      "Basic SEO setup",
-      "2 weeks free support",
-    ],
-    popular: false,
-  },
-  {
-    name: "Growth",
-    tagline: "For a web app, store, or serious build.",
-    price: "$4,000 – $8,000",
-    timeline: "6–8 weeks",
-    features: [
-      "Everything in Launch",
-      "Custom web app or e-commerce",
-      "User accounts & dashboards",
-      "Third-party & payment integrations",
-      "Admin panel to run it yourself",
-      "2 revision rounds per milestone",
-      "2 weeks free support",
-    ],
-    popular: true,
-  },
-  {
-    name: "Scale",
-    tagline: "For custom software and SaaS platforms.",
-    price: "$12,000+",
-    timeline: "12+ weeks",
-    features: [
-      "Everything in Growth",
-      "Full custom SaaS / platform",
-      "Multi-role access & permissions",
-      "Advanced analytics & reporting",
-      "Dedicated project lead",
-      "CI/CD, monitoring & DevOps",
-      "12 months support & retainer options",
-    ],
-    popular: false,
-  },
-];
-
 import { demoServices } from "@/lib/agencyData";
+/**
+ * Three signature engagement tiers. Ranges read as honest; a single number
+ * reads as bait. They live in config rather than here because the homepage
+ * teaser shows the same three, and two copies drift.
+ */
+import { TIERS } from "@/config/pricing";
 
 export default async function PricingPage() {
   const supabase = await createClient();

@@ -16,6 +16,7 @@ import {
   AGENCY_EXPENSE_CATEGORIES, agencyCategory, agencyCategoryLabel,
 } from "@/config/agencyExpenseCategories";
 import { saveAgencyExpense, deleteAgencyExpense } from "@/lib/actions/agencyExpenses";
+import { fmtMonth } from "@/lib/datetime";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
@@ -267,9 +268,7 @@ export default function AgencyExpensesClient({ expenses }: { expenses: any[] }) 
               <section key={month}>
                 <div className="mb-2 flex items-baseline justify-between">
                   <p className="mono-tag text-[11px]">
-                    {new Date(`${month}-01T00:00:00`).toLocaleDateString("en-GB", {
-                      month: "long", year: "numeric",
-                    })}
+                    {fmtMonth(`${month}-01T00:00:00`)}
                   </p>
                   <p className="font-mono text-xs text-bone-100">{moneyMulti(total)}</p>
                 </div>

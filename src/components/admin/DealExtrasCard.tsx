@@ -7,6 +7,7 @@ import { Repeat2, BookmarkPlus, CheckCircle2 } from "lucide-react";
 import { setRetainer, saveDealTemplate } from "@/lib/actions/agreements";
 import Modal from "@/components/admin/Modal";
 import CustomSelect from "@/components/ui/CustomSelect";
+import { fmtDateTime } from "@/lib/datetime";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
@@ -59,7 +60,7 @@ export default function DealExtrasCard({ deal }: { deal: any }) {
           <CheckCircle2 size={14} className="mt-0.5 shrink-0 text-emerald-300" />
           <p className="text-xs leading-relaxed text-emerald-200">
             Accepted in the portal by <strong>{deal.accepted_name}</strong> on{" "}
-            {new Date(deal.accepted_at).toLocaleString("en-GB")}
+            {fmtDateTime(deal.accepted_at)}
             {deal.accepted_ip ? ` from ${deal.accepted_ip}` : ""}.
           </p>
         </div>

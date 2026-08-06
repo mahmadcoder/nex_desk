@@ -8,6 +8,7 @@ import { sendEmail } from "@/lib/email/send";
 import { asUuid, money } from "@/lib/utils";
 import { recordAudit } from "@/lib/actions/audit";
 import { notify } from "@/lib/actions/notify";
+import { fmtMonth } from "@/lib/datetime";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
@@ -50,7 +51,7 @@ function monthStart(value: string): string | null {
 }
 
 const monthLabel = (iso: string) =>
-  new Date(`${iso}T00:00:00`).toLocaleDateString("en-GB", { month: "long", year: "numeric" });
+  fmtMonth(`${iso}T00:00:00`);
 
 export async function recordSalaryPayment(
   input: SalaryPaymentInput

@@ -1,4 +1,5 @@
 import { getSiteBaseUrl, CONTACT_EMAIL, CONTACT_WHATSAPP, whatsappLink } from "@/lib/utils";
+import { fmtDate } from "@/lib/datetime";
 
 export const escapeHtml = (s: string) =>
   s.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]!));
@@ -95,7 +96,26 @@ function renderBulletBlock(block: string, align: string, alignStyle: string) {
  *   `**text**`     → bold, parsed after escaping so templates stay safe
  * A leading emoji on the SUBJECT becomes a badge above the heading.
  */
-export function renderHtml(subject: string, body: string, lang: string = "en") {
+export type EmailAgency = { name: string; email: string; location: string; whatsapp: string };
+
+/**
+ * `agency` is passed in rather than read here: this module is sync and shared
+ * with the preview renderer. Falls back to the env constants, which is what the
+ * footer hardcoded before — company_name and address were saved in Settings and
+ * read by nothing.
+ */
+export function renderHtml(
+  subject: string,
+  body: string,
+  lang: string = "en",
+  agency?: EmailAgency
+) {
+  const brand = {
+    name: agency?.name || "Nex Desk",
+    email: agency?.email || CONTACT_EMAIL,
+    location: agency?.location || "Multan, Pakistan",
+    whatsapp: agency?.whatsapp || CONTACT_WHATSAPP,
+  };
   const isRtl = lang === "ar";
   const dirAttr = isRtl ? 'dir="rtl"' : 'dir="ltr"';
   const align = isRtl ? "right" : "left";
@@ -132,11 +152,7 @@ export function renderHtml(subject: string, body: string, lang: string = "en") {
     })
     .join("");
 
-  const today = new Date().toLocaleDateString("en-GB", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-  });
+  const today = fmtDate();
 
   // Split any leading emoji off the subject: it stays in the inbox subject line
   // (set separately in send.ts) and becomes a badge here.
@@ -185,7 +201,7 @@ export function renderHtml(subject: string, body: string, lang: string = "en") {
                         </table>
                       </td>
                       <td valign="middle">
-                        <span style="font-family:${FONT};font-size:19px;font-weight:700;letter-spacing:-0.4px;color:${C.ink};">Nex Desk</span>
+                        <span style="font-family:${FONT};font-size:19px;font-weight:700;letter-spacing:-0.4px;color:${C.ink};">${escapeHtml(brand.name)}</span>
                         <div style="font-family:${FONT};font-size:11px;color:${C.muted};margin-top:1px;">Software agency</div>
                       </td>
                     </tr></table>
@@ -214,12 +230,12 @@ export function renderHtml(subject: string, body: string, lang: string = "en") {
                 <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
                   <tr>
                     <td align="${align}" style="font-family:${FONT};font-size:12px;line-height:1.65;color:${C.muted};">
-                      Nex Desk Software Agency &middot; Multan, Pakistan<br>
-                      <a href="mailto:${CONTACT_EMAIL}" style="color:${C.muted};">${CONTACT_EMAIL}</a><br>
+                      ${escapeHtml(brand.name)} &middot; ${escapeHtml(brand.location)}<br>
+                      <a href="mailto:${brand.email}" style="color:${C.muted};">${escapeHtml(brand.email)}</a><br>
                       <!-- Clients often send receipts and signed pages on WhatsApp
                            rather than by email, so the route is always offered. -->
                       WhatsApp:
-                      <a href="${whatsappLink()}" target="_blank" style="color:${C.limeText};font-weight:600;text-decoration:none;">${escapeHtml(CONTACT_WHATSAPP)}</a>
+                      <a href="${whatsappLink(brand.whatsapp)}" target="_blank" style="color:${C.limeText};font-weight:600;text-decoration:none;">${escapeHtml(brand.whatsapp)}</a>
                     </td>
                     <td align="${flip}" valign="top">
                       <a href="${siteUrl}" target="_blank" style="font-family:${FONT};font-size:12px;font-weight:600;color:${C.ink};text-decoration:none;border-bottom:1.5px solid ${C.lime};">${escapeHtml(siteUrl.replace(/^https?:\/\//, ""))}</a>
@@ -233,7 +249,7 @@ export function renderHtml(subject: string, body: string, lang: string = "en") {
         </table>
 
         <p style="max-width:600px;margin:14px auto 0;font-family:${FONT};font-size:12px;color:${C.muted};text-align:center;">
-          &copy; ${new Date().getFullYear()} Nex Desk Software Agency
+          &copy; ${new Date().getFullYear()} ${escapeHtml(brand.name)}
         </p>
       </td>
     </tr>

@@ -6,12 +6,14 @@ import { gsap } from "gsap";
 
 
 import { DESK_HOTSPOTS, DeskHotspotId } from "@/config/siteContent";
+import { AGENCY_TZ } from "@/lib/datetime";
 
 type Hot = DeskHotspotId | null;
 
 const HOTSPOTS = DESK_HOTSPOTS;
 
-function useIslamabadTime() {
+/** The agency clock, from the one place the timezone is defined. */
+function useAgencyTime() {
   const [t, setT] = useState("--:--");
   useEffect(() => {
     const tick = () =>
@@ -19,7 +21,7 @@ function useIslamabadTime() {
         new Intl.DateTimeFormat("en-GB", {
           hour: "2-digit",
           minute: "2-digit",
-          timeZone: "Asia/Karachi",
+          timeZone: AGENCY_TZ,
           hour12: false,
         }).format(new Date())
       );
@@ -33,7 +35,7 @@ function useIslamabadTime() {
 export default function TheDesk() {
   const [hot, setHot] = useState<Hot>(null);
   const root = useRef<HTMLDivElement>(null);
-  const time = useIslamabadTime();
+  const time = useAgencyTime();
 
   useEffect(() => {
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
@@ -145,7 +147,7 @@ export default function TheDesk() {
               <rect x="392" y="250" width="70" height="112" rx="12" transform="rotate(8 427 306)" fill="#0A0E17" stroke={hot === "phone" ? "#D0FF4E" : "#2E3D5A"} strokeWidth={hot === "phone" ? 2 : 1} />
               <g transform="rotate(8 427 306)">
                 <text x="427" y="298" textAnchor="middle" fill="#F1F5F9" fontSize="18" fontFamily="monospace">{time}</text>
-                <text x="427" y="314" textAnchor="middle" fill="#8492A6" fontSize="7" fontFamily="monospace" letterSpacing="1">ISLAMABAD</text>
+                <text x="427" y="314" textAnchor="middle" fill="#8492A6" fontSize="7" fontFamily="monospace" letterSpacing="1">MULTAN</text>
                 <circle cx="427" cy="336" r="3" fill="#D0FF4E" />
               </g>
             </g>

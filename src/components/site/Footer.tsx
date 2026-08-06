@@ -103,7 +103,7 @@ export default function Footer() {
           {/* Column 1: Location & Socials (Left) */}
           <div>
             <p className="mono-tag text-xs text-lime-400">Location</p>
-            <p className="mt-5 text-sm text-bone-200">Islamabad, Pakistan</p>
+            <p className="mt-5 text-sm text-bone-200">Multan, Pakistan</p>
             <p className="mt-1 text-xs text-bone-400">Working worldwide across timezones.</p>
 
             {/* Social Icons (Horizontal, Icon-only with hover label & pointer arrow) */}

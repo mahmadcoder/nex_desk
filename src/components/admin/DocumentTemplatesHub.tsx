@@ -22,12 +22,21 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { CONTACT_EMAIL, getSiteBaseUrl } from "@/lib/utils";
+import { fmtDateTime, fmtDate } from "@/lib/datetime";
 
 export default function DocumentTemplatesHub({
   clientDocs,
+  agency,
 }: {
   clientDocs: any[];
+  /** From Settings. A client component cannot call getAgency() itself. */
+  agency?: { name: string; email: string; location: string };
 }) {
+  const brand = {
+    name: agency?.name || "Nex Desk",
+    email: agency?.email || CONTACT_EMAIL,
+    location: agency?.location || "Multan, Pakistan",
+  };
   const [activeTab, setActiveTab] = useState<"templates" | "history">("templates");
   const [search, setSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState<string>("All");
@@ -49,7 +58,7 @@ export default function DocumentTemplatesHub({
 
   const handleOpenModal = (t: AgencyTemplate) => {
     setSelectedTemplate(t);
-    const d = new Date().toLocaleDateString("en-GB");
+    const d = fmtDate();
     const yr = new Date().getFullYear().toString();
     const formatted = t.textContent
       .replace(/{{DATE}}/g, d)
@@ -108,13 +117,13 @@ export default function DocumentTemplatesHub({
         <table width="100%" cellpadding="0" cellspacing="0" style="width:100%; border-bottom: 3px solid #65a30d; padding-bottom: 12px; margin-bottom: 20px;">
           <tr>
             <td valign="top" style="width: 55%;">
-              <div style="font-size: 22px; font-weight: bold; color: #09090b; font-family: Arial, sans-serif; text-transform: uppercase; letter-spacing: -0.5px;">NEX DESK</div>
+              <div style="font-size: 22px; font-weight: bold; color: #09090b; font-family: Arial, sans-serif; text-transform: uppercase; letter-spacing: -0.5px;">${brand.name.toUpperCase()}</div>
               <div style="font-size: 10px; font-weight: bold; color: #65a30d; font-family: Arial, sans-serif; text-transform: uppercase; margin-top: 2px;">Software Agency & AI Solutions</div>
             </td>
             <td valign="top" style="width: 45%; text-align: right; font-size: 10px; color: #52525b; font-family: Arial, sans-serif; line-height: 1.5;">
               <div><strong>Website:</strong> ${getSiteBaseUrl().replace(/^https?:\/\//, "")}</div>
-              <div><strong>Email:</strong> ${CONTACT_EMAIL}</div>
-              <div>Multan, Pakistan</div>
+              <div><strong>Email:</strong> ${brand.email}</div>
+              <div>${brand.location}</div>
             </td>
           </tr>
         </table>
@@ -122,7 +131,7 @@ export default function DocumentTemplatesHub({
         <!-- Document Metadata Bar -->
         <div style="background-color: #f4f4f5; border-left: 4px solid #65a30d; padding: 10px 14px; font-size: 11px; font-family: Arial, sans-serif; color: #18181b; margin-bottom: 22px;">
           <strong>DOCUMENT:</strong> ${tTitle.toUpperCase()} &nbsp;|&nbsp; 
-          <strong>DATE:</strong> ${new Date().toLocaleDateString("en-GB")} &nbsp;|&nbsp; 
+          <strong>DATE:</strong> ${fmtDate()} &nbsp;|&nbsp; 
           <strong>ISSUER:</strong> NEX DESK SOFTWARE AGENCY
         </div>
 
@@ -137,7 +146,7 @@ export default function DocumentTemplatesHub({
             <td valign="top" style="width: 45%;">
               <div style="border-bottom: 1px solid #a1a1aa; height: 35px; margin-bottom: 8px;"></div>
               <strong style="font-size: 11px; font-family: Arial, sans-serif;">Authorized Representative</strong><br>
-              <span style="font-size: 10px; color: #71717a; font-family: Arial, sans-serif;">Nex Desk Software Agency</span>
+              <span style="font-size: 10px; color: #71717a; font-family: Arial, sans-serif;">${brand.name}</span>
             </td>
             <td style="width: 10%;"></td>
             <td valign="top" style="width: 45%;">
@@ -386,7 +395,7 @@ export default function DocumentTemplatesHub({
                     {Math.round((d.file_size ?? 0) / 1024)} KB
                   </td>
                   <td className="px-5 py-3 text-bone-400 text-xs">
-                    {new Date(d.created_at).toLocaleString("en-GB")}
+                    {fmtDateTime(d.created_at)}
                   </td>
                   <td className="px-5 py-3 text-right">
                     {d.url && (

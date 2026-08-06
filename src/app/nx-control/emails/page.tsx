@@ -1,6 +1,7 @@
 import { createAdminClient } from "@/lib/supabase/server";
 import { PageHead, Badge, Table } from "@/components/admin/ui";
 import EmailComposer from "@/components/admin/EmailComposer";
+import { fmtDateTime } from "@/lib/datetime";
 
 export const metadata = { title: "Email Centre" };
 export const dynamic = "force-dynamic";
@@ -34,7 +35,7 @@ export default async function EmailsPage() {
                 <Badge>{e.status}</Badge>
                 {e.error && <p className="mt-1 text-xs text-[#F87171]">{e.error}</p>}
               </td>
-              <td className="px-5 py-3 text-bone-400">{new Date(e.sent_at).toLocaleString("en-GB")}</td>
+              <td className="px-5 py-3 text-bone-400">{fmtDateTime(e.sent_at)}</td>
             </tr>
           ))}
           {!log?.length && <tr><td colSpan={5} className="px-5 py-8 text-center text-bone-400">Nothing sent yet.</td></tr>}

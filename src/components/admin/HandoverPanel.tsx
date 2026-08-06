@@ -8,6 +8,7 @@ import { handoverProject, sendProjectThankYou } from "@/lib/actions/delivery";
 import ConfirmModal from "@/components/admin/ConfirmModal";
 import DocButton from "@/components/admin/DocButton";
 import AskFeedback from "@/components/admin/AskFeedback";
+import { fmtDate } from "@/lib/datetime";
 
 /**
  * Handover as an event.
@@ -97,9 +98,7 @@ export default function HandoverPanel({
           <p className="text-xs leading-relaxed text-bone-300">
             Delivered to the client on{" "}
             <strong className="text-bone-100">
-              {new Date(project.handed_over_at!).toLocaleDateString("en-GB", {
-                day: "2-digit", month: "short", year: "numeric",
-              })}
+              {fmtDate(project.handed_over_at!)}
             </strong>
             . They have the credentials, the handover pack and the warranty terms.
           </p>
@@ -109,7 +108,7 @@ export default function HandoverPanel({
             {project.thanked_at ? (
               <span className="mono-tag inline-flex h-9 items-center gap-1.5 rounded-full border border-ink-600 px-3.5 text-[11px] text-bone-300">
                 <Heart size={12} className="text-lime-400" /> Thanked{" "}
-                {new Date(project.thanked_at).toLocaleDateString("en-GB")}
+                {fmtDate(project.thanked_at)}
               </span>
             ) : (
               <button

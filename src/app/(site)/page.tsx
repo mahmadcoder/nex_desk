@@ -6,6 +6,7 @@ import Marquee from "@/components/site/Marquee";
 import Studio from "@/components/site/Studio";
 import WorkShowcase from "@/components/site/WorkShowcase";
 import ServicesScroll from "@/components/site/ServicesScroll";
+import Pricing from "@/components/site/Pricing";
 import Difference from "@/components/site/Difference";
 import Process from "@/components/site/Process";
 import TestimonialWall from "@/components/site/TestimonialWall";
@@ -41,7 +42,11 @@ export default async function Home() {
       <Studio />
       <WorkShowcase cases={cases ?? []} />
       <ServicesScroll services={services} />
+      {/* What we do, then what it costs, then why us — the money question
+          answered where it forms, not after two more sections of persuasion. */}
+      <Pricing services={services} />
       <Difference />
+      {/* The documents above, then what they actually promise. */}
       <Process />
       <TestimonialWall quotes={wallQuotes} />
       <TheDesk />

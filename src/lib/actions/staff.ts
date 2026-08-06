@@ -9,6 +9,8 @@ import { buildStaffOfferPdf } from "@/lib/pdf/staffDocs";
 import { asUuid, getSiteBaseUrl, money } from "@/lib/utils";
 import { recordAudit } from "@/lib/actions/audit";
 import { notify } from "@/lib/actions/notify";
+import { EMPLOYEE_STATUSES, type EmployeeStatus } from "@/config/employeeStatus";
+import { fmtDate } from "@/lib/datetime";
 
 const ADMIN = process.env.ADMIN_PATH || "nx-control";
 
@@ -267,7 +269,7 @@ export async function requestLeave(data: {
 
   if (clash?.length) {
     throw new Error(
-      `You already have leave booked between ${clash[0].start_date} and ${clash[0].end_date}.`
+      `You already have leave booked between ${fmtDate(clash[0].start_date)} and ${fmtDate(clash[0].end_date)}.`
     );
   }
 
@@ -368,7 +370,7 @@ export async function decideLeave(
   await notify({
     kind: "leave.decided",
     title: `Your leave was ${decision}`,
-    body: `${row.leave_type} · ${row.start_date} to ${row.end_date}${note?.trim() ? ` — ${note.trim()}` : ""}`,
+    body: `${row.leave_type} · ${fmtDate(row.start_date)} to ${fmtDate(row.end_date)}${note?.trim() ? ` — ${note.trim()}` : ""}`,
     href: `/${ADMIN}/leave`,
     entity: "leave_requests",
     entityId: id,
@@ -662,5 +664,118 @@ export async function setEmployeePhoto(employeeId: string, url: string | null) {
 
   revalidatePath(`/${ADMIN}/employees/${id}`);
   revalidatePath(`/${ADMIN}/employees`);
+  return { ok: true as const };
+}
+
+/**
+ * Sets the signed-in user's own display name.
+ *
+ * There has never been a way to do this. `profiles.full_name` is only written
+ * by the client and employee provisioning paths, neither of which runs for an
+ * owner — so an owner's name fell all the way through to `nameFromEmail()`,
+ * which turned `ahmadsadiq.dev@gmail.com` into "Ahmadsadiq Dev". No derivation
+ * rule can split "ahmadsadiq" into two words; it needs the real name stored.
+ *
+ * Writes `profiles` always — that is the row an owner has — and `employees`
+ * too when one exists, since `employees.full_name` wins the precedence chain
+ * in `getCurrentStaff`. Both matched on the caller's own id.
+ */
+export async function updateMyName(name: string) {
+  const me = await requireStaff();
+  const db = createAdminClient();
+
+  const clean = String(name ?? "").trim().replace(/\s+/g, " ");
+  if (clean.length < 2) {
+    return { ok: false as const, error: "Enter your name." };
+  }
+  if (clean.length > 80) {
+    return { ok: false as const, error: "That name is too long." };
+  }
+
+  const { error } = await db
+    .from("profiles")
+    .update({ full_name: clean })
+    .eq("id", me.userId);
+
+  if (error) {
+    console.error("updateMyName (profiles) failed:", error);
+    return { ok: false as const, error: error.message };
+  }
+
+  if (me.employeeId) {
+    const { error: empError } = await db
+      .from("employees")
+      .update({ full_name: clean })
+      .eq("user_id", me.userId);
+    if (empError) console.error("updateMyName (employees) failed:", empError);
+  }
+
+  revalidatePath(`/${ADMIN}/profile`);
+  revalidatePath(`/${ADMIN}`);
+  return { ok: true as const };
+}
+
+/* ============================================================
+   EMPLOYEE ACCESS
+   ============================================================ */
+
+/**
+ * Turns a staff member's panel access on or off.
+ *
+ * The value already existed and was enforced (`auth/staff.ts` refuses a session
+ * whose employee row is `Terminated`) — but the only way to change it was a
+ * select six fields down a scrolling Edit modal, spelled "Terminated" when the
+ * word people look for is "inactive". This is the one-click version.
+ *
+ * The stored strings do not change: `employees_status_check` and the
+ * `=== "Terminated"` test in `getCurrentStaff` both depend on them. Only the
+ * labels in the UI are written in terms of what each one does.
+ */
+export async function setEmployeeStatus(employeeId: string, status: EmployeeStatus) {
+  const me = await requireOwnerAdmin();
+  const db = createAdminClient();
+
+  const id = asUuid(employeeId);
+  if (!id) return { ok: false as const, error: "Invalid employee reference." };
+  if (!EMPLOYEE_STATUSES.includes(status)) {
+    return { ok: false as const, error: "Not a valid status." };
+  }
+
+  const { data: employee } = await db
+    .from("employees")
+    .select("id, full_name, status, user_id")
+    .eq("id", id)
+    .maybeSingle();
+
+  if (!employee) return { ok: false as const, error: "Employee not found." };
+  if (employee.status === status) return { ok: true as const };
+
+  // Refuse to lock yourself out. An owner who revokes their own access has no
+  // route back except editing the database by hand.
+  if (employee.user_id && employee.user_id === me.userId && status === "Terminated") {
+    return { ok: false as const, error: "You cannot revoke your own access." };
+  }
+
+  const { error } = await db.from("employees").update({ status }).eq("id", id);
+
+  if (error) {
+    console.error("setEmployeeStatus failed:", error);
+    return {
+      ok: false as const,
+      // 23514 = check violation: a pre-2027-16 database has free-text statuses.
+      error:
+        error.code === "23514" || error.code === "42703"
+          ? "The employee status column is out of date. Run supabase/idempotent_fixes_2027_16.sql, then try again."
+          : error.message,
+    };
+  }
+
+  await recordAudit(me.userId, "employee.status", "employees", id, {
+    from: employee.status,
+    to: status,
+  });
+
+  revalidatePath(`/${ADMIN}/employees`);
+  revalidatePath(`/${ADMIN}/employees/${id}`);
   return { ok: true as const };
 }

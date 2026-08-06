@@ -7,6 +7,7 @@ import { requireOwnerAdmin } from "@/lib/auth/guards";
 import { asUuid } from "@/lib/utils";
 import { recordAudit } from "@/lib/actions/audit";
 import { notify } from "@/lib/actions/notify";
+import { fmtDate } from "@/lib/datetime";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
@@ -134,7 +135,7 @@ export async function saveTask(input: TaskInput): Promise<Result<{ id: string }>
     await notify({
       kind: "task.assigned",
       title: `New task: ${title}`,
-      body: [project?.name, row.due_date ? `due ${row.due_date}` : null]
+      body: [project?.name, row.due_date ? `due ${fmtDate(row.due_date)}` : null]
         .filter(Boolean)
         .join(" · ") || undefined,
       href: `/${ADMIN}/projects/${projectId}`,

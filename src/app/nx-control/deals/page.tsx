@@ -4,6 +4,7 @@ import { getCurrentStaff } from "@/lib/auth/staff";
 import { PageHead, Badge, Stat, Table, Empty } from "@/components/admin/ui";
 import { money, moneyMulti, sumByCurrency, cn } from "@/lib/utils";
 import { pipelineStats } from "@/lib/actions/quotes";
+import { fmtDate } from "@/lib/datetime";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
@@ -210,7 +211,7 @@ export default async function DealsPage({
                       {sent === 0 ? "sent today" : `${sent}d ago`}
                     </span>
                   ) : d.locked_at ? (
-                    new Date(d.locked_at).toLocaleDateString("en-GB")
+                    fmtDate(d.locked_at)
                   ) : (
                     "—"
                   )}

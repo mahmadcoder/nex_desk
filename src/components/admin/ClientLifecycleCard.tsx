@@ -10,6 +10,7 @@ import { adminPath } from "@/lib/utils";
 import Modal from "@/components/admin/Modal";
 import ConfirmModal from "@/components/admin/ConfirmModal";
 import CustomSelect from "@/components/ui/CustomSelect";
+import { fmtDate } from "@/lib/datetime";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
@@ -165,11 +166,7 @@ export default function ClientLifecycleCard({
           </p>
           <p className="text-xs leading-relaxed text-bone-200">
             Asked on{" "}
-            {new Date(client.return_requested_at).toLocaleDateString(undefined, {
-              day: "numeric",
-              month: "short",
-              year: "numeric",
-            })}
+            {fmtDate(client.return_requested_at)}
             .
           </p>
           {client.return_request_note ? (

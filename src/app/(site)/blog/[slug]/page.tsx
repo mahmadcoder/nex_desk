@@ -165,7 +165,7 @@ export default async function PostPage({
           <div>
             <p className="text-base font-semibold text-bone-100">The Nex Desk Team</p>
             <p className="mono-tag mt-0.5 text-xs text-bone-400">
-              Writing from Islamabad · working worldwide
+              Writing from Multan · working worldwide
             </p>
           </div>
         </div>

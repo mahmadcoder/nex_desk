@@ -9,6 +9,7 @@ import { money, CURRENCIES } from "@/lib/utils";
 import Modal from "@/components/admin/Modal";
 import ConfirmModal from "@/components/admin/ConfirmModal";
 import CustomSelect from "@/components/ui/CustomSelect";
+import { fmtDate } from "@/lib/datetime";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
@@ -164,7 +165,7 @@ export default function CompensationCard({
                 </div>
                 <div className="flex shrink-0 items-center gap-2">
                   <span className="mono-tag text-[11px]">
-                    {new Date(h.effective_from).toLocaleDateString("en-GB")}
+                    {fmtDate(h.effective_from)}
                   </span>
                   <button
                     className="rounded p-1.5 text-bone-400 transition-colors hover:bg-ink-800 hover:text-rose-400"

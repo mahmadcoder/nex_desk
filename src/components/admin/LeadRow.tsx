@@ -11,6 +11,7 @@ import Modal from "./Modal";
 import ConfirmModal from "./ConfirmModal";
 import AIAssist from "@/components/ui/AIAssist";
 import { triageLead, setLeadPriority, type LeadPriority } from "@/lib/actions/leads";
+import { fmtDate } from "@/lib/datetime";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
@@ -159,7 +160,7 @@ export default function LeadRow({
         </td>
         <td className="px-5 py-3 text-bone-400">{(lead.service_slugs ?? []).join(", ") || "—"}</td>
         <td className="px-5 py-3 text-bone-400">{lead.budget_range ?? "—"}</td>
-        <td className="px-5 py-3 text-bone-400">{new Date(lead.created_at).toLocaleDateString("en-GB")}</td>
+        <td className="px-5 py-3 text-bone-400">{fmtDate(lead.created_at)}</td>
         <td className="px-5 py-3"><Badge>{status}</Badge></td>
         <td className="px-5 py-3 text-right text-bone-400">{open ? "−" : "+"}</td>
       </tr>

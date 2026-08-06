@@ -8,6 +8,7 @@ import { toast } from "sonner";
 import { ImageIcon, AlertTriangle } from "lucide-react";
 import { decideMyPhotoRemoval } from "@/lib/actions/staff";
 import PhotoViewer from "@/components/PhotoViewer";
+import { fmtDate } from "@/lib/datetime";
 
 type Entry = {
   id: string;
@@ -56,7 +57,7 @@ export default function PhotoHistory({
   }
 
   const fmt = (iso: string) =>
-    new Date(iso).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
+    fmtDate(iso);
 
   return (
     <section className="card my-6 space-y-4 border-ink-600 p-5">

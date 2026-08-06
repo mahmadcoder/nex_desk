@@ -19,6 +19,7 @@ import TasksCard from "@/components/admin/TasksCard";
 import CancelProjectPanel from "@/components/admin/CancelProjectPanel";
 import { handoverGate } from "@/lib/delivery/gate";
 import { invoiceOriginLabel } from "@/lib/billing";
+import { fmtDate } from "@/lib/datetime";
 
 const BASE = `/${process.env.ADMIN_PATH || "nx-control"}`;
 export const dynamic = "force-dynamic";
@@ -213,9 +214,7 @@ export default async function ProjectDetail({ params }: { params: Promise<{ id: 
                   <li key={l.id} className="p-4">
                     <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
                       <span className="mono-tag text-[11px] text-lime-400">
-                        {new Date(l.work_date).toLocaleDateString("en-GB", {
-                          day: "2-digit", month: "short", year: "numeric",
-                        })}
+                        {fmtDate(l.work_date)}
                       </span>
                       {l.employee_name && (
                         <span className="text-xs text-bone-300">{l.employee_name}</span>
@@ -320,7 +319,7 @@ export default async function ProjectDetail({ params }: { params: Promise<{ id: 
               </h2>
               <p className="text-sm leading-relaxed text-bone-200">
                 Staging shared with {client?.name ?? "the client"}{" "}
-                {new Date(project.staging_shared_at).toLocaleDateString("en-GB")} —{" "}
+                {fmtDate(project.staging_shared_at)} —{" "}
                 <strong>
                   {Math.floor(
                     (Date.now() - new Date(project.staging_shared_at).getTime()) / 864e5

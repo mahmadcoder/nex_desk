@@ -379,6 +379,7 @@ export async function seedDefaultFaqs() {
 import { sendEmail, adminNotifyAddress, notifyEmailChange } from "@/lib/email/send";
 import { buildStaffOfferPdf } from "@/lib/pdf/staffDocs";
 import { recomputeProjectProgress } from "@/lib/actions";
+import { fmtDateTime, fmtDate } from "@/lib/datetime";
 
 /** Where staff sign in. Employees use the same control panel as admins, with a reduced menu. */
 export async function staffLoginUrl() {
@@ -604,6 +605,18 @@ export async function saveEmployee(
       console.error("Could not send the new-hire notice:", e);
     }
   } else if (id && previous) {
+    // Keep profiles.full_name in step with employees.full_name. Only the
+    // email was ever synced, so a renamed employee kept their old name on
+    // their profiles row — invisible in the panel, because employees wins the
+    // precedence chain, but it is the name their portal account carries.
+    if (res.data?.full_name && res.data.full_name !== previous.full_name && previous.user_id) {
+      const { error: nameErr } = await db
+        .from("profiles")
+        .update({ full_name: res.data.full_name })
+        .eq("id", previous.user_id);
+      if (nameErr) console.error("saveEmployee: profiles name sync failed:", nameErr);
+    }
+
     const newEmail = String(res.data?.email ?? "");
     const changed = !!newEmail && newEmail.toLowerCase() !== (previous.email ?? "").toLowerCase();
 
@@ -926,7 +939,7 @@ export async function uploadClientSignedDocument(data: {
       `${clientObj.name || "A client"} (${clientObj.email || ""}) has uploaded a signed document.\n\n` +
       `• Title: ${data.title}\n` +
       `• Type: ${data.documentType || "Signed agreement"}\n` +
-      `• Uploaded: ${new Date().toLocaleString()}\n\n` +
+      `• Uploaded: ${fmtDateTime()}\n\n` +
       (attachment
         ? `The document is attached to this email.`
         : `The file could not be attached — open it here: ${getSiteBaseUrl()}/${ADMIN}/documents`),
@@ -1082,7 +1095,7 @@ export async function submitDailyWorkLog(data: {
       `A new daily work log has been submitted.\n\n` +
       `• Staff member: ${data.employee_name || "N/A"}\n` +
       `• Project: ${data.project_title || "N/A"}\n` +
-      `• Work date: ${data.work_date}\n` +
+      `• Work date: ${fmtDate(data.work_date)}\n` +
       `• Hours: ${data.hours_spent}\n` +
       (progress !== null ? `• Project progress now: ${progress}%\n` : "") +
       `• Shared with client: ${clientVisible ? "yes" : "no"}\n\n` +
@@ -1091,7 +1104,7 @@ export async function submitDailyWorkLog(data: {
       `\n\nReview every log here:\n${getSiteBaseUrl()}/${ADMIN}/daily-logs`,
     subjectOverride: data.blockers
       ? `⚠️ Blocker raised by ${data.employee_name || "staff"} — ${data.project_title || "project"}`
-      : `📝 Work log — ${data.employee_name || "staff"} (${data.work_date})`,
+      : `📝 Work log — ${data.employee_name || "staff"} (${fmtDate(data.work_date)})`,
   }).catch((emailErr) => {
     console.error("Error sending work log notice email:", emailErr);
     return { ok: false as const };

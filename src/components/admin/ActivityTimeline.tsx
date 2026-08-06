@@ -1,5 +1,6 @@
 import { History } from "lucide-react";
 import type { ActivityEntry } from "@/lib/insights";
+import { fmtDateTime } from "@/lib/datetime";
 
 /**
  * What has actually happened on this account.
@@ -43,10 +44,7 @@ export default function ActivityTimeline({ entries }: { entries: ActivityEntry[]
               <div className="min-w-0 flex-1">
                 <p className="text-xs font-medium text-bone-100">{e.label}</p>
                 <p className="mono-tag mt-0.5 text-[11px]">
-                  {new Date(e.at).toLocaleString("en-GB", {
-                    day: "2-digit", month: "short", year: "numeric",
-                    hour: "2-digit", minute: "2-digit",
-                  })}
+                  {fmtDateTime(e.at)}
                   {e.actor ? ` · ${e.actor}` : ""}
                   {e.detail ? ` · ${e.detail}` : ""}
                 </p>

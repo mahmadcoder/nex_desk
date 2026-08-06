@@ -4,6 +4,7 @@ import { sendEmail, adminNotifyAddress } from "@/lib/email/send";
 import { getSiteBaseUrl, money } from "@/lib/utils";
 import { expenseCategoryLabel, isCriticalCategory } from "@/config/expenseCategories";
 import { notify } from "@/lib/actions/notify";
+import { fmtMonth } from "@/lib/datetime";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -165,7 +166,7 @@ export async function GET(req: Request) {
       if (!client?.email || amount <= 0) continue;
 
       const { data: invNo } = await db.rpc("next_invoice_no");
-      const periodLabel = new Date().toLocaleDateString("en-GB", { month: "long", year: "numeric" });
+      const periodLabel = fmtMonth();
 
       const { data: invoice, error: invErr } = await db.from("invoices").insert({
         invoice_no: invNo,

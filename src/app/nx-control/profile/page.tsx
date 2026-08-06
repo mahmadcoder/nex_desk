@@ -4,6 +4,8 @@ import { getCurrentStaff } from "@/lib/auth/staff";
 import { PageHead, Empty } from "@/components/admin/ui";
 import { Wallet, CalendarDays, Clock, Users } from "lucide-react";
 import MyPhoto from "@/components/admin/MyPhoto";
+import MyName from "@/components/admin/MyName";
+import { fmtDate } from "@/lib/datetime";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
@@ -63,9 +65,7 @@ export default async function MyProfilePage() {
     [
       "With us since",
       employee?.joining_date
-        ? new Date(employee.joining_date).toLocaleDateString("en-GB", {
-            day: "numeric", month: "long", year: "numeric",
-          })
+        ? fmtDate(employee.joining_date)
         : "—",
     ],
   ];
@@ -83,7 +83,7 @@ export default async function MyProfilePage() {
             removalPending={!!employee?.avatar_removal_requested_at}
           />
           <div className="mt-5 border-t border-ink-700 pt-4 text-center">
-            <p className="truncate text-base font-semibold text-bone-50">{me.fullName}</p>
+            <MyName name={me.fullName} />
             <p className="mono-tag mt-1 text-[11px] capitalize text-lime-400/80">{me.role}</p>
             <p className="mt-1 truncate text-xs text-bone-300">
               {employee?.email || profile?.email}

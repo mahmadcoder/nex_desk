@@ -4,6 +4,7 @@ import { money, adminPath } from "@/lib/utils";
 import { Badge } from "./ui";
 import DocButton from "@/components/admin/DocButton";
 import SupportWindow from "@/components/SupportWindow";
+import { fmtDate } from "@/lib/datetime";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
@@ -100,9 +101,7 @@ export default function ClientServices({
                     {deal.accepted_at && (
                       <span className="mt-1 block text-[11px] text-emerald-300">
                         Accepted by {deal.accepted_name} on{" "}
-                        {new Date(deal.accepted_at).toLocaleDateString("en-GB", {
-                          day: "2-digit", month: "short", year: "numeric",
-                        })}
+                        {fmtDate(deal.accepted_at)}
                       </span>
                     )}
                   </span>
@@ -148,7 +147,7 @@ export default function ClientServices({
                           <p className="mono-tag text-[11px]">Handover</p>
                           <p className="mt-0.5 text-bone-100">
                             {project.handed_over_at
-                              ? new Date(project.handed_over_at).toLocaleDateString("en-GB")
+                              ? fmtDate(project.handed_over_at)
                               : "Not yet"}
                           </p>
                         </div>

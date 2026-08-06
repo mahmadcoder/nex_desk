@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { ListChecks, Plus, Trash2, CalendarDays } from "lucide-react";
 import { saveTask, toggleTask, deleteTask } from "@/lib/actions/tasks";
+import { fmtDate } from "@/lib/datetime";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
@@ -234,7 +235,7 @@ export default function TasksCard({
                     {t.done_at && (
                       <p className="text-[11px] text-bone-500">
                         {nameOf(t.done_by) ?? "Someone"} ·{" "}
-                        {new Date(t.done_at).toLocaleDateString("en-GB")}
+                        {fmtDate(t.done_at)}
                         {/* Worth showing: it proves the log→task link is working. */}
                         {t.done_via_log_id && " · from a work log"}
                       </p>

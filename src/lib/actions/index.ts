@@ -13,6 +13,7 @@ import { tryEncrypt, decryptSecret } from "@/lib/crypto";
 import { provisionLockedDeal } from "@/lib/deals/provision";
 import { contractPosition } from "@/lib/billing";
 import { diffFields, changeLines, CLIENT_FIELDS } from "@/lib/diff";
+import { fmtDateTime, fmtDate } from "@/lib/datetime";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
@@ -466,7 +467,7 @@ export async function ensureClientPortalAccount(clientId: string, customPassword
         `• Name: ${client.name}\n` +
         `• Email: ${client.email}\n` +
         `• Company: ${client.company || "—"}\n` +
-        `• Created: ${new Date().toLocaleString()}\n\n` +
+        `• Created: ${fmtDateTime()}\n\n` +
         `Portal credentials have been sent to the client.\n\n` +
         `Manage this client here:\n${siteUrl}/${ADMIN}/clients/${clientId}`,
       subjectOverride: `New client provisioned: ${client.name}`,
@@ -737,7 +738,7 @@ export async function recordPayment(data: any, notify = true) {
       templateKey: "internal_payment_received",
       to: await adminNotifyAddress(),
       subjectOverride: `Payment Received — ${payment.currency} ${Number(payment.amount).toLocaleString()} from ${payment.clients.name}`,
-      bodyOverride: `Payment Confirmation:\n\nClient: ${payment.clients.name} (${payment.clients.email})\nAmount: ${payment.currency} ${Number(payment.amount).toLocaleString()}\nMethod: ${payment.method}\nReference: ${payment.reference || "N/A"}${proofMsg}\nDate: ${payment.paid_on}`,
+      bodyOverride: `Payment Confirmation:\n\nClient: ${payment.clients.name} (${payment.clients.email})\nAmount: ${payment.currency} ${Number(payment.amount).toLocaleString()}\nMethod: ${payment.method}\nReference: ${payment.reference || "N/A"}${proofMsg}\nDate: ${fmtDate(payment.paid_on)}`,
       vars: {},
     });
   }
@@ -866,7 +867,7 @@ export async function sendProgressUpdate(projectId: string) {
   const recentUpdates = (logs ?? []).length
     ? (logs ?? [])
         .map((l) => {
-          const when = new Date(l.work_date).toLocaleDateString("en-GB", { day: "2-digit", month: "short" });
+          const when = fmtDate(l.work_date);
           const summary = String(l.tasks_completed).split("\n").map((s) => s.trim()).filter(Boolean).join("; ");
           return `• ${when}: ${summary}`;
         })
@@ -875,7 +876,7 @@ export async function sendProgressUpdate(projectId: string) {
 
   const milestoneSummary = (milestones ?? []).length
     ? (milestones ?? [])
-        .map((m) => `• ${m.is_done ? "Done" : "In progress"}: ${m.title}${m.due_date ? ` (due ${m.due_date})` : ""}`)
+        .map((m) => `• ${m.is_done ? "Done" : "In progress"}: ${m.title}${m.due_date ? ` (due ${fmtDate(m.due_date)})` : ""}`)
         .join("\n")
     : "• No milestones set for this project.";
 

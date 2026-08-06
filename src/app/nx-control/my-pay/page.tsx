@@ -4,15 +4,14 @@ import { PageHead, Stat, Empty } from "@/components/admin/ui";
 import { money, sumByCurrency, moneyMulti } from "@/lib/utils";
 import { myPayments } from "@/lib/actions/payroll";
 import { FileText, Wallet } from "lucide-react";
+import { fmtDate, fmtMonth } from "@/lib/datetime";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 export const metadata = { title: "My Pay" };
 export const dynamic = "force-dynamic";
 
-const monthLabel = (iso: string) =>
-  new Date(`${String(iso).slice(0, 10)}T00:00:00`)
-    .toLocaleDateString("en-GB", { month: "long", year: "numeric" });
+const monthLabel = (iso: string) => fmtMonth(String(iso).slice(0, 10));
 
 /**
  * What someone can see about their own pay.
@@ -92,9 +91,7 @@ export default async function MyPayPage() {
           label="With us since"
           value={
             employee?.joining_date
-              ? new Date(employee.joining_date).toLocaleDateString("en-GB", {
-                  month: "short", year: "numeric",
-                })
+              ? fmtDate(employee.joining_date)
               : "—"
           }
         />

@@ -66,6 +66,11 @@ export async function provisionLockedDeal(
       start_date: deal.start_date,
       deadline: deal.deadline,
       lead_member: actor.userId,
+      // The support period the client actually agreed to, carried across from
+      // the deal. Without this line every project silently took the column
+      // default of 14 regardless of what was sold and printed on the
+      // agreement — which is exactly what happened before 2027-20.
+      warranty_days: Number(deal.warranty_days ?? 14),
       // The five things the kickoff email asks for, tickable by the client in
       // their portal and chased by the daily cron until they all arrive.
       kickoff_items: [

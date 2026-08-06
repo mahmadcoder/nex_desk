@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { Ban, Loader2, RotateCcw, CheckCircle2 } from "lucide-react";
 import Modal from "@/components/admin/Modal";
 import { money } from "@/lib/utils";
+import { fmtDate } from "@/lib/datetime";
 import {
   draftCancellation, confirmCancellation, markRefundSent,
   type CancellationDraft,
@@ -144,9 +145,7 @@ export default function CancelProjectPanel({ project }: { project: any }) {
         <p className="text-xs leading-relaxed text-bone-200">
           {project.cancellation_reason}
           <span className="mt-0.5 block text-bone-400">
-            {new Date(project.cancelled_at).toLocaleDateString("en-GB", {
-              day: "2-digit", month: "short", year: "numeric",
-            })}
+            {fmtDate(project.cancelled_at)}
             {project.cancel_progress_pct != null &&
               ` · ${project.cancel_progress_pct}% of the work treated as delivered`}
           </span>
@@ -166,7 +165,7 @@ export default function CancelProjectPanel({ project }: { project: any }) {
           (project.refunded_at ? (
             <p className="flex items-center gap-1.5 text-xs text-emerald-300">
               <CheckCircle2 size={13} /> Sent{" "}
-              {new Date(project.refunded_at).toLocaleDateString("en-GB")}
+              {fmtDate(project.refunded_at)}
             </p>
           ) : (
             <button className="btn w-full justify-center" onClick={sent} disabled={pending}>

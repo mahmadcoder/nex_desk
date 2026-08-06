@@ -69,6 +69,9 @@ export default function DealForm({
     start_date: initialDeal?.start_date ?? new Date().toISOString().slice(0, 10),
     deadline: initialDeal?.deadline ?? new Date(Date.now() + 30 * 864e5).toISOString().slice(0, 10),
     revisions_included: Number(initialDeal?.revisions_included ?? 2),
+    // Free defect-fix days sold with this deal. Copied onto the project when
+    // the deal is locked; 0 is valid for a fixed-scope job with no support.
+    warranty_days: Number(initialDeal?.warranty_days ?? 14),
     terms: initialDeal?.terms ?? defaultTerms,
     signature_name: initialDeal?.signature_name ?? "",
   });
@@ -124,6 +127,7 @@ export default function DealForm({
       tax_percent: Number(tpl.tax_percent ?? p.tax_percent),
       duration_days: Number(tpl.duration_days ?? p.duration_days),
       revisions_included: Number(tpl.revisions_included ?? p.revisions_included),
+      warranty_days: Number(tpl.warranty_days ?? p.warranty_days),
     }));
 
     if (Array.isArray(tpl.service_slugs) && tpl.service_slugs.length) {
@@ -185,6 +189,7 @@ export default function DealForm({
     tax_percent: Number(d.tax_percent),
     duration_days: Number(d.duration_days),
     revisions_included: Number(d.revisions_included),
+    warranty_days: Number(d.warranty_days),
     advance_percent: Number(schedule[0]?.percent ?? 50),
     subtotal,
     total,
@@ -445,7 +450,7 @@ export default function DealForm({
         {/* ---- timeline + terms ---- */}
         <section className="card p-6">
           <h2 className="mb-5 text-base">Timeline and terms</h2>
-          <div className="grid gap-4 grid-cols-2 sm:grid-cols-4">
+          <div className="grid gap-4 grid-cols-2 sm:grid-cols-3 lg:grid-cols-5">
             <div>
               <label className={label}>Start date</label>
               <input className={field} type="date" value={d.start_date} onChange={(e) => set("start_date", e.target.value)} />
@@ -461,6 +466,21 @@ export default function DealForm({
             <div>
               <label className={label}>Revision rounds</label>
               <input className={field} type="number" min={0} value={d.revisions_included} onChange={(e) => set("revisions_included", e.target.value)} />
+            </div>
+            <div>
+              <label className={label}>Support days</label>
+              <input
+                className={field}
+                type="number"
+                min={0}
+                max={365}
+                value={d.warranty_days}
+                onChange={(e) => set("warranty_days", e.target.value)}
+              />
+              <p className="mt-1 text-[11px] leading-relaxed text-bone-500">
+                Free bug fixes after handover. Whatever is here goes on the agreement and
+                becomes this project&rsquo;s window — 0 for none.
+              </p>
             </div>
           </div>
 
@@ -517,6 +537,12 @@ export default function DealForm({
             <p>Advance due: <span className="text-bone-50">{money((total * Number(schedule[0]?.percent ?? 0)) / 100, d.currency)}</span></p>
             <p>Deadline: <span className="text-bone-50">{d.deadline || "—"}</span></p>
             <p>Revisions: <span className="text-bone-50">{d.revisions_included} rounds</span></p>
+            <p>
+              Support:{" "}
+              <span className="text-bone-50">
+                {Number(d.warranty_days) > 0 ? `${d.warranty_days} days after handover` : "none included"}
+              </span>
+            </p>
           </div>
 
           <label className="mt-6 flex cursor-pointer items-start gap-2.5 border-t border-ink-600 pt-5 text-xs">

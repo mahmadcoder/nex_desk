@@ -11,6 +11,7 @@ import { PageHead } from "@/components/admin/ui";
 import ConfirmModal from "@/components/admin/ConfirmModal";
 import CustomSelect, { SelectOption } from "@/components/ui/CustomSelect";
 import { IDailyWorkLog } from "@/types/cms";
+import { fmtDate } from "@/lib/datetime";
 import {
   Plus,
   Trash2,
@@ -333,12 +334,7 @@ export default function DailyLogsClient({
                 <div className="flex items-center gap-2">
                   <span className="mono-tag text-xs bg-ink-800 text-bone-200 px-2.5 py-1 rounded border border-ink-600 flex items-center gap-1">
                     <Calendar size={12} className="text-bone-400" />
-                    {new Date(log.work_date).toLocaleDateString("en-GB", {
-                      weekday: "short",
-                      day: "2-digit",
-                      month: "short",
-                      year: "numeric",
-                    })}
+                    {fmtDate(log.work_date)}
                   </span>
 
                   {isSun && (

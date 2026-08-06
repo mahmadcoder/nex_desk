@@ -1,3 +1,4 @@
+import { fmtMonthShort, fmtMonth, fmtDate } from "@/lib/datetime";
 /**
  * Date ranges, in one place.
  *
@@ -29,19 +30,13 @@ export function shiftMonth(ym: string, by: number): string {
 
 export function monthLabel(ym: string): string {
   const [y, m] = ym.split("-").map(Number);
-  return new Date(Date.UTC(y, m - 1, 1)).toLocaleDateString("en-GB", {
-    month: "long",
-    year: "numeric",
-  });
+  return fmtMonth(Date.UTC(y, m - 1, 1));
 }
 
 /** Short label for a chart axis — "Aug 26". */
 export function monthShort(ym: string): string {
   const [y, m] = ym.split("-").map(Number);
-  return new Date(Date.UTC(y, m - 1, 1)).toLocaleDateString("en-GB", {
-    month: "short",
-    year: "2-digit",
-  });
+  return fmtMonthShort(Date.UTC(y, m - 1, 1));
 }
 
 export const RANGE_PRESETS = [
@@ -111,7 +106,7 @@ export function monthsBetween({ from, to }: Range): string[] {
 /** Human label for a resolved range, for the page subtitle. */
 export function rangeLabel({ from, to }: Range): string {
   const fmt = (d: string) =>
-    new Date(d).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
+    fmtDate(d);
   return from === to ? fmt(from) : `${fmt(from)} — ${fmt(to)}`;
 }
 

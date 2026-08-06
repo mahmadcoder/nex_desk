@@ -3,6 +3,7 @@
 import { useState } from "react";
 import BroadcastModal from "@/components/admin/BroadcastModal";
 import { Mail, Send, Download, Search, CheckCircle, XCircle } from "lucide-react";
+import { fmtDate } from "@/lib/datetime";
 
 interface Subscriber {
   id: string;
@@ -102,11 +103,7 @@ export default function SubscribersClient({ subscribers }: { subscribers: Subscr
                       )}
                     </td>
                     <td className="p-4 text-bone-400">
-                      {new Date(s.created_at).toLocaleDateString("en-GB", {
-                        day: "numeric",
-                        month: "short",
-                        year: "numeric",
-                      })}
+                      {fmtDate(s.created_at)}
                     </td>
                   </tr>
                 ))

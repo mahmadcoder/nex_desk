@@ -3,6 +3,7 @@ import { s, C } from "./theme";
 import { DocHeader, DocFooter, Field, fmt, date, docAgency } from "./parts";
 import { CONTACT_EMAIL, CONTACT_WHATSAPP, getSiteBaseUrl } from "@/lib/utils";
 import { warrantyTerms } from "@/lib/warranty";
+import { agencyDay } from "@/lib/datetime";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
@@ -168,7 +169,11 @@ export function AgreementDoc({ deal, client, settings }: { deal: any; client: Pa
           <Text style={{ fontWeight: 500, marginBottom: 4 }}>At a glance</Text>
           <Text>
             {fmt(Number(deal.total), deal.currency)} total · {deal.duration_days ?? "—"} working days ·{" "}
-            {deal.revisions_included} revision rounds included · delivery by {date(deal.deadline)}
+            {deal.revisions_included} revision rounds included · delivery by {date(deal.deadline)} ·{" "}
+            {/* "0 days" reads like a bug, so a deal sold without support says so. */}
+            {Number(deal.warranty_days ?? 14) > 0
+              ? `${Number(deal.warranty_days ?? 14)} days support after handover`
+              : "no support period included"}
           </Text>
         </View>
 
@@ -265,6 +270,10 @@ export function QuotationDoc({ deal, client }: { deal: any; client: Party }) {
               ),
             ],
             ["Est. duration", `${deal.duration_days ?? "—"} days`],
+            [
+              "Support after launch",
+              Number(deal.warranty_days ?? 14) > 0 ? `${Number(deal.warranty_days ?? 14)} days` : "Not included",
+            ],
           ]}
         />
 
@@ -501,7 +510,9 @@ export function ChangeOrderDoc({ change, deal, client }: { change: any; deal: an
    6. PROGRESS REPORT
    ============================================================ */
 export function ProgressDoc({ project, client, milestones }: { project: any; client: Party; milestones: any[] }) {
-  const no = `PR-${String(project.id).slice(0, 6).toUpperCase()}-${new Date().toISOString().slice(0, 10)}`;
+  // agencyDay, not toISOString: a report run at 03:00 PKT is still today's
+  // report, and a UTC stamp would name it with yesterday's date.
+  const no = `PR-${String(project.id).slice(0, 6).toUpperCase()}-${agencyDay()}`;
   const done = milestones.filter((m) => m.is_done).length;
 
   return (
@@ -591,7 +602,7 @@ export function HandoverDoc({ project, client, credentials }: { project: any; cl
           meta={[
             ["Live URL", project.live_url ?? "—"],
             ["Delivered", date(project.delivered_at)],
-            ["Warranty until", date(warranty.endsOn)],
+            ["Support until", warranty.days > 0 ? date(warranty.endsOn) : "Not included"],
           ]}
         />
 
@@ -627,6 +638,9 @@ export function HandoverDoc({ project, client, credentials }: { project: any; cl
         )}
 
         <Text style={s.h2}>Warranty and support</Text>
+        {/* A deal sold with no support period says so, rather than printing
+            "free of charge for 0 days", which reads as a bug. */}
+        {warranty.days > 0 ? (
         <Text style={s.terms}>
           Bugs in the delivered scope are fixed free of charge for {warranty.days} days from
           the handover date above. This does not cover new features, third-party service
@@ -634,6 +648,14 @@ export function HandoverDoc({ project, client, credentials }: { project: any; cl
           retainer covering updates, backups, monitoring and change hours is available on
           request.
         </Text>
+        ) : (
+          <Text style={s.terms}>
+            This project was agreed without a support period, so no free defect-fix window
+            applies. Anything you find from here is quoted first, so you know the cost before
+            work starts. A monthly retainer covering updates, backups, monitoring and change
+            hours is available on request.
+          </Text>
+        )}
 
         <View style={s.signRow}>
           <View style={s.signBox}>

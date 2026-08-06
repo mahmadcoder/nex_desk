@@ -447,7 +447,7 @@ You own all of it outright.
 
 ## Your warranty
 
-Anything that turns out to be **broken in what we built** we fix free until **{{warranty_ends}}** — {{warranty_days}} days from today, which is when real defects surface once real people start using it. Tell us and we sort it.
+{{warranty_line}}
 
 Anything **new** — a feature, a page, a change of mind — is quoted first, so you always know the cost before we start rather than after. Raise one from your portal any time.
 

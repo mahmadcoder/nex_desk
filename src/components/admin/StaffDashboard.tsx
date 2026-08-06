@@ -6,6 +6,7 @@ import Avatar from "@/components/Avatar";
 import { Clock, AlertCircle, ListChecks } from "lucide-react";
 import PerformanceCard from "@/components/admin/PerformanceCard";
 import { staffPerformance } from "@/lib/insights";
+import { fmtDateLong, fmtDate } from "@/lib/datetime";
 
 const BASE = `/${process.env.ADMIN_PATH || "nx-control"}`;
 
@@ -97,9 +98,7 @@ export default async function StaffDashboard({ me }: { me: CurrentStaff }) {
           <div className="min-w-0">
             <h1 className="truncate text-xl sm:text-2xl">Welcome back, {firstName(me.fullName)}</h1>
             <p className="mt-0.5 text-xs text-bone-300">
-              {new Date().toLocaleDateString("en-GB", {
-                weekday: "long", day: "numeric", month: "long", year: "numeric",
-              })}
+              {fmtDateLong()}
             </p>
           </div>
         </div>
@@ -183,7 +182,7 @@ export default async function StaffDashboard({ me }: { me: CurrentStaff }) {
                   <p className="text-sm text-bone-100">{b.blockers}</p>
                   <p className="mt-0.5 text-xs text-bone-300">
                     {b.project_title || "General"} ·{" "}
-                    {new Date(b.work_date).toLocaleDateString("en-GB", { day: "2-digit", month: "short" })}
+                    {fmtDate(b.work_date)}
                   </p>
                 </div>
               </li>
@@ -239,7 +238,7 @@ export default async function StaffDashboard({ me }: { me: CurrentStaff }) {
               <li key={l.id} className="p-4">
                 <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
                   <span className="mono-tag text-[11px] text-lime-400">
-                    {new Date(l.work_date).toLocaleDateString("en-GB", { day: "2-digit", month: "short" })}
+                    {fmtDate(l.work_date)}
                   </span>
                   <span className="text-xs text-bone-300">{l.project_title || "General"}</span>
                   <span className="mono-tag text-[11px] text-bone-300">{Number(l.hours_spent || 0)}h</span>

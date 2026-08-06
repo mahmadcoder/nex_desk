@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { ThumbsUp, BadgeCheck } from "lucide-react";
 import { approveMilestone } from "@/lib/actions/portal";
+import { fmtDate } from "@/lib/datetime";
 
 /**
  * The client's sign-off on a finished milestone.
@@ -26,7 +27,7 @@ export default function ApproveMilestone({
   if (approvedAt) {
     return (
       <span className="mono-tag inline-flex shrink-0 items-center gap-1 rounded-full border border-emerald-400/40 bg-emerald-400/15 px-2.5 py-1 text-[10px] leading-none text-emerald-300">
-        <BadgeCheck size={11} /> Approved {new Date(approvedAt).toLocaleDateString("en-GB")}
+        <BadgeCheck size={11} /> Approved {fmtDate(approvedAt)}
       </span>
     );
   }

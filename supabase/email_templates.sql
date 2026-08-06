@@ -74,7 +74,7 @@ E'Hi {{client_name}},\n\n**{{project_name}} is delivered and live.**\n\n## Every
 
 ## Your warranty
 
-Anything **broken in what we built** we fix free until **{{warranty_ends}}** — {{warranty_days}} days from today, which is when real defects surface once real people start using it.
+{{warranty_line}}
 
 Anything **new** is quoted first, so you know the cost before we start rather than after. Raise one from your portal any time.\n\n## Your account\n\n{{settled_line}}\n\nIt has been a pleasure working with you.\n\n{{sender_name}}\nNex Desk','handover','The final delivery email.'),
 

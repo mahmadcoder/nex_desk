@@ -8,6 +8,7 @@ import DealForm from "@/components/admin/DealForm";
 import QuoteActions from "@/components/admin/QuoteActions";
 import DocButton from "@/components/admin/DocButton";
 import { ArrowLeft } from "lucide-react";
+import { fmtDate } from "@/lib/datetime";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
@@ -83,7 +84,7 @@ export default async function DealDetail({ params }: { params: Promise<{ id: str
                 </div>
                 <div className="flex justify-between gap-4">
                   <dt className="text-bone-400">Locked</dt>
-                  <dd>{new Date(deal.locked_at).toLocaleDateString("en-GB")}</dd>
+                  <dd>{fmtDate(deal.locked_at)}</dd>
                 </div>
                 <div className="flex justify-between gap-4">
                   <dt className="text-bone-400">Deadline</dt>
@@ -93,7 +94,7 @@ export default async function DealDetail({ params }: { params: Promise<{ id: str
                   <div className="flex justify-between gap-4">
                     <dt className="text-bone-400">Accepted in portal</dt>
                     <dd>
-                      {deal.accepted_name} · {new Date(deal.accepted_at).toLocaleDateString("en-GB")}
+                      {deal.accepted_name} · {fmtDate(deal.accepted_at)}
                     </dd>
                   </div>
                 )}

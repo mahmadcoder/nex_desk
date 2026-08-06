@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { ShieldCheck, ShieldAlert } from "lucide-react";
 import { supportWindow, type SupportWindow as Window } from "@/lib/warranty";
+import { fmtDate } from "@/lib/datetime";
 
 /**
  * The free bug-fix period, counting down.
@@ -39,7 +40,7 @@ export default function SupportWindow({
   const closing = !expired && win.daysLeft <= 3;
 
   const fmt = (iso: string) =>
-    new Date(iso).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
+    fmtDate(iso);
 
   const accent = expired
     ? "border-ink-600 bg-ink-800/60"

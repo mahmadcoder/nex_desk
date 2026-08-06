@@ -193,7 +193,7 @@ export async function sendEmail(args: SendArgs) {
       to: args.to,
       cc: args.cc?.join(", "),
       subject,
-      html: renderHtml(subject, body, lang),
+      html: renderHtml(subject, body, lang, agency),
       text: body,
       attachments: attachments.length
         ? attachments.map((a) => ({ filename: a.filename, content: a.content }))

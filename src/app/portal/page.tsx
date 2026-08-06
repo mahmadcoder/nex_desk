@@ -15,6 +15,7 @@ import KickoffChecklist from "@/components/portal/KickoffChecklist";
 import ReturnRequest from "@/components/portal/ReturnRequest";
 import SupportWindow from "@/components/SupportWindow";
 import { describeMetrics } from "@/config/logFields";
+import { fmtDate } from "@/lib/datetime";
 
 export const dynamic = "force-dynamic";
 
@@ -378,12 +379,12 @@ export default async function Portal() {
                 <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs text-bone-300">
                   {p.start_date && (
                     <span className="flex items-center gap-1">
-                      <Calendar className="h-3.5 w-3.5" /> Started: {new Date(p.start_date).toLocaleDateString("en-GB")}
+                      <Calendar className="h-3.5 w-3.5" /> Started: {fmtDate(p.start_date)}
                     </span>
                   )}
                   {p.deadline && (
                     <span className="flex items-center gap-1">
-                      <Calendar className="h-3.5 w-3.5 text-lime-400" /> Target Delivery: {new Date(p.deadline).toLocaleDateString("en-GB")}
+                      <Calendar className="h-3.5 w-3.5 text-lime-400" /> Target Delivery: {fmtDate(p.deadline)}
                     </span>
                   )}
                 </div>
@@ -425,9 +426,7 @@ export default async function Portal() {
                       <div className="min-w-0 flex-1">
                         <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
                           <span className="mono-tag text-[11px] text-lime-400">
-                            {new Date(u.work_date).toLocaleDateString("en-GB", {
-                              day: "2-digit", month: "short", year: "numeric",
-                            })}
+                            {fmtDate(u.work_date)}
                           </span>
                           {u.employee_name && (
                             <span className="text-[11px] text-bone-300">{u.employee_name}</span>
@@ -669,7 +668,7 @@ export default async function Portal() {
                           </span>
                         )}
                       </div>
-                      <p className="mono-tag text-xs text-bone-300">{new Date(d.created_at).toLocaleDateString("en-GB")}</p>
+                      <p className="mono-tag text-xs text-bone-300">{fmtDate(d.created_at)}</p>
                     </div>
                     {d.url && (
                       <a

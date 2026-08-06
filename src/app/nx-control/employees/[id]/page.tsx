@@ -13,8 +13,10 @@ import SalaryPaymentsCard from "@/components/admin/SalaryPaymentsCard";
 import PerformanceCard from "@/components/admin/PerformanceCard";
 import PhotoHistory from "@/components/admin/PhotoHistory";
 import EmployeePhoto from "@/components/admin/EmployeePhoto";
+import StatusControl from "@/components/admin/StatusControl";
 import { staffPerformance } from "@/lib/insights";
 import { revealPreview } from "@/lib/crypto";
+import { fmtDate } from "@/lib/datetime";
 
 export async function generateMetadata(
   { params }: { params: Promise<{ id: string }> }
@@ -125,15 +127,14 @@ export default async function EmployeeDetailPage({
                 <span className="mono-tag text-xs bg-lime-400/10 text-lime-400 px-2.5 py-0.5 rounded-full border border-lime-400/30 font-medium">
                   {employee.seniority}
                 </span>
-                <span
-                  className={`mono-tag text-xs px-2 py-0.5 rounded-full ${
-                    employee.status === "Active"
-                      ? "bg-emerald-400/10 text-emerald-400 border border-emerald-400/20"
-                      : "bg-amber-400/10 text-amber-400 border border-amber-400/20"
-                  }`}
-                >
-                  ● {employee.status}
-                </span>
+                {/* Was a static badge, and Terminated rendered the same amber
+                    as On Leave — two very different things wearing one colour. */}
+                <StatusControl
+                  employeeId={employee.id}
+                  name={employee.full_name}
+                  status={employee.status ?? "Active"}
+                  size="md"
+                />
               </div>
 
               <p className="mt-1 text-sm font-medium text-bone-200">{employee.job_title}</p>
@@ -159,7 +160,7 @@ export default async function EmployeeDetailPage({
                 )}
                 <div className="flex items-center gap-1.5">
                   <Calendar size={13} className="text-bone-400" />
-                  <span>Joined {employee.joining_date}</span>
+                  <span>Joined {fmtDate(employee.joining_date)}</span>
                 </div>
               </div>
             </div>

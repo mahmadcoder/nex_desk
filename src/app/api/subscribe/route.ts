@@ -3,6 +3,7 @@ import { z } from "zod";
 import { createAdminClient } from "@/lib/supabase/server";
 import { sendEmail, adminNotifyAddress } from "@/lib/email/send";
 import { getSiteBaseUrl } from "@/lib/utils";
+import { fmtDateTime } from "@/lib/datetime";
 
 const schema = z.object({
   email: z.string().email(),
@@ -48,7 +49,7 @@ export async function POST(req: Request) {
         templateKey: "internal_new_subscriber",
         to: await adminNotifyAddress(),
         subjectOverride: `New Newsletter Subscriber: ${email}`,
-        bodyOverride: `Great news!\n\nA new user/client just subscribed to the Nex Desk newsletter:\n\n• Subscriber Email: ${email}\n• Subscribed At: ${new Date().toLocaleString()}\n• Source: Website Footer / Agency Site\n\nYou can view all subscribers from your Admin Control Center (/nx-control/subscribers).`,
+        bodyOverride: `Great news!\n\nA new user/client just subscribed to the Nex Desk newsletter:\n\n• Subscriber Email: ${email}\n• Subscribed At: ${fmtDateTime()}\n• Source: Website Footer / Agency Site\n\nYou can view all subscribers from your Admin Control Center (/nx-control/subscribers).`,
         vars: {},
       });
     } catch (adminEmailErr) {

@@ -14,6 +14,7 @@ import ConfirmModal from "@/components/admin/ConfirmModal";
 import CustomSelect from "@/components/ui/CustomSelect";
 import DocButton from "@/components/admin/DocButton";
 import { Badge } from "./ui";
+import { fmtDate } from "@/lib/datetime";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
@@ -86,7 +87,7 @@ export default function ChangeRequestsCard({
                 <p className="text-sm font-medium text-bone-50">{r.title}</p>
                 <p className="mono-tag mt-1 text-[11px]">
                   {r.raised_by === "client" ? "Raised by the client" : "Logged internally"} ·{" "}
-                  {new Date(r.created_at).toLocaleDateString("en-GB")}
+                  {fmtDate(r.created_at)}
                 </p>
               </div>
               <Badge>{r.status}</Badge>

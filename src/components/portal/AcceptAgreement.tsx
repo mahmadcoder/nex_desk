@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { FileSignature, CheckCircle2 } from "lucide-react";
 import { acceptAgreement } from "@/lib/actions/agreements";
 import Modal from "@/components/admin/Modal";
+import { fmtDate } from "@/lib/datetime";
 
 const field =
   "w-full rounded-lg border border-ink-500 bg-ink-800 px-3.5 py-2.5 text-sm text-bone-50 placeholder:text-bone-500 focus:border-lime-400 focus:outline-none";
@@ -40,9 +41,7 @@ export default function AcceptAgreement({
         <CheckCircle2 size={15} className="shrink-0 text-emerald-300" />
         <p className="text-xs text-emerald-200">
           Accepted by <strong>{deal.accepted_name}</strong> on{" "}
-          {new Date(deal.accepted_at).toLocaleDateString("en-GB", {
-            day: "2-digit", month: "short", year: "numeric",
-          })}
+          {fmtDate(deal.accepted_at)}
         </p>
       </div>
     );

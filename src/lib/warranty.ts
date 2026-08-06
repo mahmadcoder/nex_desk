@@ -57,7 +57,16 @@ export function supportWindow(project: any, now: Date = new Date()): SupportWind
   const handedOver = project.handed_over_at ?? null;
   if (!handedOver) return { state: "none" };
 
-  const days = Number(project.warranty_days) > 0 ? Number(project.warranty_days) : DEFAULT_DAYS;
+  // Sold with no support at all. There is no window to count down, and a
+  // countdown that reads "expired" from the moment of handover would look
+  // broken rather than deliberate.
+  // Checked on the stored days alone, not on the end date: handover writes a
+  // `warranty_ends_on` of "today" for a 0-day project, which would otherwise
+  // render as a window that expired the second it opened.
+  const stored = Number(project.warranty_days);
+  if (Number.isFinite(stored) && stored === 0) return { state: "none" };
+
+  const days = Number(stored) > 0 ? Number(stored) : DEFAULT_DAYS;
   const start = new Date(handedOver);
   if (Number.isNaN(start.getTime())) return { state: "none" };
 
@@ -92,9 +101,27 @@ export function supportWindow(project: any, now: Date = new Date()): SupportWind
  * existed, so it falls back rather than returning "none".
  */
 export function warrantyTerms(project: any): { days: number; endsOn: string } {
-  const days = Number(project.warranty_days) > 0 ? Number(project.warranty_days) : DEFAULT_DAYS;
+  const stored = Number(project.warranty_days);
+  // 0 is a real answer — a fixed-scope job sold without support — so only an
+  // absent or nonsensical value falls back to the default.
+  const days = Number.isFinite(stored) && stored >= 0 ? stored : DEFAULT_DAYS;
 
-  if (project.warranty_ends_on) return { days, endsOn: String(project.warranty_ends_on) };
+  if (project.warranty_ends_on) {
+    // Once handover freezes the end date, the LENGTH must be derived from it
+    // rather than read from the live column. Otherwise editing warranty_days
+    // afterwards would reprint the certificate saying "30 days" beside a date
+    // that had not moved — two numbers on one page contradicting each other.
+    const from = project.handed_over_at ?? project.delivered_at;
+    const endsOn = String(project.warranty_ends_on);
+
+    if (from) {
+      const span = Math.round(
+        (new Date(endsOn).getTime() - new Date(String(from).slice(0, 10)).getTime()) / 864e5
+      );
+      if (Number.isFinite(span) && span >= 0) return { days: span, endsOn };
+    }
+    return { days, endsOn };
+  }
 
   const from = project.handed_over_at ?? project.delivered_at;
   const base = from ? new Date(from) : new Date();

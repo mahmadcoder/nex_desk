@@ -11,6 +11,7 @@ import ReceiptUpload from "@/components/admin/ReceiptUpload";
 import { money, CURRENCIES } from "@/lib/utils";
 import { recordSalaryPayment, deleteSalaryPayment } from "@/lib/actions/payroll";
 import { proRataSalary } from "@/lib/payroll";
+import { fmtMonth } from "@/lib/datetime";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
@@ -26,9 +27,7 @@ const METHODS = [
 ];
 
 const firstOfThisMonth = () => new Date().toISOString().slice(0, 8) + "01";
-const monthLabel = (iso: string) =>
-  new Date(`${String(iso).slice(0, 10)}T00:00:00`)
-    .toLocaleDateString("en-GB", { month: "long", year: "numeric" });
+const monthLabel = (iso: string) => fmtMonth(String(iso).slice(0, 10));
 
 /**
  * Recording that someone was actually paid.

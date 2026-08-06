@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { getCurrentStaff } from "@/lib/auth/staff";
+import { fmtDayLabel, fmtTime } from "@/lib/datetime";
 import { PageHead, Empty } from "@/components/admin/ui";
 import { cn } from "@/lib/utils";
 import { listNotifications, notificationCounts } from "@/lib/notifications";
@@ -12,21 +13,12 @@ const BASE = `/${process.env.ADMIN_PATH || "nx-control"}`;
 export const metadata = { title: "Notifications" };
 export const dynamic = "force-dynamic";
 
-/** "Today" / "Yesterday" / "12 Aug 2026" — dates people actually recognise. */
-function dayLabel(iso: string) {
-  const d = new Date(iso);
-  const today = new Date();
-  const yesterday = new Date(Date.now() - 864e5);
-  const same = (a: Date, b: Date) => a.toDateString() === b.toDateString();
+// This page renders on the server, which on Vercel is UTC. Both labels used to
+// compute there, so a notification raised at 9pm Karachi showed as 16:00 and
+// sat under a "Yesterday" heading while it was still happening.
+const dayLabel = fmtDayLabel;
+const timeLabel = fmtTime;
 
-  if (same(d, today)) return "Today";
-  if (same(d, yesterday)) return "Yesterday";
-  return d.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
-}
-
-function timeLabel(iso: string) {
-  return new Date(iso).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
-}
 
 export default async function NotificationsPage({
   searchParams,

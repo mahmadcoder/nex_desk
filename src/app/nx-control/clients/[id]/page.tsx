@@ -45,6 +45,7 @@ function getClientTenure(createdAt: string) {
 
 import ClientTeamAssignments from "@/components/admin/ClientTeamAssignments";
 import { getCurrentStaff, assignedClientIds } from "@/lib/auth/staff";
+import { fmtDate } from "@/lib/datetime";
 
 export default async function ClientDetail({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -251,7 +252,7 @@ export default async function ClientDetail({ params }: { params: Promise<{ id: s
           <div>
             <p className="mono-tag text-[11px]">Working Together</p>
             <p className="text-sm font-semibold text-bone-50 mt-0.5">
-              {tenure} <span className="text-xs font-normal text-bone-400">(since {new Date(client.created_at).toLocaleDateString("en-GB", { month: "short", year: "numeric" })})</span>
+              {tenure} <span className="text-xs font-normal text-bone-400">(since {fmtDate(client.created_at)})</span>
             </p>
           </div>
         </div>
@@ -467,7 +468,7 @@ export default async function ClientDetail({ params }: { params: Promise<{ id: s
               <tr key={d.id}>
                 <td className="px-5 py-3 font-medium">{d.title}</td>
                 <td className="px-5 py-3"><Badge>{d.type}</Badge></td>
-                <td className="px-5 py-3 text-bone-400 font-mono text-xs">{new Date(d.created_at).toLocaleDateString("en-GB")}</td>
+                <td className="px-5 py-3 text-bone-400 font-mono text-xs">{fmtDate(d.created_at)}</td>
               </tr>
             ))}
             {!docs?.length && <tr><td colSpan={3} className="px-5 py-8 text-center text-bone-300">Nothing generated yet.</td></tr>}
@@ -483,7 +484,7 @@ export default async function ClientDetail({ params }: { params: Promise<{ id: s
               <tr key={i}>
                 <td className="px-5 py-3 font-medium">{e.subject}</td>
                 <td className="px-5 py-3"><Badge>{e.status}</Badge></td>
-                <td className="px-5 py-3 text-bone-300 font-mono text-xs">{new Date(e.sent_at).toLocaleDateString("en-GB")}</td>
+                <td className="px-5 py-3 text-bone-300 font-mono text-xs">{fmtDate(e.sent_at)}</td>
               </tr>
             ))}
             {!emails?.length && <tr><td colSpan={3} className="px-5 py-8 text-center text-bone-300">No emails sent yet.</td></tr>}

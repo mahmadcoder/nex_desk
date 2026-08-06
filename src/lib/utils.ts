@@ -189,15 +189,13 @@ export function whatsappLink(number: string = CONTACT_WHATSAPP, message?: string
  * Whole days from now until a date, or null if there isn't one. Negative once
  * the date has passed.
  *
- * Existed as three identical private copies (ExpensesCard, AgencyExpensesClient,
- * the portal's expense list) before living here.
+ * Re-exported from `lib/datetime` so the many existing importers keep working.
+ * The old implementation here compared a UTC midnight against the current
+ * instant — a partial-day comparison, so "renews in 30 days" became 29 as the
+ * afternoon wore on. The version behind this counts whole calendar days in the
+ * agency's own timezone.
  */
-export function daysUntil(date: string | null | undefined): number | null {
-  if (!date) return null;
-  const t = new Date(date).getTime();
-  if (Number.isNaN(t)) return null;
-  return Math.ceil((t - Date.now()) / 864e5);
-}
+export { daysUntil } from "@/lib/datetime";
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 

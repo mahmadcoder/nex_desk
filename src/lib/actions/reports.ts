@@ -8,6 +8,7 @@ import { aiComplete } from "@/lib/ai";
 import { describeMetrics } from "@/config/logFields";
 import { asUuid, getSiteBaseUrl, money } from "@/lib/utils";
 import { recordAudit } from "@/lib/actions/audit";
+import { fmtMonth, fmtDate } from "@/lib/datetime";
 
 const ADMIN = process.env.ADMIN_PATH || "nx-control";
 
@@ -34,7 +35,7 @@ export async function draftMonthlyReport(
   if (!id) return { ok: false, error: "Invalid client reference." };
 
   const since = new Date(Date.now() - 30 * 864e5).toISOString().slice(0, 10);
-  const monthLabel = new Date().toLocaleDateString("en-GB", { month: "long", year: "numeric" });
+  const monthLabel = fmtMonth();
 
   const [{ data: client }, { data: projects }] = await Promise.all([
     db.from("clients").select("id, name, company").eq("id", id).maybeSingle(),
@@ -91,7 +92,7 @@ export async function draftMonthlyReport(
   const workLines = shared
     .map((l) => {
       const p = projectById.get(l.project_id);
-      return `${l.work_date} · ${p?.name ?? "Project"} · ${Number(l.hours_spent || 0)}h — ${String(
+      return `${fmtDate(l.work_date)} · ${p?.name ?? "Project"} · ${Number(l.hours_spent || 0)}h — ${String(
         l.tasks_completed
       ).slice(0, 220)}`;
     })

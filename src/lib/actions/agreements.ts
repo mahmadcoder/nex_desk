@@ -8,6 +8,7 @@ import { sendEmail, adminNotifyAddress } from "@/lib/email/send";
 import { asUuid, getSiteBaseUrl, money } from "@/lib/utils";
 import { recordAudit } from "@/lib/actions/audit";
 import { notify } from "@/lib/actions/notify";
+import { fmtDateTime } from "@/lib/datetime";
 
 const ADMIN = process.env.ADMIN_PATH || "nx-control";
 
@@ -92,7 +93,7 @@ export async function acceptAgreement(dealId: string, typedName: string) {
       deal_no: deal.deal_no,
       project_name: deal.title,
       accepted_name: typedName.trim(),
-      accepted_at: new Date().toLocaleString(),
+      accepted_at: fmtDateTime(),
       ip: ip ?? "unknown",
       admin_url: `${getSiteBaseUrl()}/${ADMIN}/clients/${deal.client_id}`,
     },
@@ -110,7 +111,7 @@ export async function acceptAgreement(dealId: string, typedName: string) {
         project_name: deal.title,
         deal_no: deal.deal_no,
         amount: money(Number(deal.total), deal.currency),
-        accepted_at: new Date().toLocaleString(),
+        accepted_at: fmtDateTime(),
       },
     }).catch((e) => console.error("Acceptance receipt failed:", e));
   }
@@ -197,6 +198,7 @@ export async function saveDealTemplate(dealId: string, name: string) {
     terms: deal.terms,
     duration_days: deal.duration_days,
     revisions_included: deal.revisions_included,
+    warranty_days: deal.warranty_days ?? 14,
     tax_percent: deal.tax_percent,
     is_retainer: deal.is_retainer ?? false,
     billing_cycle: deal.billing_cycle ?? null,

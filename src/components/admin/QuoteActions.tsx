@@ -7,6 +7,7 @@ import { Trophy, XCircle, Send, Sparkles, Loader2 } from "lucide-react";
 import Modal from "@/components/admin/Modal";
 import ConfirmModal from "@/components/admin/ConfirmModal";
 import { lockQuote, markQuoteLost, resendQuote, draftFollowupNote } from "@/lib/actions/quotes";
+import { fmtDate } from "@/lib/datetime";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
@@ -115,7 +116,7 @@ export default function QuoteActions({
       <div className="rounded-lg border border-lime-400/25 bg-lime-400/[0.06] p-3.5">
         <p className="mono-tag text-[11px] text-lime-300">Won</p>
         <p className="mt-1 text-xs leading-relaxed text-bone-200">
-          Locked on {new Date(deal.locked_at).toLocaleDateString("en-GB")}
+          Locked on {fmtDate(deal.locked_at)}
           {deal.quote_sent_at && (
             <>
               {" "}— {Math.round(
@@ -137,7 +138,7 @@ export default function QuoteActions({
           <p className="mt-1 text-xs leading-relaxed text-bone-200">
             {deal.lost_reason}
             <span className="mt-0.5 block text-bone-400">
-              Recorded {new Date(deal.lost_at).toLocaleDateString("en-GB")}
+              Recorded {fmtDate(deal.lost_at)}
             </span>
           </p>
         </div>
@@ -155,7 +156,7 @@ export default function QuoteActions({
         <div className="rounded-lg border border-ink-600 bg-ink-800/50 p-3.5">
           <p className="mono-tag text-[11px]">Quote is out</p>
           <p className="mt-1 text-xs leading-relaxed text-bone-300">
-            Sent {new Date(deal.quote_sent_at).toLocaleDateString("en-GB")} ·{" "}
+            Sent {fmtDate(deal.quote_sent_at)} ·{" "}
             {deal.followup_count ?? 0} of 3 chases sent
             {deal.quote_expires_on && <> · valid until {deal.quote_expires_on}</>}
           </p>

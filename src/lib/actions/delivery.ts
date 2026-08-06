@@ -9,6 +9,7 @@ import { asUuid, getSiteBaseUrl, moneyMulti, sumByCurrency, pdfFilename } from "
 import { recordAudit } from "@/lib/actions/audit";
 import { notify } from "@/lib/actions/notify";
 import { handoverGate } from "@/lib/delivery/gate";
+import { fmtDate } from "@/lib/datetime";
 
 const ADMIN = process.env.ADMIN_PATH || "nx-control";
 
@@ -77,14 +78,33 @@ export async function handoverProject(projectId: string) {
     .filter((e: any) => e?.email);
 
   const portalUrl = `${getSiteBaseUrl()}/portal`;
+
+  // The warranty clock starts here. Free fixes cover DEFECTS in what we built;
+  // anything new is a change request from day one regardless of this date.
+  //
+  // Computed once. The email vars and the stored `warranty_ends_on` used to be
+  // worked out separately a few lines apart — the same date derived twice.
+  //
+  // `?? 14` deliberately does NOT catch 0: a deal can be sold with no support
+  // at all, and 0 is that answer rather than a missing value.
+  const handedOverAt = new Date();
+  const warrantyDaysSold = Number(project.warranty_days ?? 14);
+  const warrantyEndsOn = new Date(handedOverAt.getTime() + warrantyDaysSold * 864e5)
+    .toISOString().slice(0, 10);
+  const warrantyEndsLabel = fmtDate(warrantyEndsOn);
   const vars = {
     client_name: client.name,
     project_name: project.name,
     portal_url: portalUrl,
     live_url: project.live_url || portalUrl,
-    warranty_days: Number(project.warranty_days ?? 14),
-    warranty_ends: new Date(Date.now() + Number(project.warranty_days ?? 14) * 864e5)
-      .toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" }),
+    warranty_days: warrantyDaysSold,
+    warranty_ends: warrantyEndsLabel,
+    // One sentence rather than two variables in a template with no
+    // conditionals — a project sold with no support would otherwise read
+    // "we fix free until <today> — 0 days from today".
+    warranty_line: warrantyDaysSold > 0
+      ? `Anything that turns out to be **broken in what we built** we fix free until **${warrantyEndsLabel}** — ${warrantyDaysSold} days from today, which is when real defects surface once real people start using it. Tell us and we sort it.`
+      : "This project was agreed without a support period, so fixes from here are quoted first. Tell us what you have found and we will price it before doing anything.",
     // Handover only unlocks once the contract is paid, so by definition there
     // is nothing left owing on it. Saying so here matters: this is the moment
     // a client expects to hear it, and until now the delivery email talked
@@ -131,19 +151,14 @@ export async function handoverProject(projectId: string) {
     (r) => r.status === "fulfilled" && r.value?.ok
   ).length;
 
-  // The warranty clock starts here. Free fixes cover DEFECTS in what we built;
-  // anything new is a change request from day one regardless of this date.
-  const now = new Date();
-  const warrantyDays = Number(project.warranty_days ?? 14);
-  const warrantyEnds = new Date(now.getTime() + warrantyDays * 864e5)
-    .toISOString().slice(0, 10);
+  const now = handedOverAt;
 
   await db.from("projects")
     .update({
       status: "delivered",
       delivered_at: now.toISOString(),
       handed_over_at: now.toISOString(),
-      warranty_ends_on: warrantyEnds,
+      warranty_ends_on: warrantyEndsOn,
     })
     .eq("id", id);
 

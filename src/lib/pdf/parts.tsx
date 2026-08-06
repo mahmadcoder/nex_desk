@@ -1,6 +1,7 @@
 import { Text, View, Svg, Rect, Image } from "@react-pdf/renderer";
 import { s, C } from "./theme";
 import { CONTACT_EMAIL, money } from "@/lib/utils";
+import { fmtDate } from "@/lib/datetime";
 
 /**
  * The Nex Desk logomark, matching `components/brand/Logo.tsx` (LogoTile):
@@ -111,4 +112,4 @@ export function DocFooter({ number }: { number: string }) {
 export const fmt = money;
 
 export const date = (d?: string | null) =>
-  d ? new Date(d).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" }) : "—";
+  d ? fmtDate(d) : "—";
