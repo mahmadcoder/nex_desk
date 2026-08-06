@@ -6,6 +6,8 @@ import { createClient, createAdminClient } from "@/lib/supabase/server";
 import { requireStaff, requireOwnerAdmin } from "@/lib/auth/guards";
 import { asUuid, getSiteBaseUrl, money, pdfFilename } from "@/lib/utils";
 import { tryEncrypt, decryptSecret } from "@/lib/crypto";
+import { recordAudit } from "@/lib/actions/audit";
+import { diffFields, changeLines, EMPLOYEE_FIELDS } from "@/lib/diff";
 
 const ADMIN = process.env.ADMIN_PATH || "nx-control";
 
@@ -542,10 +544,11 @@ export async function saveEmployee(
   // Capture the address before the update so an email change can be detected
   // and pushed through to auth.users — otherwise the employee is locked out
   // while the admin panel shows the new address as their login.
-  let previous: { email: string | null; user_id: string | null } | null = null;
+  // The whole row, not just the address. Employee edits carried NO audit entry
+  // of any kind before this, so a salary or job-title change left no trace.
+  let previous: Record<string, any> | null = null;
   if (id) {
-    const { data: before } = await db
-      .from("employees").select("email, user_id").eq("id", id).maybeSingle();
+    const { data: before } = await db.from("employees").select("*").eq("id", id).maybeSingle();
     previous = before ?? null;
   }
 
@@ -553,6 +556,15 @@ export async function saveEmployee(
     ? await db.from("employees").update(data).eq("id", id).select().single()
     : await db.from("employees").insert(data).select().single();
   if (res.error) throw res.error;
+
+  const changes = id ? diffFields(previous, data, EMPLOYEE_FIELDS) : [];
+  await recordAudit(
+    staff.userId,
+    id ? "employee.update" : "employee.create",
+    "employees",
+    res.data?.id,
+    { changes: changes.map((c) => ({ field: c.key, from: c.from, to: c.to })) }
+  );
 
   let emailed: boolean | undefined;
   let emailError: string | undefined;
@@ -616,6 +628,22 @@ export async function saveEmployee(
       });
       emailed = notice.ok;
       emailError = notice.error;
+    }
+
+    // The address change has its own notice above, so it is left out here
+    // rather than mentioned twice in two different emails.
+    const notifiable = changes.filter((c) => c.notify && c.key !== "email");
+    if (notifiable.length && res.data?.email) {
+      const sent = await sendEmail({
+        templateKey: "profile_updated",
+        to: String(res.data.email),
+        actorId: staff.userId,
+        vars: {
+          name: String(res.data?.full_name ?? "there"),
+          changes: changeLines(notifiable),
+        },
+      });
+      if (!sent.ok) console.error("saveEmployee: profile_updated email failed:", sent.error);
     }
   }
 

@@ -16,9 +16,12 @@ import { updateMyPhoto } from "@/lib/actions/staff";
 export default function MyPhoto({
   name,
   currentUrl,
+  removalPending = false,
 }: {
   name: string;
   currentUrl: string | null;
+  /** They asked for it to come down and it is waiting on an admin. */
+  removalPending?: boolean;
 }) {
   const router = useRouter();
   const [pending, start] = useTransition();
@@ -33,7 +36,14 @@ export default function MyPhoto({
         setUrl(currentUrl); // put the old one back rather than lie about it
         return;
       }
-      toast.success(next ? "Photo updated." : "Photo removed.");
+      // Said plainly. A removal does not take effect straight away, and telling
+      // someone "removed" when the photo is still on a client's portal would be
+      // a lie they would find out about later.
+      toast.success(
+        next
+          ? "Photo updated."
+          : "We have your request — it will come off once an admin confirms."
+      );
       router.refresh();
     });
   }
@@ -51,6 +61,13 @@ export default function MyPhoto({
         folder="employees"
         shape="circle"
       />
+
+      {removalPending && (
+        <p className="rounded-lg border border-amber-400/30 bg-amber-400/[0.07] p-3 text-center text-[11px] leading-relaxed text-amber-200">
+          You have asked us to take this down. It stays on your profile until an admin confirms —
+          upload a new one any time and that replaces it straight away.
+        </p>
+      )}
 
       <p className="text-center text-[11px] leading-relaxed text-bone-400">
         {pending

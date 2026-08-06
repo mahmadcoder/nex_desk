@@ -90,6 +90,9 @@ E'Hi {{client_name}},\n\nYour domain and hosting expire on **{{due_date}}**.\n\n
 ('refund_cancellation','Cancellation or refund','{{project_name}} — cancellation confirmed',
 E'Hi {{client_name}},\n\nConfirming that {{project_name}} is cancelled as of today.\n\n## Where things stand\n\n• Reason recorded: {{reason}}\n• Work delivered: {{work_done}}\n• Refund due to you: {{refund_amount}}\n\n{{settlement_note}}\n\nEverything produced up to this point is **yours to keep**, and stays available in your portal:\n{{portal_url}}\n\nAny refund is sent within seven working days. Bank and transfer charges are not ours to refund — we return what actually reached us, less the cost of sending it back.\n\nIf circumstances change we would be glad to pick this back up.\n\n{{sender_name}}\nNex Desk', null,'Sent by the Cancel-project panel, which works out the refund figure line by line. Deliberately has no emoji.'),
 
+('profile_updated','Profile updated','Your details have been updated',
+E'Hi {{name}},\n\nWe have updated your details on our system. Here is exactly what changed:\n\n{{changes}}\n\nIf any of that is wrong, reply to this email and we will put it right — you do not need to fill anything in, just tell us.\n\nNex Desk', null,'Sent automatically when a client or staff profile is edited. Only contact-type fields trigger it — salary, status and internal notes are recorded but never emailed.'),
+
 ('portal_invite','Client portal invite','🔑 Your Nex Desk client portal',
 E'Hi {{client_name}},\n\nYou have a portal for {{project_name}} where you can follow progress, download every document and upload files to us.\n\n• Portal: {{portal_url}}\n• Email: {{client_email}}\n• Password: {{client_password}}\n\n**Please change your password after your first sign-in.**\n\n{{sender_name}}\nNex Desk', null,'Sent alongside the deal-locked email.'),
 

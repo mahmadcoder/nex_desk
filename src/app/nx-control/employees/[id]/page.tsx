@@ -11,6 +11,7 @@ import EmployeeAccessCard from "@/components/admin/EmployeeAccessCard";
 import CompensationCard from "@/components/admin/CompensationCard";
 import SalaryPaymentsCard from "@/components/admin/SalaryPaymentsCard";
 import PerformanceCard from "@/components/admin/PerformanceCard";
+import PhotoHistory from "@/components/admin/PhotoHistory";
 import { staffPerformance } from "@/lib/insights";
 import { revealPreview } from "@/lib/crypto";
 
@@ -62,6 +63,20 @@ export default async function EmployeeDetailPage({
       .order("period_month", { ascending: false })
       .order("paid_on", { ascending: false }),
   ]);
+
+  // Read on its own rather than in the Promise.all above: a missing 2027-18
+  // migration must degrade to an empty gallery, not take the whole page down
+  // with a destructuring error.
+  const { data: photoHistory, error: photoHistoryError } = await db
+    .from("employee_photo_history")
+    .select("id, photo_url, previous_url, changed_by_self, created_at")
+    .eq("employee_id", id)
+    .order("created_at", { ascending: false })
+    .limit(24);
+
+  if (photoHistoryError) {
+    console.error("Failed to load photo history for employee", id, photoHistoryError);
+  }
 
   // Before the 2027-14 migration this errors and returns null, which would
   // render as "nothing paid yet" rather than as the broken thing it is.
@@ -219,6 +234,16 @@ export default async function EmployeeDetailPage({
 
         {/* Right Client & Project Assignments Hub */}
         <div className="space-y-6">
+          {/* Above performance: a pending removal is a decision waiting on you,
+              and this is the only page that shows it. */}
+          <PhotoHistory
+            employeeId={employee.id}
+            name={employee.full_name}
+            currentUrl={employee.avatar_url ?? null}
+            removalRequestedAt={employee.avatar_removal_requested_at ?? null}
+            entries={photoHistory ?? []}
+          />
+
           <PerformanceCard stats={stats} />
 
           {/* Pay history and leave taken — owner/admin territory. */}

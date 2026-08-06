@@ -5,6 +5,8 @@ import { PageHead, Stat } from "@/components/admin/ui";
 import { money, moneyMulti, sumByCurrency, cn } from "@/lib/utils";
 import { getLiveExchangeRates, convertCurrency } from "@/lib/currency";
 import { mergeTotals, expenseInvoiceIds, type Money } from "@/lib/billing";
+// Shared with Insights, which needs the same three. Were private here.
+import { monthRange, shiftMonth, monthLabel } from "@/lib/dates";
 import { ArrowDownLeft, ArrowUpRight, Info, ChevronLeft, ChevronRight } from "lucide-react";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -13,22 +15,6 @@ const BASE = `/${process.env.ADMIN_PATH || "nx-control"}`;
 export const metadata = { title: "Money In & Out" };
 export const dynamic = "force-dynamic";
 
-/** First and last day of a YYYY-MM month. */
-function monthRange(ym: string) {
-  const [y, m] = ym.split("-").map(Number);
-  const from = new Date(Date.UTC(y, m - 1, 1)).toISOString().slice(0, 10);
-  const to = new Date(Date.UTC(y, m, 0)).toISOString().slice(0, 10);
-  return { from, to };
-}
-
-const shiftMonth = (ym: string, by: number) => {
-  const [y, m] = ym.split("-").map(Number);
-  const d = new Date(Date.UTC(y, m - 1 + by, 1));
-  return d.toISOString().slice(0, 7);
-};
-
-const monthLabel = (ym: string) =>
-  new Date(`${ym}-01T00:00:00`).toLocaleDateString("en-GB", { month: "long", year: "numeric" });
 
 /**
  * Real cash, both directions, for one month.

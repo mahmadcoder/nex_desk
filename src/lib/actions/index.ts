@@ -12,6 +12,7 @@ import { getSiteBaseUrl, currencyForCountry, money, moneyMulti } from "@/lib/uti
 import { tryEncrypt, decryptSecret } from "@/lib/crypto";
 import { provisionLockedDeal } from "@/lib/deals/provision";
 import { contractPosition } from "@/lib/billing";
+import { diffFields, changeLines, CLIENT_FIELDS } from "@/lib/diff";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
@@ -198,10 +199,11 @@ export async function saveClient(id: string | null, data: Record<string, unknown
   // Snapshot the current address so an email change can be pushed through to
   // auth.users. Without this the client keeps logging in with the old address
   // while the admin panel displays the new one.
-  let previous: { email: string | null; profile_id: string | null } | null = null;
+  // The whole row, not just the address: the audit entry used to record that a
+  // client changed and never what changed in it, so nothing could tell them.
+  let previous: Record<string, any> | null = null;
   if (id) {
-    const { data: before } = await db
-      .from("clients").select("email, profile_id").eq("id", id).maybeSingle();
+    const { data: before } = await db.from("clients").select("*").eq("id", id).maybeSingle();
     previous = before ?? null;
   }
 
@@ -209,7 +211,10 @@ export async function saveClient(id: string | null, data: Record<string, unknown
     ? await db.from("clients").update(data).eq("id", id).select().single()
     : await db.from("clients").insert(data).select().single();
   if (res.error) throw res.error;
-  await audit(me.userId, id ? "client.update" : "client.create", "clients", res.data.id);
+  const changes = id ? diffFields(previous, data, CLIENT_FIELDS) : [];
+  await audit(me.userId, id ? "client.update" : "client.create", "clients", res.data.id, {
+    changes: changes.map((c) => ({ field: c.key, from: c.from, to: c.to })),
+  });
 
   let credentialsEmailed: boolean | undefined;
   let emailError: string | undefined;
@@ -248,6 +253,23 @@ export async function saveClient(id: string | null, data: Record<string, unknown
       });
       credentialsEmailed = notice.ok;
       emailError = notice.ok ? undefined : notice.error;
+    }
+
+    // Everything else that changed, in one mail. The address change above has
+    // its own dedicated notice, so it is excluded here rather than sent twice.
+    const notifiable = changes.filter((c) => c.notify && c.key !== "email");
+    if (notifiable.length && res.data?.email) {
+      const sent = await sendEmail({
+        templateKey: "profile_updated",
+        to: String(res.data.email),
+        clientId: String(res.data.id),
+        actorId: me.userId,
+        vars: {
+          name: String(res.data?.name ?? "there"),
+          changes: changeLines(notifiable),
+        },
+      });
+      if (!sent.ok) console.error("saveClient: profile_updated email failed:", sent.error);
     }
   }
 

@@ -36,7 +36,9 @@ export type NotifyKind =
   | "expense.renewal"
   | "client.return_request"
   // raised by the daily cron, 14 days after handover
-  | "feedback.due";
+  | "feedback.due"
+  // an employee changed or asked to remove their own profile photo
+  | "profile.photo";
 
 export async function notify(n: {
   kind: NotifyKind;

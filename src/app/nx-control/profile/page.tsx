@@ -43,7 +43,7 @@ export default async function MyProfilePage() {
   const [{ data: employee }, { data: assignments }] = await Promise.all([
     db
       .from("employees")
-      .select("id, full_name, email, job_title, seniority, employment_type, joining_date, skills, avatar_url, status")
+      .select("id, full_name, email, job_title, seniority, employment_type, joining_date, skills, avatar_url, status, avatar_removal_requested_at")
       .eq("id", me.employeeId)
       .maybeSingle(),
     db
@@ -79,6 +79,7 @@ export default async function MyProfilePage() {
           <MyPhoto
             name={employee?.full_name || me.fullName}
             currentUrl={employee?.avatar_url ?? null}
+            removalPending={!!employee?.avatar_removal_requested_at}
           />
           <div className="mt-5 border-t border-ink-700 pt-4 text-center">
             <p className="truncate text-base font-semibold text-bone-50">

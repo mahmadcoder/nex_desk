@@ -33,6 +33,10 @@ const ACTION_COPY: Record<string, string> = {
   "change_request.complete": "Change completed",
   "change_request.decline": "Change declined",
   "milestone.toggle": "Milestone ticked",
+  "employee.create": "Employee added",
+  "employee.update": "Employee details updated",
+  "employee.photo": "Profile photo changed",
+  "employee.photo_decision": "Photo removal answered",
 };
 
 export type ActivityEntry = {

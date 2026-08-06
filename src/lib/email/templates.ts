@@ -131,6 +131,19 @@ If you weren't expecting this, reply to this email straight away.
 Nex Desk`,
   },
 
+  profile_updated: {
+    subject: "Your details have been updated",
+    body: `Hi {{name}},
+
+We have updated your details on our system. Here is exactly what changed:
+
+{{changes}}
+
+If any of that is wrong, reply to this email and we will put it right — you do not need to fill anything in, just tell us.
+
+Nex Desk`,
+  },
+
   /* ─────────────── Sales ─────────────── */
 
   quotation_sent: {

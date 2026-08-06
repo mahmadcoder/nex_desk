@@ -437,6 +437,7 @@ export async function cancelLeave(requestId: string) {
  */
 export async function updateMyPhoto(url: string | null) {
   const me = await requireStaff();
+  const db = createAdminClient();
 
   const clean = String(url ?? "").trim();
 
@@ -447,17 +448,139 @@ export async function updateMyPhoto(url: string | null) {
     return { ok: false as const, error: "That does not look like an uploaded image." };
   }
 
-  const { error } = await createAdminClient()
+  // Read before writing. The old version overwrote blind, so the previous photo
+  // was lost from the app the instant it was replaced — even though the file
+  // itself was still sitting in the bucket.
+  const { data: current } = await db
     .from("employees")
-    .update({ avatar_url: clean || null })
-    .eq("user_id", me.userId);
+    .select("id, full_name, avatar_url")
+    .eq("user_id", me.userId)
+    .maybeSingle();
+
+  if (!current) {
+    return { ok: false as const, error: "No employee record is linked to this login." };
+  }
+
+  const previous: string | null = current.avatar_url ?? null;
+  const removing = !clean;
+
+  // A REMOVAL does not clear the column. The photo is on client-facing pages,
+  // and it must not come off one silently — so this raises a request an admin
+  // answers. Replacing is untouched and still applies immediately; the gate is
+  // only on making a face disappear.
+  const patch = removing
+    ? { avatar_removal_requested_at: new Date().toISOString() }
+    : { avatar_url: clean, avatar_removal_requested_at: null };
+
+  const { error } = await db.from("employees").update(patch).eq("user_id", me.userId);
 
   if (error) {
+    // 42703 = undefined column: the 2027-18 migration has not been run.
     console.error("updateMyPhoto failed:", error);
+    return {
+      ok: false as const,
+      error:
+        error.code === "42703"
+          ? "The photo history columns are missing. Run supabase/idempotent_fixes_2027_18.sql, then try again."
+          : error.message,
+    };
+  }
+
+  // Recorded whether or not the notification and audit below succeed — the
+  // history is the point, and neither of those should be able to lose it.
+  const { error: histError } = await db.from("employee_photo_history").insert({
+    employee_id: current.id,
+    photo_url: clean || null,
+    previous_url: previous,
+    changed_by: me.userId,
+    changed_by_self: true,
+  });
+  if (histError) console.error("updateMyPhoto: history not recorded:", histError);
+
+  // No `employeeId` on purpose — that is what makes this an admins-audience
+  // row, which staff can never read (the audience check constraint keeps
+  // employee_id NULL, and staff are filtered by employee_id equality).
+  await notify({
+    kind: "profile.photo",
+    title: removing
+      ? `${current.full_name} asked to remove their photo`
+      : `${current.full_name} changed their profile photo`,
+    body: removing
+      ? "Their photo is still showing to clients until you decide. Open their profile to take it down or keep it."
+      : previous
+        ? "Replaced the one that was there before. Every photo they have set is kept on their profile."
+        : "They had no photo before this one.",
+    href: `/${ADMIN}/employees/${current.id}`,
+    entity: "employees",
+    entityId: current.id,
+    actorLabel: current.full_name,
+    actorKind: "staff",
+  });
+
+  await recordAudit(me.userId, "employee.photo", "employees", current.id, {
+    from: previous,
+    to: clean || null,
+    removal_requested: removing,
+  });
+
+  revalidatePath(`/${ADMIN}/profile`);
+  revalidatePath(`/${ADMIN}/employees/${current.id}`);
+  revalidatePath(`/${ADMIN}`);
+  return { ok: true as const, removalRequested: removing };
+}
+
+/**
+ * The admin's answer to a removal request.
+ *
+ * `takeDown` true honours it — the photo comes off everywhere. False keeps the
+ * photo and just clears the flag. Either way the decision is recorded, so a
+ * staff member who asks twice is visible.
+ */
+export async function decideMyPhotoRemoval(employeeId: string, takeDown: boolean) {
+  const me = await requireOwnerAdmin();
+  const db = createAdminClient();
+
+  const id = asUuid(employeeId);
+  if (!id) return { ok: false as const, error: "Invalid employee reference." };
+
+  const { data: employee } = await db
+    .from("employees")
+    .select("id, full_name, avatar_url, avatar_removal_requested_at")
+    .eq("id", id)
+    .maybeSingle();
+
+  if (!employee) return { ok: false as const, error: "Employee not found." };
+  if (!employee.avatar_removal_requested_at) {
+    return { ok: false as const, error: "There is no removal waiting on an answer." };
+  }
+
+  const patch = takeDown
+    ? { avatar_url: null, avatar_removal_requested_at: null }
+    : { avatar_removal_requested_at: null };
+
+  const { error } = await db.from("employees").update(patch).eq("id", id);
+  if (error) {
+    console.error("decideMyPhotoRemoval failed:", error);
     return { ok: false as const, error: error.message };
   }
 
-  revalidatePath(`/${ADMIN}/profile`);
-  revalidatePath(`/${ADMIN}`);
+  if (takeDown) {
+    const { error: histError } = await db.from("employee_photo_history").insert({
+      employee_id: id,
+      photo_url: null,
+      previous_url: employee.avatar_url ?? null,
+      changed_by: me.userId,
+      changed_by_self: false,
+    });
+    if (histError) console.error("decideMyPhotoRemoval: history not recorded:", histError);
+  }
+
+  await recordAudit(me.userId, "employee.photo_decision", "employees", id, {
+    took_down: takeDown,
+    was: employee.avatar_url,
+  });
+
+  revalidatePath(`/${ADMIN}/employees/${id}`);
+  revalidatePath(`/${ADMIN}/employees`);
   return { ok: true as const };
 }
