@@ -5,6 +5,7 @@ import { saveSettings } from "@/lib/actions";
 import { CURRENCIES } from "@/lib/utils";
 import CustomSelect from "@/components/ui/CustomSelect";
 import { Badge } from "./ui";
+import ImageUpload from "@/components/admin/ImageUpload";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
@@ -22,6 +23,8 @@ export default function SettingsForm({ settings, staff }: { settings: any; staff
     address: settings?.address ?? "",
     city: settings?.city ?? "",
     country: settings?.country ?? "Pakistan",
+    tax_id: settings?.tax_id ?? "",
+    logo_url: settings?.logo_url ?? "",
     default_currency: settings?.default_currency ?? "PKR",
     tax_percent: settings?.tax_percent ?? 0,
     invoice_prefix: settings?.invoice_prefix ?? "ND",
@@ -65,6 +68,38 @@ export default function SettingsForm({ settings, staff }: { settings: any; staff
           <label className={label}>Address</label>
           <input className={field} value={f.address} onChange={(e) => set("address", e.target.value)} />
         </div>
+        <div className="mt-4">
+          <label className={label}>Tax / NTN number</label>
+          <input
+            className={field}
+            value={f.tax_id}
+            onChange={(e) => set("tax_id", e.target.value)}
+            placeholder="Printed on invoices and agreements"
+          />
+          <p className="mt-1.5 text-[11px] leading-relaxed text-bone-400">
+            You already record the client&rsquo;s tax ID and print it on every document. This is
+            yours — it is what lets the business receiving your invoice deduct it.
+          </p>
+        </div>
+        <div className="mt-4">
+          <ImageUpload
+            label="Logo"
+            value={f.logo_url}
+            onChange={(url) => set("logo_url", url)}
+            folder="brand"
+            removeWarning="Documents go back to the drawn Nex Desk mark until you upload another."
+          />
+          <p className="mt-1.5 text-[11px] leading-relaxed text-bone-400">
+            Replaces the drawn mark at the top of every PDF. A square PNG with a transparent
+            background works best.
+          </p>
+        </div>
+
+        <p className="mt-5 border-t border-ink-700 pt-4 text-[11px] leading-relaxed text-bone-400">
+          Everything on this card appears on your invoices, agreements and emails. Until recently
+          it was saved here and read by nothing — the documents said &ldquo;Nex Desk, Multan,
+          Pakistan&rdquo; whatever you typed.
+        </p>
       </section>
 
       <section className="card p-6">

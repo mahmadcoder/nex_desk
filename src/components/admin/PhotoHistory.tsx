@@ -2,11 +2,12 @@
 
 /* eslint-disable @next/next/no-img-element */
 
-import { useTransition } from "react";
+import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { ImageIcon, AlertTriangle } from "lucide-react";
 import { decideMyPhotoRemoval } from "@/lib/actions/staff";
+import PhotoViewer from "@/components/PhotoViewer";
 
 type Entry = {
   id: string;
@@ -38,6 +39,7 @@ export default function PhotoHistory({
 }) {
   const router = useRouter();
   const [pending, start] = useTransition();
+  const [viewing, setViewing] = useState<string | null>(null);
 
   const changes = entries.filter((e) => e.changed_by_self).length;
 
@@ -101,8 +103,14 @@ export default function PhotoHistory({
             const isCurrent = !!e.photo_url && e.photo_url === currentUrl;
             return (
               <li key={e.id} className="w-[92px] text-center">
-                <span
-                  className={`grid h-[92px] w-[92px] place-items-center overflow-hidden rounded-lg border bg-ink-800 ${
+                {/* A photo history you cannot actually look at is not much of
+                    a history — these were dead 92px squares. */}
+                <button
+                  type="button"
+                  disabled={!e.photo_url}
+                  onClick={() => e.photo_url && setViewing(e.photo_url)}
+                  title={e.photo_url ? "View full size" : undefined}
+                  className={`grid h-[92px] w-[92px] place-items-center overflow-hidden rounded-lg border bg-ink-800 transition enabled:hover:border-lime-400/60 ${
                     isCurrent ? "border-lime-400/50" : "border-ink-600"
                   }`}
                 >
@@ -113,7 +121,7 @@ export default function PhotoHistory({
                       removed
                     </span>
                   )}
-                </span>
+                </button>
                 <p className="mono-tag mt-1 text-[10px] leading-tight text-bone-400">
                   {fmt(e.created_at)}
                 </p>
@@ -131,6 +139,13 @@ export default function PhotoHistory({
           remove.
         </p>
       )}
+
+      <PhotoViewer
+        src={viewing}
+        alt={name}
+        open={!!viewing}
+        onClose={() => setViewing(null)}
+      />
     </section>
   );
 }

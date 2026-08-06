@@ -1,4 +1,4 @@
-import { Text, View, Svg, Rect } from "@react-pdf/renderer";
+import { Text, View, Svg, Rect, Image } from "@react-pdf/renderer";
 import { s, C } from "./theme";
 import { CONTACT_EMAIL, money } from "@/lib/utils";
 
@@ -24,14 +24,55 @@ export function Mark() {
   );
 }
 
+/**
+ * Who these documents say they are from.
+ *
+ * Primed by `setDocAgency()` immediately before a render rather than threaded
+ * as a prop through nine document components and twenty-eight call sites.
+ *
+ * That is only safe because there is exactly ONE agency: `settings` is a
+ * singleton enforced in Postgres by `check (id = 1)`, so two concurrent PDF
+ * renders necessarily write the identical value here. Do not copy this pattern
+ * for anything that varies per request — for that, pass a prop.
+ */
+let DOC_AGENCY: {
+  name: string;
+  tagline: string | null;
+  email: string;
+  location: string;
+  taxId: string | null;
+  logoUrl: string | null;
+} = {
+  name: "Nex Desk",
+  tagline: "Software agency",
+  email: CONTACT_EMAIL,
+  location: "Multan, Pakistan",
+  taxId: null,
+  logoUrl: null,
+};
+
+export function setDocAgency(a: typeof DOC_AGENCY) {
+  DOC_AGENCY = a;
+}
+
+export const docAgency = () => DOC_AGENCY;
+
 export function DocHeader({ type, number }: { type: string; number: string }) {
+  const agency = DOC_AGENCY;
+  const name = agency.name;
+  const tagline = agency.tagline || "Software agency";
+
   return (
     <View style={s.headerBar}>
       <View style={s.brandBlock}>
-        <Mark />
+        {/* An uploaded logo replaces the drawn mark. @react-pdf fetches the
+            URL at render time, so a dead or slow link would take invoice
+            generation down with it — hence the vector mark stays the default
+            and the Image is only reached when a logo is actually set. */}
+        {agency.logoUrl ? <Image src={agency.logoUrl} style={{ width: 26, height: 26 }} /> : <Mark />}
         <View>
-          <Text style={s.brandName}>Nex Desk</Text>
-          <Text style={{ fontSize: 9, color: C.muted }}>Software agency</Text>
+          <Text style={s.brandName}>{name}</Text>
+          <Text style={{ fontSize: 9, color: C.muted }}>{tagline}</Text>
         </View>
       </View>
       <View style={{ alignItems: "flex-end" }}>
@@ -55,7 +96,7 @@ export function Field({ label, value }: { label: string; value?: string | null }
 export function DocFooter({ number }: { number: string }) {
   return (
     <View style={s.footer} fixed>
-      <Text>Nex Desk · {CONTACT_EMAIL}</Text>
+      <Text>{DOC_AGENCY.name} · {DOC_AGENCY.email}</Text>
       <Text render={({ pageNumber, totalPages }) => `${number} · page ${pageNumber} of ${totalPages}`} />
     </View>
   );

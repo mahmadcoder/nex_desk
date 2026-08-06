@@ -26,31 +26,32 @@ export default async function MyProfilePage() {
   const me = await getCurrentStaff();
   if (!me) return null;
 
-  if (!me.employeeId) {
-    return (
-      <>
-        <PageHead title="My Profile" />
-        <Empty
-          title="No employee record linked to this login"
-          body="Your profile is stored against an employee record. If you should have one, ask an owner or admin to link your account."
-        />
-      </>
-    );
-  }
-
   const db = createAdminClient();
 
-  const [{ data: employee }, { data: assignments }] = await Promise.all([
-    db
-      .from("employees")
-      .select("id, full_name, email, job_title, seniority, employment_type, joining_date, skills, avatar_url, status, avatar_removal_requested_at")
-      .eq("id", me.employeeId)
-      .maybeSingle(),
-    db
-      .from("client_employee_assignments")
-      .select("clients(id, name, company)")
-      .eq("employee_id", me.employeeId),
-  ]);
+  // An owner has no employees row — those are only ever written by the hiring
+  // form, while an owner account is created the other way round (an auth
+  // signup, then a manual role update in SQL). This page used to dead-end for
+  // exactly that person with "ask an owner or admin to link your account",
+  // which is a strange thing to tell the owner. It now falls back to `profiles`.
+  const isEmployee = !!me.employeeId;
+
+  const [{ data: employee }, { data: assignments }] = isEmployee
+    ? await Promise.all([
+        db
+          .from("employees")
+          .select("id, full_name, email, job_title, seniority, employment_type, joining_date, skills, avatar_url, status, avatar_removal_requested_at")
+          .eq("id", me.employeeId!)
+          .maybeSingle(),
+        db
+          .from("client_employee_assignments")
+          .select("clients(id, name, company)")
+          .eq("employee_id", me.employeeId!),
+      ])
+    : [{ data: null as any }, { data: [] as any[] }];
+
+  const { data: profile } = isEmployee
+    ? { data: null as any }
+    : await db.from("profiles").select("full_name, email, avatar_url").eq("id", me.userId).maybeSingle();
 
   const clients = (assignments ?? []).map((a: any) => a.clients).filter(Boolean);
   const skills: string[] = Array.isArray(employee?.skills) ? employee!.skills : [];
@@ -77,20 +78,36 @@ export default async function MyProfilePage() {
       <div className="grid gap-6 lg:grid-cols-[280px_1fr]">
         <section className="card p-5 sm:p-6">
           <MyPhoto
-            name={employee?.full_name || me.fullName}
-            currentUrl={employee?.avatar_url ?? null}
+            name={me.fullName}
+            currentUrl={me.avatarUrl}
             removalPending={!!employee?.avatar_removal_requested_at}
           />
           <div className="mt-5 border-t border-ink-700 pt-4 text-center">
-            <p className="truncate text-base font-semibold text-bone-50">
-              {employee?.full_name || me.fullName}
-            </p>
+            <p className="truncate text-base font-semibold text-bone-50">{me.fullName}</p>
             <p className="mono-tag mt-1 text-[11px] capitalize text-lime-400/80">{me.role}</p>
-            <p className="mt-1 truncate text-xs text-bone-300">{employee?.email}</p>
+            <p className="mt-1 truncate text-xs text-bone-300">
+              {employee?.email || profile?.email}
+            </p>
           </div>
         </section>
 
         <div className="space-y-6">
+          {/* Owners and admins are not employees, so there is no job title,
+              joining date or pay to show them. Said once, plainly, instead of
+              four dashes in a row. */}
+          {!isEmployee && (
+            <section className="card border-ink-600 p-5 sm:p-6">
+              <h2 className="text-base font-semibold text-bone-50">Your account</h2>
+              <p className="mt-2 text-xs leading-relaxed text-bone-300">
+                You are signed in as an{" "}
+                <strong className="text-bone-100 capitalize">{me.role}</strong>, which is not tied
+                to an employee record — so pay, leave and skills do not apply to you here. Your
+                photo is yours to set and appears wherever you do in the panel.
+              </p>
+            </section>
+          )}
+
+          {isEmployee && (
           <section className="card p-5 sm:p-6">
             <h2 className="mb-4 text-base font-semibold text-bone-50">Your details</h2>
             <dl className="grid gap-4 sm:grid-cols-2">
@@ -123,7 +140,9 @@ export default async function MyProfilePage() {
               )}
             </div>
           </section>
+          )}
 
+          {isEmployee && (
           <section className="card p-5 sm:p-6">
             <h2 className="mb-1 flex items-center gap-2 text-base font-semibold text-bone-50">
               <Users size={15} className="text-lime-400" /> Who you work with
@@ -147,8 +166,11 @@ export default async function MyProfilePage() {
               </p>
             )}
           </section>
+          )}
 
-          {/* The three things a staff member actually comes here to do next. */}
+          {/* The three things a staff member actually comes here to do next.
+              An owner has no pay or leave record, so these would all dead-end. */}
+          {isEmployee && (
           <div className="grid gap-3 sm:grid-cols-3">
             {[
               [`${BASE}/my-pay`, Wallet, "My Pay", "Salary and slips"],
@@ -168,6 +190,7 @@ export default async function MyProfilePage() {
               </Link>
             ))}
           </div>
+          )}
         </div>
       </div>
     </>

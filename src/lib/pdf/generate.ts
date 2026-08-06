@@ -4,6 +4,8 @@ import { createAdminClient } from "@/lib/supabase/server";
 import { moneyMulti, sumByCurrency, pdfFilename } from "@/lib/utils";
 import { decryptCredentials } from "@/lib/crypto";
 import { handoverGate } from "@/lib/delivery/gate";
+import { getAgency } from "@/lib/agency";
+import { setDocAgency } from "./parts";
 import {
   AgreementDoc, QuotationDoc, InvoiceDoc, ReceiptDoc,
   ChangeOrderDoc, ProgressDoc, HandoverDoc,
@@ -155,6 +157,10 @@ export async function generateDocument(type: DocType, id: string, actorId?: stri
       .from("profiles").select("id").eq("id", actorId).maybeSingle();
     createdBy = actorProfile?.id ?? null;
   }
+
+  // Primed immediately before the render. Until now every document said
+  // "Nex Desk" and "Multan, Pakistan" no matter what Settings held.
+  setDocAgency(await getAgency());
 
   const buffer = await renderToBuffer(element);
   const path = `${meta.client_id}/${type}/${Date.now()}-${type}.pdf`;

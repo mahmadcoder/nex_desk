@@ -12,6 +12,7 @@ import CompensationCard from "@/components/admin/CompensationCard";
 import SalaryPaymentsCard from "@/components/admin/SalaryPaymentsCard";
 import PerformanceCard from "@/components/admin/PerformanceCard";
 import PhotoHistory from "@/components/admin/PhotoHistory";
+import EmployeePhoto from "@/components/admin/EmployeePhoto";
 import { staffPerformance } from "@/lib/insights";
 import { revealPreview } from "@/lib/crypto";
 
@@ -104,7 +105,7 @@ export default async function EmployeeDetailPage({
           href="/nx-control/employees"
           className="mono-tag text-xs text-bone-400 hover:text-lime-400 transition-colors inline-flex items-center gap-1.5"
         >
-          <ArrowLeft size={12} /> ← Back to Employee Directory
+           ← Back to Employee Directory
         </Link>
       </div>
 
@@ -112,16 +113,11 @@ export default async function EmployeeDetailPage({
       <div className="card p-6 border-ink-600 bg-ink-900/90">
         <div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
           <div className="flex items-center gap-5">
-            <div className="h-20 w-20 rounded-2xl overflow-hidden border-2 border-lime-400/40 bg-ink-800 shrink-0 shadow-lg">
-              {employee.avatar_url ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={employee.avatar_url} alt={employee.full_name} className="h-full w-full object-cover" />
-              ) : (
-                <div className="grid h-full w-full place-items-center text-2xl font-bold text-lime-400 bg-lime-400/10">
-                  {employee.full_name.slice(0, 2).toUpperCase()}
-                </div>
-              )}
-            </div>
+            <EmployeePhoto
+              employeeId={employee.id}
+              name={employee.full_name}
+              url={employee.avatar_url ?? null}
+            />
 
             <div>
               <div className="flex flex-wrap items-center gap-2">

@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { renderToBuffer } from "@react-pdf/renderer";
+import { getAgency } from "@/lib/agency";
+import { setDocAgency } from "@/lib/pdf/parts";
 import { createElement } from "react";
 import { AgencyTemplatePdfDocument } from "@/lib/pdf/documents";
 import { getCurrentStaff } from "@/lib/auth/staff";
@@ -21,6 +23,7 @@ export async function POST(req: NextRequest) {
     }
 
     const element = createElement(AgencyTemplatePdfDocument, { title, badge, content });
+    setDocAgency(await getAgency());
     const buffer = await renderToBuffer(element as any);
 
     return new NextResponse(new Uint8Array(buffer), {

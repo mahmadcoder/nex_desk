@@ -4,6 +4,7 @@ import { fillTemplate, pdfFilename, CONTACT_WHATSAPP } from "@/lib/utils";
 import { generateDocument, type DocType } from "@/lib/pdf/generate";
 import { renderHtml } from "./layout";
 import { EMAIL_TEMPLATES } from "./templates";
+import { getAgency } from "@/lib/agency";
 
 const transporter = nodemailer.createTransport({
   service: "gmail",
@@ -146,10 +147,13 @@ export async function sendEmail(args: SendArgs) {
   // `whatsapp` is available to every template without each call site passing
   // it — clients send receipts and signed pages there far more often than by
   // email, so any template may want to offer the route.
+  const agency = await getAgency();
   const vars = {
-    company_name: "Nex Desk",
-    sender_name: "Nex Desk",
-    whatsapp: CONTACT_WHATSAPP,
+    // Read from Settings rather than hardcoded. A caller-supplied
+    // sender_name still wins — the vars below are spread over these.
+    company_name: agency.name,
+    sender_name: agency.name,
+    whatsapp: agency.whatsapp,
     ...args.vars,
   };
   const subject = fillTemplate(subjectRaw, vars);

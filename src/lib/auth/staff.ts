@@ -81,6 +81,7 @@ export async function getCurrentStaff(): Promise<CurrentStaff | null> {
 
   let role: StaffRole | null = null;
   let fullName = user.email ?? "User";
+  let profileAvatar: string | null = null;
 
   const metaRole = user.user_metadata?.role as string | undefined;
   if (isStaffRole(metaRole)) {
@@ -91,7 +92,7 @@ export async function getCurrentStaff(): Promise<CurrentStaff | null> {
   try {
     const { data: profile } = await db
       .from("profiles")
-      .select("role, is_active, full_name")
+      .select("role, is_active, full_name, avatar_url")
       .eq("id", user.id)
       .maybeSingle();
 
@@ -101,6 +102,10 @@ export async function getCurrentStaff(): Promise<CurrentStaff | null> {
       if (isStaffRole(profile.role)) role = profile.role as StaffRole;
       else if (!role) return null; // e.g. role 'client' — not staff
       fullName = profile.full_name || fullName;
+      // The fallback photo for anyone with no employees row — which is every
+      // owner, since owner accounts are made by hand in SQL and the hiring
+      // form is the only thing that ever writes an employees row.
+      profileAvatar = profile.avatar_url ?? null;
     }
   } catch (e) {
     console.error("getCurrentStaff: profile lookup failed:", e);
@@ -150,11 +155,15 @@ export async function getCurrentStaff(): Promise<CurrentStaff | null> {
   // Last resort before printing an email address at somebody.
   if (fullName === user.email) fullName = nameFromEmail(user.email) ?? fullName;
 
+  // employees wins when there is one — it is the photo clients see in the
+  // portal. profiles is the fallback so an owner is not permanently faceless.
+  const photo = avatarUrl ?? profileAvatar;
+
   return {
     userId: user.id,
     role,
     fullName,
-    avatarUrl,
+    avatarUrl: photo,
     employeeId,
     isPrivileged: isPrivilegedRole(role),
   };

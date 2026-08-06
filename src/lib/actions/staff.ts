@@ -457,8 +457,26 @@ export async function updateMyPhoto(url: string | null) {
     .eq("user_id", me.userId)
     .maybeSingle();
 
+  // An owner has no employees row — those are only ever created by the hiring
+  // form, and an owner account is made the other way round. Their photo lives
+  // on `profiles` instead, which is what that long-dead `avatar_url` column is
+  // finally for. No history and no removal request: both exist so a staff
+  // member cannot silently pull their face off a client portal, and an owner
+  // approving their own request would be theatre.
   if (!current) {
-    return { ok: false as const, error: "No employee record is linked to this login." };
+    const { error: profileError } = await db
+      .from("profiles")
+      .update({ avatar_url: clean || null })
+      .eq("id", me.userId);
+
+    if (profileError) {
+      console.error("updateMyPhoto (profiles) failed:", profileError);
+      return { ok: false as const, error: profileError.message };
+    }
+
+    revalidatePath(`/${ADMIN}/profile`);
+    revalidatePath(`/${ADMIN}`);
+    return { ok: true as const, removalRequested: false };
   }
 
   const previous: string | null = current.avatar_url ?? null;
@@ -578,6 +596,68 @@ export async function decideMyPhotoRemoval(employeeId: string, takeDown: boolean
   await recordAudit(me.userId, "employee.photo_decision", "employees", id, {
     took_down: takeDown,
     was: employee.avatar_url,
+  });
+
+  revalidatePath(`/${ADMIN}/employees/${id}`);
+  revalidatePath(`/${ADMIN}/employees`);
+  return { ok: true as const };
+}
+
+/**
+ * An admin setting or clearing an employee's photo.
+ *
+ * Unlike `updateMyPhoto`, removing here removes it — no request, no approval.
+ * The Phase-30 gate exists so a *staff member* cannot silently pull their face
+ * off a client's portal; an admin doing it deliberately is the decision that
+ * gate was deferring to in the first place.
+ */
+export async function setEmployeePhoto(employeeId: string, url: string | null) {
+  const me = await requireOwnerAdmin();
+  const db = createAdminClient();
+
+  const id = asUuid(employeeId);
+  if (!id) return { ok: false as const, error: "Invalid employee reference." };
+
+  const clean = String(url ?? "").trim();
+  if (clean && !/^https?:\/\//i.test(clean)) {
+    return { ok: false as const, error: "That does not look like an uploaded image." };
+  }
+
+  const { data: current } = await db
+    .from("employees")
+    .select("id, full_name, avatar_url")
+    .eq("id", id)
+    .maybeSingle();
+
+  if (!current) return { ok: false as const, error: "Employee not found." };
+
+  const { error } = await db
+    .from("employees")
+    .update({
+      avatar_url: clean || null,
+      // An admin acting on the photo answers any outstanding request by doing so.
+      avatar_removal_requested_at: null,
+    })
+    .eq("id", id);
+
+  if (error) {
+    console.error("setEmployeePhoto failed:", error);
+    return { ok: false as const, error: error.message };
+  }
+
+  const { error: histError } = await db.from("employee_photo_history").insert({
+    employee_id: id,
+    photo_url: clean || null,
+    previous_url: current.avatar_url ?? null,
+    changed_by: me.userId,
+    changed_by_self: false,
+  });
+  if (histError) console.error("setEmployeePhoto: history not recorded:", histError);
+
+  await recordAudit(me.userId, "employee.photo", "employees", id, {
+    from: current.avatar_url,
+    to: clean || null,
+    by_admin: true,
   });
 
   revalidatePath(`/${ADMIN}/employees/${id}`);

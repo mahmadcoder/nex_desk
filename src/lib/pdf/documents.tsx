@@ -1,6 +1,6 @@
 import { Document, Page, Text, View } from "@react-pdf/renderer";
 import { s, C } from "./theme";
-import { DocHeader, DocFooter, Field, fmt, date } from "./parts";
+import { DocHeader, DocFooter, Field, fmt, date, docAgency } from "./parts";
 import { CONTACT_EMAIL, CONTACT_WHATSAPP, getSiteBaseUrl } from "@/lib/utils";
 import { warrantyTerms } from "@/lib/warranty";
 
@@ -26,9 +26,13 @@ function Parties({ client, meta }: { client: Party; meta: [string, string][] }) 
       </View>
       <View style={s.col}>
         <Text style={s.label}>Prepared by</Text>
-        <Text style={{ fontWeight: 500 }}>Nex Desk</Text>
-        <Text>{CONTACT_EMAIL}</Text>
-        <Text>Multan, Pakistan</Text>
+        <Text style={{ fontWeight: 500 }}>{docAgency().name}</Text>
+        <Text>{docAgency().email}</Text>
+        <Text>{docAgency().location}</Text>
+        {/* The client tax_id has always been printed here; the agency had no
+            equivalent field, which is the number that makes an invoice
+            deductible for the business receiving it. */}
+        {!!docAgency().taxId && <Text>Tax ID: {docAgency().taxId}</Text>}
       </View>
       <View style={s.col}>
         {meta.map(([k, v]) => (
@@ -220,8 +224,8 @@ export function AgreementDoc({ deal, client, settings }: { deal: any; client: Pa
             )}
           </View>
           <View style={s.signBox}>
-            <Text style={s.label}>For Nex Desk</Text>
-            <Text style={{ marginTop: 12, fontWeight: 500 }}>Nex Desk</Text>
+            <Text style={s.label}>For {docAgency().name}</Text>
+            <Text style={{ marginTop: 12, fontWeight: 500 }}>{docAgency().name}</Text>
             <Text style={s.muted}>{CONTACT_EMAIL}</Text>
             <Text style={[s.muted, { marginTop: 6 }]}>Date: {date(deal.locked_at)}</Text>
           </View>
@@ -638,7 +642,7 @@ export function HandoverDoc({ project, client, credentials }: { project: any; cl
           </View>
           <View style={s.signBox}>
             <Text style={s.label}>Delivered by</Text>
-            <Text style={{ marginTop: 12 }}>Nex Desk</Text>
+            <Text style={{ marginTop: 12 }}>{docAgency().name}</Text>
           </View>
         </View>
 
@@ -722,9 +726,9 @@ export function StaffOfferLetterDoc({ employee }: { employee: any }) {
           </View>
           <View style={s.col}>
             <Text style={s.label}>Issued by</Text>
-            <Text style={{ fontWeight: 500 }}>Nex Desk</Text>
+            <Text style={{ fontWeight: 500 }}>{docAgency().name}</Text>
             <Text>{CONTACT_EMAIL}</Text>
-            <Text>Multan, Pakistan</Text>
+            <Text>{docAgency().location}</Text>
           </View>
           <View style={s.col}>
             <View style={{ marginBottom: 8 }}>
@@ -834,8 +838,8 @@ export function StaffOfferLetterDoc({ employee }: { employee: any }) {
             <Text style={[s.muted, { marginTop: 6 }]}>Date: ____________________</Text>
           </View>
           <View style={s.signBox}>
-            <Text style={s.label}>For Nex Desk</Text>
-            <Text style={{ marginTop: 12, fontWeight: 500 }}>Nex Desk</Text>
+            <Text style={s.label}>For {docAgency().name}</Text>
+            <Text style={{ marginTop: 12, fontWeight: 500 }}>{docAgency().name}</Text>
             <Text style={s.muted}>{CONTACT_EMAIL}</Text>
             <Text style={[s.muted, { marginTop: 6 }]}>Date: {date(new Date().toISOString())}</Text>
           </View>
@@ -867,7 +871,8 @@ export function AgencyTemplatePdfDocument({
         <View style={{ marginTop: 8, marginBottom: 12, borderBottomWidth: 1, borderBottomColor: C.line, paddingBottom: 6 }}>
           <Text style={[s.h1, { fontSize: 20, color: C.ink }]}>{title.toUpperCase()}</Text>
           <Text style={{ fontSize: 10, color: C.muted, marginTop: 4 }}>
-            Nex Desk Software Agency · {getSiteBaseUrl().replace(/^https?:\/\//, "")} · {CONTACT_EMAIL} · Multan, PK
+            {docAgency().name} · {getSiteBaseUrl().replace(/^https?:\/\//, "")} · {docAgency().email} ·{" "}
+            {docAgency().location}
           </Text>
         </View>
 
@@ -909,7 +914,7 @@ export function AgencyTemplatePdfDocument({
         <View style={[s.signRow, { marginTop: 16 }]} wrap={false}>
           <View style={s.signBox}>
             <Text style={s.label}>Authorized Representative</Text>
-            <Text style={{ marginTop: 8, fontSize: 10.5, color: C.ink }}>Nex Desk Software Agency</Text>
+            <Text style={{ marginTop: 8, fontSize: 10.5, color: C.ink }}>{docAgency().name}</Text>
           </View>
           <View style={s.signBox}>
             <Text style={s.label}>Client Acceptance & Sign-Off</Text>

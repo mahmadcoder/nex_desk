@@ -2,6 +2,8 @@ import { renderToBuffer } from "@react-pdf/renderer";
 import { createElement } from "react";
 import { createAdminClient } from "@/lib/supabase/server";
 import { StaffOfferLetterDoc } from "./documents";
+import { getAgency } from "@/lib/agency";
+import { setDocAgency } from "./parts";
 
 /**
  * Staff-facing documents.
@@ -22,6 +24,7 @@ export async function buildStaffOfferPdf(employeeId: string) {
   if (!employee) throw new Error("Employee not found");
 
   const element = createElement(StaffOfferLetterDoc, { employee });
+  setDocAgency(await getAgency());
   const buffer = await renderToBuffer(element as any);
 
   const safeName = String(employee.full_name || "employee")
