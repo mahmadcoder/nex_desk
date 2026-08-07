@@ -21,7 +21,9 @@ export default async function Home() {
   const supabase = createPublicClient();
 
   const [{ data: dbServices }, { data: cases }, { data: quotes }] = await Promise.all([
-    supabase.from("services").select("slug,title,category,short_desc,starting_at")
+    // `currency` is read by Pricing.tsx for the catalogue floor line; without
+    // it that lookup silently fell through to "USD".
+    supabase.from("services").select("slug,title,category,short_desc,starting_at,currency")
       .eq("is_active", true).order("sort_order"),
     supabase.from("case_studies").select("slug,title,client_name,industry,cover_url,outcome,metrics")
       .eq("is_published", true).order("sort_order").limit(3),

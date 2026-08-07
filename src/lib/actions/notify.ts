@@ -38,7 +38,9 @@ export type NotifyKind =
   // raised by the daily cron, 14 days after handover
   | "feedback.due"
   // an employee changed or asked to remove their own profile photo
-  | "profile.photo";
+  | "profile.photo"
+  // somebody submitted the public contact form
+  | "lead.new";
 
 export async function notify(n: {
   kind: NotifyKind;

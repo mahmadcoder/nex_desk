@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { createClient } from "@/lib/supabase/server";
+import { createPublicClient } from "@/lib/supabase/public";
 import CTA from "@/components/site/CTA";
 import { DEFAULT_FAQS } from "@/config/siteContent";
 
@@ -7,7 +7,7 @@ export const metadata: Metadata = { title: "FAQ — Frequently Asked Questions" 
 export const revalidate = 300;
 
 export default async function FaqPage() {
-  const supabase = await createClient();
+  const supabase = createPublicClient();
   const { data: faqs } = await supabase
     .from("faqs")
     .select("*")

@@ -82,11 +82,32 @@ export default function SupportWindow({
       </div>
 
       {!expired && (
-        <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-ink-700">
-          <div
-            className={`h-1.5 rounded-full transition-[width] duration-700 ${barColour}`}
-            style={{ width: `${win.elapsedPct}%` }}
-          />
+        /* The bar alone says "some time left". Hovering it says exactly how
+           much, and until when — tabIndex so it is not mouse-only. */
+        <div
+          className="group relative mt-3 cursor-default"
+          tabIndex={0}
+          role="img"
+          aria-label={`${win.daysLeft} day${win.daysLeft === 1 ? "" : "s"} of support left, ending ${fmt(win.endsOn)}`}
+        >
+          <div className="h-1.5 overflow-hidden rounded-full bg-ink-700">
+            <div
+              className={`h-1.5 rounded-full transition-[width] duration-700 ${barColour}`}
+              style={{ width: `${win.elapsedPct}%` }}
+            />
+          </div>
+
+          <span
+            role="tooltip"
+            className="pointer-events-none absolute -top-1 left-1/2 z-10 w-max max-w-[min(16rem,80vw)] -translate-x-1/2 -translate-y-full rounded-lg border border-ink-500 bg-ink-950 px-3 py-2 text-center text-[11px] leading-relaxed text-bone-100 opacity-0 shadow-xl transition-opacity duration-150 group-hover:opacity-100 group-focus-visible:opacity-100"
+          >
+            <strong className="text-bone-50">
+              {win.daysLeft} day{win.daysLeft === 1 ? "" : "s"} left
+            </strong>
+            <span className="block text-bone-400">
+              Free fixes until {fmt(win.endsOn)}
+            </span>
+          </span>
         </div>
       )}
 

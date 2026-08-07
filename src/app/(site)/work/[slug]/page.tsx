@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
-import { createClient } from "@/lib/supabase/server";
+import { createPublicClient } from "@/lib/supabase/public";
 import CTA from "@/components/site/CTA";
 import TexturePanel from "@/components/site/mockups/TexturePanel";
 import { BrowserFrame, DashboardMockup } from "@/components/site/mockups";
@@ -11,10 +11,32 @@ import { Calendar, Building2, Tag, Globe, ArrowUpRight } from "lucide-react";
 
 export const revalidate = 300;
 
+/**
+ * Pre-renders every case studies page at build time.
+ *
+ * Without this the route is rendered on demand, so the first click on a link
+ * waited on a server round trip with nothing on screen — the page you were
+ * already on just sat there for about a second.
+ *
+ * Returning an empty array on failure is deliberate: a build that cannot reach
+ * the database should still succeed and fall back to on-demand rendering,
+ * rather than failing outright.
+ */
+export async function generateStaticParams() {
+  try {
+    const supabase = createPublicClient();
+    const { data } = await supabase.from("case_studies").select("slug").eq("is_published", true);
+    if (data?.length) return data.map((r) => ({ slug: r.slug as string }));
+    return demoCases.map((r) => ({ slug: r.slug }));
+  } catch {
+    return [];
+  }
+}
+
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 async function getCase(slug: string) {
-  const supabase = await createClient();
+  const supabase = createPublicClient();
   const { data } = await supabase.from("case_studies").select("*").eq("slug", slug).eq("is_published", true).single();
   if (data) return { data, isDemo: false };
   const demo = demoCases.find((c) => c.slug === slug);
@@ -34,7 +56,7 @@ export default async function CaseDetail({ params }: { params: Promise<{ slug: s
   const c = found.data;
 
   // next project for the footer link
-  const supabase = await createClient();
+  const supabase = createPublicClient();
   const { data: others } = await supabase
     .from("case_studies").select("slug,title,client_name").eq("is_published", true).neq("slug", slug).limit(1);
   const next = others?.[0] ?? demoCases.find((d) => d.slug !== slug);

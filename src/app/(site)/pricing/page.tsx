@@ -1,6 +1,6 @@
 import Link from "next/link";
 import type { Metadata } from "next";
-import { createClient } from "@/lib/supabase/server";
+import { createPublicClient } from "@/lib/supabase/public";
 import Reveal from "@/components/site/Reveal";
 import CTA from "@/components/site/CTA";
 import FeatureList from "@/components/site/FeatureList";
@@ -11,14 +11,17 @@ export const revalidate = 300;
 
 import { demoServices } from "@/lib/agencyData";
 /**
- * Three signature engagement tiers. Ranges read as honest; a single number
- * reads as bait. They live in config rather than here because the homepage
- * teaser shows the same three, and two copies drift.
+ * Three signature engagement tiers. They live in config rather than here
+ * because the homepage teaser shows the same three, and two copies drift.
+ *
+ * Each floor is computed against the catalogue below rather than hand-written.
+ * The old ranges ("$4,000 – $8,000") were heard as their lowest number anyway,
+ * and worse, they undercut the per-service grid further down this same page.
  */
-import { TIERS } from "@/config/pricing";
+import { TIERS, tierFrom } from "@/config/pricing";
 
 export default async function PricingPage() {
-  const supabase = await createClient();
+  const supabase = createPublicClient();
   const { data: dbServices } = await supabase
     .from("services")
     .select("slug,title,category,short_desc,starting_at,currency,duration_note,features")
@@ -85,15 +88,27 @@ export default async function PricingPage() {
 
               <div className="mt-6 border-y border-ink-600 py-5">
                 <p className="text-3xl tracking-tight" style={{ fontFamily: "var(--font-display)" }}>
-                  {t.price}
+                  <span className="text-lg text-bone-400">from </span>
+                  {money(tierFrom(t, services), "USD")}
                 </p>
                 <p className="mono-tag mt-2">typically {t.timeline}</p>
               </div>
 
               <FeatureList features={t.features} className="mt-6 flex-1" />
 
+              <p className="mt-5 border-t border-ink-700 pt-4 text-xs leading-relaxed text-bone-400">
+                <span className="text-bone-300">Not included:</span> {t.excludes}
+              </p>
+
+              {/* Carries the tier through to the contact form, which shows it
+                  back as a banner. This used to be a bare `/contact`, so
+                  picking a package here landed on a form that had forgotten
+                  which one you picked. Same param names as the per-service
+                  tiers in `ServicePricingTiers` — there is one reader. */}
               <Link
-                href="/contact"
+                href={`/contact?package=${encodeURIComponent(t.name)}&tier_name=${encodeURIComponent(
+                  t.name
+                )}&price=${encodeURIComponent(`from ${money(tierFrom(t, services), "USD")}`)}`}
                 className={`mt-8 justify-center ${t.popular ? "btn btn-primary" : "btn"}`}
               >
                 Start with {t.name}

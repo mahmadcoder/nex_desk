@@ -12,7 +12,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     db.from("posts").select("slug, published_at").eq("is_published", true),
   ]);
 
-  const statics = ["", "/services", "/work", "/pricing", "/about", "/faq", "/blog", "/contact"];
+  const statics = ["", "/services", "/work", "/pricing", "/about", "/faq", "/checklist", "/blog", "/contact"];
 
   return [
     ...statics.map((p) => ({ url: `${base}${p}`, priority: p === "" ? 1 : 0.8 })),

@@ -5,6 +5,7 @@
 import { useEffect } from "react";
 import { createPortal } from "react-dom";
 import { X, ExternalLink } from "lucide-react";
+import { useScrollLock } from "@/lib/useScrollLock";
 
 /**
  * A photo, full size.
@@ -28,22 +29,16 @@ export default function PhotoViewer({
   open: boolean;
   onClose: () => void;
 }) {
+  // Was locking <body>, which is not the element that scrolls a document.
+  useScrollLock(open);
+
   useEffect(() => {
     if (!open) return;
-
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") onClose();
     };
     document.addEventListener("keydown", onKey);
-
-    // Match the drawer and Modal: the page behind must not scroll under it.
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-
-    return () => {
-      document.removeEventListener("keydown", onKey);
-      document.body.style.overflow = prev;
-    };
+    return () => document.removeEventListener("keydown", onKey);
   }, [open, onClose]);
 
   if (!open || !src) return null;

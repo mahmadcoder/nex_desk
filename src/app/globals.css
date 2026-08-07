@@ -100,6 +100,26 @@ h1, h2, h3, h4 {
   text-wrap: balance;
 }
 
+/* Tailwind v4 REMOVED the `button { cursor: pointer }` rule that v3 shipped
+   in preflight, and the browser default for a button is `cursor: default`.
+   So every button without an explicit class showed an arrow — 73 of them
+   across 42 files. One rule instead of 73 edits.
+
+   In `base` on purpose: base loses to utilities, so an explicit `cursor-*`
+   class in the markup still wins. */
+button:not(:disabled),
+[role="button"]:not([aria-disabled="true"]),
+summary,
+label:has(> input[type="checkbox"]),
+label:has(> input[type="radio"]) {
+  cursor: pointer;
+}
+
+button:disabled,
+[role="button"][aria-disabled="true"] {
+  cursor: not-allowed;
+}
+
 ::selection { background: var(--color-lime-400); color: var(--color-lime-950); }
 
 :focus-visible {
@@ -513,5 +533,68 @@ h1, h2, h3, h4 {
     text-align: center;
     border-top: 0;
     margin-top: 0;
+  }
+}
+
+/* ── Printing the launch checklist ─────────────────────────────────
+   The exit popup says "take it with you", so it should survive Ctrl-P
+   as something you can tick with a pen — not a dark screenshot with a
+   navigation bar across the top.
+
+   Unlayered on purpose so it beats the Tailwind utilities on the page. */
+@media print {
+  .desk-grid,
+  header,
+  footer,
+  .no-print {
+    display: none !important;
+  }
+
+  /* Dark-on-dark costs a fortune in toner and reads badly. */
+  html,
+  body,
+  main {
+    background: #fff !important;
+    color: #111 !important;
+    padding-top: 0 !important;
+  }
+
+  .shell {
+    max-width: none !important;
+    padding-inline: 0 !important;
+  }
+
+  h1, h2, h3, p, span, li {
+    color: #111 !important;
+  }
+
+  .mono-tag,
+  .drawer-label {
+    color: #555 !important;
+  }
+
+  /* The list rows: white cards with a visible rule, and a real tick box. */
+  ul {
+    border-color: #bbb !important;
+    background: transparent !important;
+  }
+  li {
+    background: transparent !important;
+    border-bottom: 1px solid #ddd;
+    padding: 6px 0 !important;
+    break-inside: avoid;
+  }
+  li > span[aria-hidden] {
+    border: 1.5px solid #333 !important;
+    background: transparent !important;
+  }
+
+  /* A group should not be split across a page break mid-list. */
+  section {
+    break-inside: avoid;
+  }
+
+  a[href]::after {
+    content: "";
   }
 }

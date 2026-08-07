@@ -63,7 +63,8 @@ function ContactFormContent() {
     website: "",
   });
   const [selectedPkgInfo, setSelectedPkgInfo] = useState<{
-    serviceSlug: string;
+    /** Null for a headline package, which is not tied to one service. */
+    serviceSlug: string | null;
     tierName: string;
     price: string;
   } | null>(null);
@@ -74,21 +75,43 @@ function ContactFormContent() {
     const tierNameParam = searchParams.get("tier_name");
     const priceParam = searchParams.get("price");
 
+    // A headline package (Launch / Growth / Scale) is not a service, so it
+    // arrives with no `service` param at all. The banner used to be nested
+    // inside the `if (serviceParam)` branch below, which is why picking a tier
+    // on /pricing landed on a form showing nothing.
+    const tier = tierNameParam ?? packageParam;
+    let matchSlug: string | null = null;
+
     if (serviceParam) {
-      const matchSlug = SERVICES.find(([s]) => s === serviceParam || serviceParam.includes(s))?.[0] || serviceParam;
+      // Exact match across ALL entries first, then the substring pass.
+      // Both tests used to run per-entry, so a substring hit on an early entry
+      // beat an exact hit on a later one: `custom-web-development` matched
+      // `web-development` (index 0) and ticked the wrong box.
+      matchSlug =
+        SERVICES.find(([s]) => s === serviceParam)?.[0] ??
+        SERVICES.find(([s]) => serviceParam.includes(s))?.[0] ??
+        serviceParam;
+    }
+
+    if (matchSlug || tier) {
+      const slug = matchSlug;
       setForm((f) => ({
         ...f,
-        service_slugs: Array.from(new Set([...f.service_slugs, matchSlug])),
-        message: f.message || (tierNameParam ? `Inquiry for ${tierNameParam} package (${priceParam ?? "Custom"})` : ""),
+        service_slugs: slug
+          ? Array.from(new Set([...f.service_slugs, slug]))
+          : f.service_slugs,
+        message:
+          f.message ||
+          (tier ? `Inquiry for the ${tier} package (${priceParam ?? "Custom"})` : ""),
       }));
+    }
 
-      if (tierNameParam || packageParam) {
-        setSelectedPkgInfo({
-          serviceSlug: matchSlug,
-          tierName: tierNameParam ?? packageParam ?? "Custom Package",
-          price: priceParam ?? "Custom Quote",
-        });
-      }
+    if (tier) {
+      setSelectedPkgInfo({
+        serviceSlug: matchSlug,
+        tierName: tier,
+        price: priceParam ?? "Custom Quote",
+      });
     }
   }, [searchParams]);
 
@@ -178,7 +201,12 @@ function ContactFormContent() {
               <span className="font-semibold text-bone-50 text-sm block">
                 Pre-selected Package: {selectedPkgInfo.tierName}
               </span>
-              <span>Price: <strong>{selectedPkgInfo.price}</strong> · Service pre-filled below</span>
+              <span>
+                Price: <strong>{selectedPkgInfo.price}</strong> ·{" "}
+                {selectedPkgInfo.serviceSlug
+                  ? "Service pre-filled below"
+                  : "Pick the services you need below"}
+              </span>
             </div>
           </div>
           <button

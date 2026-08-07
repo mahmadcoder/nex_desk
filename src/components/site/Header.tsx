@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import { Logo } from "@/components/brand/Logo";
 import { cn } from "@/lib/utils";
+import { useScrollLock } from "@/lib/useScrollLock";
 
 const NAV = [
   { href: "/services", label: "Services" },
@@ -28,9 +29,10 @@ export default function Header() {
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
 
-  useEffect(() => {
-    document.body.style.overflow = open ? "hidden" : "";
-  }, [open]);
+  // Was body-only, with no cleanup on unmount, and Lenis ignored it entirely
+  // — the same bug the exit popup had. The hook pauses Lenis and locks the
+  // real scroll container.
+  useScrollLock(open);
 
   return (
     <header

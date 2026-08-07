@@ -144,6 +144,24 @@ If any of that is wrong, reply to this email and we will put it right — you do
 Nex Desk`,
   },
 
+  services_updated: {
+    subject: "Update on what we are doing for {{project_name}}",
+    body: `Hi {{client_name}},
+
+We have updated what {{project_name}} covers, so your records match ours:
+
+{{changes}}
+
+**Still included:** {{still_included}}
+
+Nothing about your price, payment schedule or invoices has changed — this is only about what we are working on. If any of it looks wrong, reply and we will put it right.
+
+You can see everything in your portal:
+{{portal_url}}
+
+Nex Desk`,
+  },
+
   /* ─────────────── Sales ─────────────── */
 
   quotation_sent: {

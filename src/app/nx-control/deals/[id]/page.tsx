@@ -7,6 +7,7 @@ import { money } from "@/lib/utils";
 import DealForm from "@/components/admin/DealForm";
 import QuoteActions from "@/components/admin/QuoteActions";
 import DocButton from "@/components/admin/DocButton";
+import ServiceTags from "@/components/admin/ServiceTags";
 import { ArrowLeft } from "lucide-react";
 import { fmtDate } from "@/lib/datetime";
 
@@ -48,7 +49,7 @@ export default async function DealDetail({ params }: { params: Promise<{ id: str
   const [{ data: clients }, { data: services }, { data: settings }, { data: project }] =
     await Promise.all([
       db.from("clients").select("id,name,email,company,preferred_currency").eq("is_active", true).order("name"),
-      db.from("services").select("slug,title,starting_at").eq("is_active", true).order("sort_order"),
+      db.from("services").select("slug,title,category,starting_at").eq("is_active", true).order("sort_order"),
       db.from("settings").select("default_terms, tax_percent, default_currency").eq("id", 1).single(),
       db.from("projects").select("id, name").eq("deal_id", id).maybeSingle(),
     ]);
@@ -106,10 +107,22 @@ export default async function DealDetail({ params }: { params: Promise<{ id: str
                 </p>
               )}
 
+              {/* Services ARE editable on a locked deal: they are a label, not
+                  a figure on the signed PDF, and they decide which questions
+                  staff get in Daily Work Logs. */}
+              <div className="mt-5 border-t border-ink-700 pt-4">
+                <ServiceTags
+                  dealId={deal.id}
+                  slugs={(deal.service_slugs as string[]) ?? []}
+                  catalogue={services ?? []}
+                  canManage
+                />
+              </div>
+
               <p className="mt-5 text-xs leading-relaxed text-bone-400">
                 A locked agreement is not editable here — the client has a signed PDF with these
                 figures on it. Price changes after this point go through a change request on the
-                project.
+                project. Services above are only a label and can be corrected any time.
               </p>
             </section>
           ) : (

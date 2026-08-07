@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { createClient } from "@/lib/supabase/server";
+import { createPublicClient } from "@/lib/supabase/public";
 import CTA from "@/components/site/CTA";
 import WorkClient from "@/components/site/WorkClient";
 import { demoCases } from "@/lib/agencyData";
@@ -11,7 +11,7 @@ export const revalidate = 300;
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 export default async function WorkPage() {
-  const supabase = await createClient();
+  const supabase = createPublicClient();
   const { data: dbCases } = await supabase
     .from("case_studies")
     .select("slug,title,client_name,industry,cover_url,outcome,metrics,tech_stack")

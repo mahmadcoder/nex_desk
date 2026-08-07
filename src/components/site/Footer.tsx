@@ -4,7 +4,7 @@ import { useState, FormEvent } from "react";
 import Link from "next/link";
 import { Logo } from "@/components/brand/Logo";
 import { CONTACT_EMAIL } from "@/lib/utils";
-import { ArrowUpRight, MessageSquare, ArrowRight, Check } from "lucide-react";
+import { ArrowUpRight, ArrowRight, Check } from "lucide-react";
 import { FaLinkedin, FaInstagram, FaXTwitter, FaGithub } from "react-icons/fa6";
 
 import { toast } from "sonner";
@@ -15,6 +15,7 @@ const COMPANY_NAV = [
   { label: "Pricing", href: "/pricing" },
   { label: "About Studio", href: "/about" },
   { label: "Blog", href: "/blog" },
+  { label: "Launch checklist", href: "/checklist" },
   { label: "Contact Us", href: "/contact" },
 ];
 
@@ -85,16 +86,8 @@ export default function Footer() {
               {CONTACT_EMAIL}
               <ArrowUpRight size={18} className="transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
             </a>
-
-            <a
-              href="https://wa.me/920000000000"
-              target="_blank"
-              rel="noreferrer"
-              className="inline-flex items-center gap-2 rounded-full border border-ink-700 bg-ink-900/40 px-5 py-3.5 text-sm text-bone-300 transition-colors hover:border-bone-300 hover:text-bone-50"
-            >
-              <MessageSquare size={16} className="text-lime-400" />
-              WhatsApp
-            </a>
+            {/* No WhatsApp button here — the floating icon is on every page,
+                so a second one next to the email was just repeating itself. */}
           </div>
         </div>
 

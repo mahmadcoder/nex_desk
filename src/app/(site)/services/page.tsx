@@ -1,6 +1,6 @@
 import Link from "next/link";
 import type { Metadata } from "next";
-import { createClient } from "@/lib/supabase/server";
+import { createPublicClient } from "@/lib/supabase/public";
 import Reveal from "@/components/site/Reveal";
 import CTA from "@/components/site/CTA";
 import { demoServices } from "@/lib/agencyData";
@@ -12,7 +12,7 @@ export const metadata: Metadata = {
 export const revalidate = 300;
 
 export default async function ServicesPage() {
-  const supabase = await createClient();
+  const supabase = createPublicClient();
   const { data: dbServices } = await supabase
     .from("services").select("*").eq("is_active", true).order("sort_order");
 

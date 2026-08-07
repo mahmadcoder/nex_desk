@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
-import { createClient } from "@/lib/supabase/server";
+import { createPublicClient } from "@/lib/supabase/public";
 import CTA from "@/components/site/CTA";
 import TexturePanel from "@/components/site/mockups/TexturePanel";
 import { avatar, getPostCover } from "@/lib/images";
@@ -10,10 +10,32 @@ import { Clock, Calendar } from "lucide-react";
 
 export const revalidate = 300;
 
+/**
+ * Pre-renders every posts page at build time.
+ *
+ * Without this the route is rendered on demand, so the first click on a link
+ * waited on a server round trip with nothing on screen — the page you were
+ * already on just sat there for about a second.
+ *
+ * Returning an empty array on failure is deliberate: a build that cannot reach
+ * the database should still succeed and fall back to on-demand rendering,
+ * rather than failing outright.
+ */
+export async function generateStaticParams() {
+  try {
+    const supabase = createPublicClient();
+    const { data } = await supabase.from("posts").select("slug").eq("is_published", true);
+    if (data?.length) return data.map((r) => ({ slug: r.slug as string }));
+    return demoPosts.map((r) => ({ slug: r.slug }));
+  } catch {
+    return [];
+  }
+}
+
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 async function getPost(slug: string) {
-  const supabase = await createClient();
+  const supabase = createPublicClient();
   const { data } = await supabase
     .from("posts")
     .select("*")

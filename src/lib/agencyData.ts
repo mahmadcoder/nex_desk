@@ -269,7 +269,11 @@ export const demoServices: DemoService[] = [
     category: "Web & Engineering",
     short_desc: "Multi-tenant web application engineering with Stripe subscription billing and role-based user controls.",
     long_desc: "We build multi-tenant web applications with secure account separation, role-based access control, subscription billing, and user management. We construct solid database architecture and API layers designed for steady growth.\n\nDesigned for founders and product teams building software-as-a-service MVPs or internal tools that need multi-user permissions, recurring billing, and scalable database organization.\n\nYou walk away with a fully functional SaaS MVP including customer onboarding flows, Stripe billing management, role-based admin controls, and complete deployment on cloud hosting.",
-    starting_at: 3500,
+    // Was 3500. Four to eight weeks of multi-tenant architecture, Stripe
+    // billing, RBAC and an admin dashboard works out near $15/hour all-in at
+    // that price — and it made the Scale tier look like a 3.4x markup on our
+    // own listing, on the same page.
+    starting_at: 6000,
     currency: "USD",
     features: [
       "Secure multi-user database architecture keeping customer data strictly separated",

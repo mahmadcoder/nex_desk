@@ -100,3 +100,30 @@ export async function notificationCounts(me: CurrentStaff) {
     return { unread: 0, read: 0 };
   }
 }
+
+/**
+ * Leads nobody has triaged yet, for the sidebar badge.
+ *
+ * Owner/admin only — staff cannot reach `/leads` at all, so counting for them
+ * would badge a link they do not have. Fails to 0 like the count above: a
+ * badge is not worth taking the panel down for.
+ */
+export async function newLeadCount(me: CurrentStaff | null): Promise<number> {
+  if (!me?.isPrivileged) return 0;
+
+  try {
+    const { count, error } = await createAdminClient()
+      .from("leads")
+      .select("id", { count: "exact", head: true })
+      .eq("status", "new");
+
+    if (error) {
+      console.error("leads: new count failed", error);
+      return 0;
+    }
+    return count ?? 0;
+  } catch (e) {
+    console.error("leads: new count failed", e);
+    return 0;
+  }
+}

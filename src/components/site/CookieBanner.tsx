@@ -6,6 +6,13 @@ import Link from "next/link";
 
 const KEY = "nd-cookie-consent"; // "granted" | "denied"
 
+/**
+ * Fired the moment a choice is made, so anything anchored to the bottom of the
+ * screen can move without waiting for a reload. The WhatsApp float listens for
+ * it — this banner is a full-width bar and would otherwise sit across it.
+ */
+export const CONSENT_EVENT = "nd-cookie-consent-changed";
+
 /** Call this before loading any analytics/tracking script. */
 export function hasAnalyticsConsent() {
   if (typeof window === "undefined") return false;
@@ -27,6 +34,7 @@ export default function CookieBanner() {
   const choose = (value: "granted" | "denied") => {
     window.localStorage.setItem(KEY, value);
     setShow(false);
+    window.dispatchEvent(new CustomEvent(CONSENT_EVENT));
     // when you add analytics, you can react to consent here, e.g.:
     // if (value === "granted") loadAnalytics();
   };

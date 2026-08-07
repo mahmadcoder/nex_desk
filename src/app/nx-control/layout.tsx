@@ -2,7 +2,7 @@ import { getCurrentStaff } from "@/lib/auth/staff";
 import Sidebar from "@/components/admin/Sidebar";
 import LoginToastListener from "@/components/admin/LoginToastListener";
 import CommandPalette from "@/components/admin/CommandPalette";
-import { unreadNotificationCount } from "@/lib/notifications";
+import { unreadNotificationCount, newLeadCount } from "@/lib/notifications";
 
 const BASE = `/${process.env.ADMIN_PATH || "nx-control"}`;
 
@@ -32,7 +32,12 @@ export default async function AdminLayout({ children }: { children: React.ReactN
       <Sidebar
         base={BASE}
         user={{ name: me.fullName, role: me.role, avatarUrl: me.avatarUrl }}
-        counts={{ "/notifications": await unreadNotificationCount(me) }}
+        counts={{
+          "/notifications": await unreadNotificationCount(me),
+          // The badge mechanism already existed and only ever carried one key.
+          // A new lead is the thing most worth surfacing and had no badge.
+          "/leads": await newLeadCount(me),
+        }}
       />
       <div className="min-w-0 flex-1 p-4 pt-[calc(3.5rem+1rem)] lg:p-8 lg:pt-8">{children}</div>
     </div>

@@ -3,6 +3,7 @@ import { z } from "zod";
 import { createAdminClient } from "@/lib/supabase/server";
 import { sendEmail, adminNotifyAddress } from "@/lib/email/send";
 import { getSiteBaseUrl } from "@/lib/utils";
+import { notify } from "@/lib/actions/notify";
 
 const schema = z.object({
   name: z.string().min(2),
@@ -57,7 +58,26 @@ export async function POST(req: Request) {
     const budgetRange = lead.budget_range || "Not specified";
     const timeline = lead.timeline || "Not specified";
 
-    await sendEmail({
+    // Raised before the emails on purpose: a new lead was the only
+    // client-initiated event in the system with no in-app notification, and if
+    // mail is down that is exactly when you most need the panel to tell you.
+    // `notify` never throws.
+    await notify({
+      kind: "lead.new",
+      title: `New enquiry from ${lead.name}`,
+      body: [lead.company, serviceInterest, budgetRange].filter(Boolean).join(" · "),
+      href: `/${process.env.ADMIN_PATH || "nx-control"}/leads`,
+      entity: "leads",
+      entityId: data.id,
+      actorLabel: lead.name,
+      actorKind: "client",
+    });
+
+    // Both sends are individually guarded. Previously a failing email threw
+    // into the catch below and returned 500 to the visitor AFTER their lead was
+    // already saved — so they submitted again and you got duplicates.
+    try {
+      await sendEmail({
       templateKey: "lead_autoreply",
       to: lead.email,
       vars: {
@@ -66,11 +86,15 @@ export async function POST(req: Request) {
         service_interest: serviceInterest,
         budget_range: budgetRange,
         timeline,
-        portal_url: `${getSiteBaseUrl()}/work`,
-      },
-    });
+          portal_url: `${getSiteBaseUrl()}/work`,
+        },
+      });
+    } catch (mailErr) {
+      console.error("Lead autoreply failed (lead was still saved):", mailErr);
+    }
 
-    await sendEmail({
+    try {
+      await sendEmail({
       templateKey: "internal_new_lead",
       to: await adminNotifyAddress(),
       subjectOverride: `New lead — ${lead.name}${lead.company ? ` (${lead.company})` : ""}`,
@@ -87,8 +111,11 @@ export async function POST(req: Request) {
         (lead.message ? `Their message:\n\n${lead.message}\n\n` : "") +
         `Open the Leads board to reply or convert them:\n` +
         `${getSiteBaseUrl()}/${process.env.ADMIN_PATH || "nx-control"}/leads`,
-      vars: {},
-    });
+        vars: {},
+      });
+    } catch (mailErr) {
+      console.error("Internal new-lead email failed (lead was still saved):", mailErr);
+    }
 
     return NextResponse.json({ ok: true, id: data.id });
   } catch (e) {

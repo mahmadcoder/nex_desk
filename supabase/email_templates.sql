@@ -93,6 +93,9 @@ E'Hi {{client_name}},\n\nConfirming that {{project_name}} is cancelled as of tod
 ('profile_updated','Profile updated','Your details have been updated',
 E'Hi {{name}},\n\nWe have updated your details on our system. Here is exactly what changed:\n\n{{changes}}\n\nIf any of that is wrong, reply to this email and we will put it right — you do not need to fill anything in, just tell us.\n\nNex Desk', null,'Sent automatically when a client or staff profile is edited. Only contact-type fields trigger it — salary, status and internal notes are recorded but never emailed.'),
 
+('services_updated','Services updated','Update on what we are doing for {{project_name}}',
+E'Hi {{client_name}},\n\nWe have updated what {{project_name}} covers, so your records match ours:\n\n{{changes}}\n\n**Still included:** {{still_included}}\n\nNothing about your price, payment schedule or invoices has changed — this is only about what we are working on. If any of it looks wrong, reply and we will put it right.\n\nYou can see everything in your portal:\n{{portal_url}}\n\nNex Desk', null,'Sent when an admin changes which services a deal covers. Services are a label only — no price or invoice changes.'),
+
 ('portal_invite','Client portal invite','🔑 Your Nex Desk client portal',
 E'Hi {{client_name}},\n\nYou have a portal for {{project_name}} where you can follow progress, download every document and upload files to us.\n\n• Portal: {{portal_url}}\n• Email: {{client_email}}\n• Password: {{client_password}}\n\n**Please change your password after your first sign-in.**\n\n{{sender_name}}\nNex Desk', null,'Sent alongside the deal-locked email.'),
 

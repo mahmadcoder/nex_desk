@@ -1,6 +1,6 @@
 import Link from "next/link";
 import type { Metadata } from "next";
-import { createClient } from "@/lib/supabase/server";
+import { createPublicClient } from "@/lib/supabase/public";
 import Reveal from "@/components/site/Reveal";
 import CTA from "@/components/site/CTA";
 import TexturePanel from "@/components/site/mockups/TexturePanel";
@@ -24,7 +24,7 @@ const fmtDate = (d?: string | null) =>
   d ? new Date(d).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" }) : "";
 
 export default async function BlogPage() {
-  const supabase = await createClient();
+  const supabase = createPublicClient();
   const { data: dbPosts } = await supabase
     .from("posts")
     .select("slug,title,excerpt,tags,read_minutes,published_at,cover_url")

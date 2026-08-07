@@ -2,7 +2,7 @@ import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 import Reveal from "@/components/site/Reveal";
 import FeatureList from "@/components/site/FeatureList";
-import { TIERS, teaserFeatures } from "@/config/pricing";
+import { TIERS, teaserFeatures, tierFrom } from "@/config/pricing";
 import { money } from "@/lib/utils";
 
 /**
@@ -20,7 +20,7 @@ export default function Pricing({
   services,
 }: {
   /** Already fetched by the homepage for ServicesScroll — no extra query. */
-  services?: Array<{ starting_at?: number | null; currency?: string | null }>;
+  services?: Array<{ slug?: string | null; starting_at?: number | null; currency?: string | null }>;
 }) {
   // The real floor, from whatever is actually in the catalogue. A hardcoded
   // "from $500" would be wrong the first time a price changed.
@@ -41,7 +41,7 @@ export default function Pricing({
         </h2>
         <p className="mt-5 max-w-xl text-base leading-relaxed text-bone-300">
           Most work falls into one of three bands. You get a fixed written quote before
-          anything starts — these are the ranges those quotes usually land in.
+          anything starts — these are the floors those quotes build up from.
         </p>
       </div>
 
@@ -71,18 +71,32 @@ export default function Pricing({
                 className="text-2xl tracking-tight sm:text-3xl"
                 style={{ fontFamily: "var(--font-display)" }}
               >
-                {t.price}
+                <span className="text-base text-bone-400">from </span>
+                {money(tierFrom(t, services), "USD")}
               </p>
               <p className="mono-tag mt-2">typically {t.timeline}</p>
             </div>
 
             <FeatureList features={teaserFeatures(t)} className="mt-6 flex-1" />
 
+            {/* Straight to the contact form rather than to /pricing. Sending
+                someone who has already picked a band off to another page to
+                pick it again was a step that only lost people. The params are
+                the three ContactForm reads. */}
             <Link
-              href="/pricing"
+              href={`/contact?package=${encodeURIComponent(t.name)}&tier_name=${encodeURIComponent(
+                t.name
+              )}&price=${encodeURIComponent(`from ${money(tierFrom(t, services), "USD")}`)}`}
               className={`mt-8 justify-center ${t.popular ? "btn btn-primary" : "btn"}`}
             >
-              See what&apos;s included
+              Start with {t.name}
+            </Link>
+
+            <Link
+              href="/pricing"
+              className="mono-tag mt-3 inline-flex items-center justify-center gap-1.5 text-bone-400 transition-colors hover:text-lime-400"
+            >
+              see full breakdown <ArrowRight size={12} />
             </Link>
           </div>
         ))}

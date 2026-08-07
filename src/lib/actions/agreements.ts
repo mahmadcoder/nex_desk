@@ -238,3 +238,119 @@ export async function noteTemplateUsed(templateId: string) {
   }
   return { ok: true as const };
 }
+
+/* ============================================================
+   WHAT WE ARE ACTUALLY WORKING ON
+   ============================================================ */
+
+/**
+ * Changes which services a deal covers.
+ *
+ * `deals.service_slugs` is the ONLY place a project's services live — neither
+ * `clients` nor `projects` has a service column. Until now nothing could edit
+ * it: `DealForm` only ever appended a slug as a side effect of adding a
+ * deliverable, no screen rendered the list, and a locked deal did not show it
+ * at all.
+ *
+ * That was not cosmetic. This array decides which questions staff get in Daily
+ * Work Logs (`daily-logs/page.tsx:87-95`), so a wrong value gave the wrong log
+ * fields forever with nowhere to correct it.
+ *
+ * **Editable even after lock, and deliberately so.** Services are a
+ * categorisation, not a financial term — nothing here touches the total, the
+ * payment schedule or any invoice, so the signed PDF the client holds stays
+ * true. Money keeps its existing routes: the cancellation panel for refunds, a
+ * change request for extra work.
+ */
+export async function updateDealServices(dealId: string, slugs: string[]) {
+  const me = await requireOwnerAdmin();
+  const db = createAdminClient();
+
+  const id = asUuid(dealId);
+  if (!id) return { ok: false as const, error: "Invalid deal reference." };
+
+  const next = [...new Set(slugs.map((s) => String(s).trim()).filter(Boolean))].sort();
+
+  const { data: deal } = await db
+    .from("deals")
+    .select("id, deal_no, title, service_slugs, client_id, clients(name, email)")
+    .eq("id", id)
+    .maybeSingle();
+
+  if (!deal) return { ok: false as const, error: "Deal not found." };
+
+  const before = [...new Set(((deal.service_slugs as string[]) ?? []).filter(Boolean))].sort();
+  const added = next.filter((s) => !before.includes(s));
+  const removed = before.filter((s) => !next.includes(s));
+
+  if (!added.length && !removed.length) return { ok: true as const, changed: false };
+
+  const { error } = await db.from("deals").update({ service_slugs: next }).eq("id", id);
+  if (error) {
+    console.error("updateDealServices failed:", error);
+    return {
+      ok: false as const,
+      // 42703 = undefined column: the 2027-03 migration has not been run.
+      error:
+        error.code === "42703"
+          ? "The service_slugs column is missing. Run supabase/idempotent_fixes_2027_03.sql, then try again."
+          : error.message,
+    };
+  }
+
+  // Pretty names for the email, from the catalogue rather than raw slugs.
+  const { data: catalogue } = await db
+    .from("services")
+    .select("slug, title")
+    .in("slug", [...added, ...removed].length ? [...added, ...removed] : ["__none__"]);
+
+  const nameOf = (slug: string) =>
+    catalogue?.find((c) => c.slug === slug)?.title ??
+    slug.replace(/[-_]/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+
+  await recordAudit(me.userId, "deal.services", "deals", id, { from: before, to: next, added, removed });
+
+  await notify({
+    kind: "agreement.accepted",
+    title: `Services updated on ${deal.deal_no}`,
+    body: [
+      added.length ? `Added: ${added.map(nameOf).join(", ")}` : null,
+      removed.length ? `Removed: ${removed.map(nameOf).join(", ")}` : null,
+    ].filter(Boolean).join(" · "),
+    href: `/${ADMIN}/deals/${id}`,
+    entity: "deals",
+    entityId: id,
+    clientId: deal.client_id,
+  });
+
+  const client = deal.clients as any;
+  let emailed = false;
+
+  if (client?.email) {
+    const lines = [
+      ...added.map((s) => `• Added: ${nameOf(s)}`),
+      ...removed.map((s) => `• No longer included: ${nameOf(s)}`),
+    ].join("\n");
+
+    const sent = await sendEmail({
+      templateKey: "services_updated",
+      to: client.email,
+      clientId: deal.client_id,
+      actorId: me.userId,
+      vars: {
+        client_name: client.name ?? "there",
+        project_name: deal.title,
+        changes: lines,
+        still_included: next.length ? next.map(nameOf).join(", ") : "nothing yet",
+        portal_url: `${getSiteBaseUrl()}/portal`,
+      },
+    });
+    emailed = sent.ok;
+    if (!sent.ok) console.error("updateDealServices: client email failed:", sent.error);
+  }
+
+  revalidatePath(`/${ADMIN}/deals/${id}`);
+  revalidatePath(`/${ADMIN}/clients/${deal.client_id}`);
+  revalidatePath(`/${ADMIN}/daily-logs`);
+  return { ok: true as const, changed: true, added, removed, emailed };
+}
