@@ -17,6 +17,15 @@ export const metadata: Metadata = {
     siteName: "Nex Desk",
     title: "Nex Desk — software agency",
     description: "Websites, apps and growth systems that ship.",
+    // The image itself comes from the `opengraph-image` file convention, which
+    // resolves against the metadataBase above.
+  },
+  // Without this X renders the small square card no matter what image is
+  // supplied, which is why a shared link looked broken even once it had one.
+  twitter: {
+    card: "summary_large_image",
+    title: "Nex Desk — software agency",
+    description: "Websites, apps and growth systems that ship.",
   },
   icons: { icon: "/favicon.svg" },
 };

@@ -108,7 +108,13 @@ export function renderHtml(
   subject: string,
   body: string,
   lang: string = "en",
-  agency?: EmailAgency
+  agency?: EmailAgency,
+  /**
+   * The `email_log` row id this message will be written under. Present ⇒ a 1×1
+   * pixel is appended, and fetching it stamps `opened_at`. Absent ⇒ no pixel at
+   * all, so nothing is tracked by accident.
+   */
+  trackingId?: string
 ) {
   const brand = {
     name: agency?.name || "Nex Desk",
@@ -254,6 +260,11 @@ export function renderHtml(
       </td>
     </tr>
   </table>
+${
+  trackingId
+    ? `  <img src="${siteUrl}/api/e/${trackingId}" width="1" height="1" alt="" style="display:block;width:1px;height:1px;border:0;" />`
+    : ""
+}
 </body>
 </html>`;
 }

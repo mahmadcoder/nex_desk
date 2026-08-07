@@ -12,7 +12,40 @@ const transporter = nodemailer.createTransport({
     user: process.env.GMAIL_USER,
     pass: process.env.GMAIL_APP_PASSWORD,
   },
+  // Paced, not parallel. The 4am cron sends overdue notices, due-soon
+  // reminders, renewal invoices, stalled-project nudges and expense warnings
+  // back-to-back through this one account, and a burst like that is exactly
+  // what earns Gmail's `451-4.3.0 temporarily rejected`. Nodemailer queues
+  // instead once these are set.
+  pool: true,
+  maxConnections: 1,
+  maxMessages: 50,
+  rateDelta: 60_000,
+  rateLimit: 12,
 });
+
+/* eslint-disable @typescript-eslint/no-explicit-any */
+
+/**
+ * Is this worth trying again?
+ *
+ * SMTP splits failures into 4xx (come back later) and 5xx (never). A 451 is
+ * Gmail throttling us and clears on its own; a 550 is a dead address, and
+ * hammering it damages the sending reputation that caused the throttling in
+ * the first place. So: retry 4xx and socket-level noise, never 5xx.
+ */
+function isTransient(err: any): boolean {
+  const code = Number(err?.responseCode);
+  if (Number.isFinite(code)) return code >= 400 && code < 500;
+
+  return ["ETIMEDOUT", "ECONNRESET", "ECONNECTION", "ESOCKET", "EDNS", "EAI_AGAIN"].includes(
+    String(err?.code ?? "")
+  );
+}
+
+/** 1s, 4s, 10s, each jittered so retries from one cron run do not resynchronise. */
+const BACKOFF_MS = [1_000, 4_000, 10_000];
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 
 /** Last-resort recipient if neither the settings row nor the env var is set. */
@@ -172,7 +205,27 @@ export async function sendEmail(args: SendArgs) {
 
   if (args.rawAttachments?.length) attachments.push(...args.rawAttachments);
 
+  // Minted here rather than left to the column default, because the open
+  // pixel has to carry this id and the row is not written until after the send
+  // returns. Postgres takes an explicit value over `gen_random_uuid()`.
+  const logId = crypto.randomUUID();
+
+  // Everything needed to replay this send from the Email Centre. `body_preview`
+  // is truncated to 300 chars, so a resend rebuilt from the log alone would
+  // send a mangled message or leak raw {{placeholders}}.
+  //
+  // `rawAttachments` hold Buffers and do not survive JSON, so they are recorded
+  // as a marker instead — the UI disables resend rather than quietly sending an
+  // offer letter with no letter attached.
+  const sendArgs = {
+    ...args,
+    rawAttachments: undefined,
+    hadRawAttachments: (args.rawAttachments?.length ?? 0) > 0,
+  };
+
   const log = {
+    id: logId,
+    send_args: sendArgs,
     template_key: args.templateKey,
     to_email: args.to,
     cc: args.cc ?? null,
@@ -187,24 +240,46 @@ export async function sendEmail(args: SendArgs) {
   const fromLabel = process.env.GMAIL_FROM_LABEL ?? "Nex Desk";
   const fromAddress = process.env.GMAIL_USER ?? "";
 
-  try {
-    const info = await transporter.sendMail({
-      from: `"${fromLabel}" <${fromAddress}>`,
-      to: args.to,
-      cc: args.cc?.join(", "),
-      subject,
-      html: renderHtml(subject, body, lang, agency),
-      text: body,
-      attachments: attachments.length
-        ? attachments.map((a) => ({ filename: a.filename, content: a.content }))
-        : undefined,
-    });
+  const message = {
+    from: `"${fromLabel}" <${fromAddress}>`,
+    to: args.to,
+    cc: args.cc?.join(", "),
+    subject,
+    html: renderHtml(subject, body, lang, agency, logId),
+    text: body,
+    attachments: attachments.length
+      ? attachments.map((a) => ({ filename: a.filename, content: a.content }))
+      : undefined,
+  };
 
-    await db.from("email_log").insert({ ...log, status: "sent", provider_id: info.messageId });
-    return { ok: true as const, id: info.messageId };
-  } catch (e) {
-    const message = e instanceof Error ? e.message : "Unknown error";
-    await db.from("email_log").insert({ ...log, status: "failed", error: message });
-    return { ok: false as const, error: message };
+  let lastError = "Unknown error";
+  let attempts = 0;
+
+  for (let i = 0; i < BACKOFF_MS.length + 1; i++) {
+    attempts = i + 1;
+    try {
+      const info = await transporter.sendMail(message);
+      await db.from("email_log").insert({
+        ...log,
+        status: "sent",
+        provider_id: info.messageId,
+        attempts,
+      });
+      return { ok: true as const, id: info.messageId, attempts };
+    } catch (e: any) {
+      lastError = e instanceof Error ? e.message : "Unknown error";
+
+      // A permanent rejection, or we are out of attempts.
+      if (!isTransient(e) || i >= BACKOFF_MS.length) break;
+
+      const wait = BACKOFF_MS[i] + Math.floor(Math.random() * 500);
+      console.warn(
+        `sendEmail: transient failure to ${args.to} (attempt ${attempts}), retrying in ${wait}ms — ${lastError}`
+      );
+      await sleep(wait);
+    }
   }
+
+  await db.from("email_log").insert({ ...log, status: "failed", error: lastError, attempts });
+  return { ok: false as const, error: lastError, attempts };
 }

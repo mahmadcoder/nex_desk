@@ -4,10 +4,9 @@ import { useState, FormEvent } from "react";
 import Link from "next/link";
 import { Logo } from "@/components/brand/Logo";
 import { CONTACT_EMAIL } from "@/lib/utils";
-import { ArrowUpRight, ArrowRight, Check } from "lucide-react";
+import { ArrowUpRight, ArrowRight, Check, Loader2, Info, AlertCircle } from "lucide-react";
 import { FaLinkedin, FaInstagram, FaXTwitter, FaGithub } from "react-icons/fa6";
 
-import { toast } from "sonner";
 
 const COMPANY_NAV = [
   { label: "Services", href: "/services" },
@@ -26,15 +25,27 @@ const SOCIAL_NAV = [
   { label: "GitHub", href: "https://github.com", Icon: FaGithub },
 ];
 
+/**
+ * What the server actually said, so the footer can say it back.
+ *
+ * The old code kept a `subscribed` boolean and rendered one hardcoded line —
+ * "Subscribed! Thank you for joining." — no matter what came back. So somebody
+ * subscribing a second time was told they had just joined, while the toast in
+ * the corner said the opposite. The toast is gone: two channels disagreeing was
+ * the bug, and it landed on top of the WhatsApp button anyway.
+ */
+type Result = { status: "subscribed" | "already" | "invalid" | "error"; message: string };
+
 export default function Footer() {
   const [email, setEmail] = useState("");
-  const [subscribed, setSubscribed] = useState(false);
+  const [result, setResult] = useState<Result | null>(null);
   const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     if (!email.trim() || loading) return;
     setLoading(true);
+    setResult(null);
     try {
       const res = await fetch("/api/subscribe", {
         method: "POST",
@@ -42,14 +53,24 @@ export default function Footer() {
         body: JSON.stringify({ email: email.trim() }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Subscription failed");
 
-      setSubscribed(true);
-      setEmail("");
-      toast.success(data.message || "Thank you for subscribing!");
-      setTimeout(() => setSubscribed(false), 5000);
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to subscribe. Please try again.");
+      const status: Result["status"] = data.status ?? (res.ok ? "subscribed" : "error");
+      setResult({
+        status,
+        message:
+          data.message ||
+          data.error ||
+          (res.ok ? "You're on the list." : "Something went wrong. Please try again."),
+      });
+
+      // Only cleared on a real signup. On "already" the address stays put, so a
+      // typo can be corrected instead of retyped from scratch.
+      if (status === "subscribed") setEmail("");
+    } catch {
+      setResult({
+        status: "error",
+        message: "Could not reach the server. Please check your connection and try again.",
+      });
     } finally {
       setLoading(false);
     }
@@ -159,27 +180,56 @@ export default function Footer() {
                 <input
                   type="email"
                   value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  onChange={(e) => {
+                    setEmail(e.target.value);
+                    // A reply about the previous address must not sit under a
+                    // different one.
+                    if (result) setResult(null);
+                  }}
                   placeholder="Enter your email"
                   required
                   style={{ outline: "none", boxShadow: "none" }}
                   className="w-full bg-transparent px-3.5 py-1.5 text-xs text-bone-100 placeholder:text-bone-500 border-none outline-none focus:outline-none focus:ring-0 focus-visible:outline-none"
                 />
+                {/* `loading` was being set and never read, so a slow network
+                    looked like a dead button and a second click sent a second
+                    request. Spinner pattern matches admin/ImageUpload.tsx. */}
                 <button
                   type="submit"
-                  aria-label="Subscribe"
-                  className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-lime-400 text-ink-950 transition-all hover:bg-lime-300 hover:scale-105 active:scale-95"
+                  disabled={loading || !email.trim()}
+                  aria-label={loading ? "Subscribing…" : "Subscribe"}
+                  aria-busy={loading}
+                  className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-lime-400 text-ink-950 transition-all hover:bg-lime-300 hover:scale-105 active:scale-95 disabled:bg-ink-600 disabled:text-bone-400 disabled:hover:scale-100"
                 >
-                  <ArrowRight size={14} />
+                  {loading ? (
+                    <Loader2 size={14} className="animate-spin" aria-hidden />
+                  ) : (
+                    <ArrowRight size={14} aria-hidden />
+                  )}
                 </button>
               </div>
 
-              {subscribed && (
-                <div className="inline-flex items-center gap-1.5 text-xs text-lime-400 font-medium animate-fadeIn">
+              {result && (
+                <div
+                  role="status"
+                  className={`flex items-start gap-1.5 text-xs leading-relaxed animate-fadeIn ${
+                    result.status === "subscribed"
+                      ? "font-medium text-lime-400"
+                      : result.status === "already"
+                        ? "text-bone-300"
+                        : "text-[#F87171]"
+                  }`}
+                >
                   {/* Same weight as the feature-list mark, so the one tick on
                       the site that is not a feature still looks like family. */}
-                  <Check size={14} strokeWidth={2.5} aria-hidden />
-                  <span>Subscribed! Thank you for joining.</span>
+                  {result.status === "subscribed" ? (
+                    <Check size={14} strokeWidth={2.5} className="mt-px shrink-0" aria-hidden />
+                  ) : result.status === "already" ? (
+                    <Info size={14} className="mt-px shrink-0 text-lime-400" aria-hidden />
+                  ) : (
+                    <AlertCircle size={14} className="mt-px shrink-0" aria-hidden />
+                  )}
+                  <span>{result.message}</span>
                 </div>
               )}
             </form>

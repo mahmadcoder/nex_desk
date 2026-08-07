@@ -7,6 +7,8 @@ import SmoothScroll from "@/components/site/SmoothScroll";
 import CookieBanner from "@/components/site/CookieBanner";
 import ExitNudge, { type PopupService } from "@/components/site/ExitNudge";
 import WhatsAppFloat from "@/components/site/WhatsAppFloat";
+import JsonLd from "@/components/JsonLd";
+import { organizationLd } from "@/lib/jsonLd";
 
 // The exit popup speaks to whichever service the visitor was reading, so the
 // catalogue is loaded once here rather than per page. Same fallback to
@@ -26,6 +28,9 @@ export default async function SiteLayout({ children }: { children: React.ReactNo
 
   return (
     <>
+      {/* Who we are, once for the whole marketing site. Every other block
+          references this by @id rather than repeating the details. */}
+      <JsonLd data={await organizationLd()} />
       <SmoothScroll />
       <DeskGrid />
       <Header />

@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import { createPublicClient } from "@/lib/supabase/public";
 import CTA from "@/components/site/CTA";
 import { DEFAULT_FAQS } from "@/config/siteContent";
+import JsonLd from "@/components/JsonLd";
+import { faqLd, breadcrumbLd } from "@/lib/jsonLd";
 
 export const metadata: Metadata = { title: "FAQ — Frequently Asked Questions" };
 export const revalidate = 300;
@@ -26,6 +28,11 @@ export default async function FaqPage() {
 
   return (
     <>
+      {/* Built from the same de-duplicated list the page renders, so the
+          markup can never describe questions a visitor cannot see. */}
+      <JsonLd data={faqLd(displayFaqs)} />
+      <JsonLd data={breadcrumbLd([{ name: "Home", path: "/" }, { name: "FAQ", path: "/faq" }])} />
+
       <section className="shell py-16">
         <p className="drawer-label">FAQ</p>
         <h1 className="mt-6 max-w-2xl text-[var(--text-h1)]">Questions we get asked.</h1>

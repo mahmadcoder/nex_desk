@@ -14,7 +14,10 @@ export async function POST(req: Request) {
     const body = await req.json();
     const parsed = schema.safeParse(body);
     if (!parsed.success) {
-      return NextResponse.json({ error: "Please enter a valid email address." }, { status: 400 });
+      return NextResponse.json(
+        { status: "invalid", error: "That doesn't look like a valid email address." },
+        { status: 400 }
+      );
     }
 
     const email = parsed.data.email.toLowerCase().trim();
@@ -27,21 +30,37 @@ export async function POST(req: Request) {
       if (!existing.is_active) {
         await db.from("subscribers").update({ is_active: true }).eq("id", existing.id);
       } else {
-        return NextResponse.json({ ok: true, message: "You're already subscribed! Thank you." });
+        // A machine-readable status, because the footer needs to render a
+        // different line for this and string-matching the copy would break the
+        // first time the wording changes.
+        return NextResponse.json({
+          ok: true,
+          status: "already",
+          message: "You're already subscribed with this email — nothing to do.",
+        });
       }
     } else {
       await db.from("subscribers").insert({ email, source: "website_footer" });
     }
 
     // 1. Send Welcome Email to Client
-    await sendEmail({
-      templateKey: "newsletter_welcome",
-      to: email,
-      vars: {
-        client_name: email.split("@")[0],
-        portal_url: getSiteBaseUrl(),
-      },
-    });
+    //
+    // Guarded like the admin notice below. Unwrapped, a mail failure threw to
+    // the catch at the bottom and returned 500 to a visitor whose row was
+    // already saved — so they subscribed again, and again. Same bug that was
+    // fixed in the leads route.
+    try {
+      await sendEmail({
+        templateKey: "newsletter_welcome",
+        to: email,
+        vars: {
+          client_name: email.split("@")[0],
+          portal_url: getSiteBaseUrl(),
+        },
+      });
+    } catch (welcomeErr) {
+      console.error("Error sending newsletter welcome email:", welcomeErr);
+    }
 
     // 2. Send Notification Email to Admin / Owner
     try {
@@ -56,9 +75,16 @@ export async function POST(req: Request) {
       console.error("Error sending admin subscriber notice email:", adminEmailErr);
     }
 
-    return NextResponse.json({ ok: true, message: "Thank you for subscribing! Check your inbox for confirmation." });
+    return NextResponse.json({
+      ok: true,
+      status: "subscribed",
+      message: "You're on the list. Check your inbox for a confirmation.",
+    });
   } catch (error) {
     console.error("Newsletter subscription error:", error);
-    return NextResponse.json({ error: "Something went wrong. Please try again later." }, { status: 500 });
+    return NextResponse.json(
+      { status: "error", error: "Something went wrong. Please try again in a moment." },
+      { status: 500 }
+    );
   }
 }

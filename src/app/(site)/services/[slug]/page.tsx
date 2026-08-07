@@ -3,6 +3,8 @@ import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { createPublicClient } from "@/lib/supabase/public";
 import CTA from "@/components/site/CTA";
+import JsonLd from "@/components/JsonLd";
+import { serviceLd, faqLd, breadcrumbLd } from "@/lib/jsonLd";
 import { demoServices } from "@/lib/agencyData";
 import ServicePricingTiers from "@/components/site/ServicePricingTiers";
 import ServiceProcessRoadmap from "@/components/site/ServiceProcessRoadmap";
@@ -73,6 +75,16 @@ export default async function ServiceDetail({ params }: { params: Promise<{ slug
 
   return (
     <>
+      <JsonLd data={serviceLd(service)} />
+      <JsonLd data={faqLd(service.faqs ?? [])} />
+      <JsonLd
+        data={breadcrumbLd([
+          { name: "Home", path: "/" },
+          { name: "Services", path: "/services" },
+          { name: service.title, path: `/services/${service.slug}` },
+        ])}
+      />
+
       {/* ── Glassmorphism Hero Banner ── */}
       <section className="relative overflow-hidden bg-ink-900 py-12 lg:py-16">
         {/* Glow backdrop gradient */}

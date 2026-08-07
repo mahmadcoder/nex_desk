@@ -7,6 +7,8 @@ import TexturePanel from "@/components/site/mockups/TexturePanel";
 import { avatar, getPostCover } from "@/lib/images";
 import { demoPosts } from "@/lib/agencyData";
 import { Clock, Calendar } from "lucide-react";
+import JsonLd from "@/components/JsonLd";
+import { articleLd, breadcrumbLd } from "@/lib/jsonLd";
 
 export const revalidate = 300;
 
@@ -76,6 +78,15 @@ export default async function PostPage({
 
   return (
     <>
+      <JsonLd data={articleLd(post)} />
+      <JsonLd
+        data={breadcrumbLd([
+          { name: "Home", path: "/" },
+          { name: "Blog", path: "/blog" },
+          { name: post.title, path: `/blog/${post.slug}` },
+        ])}
+      />
+
       {/* Article Header */}
       <article className="shell max-w-3xl pt-20">
         <Link href="/blog" className="mono-tag hover:text-bone-50">

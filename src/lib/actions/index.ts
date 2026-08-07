@@ -5,7 +5,7 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { createClient, createAdminClient } from "@/lib/supabase/server";
 import { requireStaff, requireOwnerAdmin } from "@/lib/auth/guards";
-import { sendEmail, adminNotifyAddress, notifyEmailChange } from "@/lib/email/send";
+import { sendEmail, adminNotifyAddress, notifyEmailChange, type SendArgs } from "@/lib/email/send";
 import type { DocType } from "@/lib/pdf/generate";
 import { getLiveExchangeRates, convertCurrency, DEFAULT_RATES } from "@/lib/currency";
 import { getSiteBaseUrl, currencyForCountry, money, moneyMulti } from "@/lib/utils";
@@ -996,6 +996,71 @@ export async function sendClientEmail(args: {
     language: args.language ?? "en",
     vars: {},
   });
+  revalidatePath(`/${ADMIN}/emails`);
+  return res;
+}
+
+/**
+ * Send a failed email again.
+ *
+ * A Gmail 451 is transient — `sendEmail` now retries it — but a message that
+ * loses all its retries still has to be recoverable, and recomposing it by hand
+ * from a 300-character preview is not recovery.
+ *
+ * Replays the exact `SendArgs` the original was built from, which is why
+ * `email_log.send_args` exists.
+ */
+export async function resendEmail(logId: string) {
+  const me = await requireOwnerAdmin();
+  const db = createAdminClient();
+
+  const { data: row, error } = await db
+    .from("email_log")
+    .select("id, status, to_email, send_args")
+    .eq("id", logId)
+    .maybeSingle();
+
+  if (error) {
+    // 42703 = the column is not there yet.
+    return {
+      ok: false as const,
+      error:
+        error.code === "42703"
+          ? "Resend needs the send_args column — run supabase/idempotent_fixes_2027_22.sql."
+          : "Could not load that email.",
+    };
+  }
+  if (!row) return { ok: false as const, error: "That email is no longer in the log." };
+
+  // Guarded rather than assumed: only failures are offered a Resend in the UI,
+  // and re-sending something a client already received is the one outcome worse
+  // than not sending it.
+  if (row.status !== "failed") {
+    return { ok: false as const, error: "That email already went out — nothing to resend." };
+  }
+
+  const args = row.send_args as (SendArgs & { hadRawAttachments?: boolean }) | null;
+  if (!args) {
+    return {
+      ok: false as const,
+      error: "This one was sent before resend existed, so there is nothing to replay. Compose it again.",
+    };
+  }
+  if (args.hadRawAttachments) {
+    return {
+      ok: false as const,
+      error: "That email carried a generated attachment which cannot be replayed. Send it again from where it came from.",
+    };
+  }
+
+  const res = await sendEmail({ ...args, actorId: me.userId });
+
+  await audit(me.userId, "email.resend", "email_log", logId, {
+    to: row.to_email,
+    ok: res.ok,
+    error: res.ok ? null : res.error,
+  });
+
   revalidatePath(`/${ADMIN}/emails`);
   return res;
 }
