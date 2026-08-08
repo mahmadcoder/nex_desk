@@ -45,6 +45,12 @@ const STAFF_ALLOWED_SEGMENTS = [
   "tickets",
   // The handbook is FOR staff. Every employee reads; owner/admin write.
   "handbook",
+
+  // Their OWN attendance. `/attendance` — everybody's — stays closed; this
+  // page never accepts an employee id and reads only the signed-in one.
+  // Without it a staff member could see whether they had clocked in today and
+  // nothing else, which is a poor deal when pay is worked out from hours.
+  "my-attendance",
 ];
 
 /**

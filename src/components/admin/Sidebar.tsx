@@ -29,6 +29,8 @@ const NAV_SECTIONS = [
       { href: "/meetings", label: "Meetings", icon: CalendarClock },
       { href: "/tickets", label: "Support Tickets", icon: LifeBuoy },
       { href: "/attendance", label: "Attendance", icon: UserCheck },
+      // Admins clock in too, so they need somewhere to see their own month.
+      { href: "/my-attendance", label: "My Attendance", icon: UserCheck },
       { href: "/timesheets", label: "Timesheets", icon: Clock },
       { href: "/leave", label: "Leave", icon: CalendarDays },
       { href: "/deals", label: "Deals", icon: Handshake },
@@ -89,6 +91,9 @@ const STAFF_NAV = [
       { href: "/meetings", label: "My Meetings", icon: CalendarClock },
       { href: "/tickets", label: "Tickets", icon: LifeBuoy },
       { href: "/leave", label: "My Leave", icon: CalendarDays },
+      // Their own record only. Everyone else's lives at /attendance, which
+      // staff cannot reach.
+      { href: "/my-attendance", label: "My Attendance", icon: UserCheck },
       { href: "/handbook", label: "Handbook", icon: BookOpen },
       { href: "/my-pay", label: "My Pay", icon: Wallet },
       { href: "/profile", label: "My Profile", icon: UserCircle },

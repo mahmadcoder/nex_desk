@@ -190,11 +190,20 @@ export default function TasksCard({
                 />
                 <div className="min-w-0 flex-1">
                   <p className="text-sm text-bone-100">{t.title}</p>
-                  <p className="mt-0.5 flex flex-wrap items-center gap-x-2 text-[11px] text-bone-400">
-                    <span className={mine ? "text-lime-300" : ""}>
-                      {nameOf(t.assigned_employee_id) ?? "Unassigned"}
-                      {mine && " (you)"}
-                    </span>
+                  <p className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] text-bone-400">
+                    {/* Unassigned is a state worth spotting, not a grey word
+                        in a row of grey words — it means nobody has picked
+                        this up and nobody will be reminded to. */}
+                    {t.assigned_employee_id ? (
+                      <span className={mine ? "font-medium text-lime-300" : "text-bone-200"}>
+                        {nameOf(t.assigned_employee_id) ?? "Someone"}
+                        {mine && " (you)"}
+                      </span>
+                    ) : (
+                      <span className="rounded-full border border-amber-400/30 bg-amber-400/10 px-2 py-0.5 text-[10px] font-medium text-amber-300">
+                        Unassigned
+                      </span>
+                    )}
                     {t.due_date && (
                       <span className={overdue(t) ? "text-rose-300" : ""}>
                         <CalendarDays size={10} className="mr-0.5 inline" />

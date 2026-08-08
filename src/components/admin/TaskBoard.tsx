@@ -8,8 +8,17 @@ import { setTaskStatus } from "@/lib/actions/tasks";
 import { fmtDate, agencyDay } from "@/lib/datetime";
 import TaskDialog from "@/components/admin/TaskDialog";
 import {
-  ChevronLeft, ChevronRight, Paperclip, Flag, CalendarDays, Loader2, Plus, Pencil,
+  ChevronLeft, ChevronRight, Paperclip, Flag, CalendarDays, Loader2, Plus, Pencil, UserPlus,
 } from "lucide-react";
+
+/** "Kareem Ahmad" → "KA". Two letters is all a 20px circle holds. */
+const initials = (name: string) =>
+  name
+    .trim()
+    .split(/\s+/)
+    .slice(0, 2)
+    .map((w) => w[0]?.toUpperCase() ?? "")
+    .join("");
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
@@ -207,8 +216,32 @@ export default function TaskBoard({
                       </Link>
                     )}
 
-                    {t.assignee && (
-                      <p className="mono-tag mt-1 text-[10px] text-bone-500">{t.assignee}</p>
+                    {/* Who owns this, said plainly.
+                        It used to be the faintest thing on the card — a bare
+                        name at 10px in bone-500, under the project — and an
+                        UNASSIGNED task rendered nothing at all, so work nobody
+                        owned looked exactly like work whose owner you had not
+                        noticed. That is the one state you most need to spot. */}
+                    {canManage && (
+                      <div className="mt-2 flex items-center gap-1.5">
+                        {t.assignee ? (
+                          <>
+                            <span
+                              aria-hidden
+                              className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-lime-400/15 text-[9px] font-semibold text-lime-300"
+                            >
+                              {initials(t.assignee)}
+                            </span>
+                            <span className="min-w-0 truncate text-[11px] text-bone-200">
+                              {t.assignee}
+                            </span>
+                          </>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 rounded-full border border-amber-400/30 bg-amber-400/10 px-2 py-0.5 text-[10px] font-medium text-amber-300">
+                            <UserPlus size={10} aria-hidden /> Unassigned
+                          </span>
+                        )}
+                      </div>
                     )}
 
                     <div className="mt-3 flex items-center justify-between border-t border-ink-700 pt-2.5">

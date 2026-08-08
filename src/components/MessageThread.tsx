@@ -1,11 +1,15 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useEffect, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Send, Loader2 } from "lucide-react";
 import { fmtDateTime } from "@/lib/datetime";
-import { postStaffMessage, postClientMessage } from "@/lib/actions/messages";
+import {
+  postStaffMessage,
+  postClientMessage,
+  markProjectMessagesRead,
+} from "@/lib/actions/messages";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
@@ -33,6 +37,38 @@ export default function MessageThread({
   const router = useRouter();
   const [body, setBody] = useState("");
   const [pending, start] = useTransition();
+
+  /**
+   * Clear the "N new" badge once staff actually have the thread on screen.
+   *
+   * `markProjectMessagesRead` existed and was never called from anywhere, so
+   * the badge on the project page counted every message a client had ever
+   * sent and never went down — it stayed lit after the message was read,
+   * answered and forgotten, which is the fastest way to teach somebody to
+   * ignore a badge.
+   *
+   * No loop: the refresh returns the same messages with `read_at` set, the
+   * count becomes 0, and the dependency stops changing.
+   */
+  const unreadFromClient =
+    side === "staff"
+      ? messages.filter((m: any) => m.sender_kind === "client" && !m.read_at).length
+      : 0;
+
+  useEffect(() => {
+    if (!unreadFromClient) return;
+    let live = true;
+    markProjectMessagesRead(projectId)
+      .then(() => {
+        if (live) router.refresh();
+      })
+      // Silent on purpose. Failing to clear a badge is not worth a toast on a
+      // page somebody opened to read a message.
+      .catch(() => {});
+    return () => {
+      live = false;
+    };
+  }, [unreadFromClient, projectId, router]);
 
   const send = () => {
     const text = body.trim();
