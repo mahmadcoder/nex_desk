@@ -10,4 +10,8 @@ export type InvoiceStatus =
   | "draft" | "sent" | "partial" | "paid" | "overdue" | "void";
 export type DocType =
   | "quotation" | "agreement" | "invoice" | "receipt"
-  | "change_order" | "progress_report" | "handover";
+  | "change_order" | "progress_report" | "handover"
+  // The procurement paperwork. These are values of the `doc_type` enum in
+  // Postgres, so leaving them out here made the type quietly narrower than the
+  // column it describes.
+  | "nda" | "dpa" | "security";

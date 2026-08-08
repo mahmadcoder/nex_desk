@@ -1,5 +1,8 @@
 import type { Metadata } from "next";
 import { Toaster } from "sonner";
+// No cookies and no personal data, which is why this one needs no banner —
+// the CookieBanner on the marketing site is about nothing else.
+import { Analytics } from "@vercel/analytics/next";
 import ScrollRestoration from "@/components/providers/ScrollRestoration";
 import { getSiteBaseUrl } from "@/lib/utils";
 import "./globals.css";
@@ -48,6 +51,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body suppressHydrationWarning>
         <ScrollRestoration />
         {children}
+        <Analytics />
         <Toaster
           theme="dark"
           position="bottom-right"

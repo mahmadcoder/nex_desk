@@ -1,6 +1,7 @@
 import {
   FileSignature, CheckCircle2, ListChecks, PartyPopper, MessageSquarePlus,
   FileUp, ClipboardList, CalendarClock, UserCheck, Bell, Wallet, Star, ImageIcon, Inbox,
+  MessageSquare, TrendingUp, LifeBuoy,
   type LucideIcon,
 } from "lucide-react";
 
@@ -40,6 +41,16 @@ const KINDS: Record<string, KindStyle> = {
   "feedback.due":          { icon: Star,              tone: "good",    label: "Feedback" },
   "profile.photo":         { icon: ImageIcon,         tone: "default", label: "Profile" },
   "lead.new":              { icon: Inbox,             tone: "good",    label: "New lead" },
+  "meeting.scheduled":     { icon: CalendarClock,     tone: "default", label: "Meeting" },
+  "message.received":      { icon: MessageSquare,     tone: "default", label: "Message" },
+  "project.progress":      { icon: TrendingUp,        tone: "good",    label: "Progress" },
+  "project.delivered":     { icon: PartyPopper,       tone: "good",    label: "Delivered" },
+  "invoice.paid":          { icon: Wallet,            tone: "good",    label: "Payment" },
+  "file.shared":           { icon: FileUp,            tone: "default", label: "Files" },
+  "meeting.reminder":      { icon: CalendarClock,     tone: "warn",    label: "Reminder" },
+  "ticket.raised":         { icon: LifeBuoy,          tone: "warn",    label: "Ticket" },
+  "ticket.replied":        { icon: MessageSquare,     tone: "default", label: "Ticket reply" },
+  "ticket.resolved":       { icon: CheckCircle2,      tone: "good",    label: "Resolved" },
 };
 
 export function describeKind(kind: string): KindStyle {

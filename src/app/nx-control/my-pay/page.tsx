@@ -1,6 +1,7 @@
 import { createAdminClient } from "@/lib/supabase/server";
 import { getCurrentStaff } from "@/lib/auth/staff";
 import { PageHead, Stat, Empty } from "@/components/admin/ui";
+import PayslipButton from "@/components/admin/PayslipButton";
 import { money, sumByCurrency, moneyMulti } from "@/lib/utils";
 import { myPayments } from "@/lib/actions/payroll";
 import { FileText, Wallet } from "lucide-react";
@@ -58,10 +59,12 @@ export default async function MyPayPage() {
     (p: any) => new Date(p.paid_on).getFullYear() === thisYear
   );
 
+  // NET, matching each row below. Summing base pay here while the list showed
+  // net would give two different answers to the same question on one screen.
   const yearTotals = sumByCurrency(
     paidThisYear,
     (p: any) => p.currency,
-    (p: any) => Number(p.amount)
+    (p: any) => Number(p.amount) + Number(p.bonus ?? 0) - Number(p.deductions ?? 0)
   );
 
   return (
@@ -110,11 +113,37 @@ export default async function MyPayPage() {
                 <div className="min-w-0">
                   <p className="flex items-center gap-2 text-sm text-bone-100">
                     <Wallet size={14} className="shrink-0 text-lime-400" />
-                    {money(Number(p.amount), p.currency)}
+                    {money(
+                      Number(p.amount) + Number(p.bonus ?? 0) - Number(p.deductions ?? 0),
+                      p.currency
+                    )}
                     <span className="text-[11px] text-bone-400">
                       for {monthLabel(p.period_month)}
                     </span>
                   </p>
+
+                  {/* Only when there is something to break down — a base line
+                      on every ordinary month is noise. */}
+                  {(Number(p.bonus ?? 0) > 0 || Number(p.deductions ?? 0) > 0) && (
+                    <p className="mt-0.5 text-xs text-bone-400">
+                      Base {money(Number(p.amount), p.currency)}
+                      {Number(p.bonus ?? 0) > 0 && (
+                        <span className="text-lime-400">
+                          {" + "}
+                          {money(Number(p.bonus), p.currency)} bonus
+                          {p.bonus_note ? ` (${p.bonus_note})` : ""}
+                        </span>
+                      )}
+                      {Number(p.deductions ?? 0) > 0 && (
+                        <span className="text-amber-400">
+                          {" − "}
+                          {money(Number(p.deductions), p.currency)} deducted
+                          {p.deduction_note ? ` (${p.deduction_note})` : ""}
+                        </span>
+                      )}
+                    </p>
+                  )}
+
                   <p className="mt-0.5 text-xs text-bone-300">
                     Sent {p.paid_on}
                     {p.method ? ` · ${String(p.method).replace(/_/g, " ")}` : ""}
@@ -125,16 +154,19 @@ export default async function MyPayPage() {
                   )}
                 </div>
 
-                {p.slip_url && (
-                  <a
-                    href={p.slip_url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="btn btn-sm shrink-0 gap-1.5"
-                  >
-                    <FileText size={13} /> Slip
-                  </a>
-                )}
+                <div className="flex shrink-0 items-center gap-2">
+                  <PayslipButton paymentId={p.id} />
+                  {p.slip_url && (
+                    <a
+                      href={p.slip_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="btn btn-sm gap-1.5"
+                    >
+                      <FileText size={13} /> Slip
+                    </a>
+                  )}
+                </div>
               </li>
             ))}
           </ul>

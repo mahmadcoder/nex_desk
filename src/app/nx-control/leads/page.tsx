@@ -1,6 +1,8 @@
 import { createAdminClient } from "@/lib/supabase/server";
 import { PageHead, Table, Empty } from "@/components/admin/ui";
+import Link from "next/link";
 import LeadRow from "@/components/admin/LeadRow";
+import PipelineBoard from "@/components/admin/PipelineBoard";
 import { LEAD_STATUSES } from "@/lib/utils";
 import ListFilters, { matches } from "@/components/admin/ListFilters";
 
@@ -12,9 +14,10 @@ export const dynamic = "force-dynamic";
 export default async function LeadsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ status?: string; q?: string }>;
+  searchParams: Promise<{ status?: string; q?: string; view?: string }>;
 }) {
-  const { status, q } = await searchParams;
+  const { status, q, view } = await searchParams;
+  const asBoard = view === "board";
   const db = createAdminClient();
   const [{ data: leads }, { data: converted }] = await Promise.all([
     db.from("leads").select("*").order("created_at", { ascending: false }),
@@ -52,9 +55,32 @@ export default async function LeadsPage({
 
   return (
     <>
-      <PageHead title="Leads" sub="Everything that came through the contact form. Mark website spam as spam, or delete it outright." />
+      <PageHead
+        title="Leads"
+        sub={
+          asBoard
+            ? "Where everything is stuck. Move a card with the arrows, or mark it won or lost."
+            : "Everything that came through the contact form. Mark website spam as spam, or delete it outright."
+        }
+        action={
+          <Link
+            href={asBoard ? BASE + "/leads" : BASE + "/leads?view=board"}
+            className="mono-tag text-[11px] hover:text-lime-400"
+          >
+            {asBoard ? "list view" : "pipeline board"}
+          </Link>
+        }
+      />
 
-      {!!leads?.length && (
+      {asBoard && (
+        <PipelineBoard
+          leads={(leads ?? []).filter((l: any) =>
+            ["new", "contacted", "quoted"].includes(l.status)
+          )}
+        />
+      )}
+
+      {!asBoard && !!leads?.length && (
         <ListFilters
           basePath={`${BASE}/leads`}
           active={active}
@@ -67,7 +93,7 @@ export default async function LeadsPage({
         />
       )}
 
-      {!leads?.length ? (
+      {!asBoard && (!leads?.length ? (
         <Empty title="Inbox is empty" body="New enquiries from the website land here, and the sender gets an auto-reply straight away." />
       ) : !rows.length ? (
         <Empty
@@ -80,7 +106,7 @@ export default async function LeadsPage({
             <LeadRow key={l.id} lead={l} convertedClientId={clientByLead.get(l.id) ?? null} />
           ))}
         </Table>
-      )}
+      ))}
     </>
   );
 }

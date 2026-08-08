@@ -153,7 +153,10 @@ function ContactFormContent() {
       const res = await fetch("/api/leads", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(form),
+        // Attribution is read at SUBMIT time, not at mount: a visitor may land
+        // on one page, read three others and come back. The page they actually
+        // sent from is the one that did the work.
+        body: JSON.stringify({ ...form, ...attribution() }),
       });
 
       if (!res.ok) {
@@ -251,6 +254,25 @@ function ContactFormContent() {
                 </button>
               );
             })}
+
+            {/* A slug arriving in `?service=` that is not one of the eleven
+                above used to be added to the submission and rendered nowhere —
+                so the visitor could not see it and could not untick it. The
+                agency sells sixteen services and this list has eleven, so it
+                happened for real. Shown as a removable chip. */}
+            {form.service_slugs
+              .filter((s) => !SERVICES.some(([slug]) => slug === s))
+              .map((s) => (
+                <button
+                  key={s}
+                  type="button"
+                  onClick={() => toggleService(s)}
+                  className="rounded-full border border-lime-400 bg-lime-400 px-4 py-2 text-sm font-medium text-lime-950"
+                  title="Click to remove"
+                >
+                  {s.replace(/[-_]/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())}
+                </button>
+              ))}
           </div>
         </>
       )}
@@ -432,6 +454,30 @@ function ContactFormContent() {
       </div>
     </div>
   );
+}
+
+/**
+ * Where this visitor came from.
+ *
+ * `utm_source` is what the link CLAIMED; `referrer` is what the browser
+ * observed. Keeping both matters because the first can say anything.
+ */
+function attribution() {
+  if (typeof window === "undefined") return {};
+  const q = new URLSearchParams(window.location.search);
+  const clip = (v: string | null, max: number) => (v ? v.slice(0, max) : undefined);
+
+  return {
+    utm_source: clip(q.get("utm_source"), 120),
+    utm_medium: clip(q.get("utm_medium"), 120),
+    utm_campaign: clip(q.get("utm_campaign"), 200),
+    // Same-origin referrers are noise — that is just our own navigation.
+    referrer:
+      document.referrer && !document.referrer.startsWith(window.location.origin)
+        ? document.referrer.slice(0, 500)
+        : undefined,
+    landing_page: window.location.pathname.slice(0, 500),
+  };
 }
 
 export default function ContactForm() {

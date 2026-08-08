@@ -12,6 +12,7 @@ import ImageUpload from "@/components/admin/ImageUpload";
 import StatusControl, { STATUS_UI } from "@/components/admin/StatusControl";
 import CustomSelect from "@/components/ui/CustomSelect";
 import ConfirmModal from "@/components/admin/ConfirmModal";
+import RequestDetailsClient from "@/components/admin/RequestDetailsClient";
 import { saveEmployee, deleteEmployee, saveJobTitle, deleteJobTitle } from "@/lib/actions/cms";
 import { checkEmailExists } from "@/lib/actions";
 
@@ -52,9 +53,12 @@ const LANG_OPTIONS = [
 export default function EmployeesClient({
   employees,
   jobTitles,
+  departments = [],
 }: {
   employees: Employee[];
   jobTitles: JobTitle[];
+  /** Empty before the 2027-30 migration — the field simply does not render. */
+  departments?: { id: string; name: string }[];
 }) {
   const [pending, startTransition] = useTransition();
   const [query, setQuery] = useState("");
@@ -110,6 +114,7 @@ export default function EmployeesClient({
             salary_amount: Number(editing.salary_amount) || 0,
             salary_currency: editing.salary_currency ?? "USD",
             employment_type: editing.employment_type ?? "Full-Time",
+            department_id: (editing as any).department_id || null,
             joining_date: editing.joining_date ?? new Date().toISOString().slice(0, 10),
             leaving_date: editing.leaving_date || null,
             status: editing.status ?? "Active",
@@ -209,7 +214,10 @@ export default function EmployeesClient({
           <p className="mt-1 text-xs text-bone-400">Manage employee profiles, senior roles, client assignments, and payroll</p>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          {/* The other way in: send someone the checklist and let them fill it
+              in, rather than typing nine fields off a WhatsApp thread. */}
+          <RequestDetailsClient kind="staff" />
           <button
             onClick={() => setShowJobTitlesModal(true)}
             className="btn h-9 px-3.5 text-sm flex items-center gap-2 border-ink-600 bg-ink-800 text-bone-200 hover:text-bone-50"
@@ -558,6 +566,19 @@ export default function EmployeesClient({
                     onChange={(val) => setEditing({ ...editing, seniority: val })}
                   />
                 </div>
+                {departments.length > 0 && (
+                  <div>
+                    <label className="mono-tag text-xs mb-1 block">Department</label>
+                    <CustomSelect
+                      options={[
+                        { value: "", label: "Not assigned" },
+                        ...departments.map((d) => ({ value: d.id, label: d.name })),
+                      ]}
+                      value={(editing as any).department_id ?? ""}
+                      onChange={(val) => setEditing({ ...editing, department_id: val } as any)}
+                    />
+                  </div>
+                )}
                 <div>
                   <label className="mono-tag text-xs mb-1 block">Employment Type</label>
                   <CustomSelect

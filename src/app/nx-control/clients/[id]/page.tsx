@@ -228,17 +228,29 @@ export default async function ClientDetail({ params }: { params: Promise<{ id: s
                 Open project
               </Link>
             ) : undefined
-          ) : services.length ? (
-            <span className="flex flex-wrap items-center gap-2">
-              <MonthlyReportButton clientId={id} clientName={client.name} />
-              <Link href={`${BASE}/deals/new?client=${id}`} className="btn btn-primary h-10">
-                <Plus size={14} /> Add another service
-              </Link>
-            </span>
           ) : (
-            <Link href={`${BASE}/deals/new?client=${id}`} className="btn btn-primary h-10">
-              <Lock size={14} /> Lock the first deal
-            </Link>
+            <span className="flex flex-wrap items-center gap-2">
+              {/* All three are asked for during procurement — before there is a
+                  deal to attach them to — so they hang off the client and are
+                  available whether or not anything has been sold yet. Hiding
+                  the NDA until the first deal was backwards: that is precisely
+                  when it is needed. */}
+              <DocButton type="nda" id={id} label="NDA" />
+              <DocButton type="dpa" id={id} label="DPA" />
+              <DocButton type="security" id={id} label="Security" />
+              {services.length ? (
+                <>
+                  <MonthlyReportButton clientId={id} clientName={client.name} />
+                  <Link href={`${BASE}/deals/new?client=${id}`} className="btn btn-primary h-10">
+                    <Plus size={14} /> Add another service
+                  </Link>
+                </>
+              ) : (
+                <Link href={`${BASE}/deals/new?client=${id}`} className="btn btn-primary h-10">
+                  <Lock size={14} /> Lock the first deal
+                </Link>
+              )}
+            </span>
           )
         }
       />

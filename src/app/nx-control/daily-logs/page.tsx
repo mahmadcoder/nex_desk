@@ -1,6 +1,7 @@
 import { createAdminClient } from "@/lib/supabase/server";
 import { getCurrentStaff, assignedClientIds } from "@/lib/auth/staff";
 import DailyLogsClient from "./DailyLogsClient";
+import { myTrackedToday } from "@/lib/actions/timeTracking";
 
 export const metadata = { title: "Daily Work Logs" };
 export const dynamic = "force-dynamic";
@@ -101,6 +102,7 @@ export default async function DailyLogsPage() {
       employeesList={employeesList}
       projectsList={projectsList}
       lockedToEmployee={!canManage}
+      trackedTodaySec={await myTrackedToday()}
     />
   );
 }

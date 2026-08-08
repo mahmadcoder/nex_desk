@@ -11,13 +11,23 @@ import MilestoneList from "@/components/admin/MilestoneList";
 import ProjectControls from "@/components/admin/ProjectControls";
 import SendInvoiceButton from "@/components/admin/SendInvoiceButton";
 import HandoverPanel from "@/components/admin/HandoverPanel";
+import TeamRatingCard from "@/components/admin/TeamRatingCard";
+import { projectRatings } from "@/lib/actions/tasks";
 import ChangeRequestsCard from "@/components/admin/ChangeRequestsCard";
 import DealExtrasCard from "@/components/admin/DealExtrasCard";
 import CredentialsCard from "@/components/admin/CredentialsCard";
 import ExpensesCard from "@/components/admin/ExpensesCard";
 import TasksCard from "@/components/admin/TasksCard";
+import ProjectFilesPanel from "@/components/admin/ProjectFilesPanel";
+import MessageThread from "@/components/MessageThread";
+import { listProjectFiles } from "@/lib/actions/projectFiles";
+import { listMessages } from "@/lib/actions/messages";
 import CancelProjectPanel from "@/components/admin/CancelProjectPanel";
 import { handoverGate } from "@/lib/delivery/gate";
+import BudgetPanel from "@/components/admin/BudgetPanel";
+import ArchiveProjectButton from "@/components/admin/ArchiveProjectButton";
+import { hourlyRates, projectSpend, budgetHealth } from "@/lib/projectCost";
+import { getLiveExchangeRates, convertCurrency } from "@/lib/currency";
 import { invoiceOriginLabel } from "@/lib/billing";
 import { fmtDate } from "@/lib/datetime";
 
@@ -43,6 +53,37 @@ export default async function ProjectDetail({ params }: { params: Promise<{ id: 
     if (!allowed.includes(project.client_id)) notFound();
   }
 
+  // The people actually on this work, for the rating card — `teamList` below
+  // is every active employee, which is the right list for an assignment
+  // dropdown and the wrong one for "who delivered this".
+  const [{ data: assigned }, ratings] = await Promise.all([
+    db
+      .from("client_employee_assignments")
+      .select("employees(id, full_name, avatar_url, job_title)")
+      .eq("client_id", project.client_id),
+    canManage && project.handed_over_at ? projectRatings(id) : Promise.resolve([]),
+  ]);
+
+  const deliveredTeam = Array.from(
+    new Map(
+      (assigned ?? [])
+        .map((a: any) => a.employees)
+        .filter(Boolean)
+        .map((e: any) => [e.id, e])
+    ).values()
+  ) as any[];
+
+  // Signed URLs and the thread. Read after the assignment check above, so an
+  // unauthorised staff member never causes the files to be signed at all.
+  const [projectFiles, messages] = await Promise.all([
+    listProjectFiles(id),
+    listMessages(id),
+  ]);
+  const unreadFromClient = messages.filter(
+    (m: { sender_kind: string; read_at: string | null }) =>
+      m.sender_kind === "client" && !m.read_at
+  ).length;
+
   const [
     { data: milestones },
     { data: invoices },
@@ -55,7 +96,10 @@ export default async function ProjectDetail({ params }: { params: Promise<{ id: 
       db.from("milestones").select("*").eq("project_id", id).order("sort_order"),
       db.from("invoices").select("*").eq("project_id", id).order("issue_date"),
       db.from("daily_work_logs")
-        .select("id, work_date, tasks_completed, blockers, employee_name, client_visible, metrics")
+        // `employee_id` and `hours_spent` are read for the cost panel's
+        // fallback. Without them the labour figure silently computes as zero
+        // for any project that predates the timer.
+        .select("id, work_date, tasks_completed, blockers, employee_name, employee_id, hours_spent, client_visible, metrics")
         .eq("project_id", id)
         .order("work_date", { ascending: false })
         .limit(20),
@@ -83,6 +127,41 @@ export default async function ProjectDetail({ params }: { params: Promise<{ id: 
   const invoiceRows = invoices ?? [];
   const client = project.clients as any;
   const deal = (project.deals as any) ?? null;
+
+  // Delivery cost. Owner/admin only — money-per-hour per person is exactly what
+  // staff must never see, the same rule the Profitability page follows.
+  const spendData = canManage
+    ? await (async () => {
+        const [{ data: emps }, { data: tracked }, rates] = await Promise.all([
+          db.from("employees").select("id, full_name, salary_amount, salary_currency"),
+          db
+            .from("time_entries")
+            .select("employee_id, duration_sec")
+            .eq("project_id", id)
+            .not("ended_at", "is", null),
+          getLiveExchangeRates(),
+        ]);
+
+        const cur = String(project.deals?.currency || "USD");
+        const spend = projectSpend({
+          currency: cur,
+          rates: hourlyRates(emps ?? []),
+          tracked: tracked ?? [],
+          logged: (workLogs ?? []).map((l: any) => ({
+            employee_id: l.employee_id,
+            hours_spent: l.hours_spent,
+          })),
+          expenses: expenses ?? [],
+          convert: (a, from, to) => convertCurrency(a, from, to, rates),
+        });
+
+        return {
+          currency: cur,
+          spend,
+          health: budgetHealth(Number(project.budget || 0), spend.total),
+        };
+      })()
+    : null;
 
   // The gate that decides whether ownership changes hands is defined once, in
   // lib/delivery/gate.ts, and shared with the handover action and the handover
@@ -188,6 +267,14 @@ export default async function ProjectDetail({ params }: { params: Promise<{ id: 
             employees={teamList ?? []}
             canManage={canManage}
             myEmployeeId={me.employeeId}
+            aiContext={{
+              project: project.name,
+              scope: deal?.scope ?? project.description ?? "",
+              deliverables: Array.isArray(deal?.deliverables)
+                ? deal.deliverables.map((d: any) => d.item).filter(Boolean).join(", ")
+                : "",
+              services: (deal?.service_slugs ?? []).join(", "),
+            }}
           />
 
           {/* The work log feed. Entries marked "shared" are what the client
@@ -276,6 +363,12 @@ export default async function ProjectDetail({ params }: { params: Promise<{ id: 
             />
           )}
 
+          {/* Only once it has actually been handed over. Rating work still in
+              flight measures mood, not delivery. */}
+          {canManage && project.handed_over_at && (
+            <TeamRatingCard projectId={id} team={deliveredTeam} existing={ratings} />
+          )}
+
           {canManage && (
             <CredentialsCard
               projectId={project.id}
@@ -339,11 +432,49 @@ export default async function ProjectDetail({ params }: { params: Promise<{ id: 
           )}
 
           {canManage && (
+            <div className="flex justify-end">
+              <ArchiveProjectButton projectId={id} archived={!!project.archived_at} />
+            </div>
+          )}
+
+          {canManage && spendData && (
+            <BudgetPanel
+              spend={spendData.spend}
+              health={spendData.health}
+              currency={spendData.currency}
+            />
+          )}
+
+          {canManage && (
             <section>
               <h2 className="mb-3 text-base">Project controls</h2>
               <ProjectControls project={project} clientEmail={client?.email} />
             </section>
           )}
+
+          {/* Files and the conversation. Both tables have existed since the
+              beginning with nothing using them, so a deliverable could only be
+              handed over by email and a conversation only lived in WhatsApp. */}
+          <section>
+            <h2 className="mb-3 text-base">Files</h2>
+            <div className="card p-5">
+              <ProjectFilesPanel projectId={project.id} files={projectFiles} canManage={canManage} />
+            </div>
+          </section>
+
+          <section>
+            <h2 className="mb-3 text-base">
+              Messages
+              {unreadFromClient > 0 && (
+                <span className="ml-2 rounded-full bg-lime-400 px-1.5 py-0.5 text-[10px] font-semibold leading-none text-lime-950">
+                  {unreadFromClient} new
+                </span>
+              )}
+            </h2>
+            <div className="card p-5">
+              <MessageThread projectId={project.id} side="staff" messages={messages} />
+            </div>
+          </section>
 
           {canManage && (
             <section>

@@ -194,6 +194,18 @@ export type StaffStats = {
   daysLogged30: number;
   blockers30: number;
   sharedRatio: number;
+  /** Tasks THIS person completed in the window. */
+  tasksDone: number;
+  /** Of those, finished after their due date. */
+  tasksLate: number;
+  /** Still open and already past due. */
+  tasksOverdue: number;
+  /** Hours the timer recorded, as opposed to hours self-reported. */
+  trackedHours30: number;
+  /** 1–5, averaged across rated projects. Null when never rated. */
+  avgRating: number | null;
+  ratedProjects: number;
+  /** Kept: the old milestone view is still meaningful on a project page. */
   milestonesDone: number;
   milestonesLate: number;
 };
@@ -216,13 +228,40 @@ export async function staffPerformance(employeeId: string): Promise<StaffStats> 
 
   const rows = logs ?? [];
   const projectIds = [...new Set(rows.map((l) => l.project_id).filter(Boolean))] as string[];
+  const sinceIso = new Date(Date.now() - 30 * 864e5).toISOString();
+  const today = new Date().toISOString().slice(0, 10);
 
-  const { data: milestones } = projectIds.length
-    ? await db.from("milestones")
-        .select("is_done, due_date, completed_at").in("project_id", projectIds)
-    : { data: [] as any[] };
+  const [{ data: milestones }, { data: tasks }, { data: entries }, { data: ratings }] =
+    await Promise.all([
+      projectIds.length
+        ? db.from("milestones").select("is_done, due_date, completed_at").in("project_id", projectIds)
+        : Promise.resolve({ data: [] as any[] }),
+
+      // Tasks assigned to THIS person. The old code counted every milestone on
+      // every project they had logged against, so on a shared project each
+      // person was credited with everyone else's work.
+      db
+        .from("tasks")
+        .select("id, status, due_date, done_at")
+        .eq("assigned_employee_id", employeeId),
+
+      db
+        .from("time_entries")
+        .select("duration_sec")
+        .eq("employee_id", employeeId)
+        .not("ended_at", "is", null)
+        .gte("started_at", sinceIso),
+
+      db.from("project_ratings").select("score").eq("employee_id", employeeId),
+    ]);
 
   const done = (milestones ?? []).filter((m) => m.is_done);
+
+  const allTasks = tasks ?? [];
+  const doneRecently = allTasks.filter(
+    (t: any) => t.status === "done" && t.done_at && t.done_at >= sinceIso
+  );
+  const scores = (ratings ?? []).map((r: any) => Number(r.score)).filter((n) => n > 0);
 
   return {
     hours30: rows.reduce((s, l) => s + Number(l.hours_spent || 0), 0),
@@ -232,9 +271,183 @@ export async function staffPerformance(employeeId: string): Promise<StaffStats> 
     sharedRatio: rows.length
       ? Math.round((rows.filter((l) => l.client_visible).length / rows.length) * 100)
       : 0,
+
+    tasksDone: doneRecently.length,
+    tasksLate: doneRecently.filter(
+      (t: any) => t.due_date && t.done_at && t.done_at.slice(0, 10) > t.due_date
+    ).length,
+    // Counted apart from `tasksLate`, not added to it — a task cannot be both
+    // finished late and still outstanding, and double-counting would make the
+    // on-time rate meaningless.
+    tasksOverdue: allTasks.filter(
+      (t: any) => t.status !== "done" && t.due_date && t.due_date < today
+    ).length,
+
+    trackedHours30:
+      Math.round(
+        ((entries ?? []).reduce((s, e: any) => s + Number(e.duration_sec ?? 0), 0) / 3600) * 10
+      ) / 10,
+
+    avgRating: scores.length
+      ? Math.round((scores.reduce((s, n) => s + n, 0) / scores.length) * 10) / 10
+      : null,
+    ratedProjects: scores.length,
+
     milestonesDone: done.length,
     milestonesLate: done.filter(
       (m) => m.due_date && m.completed_at && m.completed_at.slice(0, 10) > m.due_date
     ).length,
   };
+}
+
+/* ============================================================
+   PROJECT RISK
+   ============================================================ */
+
+export type RiskReason = { label: string; detail: string };
+export type ProjectRisk = {
+  id: string;
+  name: string;
+  clientName: string | null;
+  /** Higher is worse. Sum of the reasons' weights. */
+  score: number;
+  reasons: RiskReason[];
+};
+
+/**
+ * Which projects are in trouble, and why.
+ *
+ * Deliberately arithmetic and NOT a language model. A risk flag has to be
+ * explainable to the person whose project it is: "62% done with 80% of the time
+ * gone, 3 tasks overdue" is something you can argue with and act on. "The model
+ * thinks this is risky" is neither.
+ *
+ * Every signal here is a number the system already records — which also means
+ * every flag can be checked.
+ */
+export async function projectRisk(limit = 8): Promise<ProjectRisk[]> {
+  const db = createAdminClient();
+  const today = new Date().toISOString().slice(0, 10);
+
+  const { data: projects, error } = await db
+    .from("projects")
+    .select("id, name, progress, start_date, deadline, estimated_delivery, status, clients(name)")
+    .not("status", "in", '("completed","cancelled","delivered")');
+
+  if (error) {
+    console.error("projectRisk failed", error);
+    return [];
+  }
+
+  const ids = (projects ?? []).map((p) => p.id);
+  if (!ids.length) return [];
+
+  const [{ data: tasks }, { data: logs }] = await Promise.all([
+    db.from("tasks").select("project_id, status, due_date").in("project_id", ids),
+    db
+      .from("daily_work_logs")
+      .select("project_id, work_date, blockers")
+      .in("project_id", ids)
+      .order("work_date", { ascending: false }),
+  ]);
+
+  const out: ProjectRisk[] = [];
+
+  for (const p of projects ?? []) {
+    const reasons: RiskReason[] = [];
+    let score = 0;
+
+    const progress = Number(p.progress ?? 0);
+
+    // 1. Burning time faster than progress. Only meaningful once a project has
+    //    both ends of a range — without them there is nothing to compare.
+    if (p.start_date && p.deadline) {
+      const start = +new Date(p.start_date);
+      const end = +new Date(p.deadline);
+      const span = end - start;
+      if (span > 0) {
+        const elapsed = Math.min(100, Math.max(0, ((Date.now() - start) / span) * 100));
+        // 15 points of slack: a project is allowed to be a little behind
+        // without being called at-risk every single week.
+        if (elapsed - progress > 15) {
+          score += Math.round(elapsed - progress);
+          reasons.push({
+            label: "Behind schedule",
+            detail: `${progress}% done with ${Math.round(elapsed)}% of the time gone`,
+          });
+        }
+      }
+    }
+
+    // 2. Our own estimate says we will miss the date we agreed.
+    if (p.deadline && p.estimated_delivery && p.estimated_delivery > p.deadline) {
+      const days = Math.round(
+        (+new Date(p.estimated_delivery) - +new Date(p.deadline)) / 864e5
+      );
+      score += 20;
+      reasons.push({
+        label: "Estimate past deadline",
+        detail: `${days} day${days === 1 ? "" : "s"} beyond the agreed date`,
+      });
+    }
+
+    // 3. Past the deadline entirely and still open.
+    if (p.deadline && p.deadline < today) {
+      score += 30;
+      reasons.push({ label: "Deadline passed", detail: `Was due ${p.deadline}` });
+    }
+
+    // 4. Overdue tasks.
+    const overdue = (tasks ?? []).filter(
+      (t: any) => t.project_id === p.id && t.status !== "done" && t.due_date && t.due_date < today
+    ).length;
+    if (overdue > 0) {
+      score += overdue * 5;
+      reasons.push({
+        label: "Overdue tasks",
+        detail: `${overdue} task${overdue === 1 ? "" : "s"} past their due date`,
+      });
+    }
+
+    // 5. Nobody has logged anything. Silence on a live project is its own
+    //    signal — it is how a stalled project stays invisible for a month.
+    const mine = (logs ?? []).filter((l: any) => l.project_id === p.id);
+    const last = mine[0]?.work_date;
+    const quietDays = last
+      ? Math.round((Date.now() - +new Date(last)) / 864e5)
+      : p.start_date
+        ? Math.round((Date.now() - +new Date(p.start_date)) / 864e5)
+        : 0;
+    if (quietDays >= 7) {
+      score += Math.min(25, quietDays);
+      reasons.push({
+        label: "No updates",
+        detail: last ? `Nothing logged for ${quietDays} days` : "Nothing logged at all",
+      });
+    }
+
+    // 6. Blockers raised in the last fortnight and still being repeated.
+    const recentBlockers = mine.filter(
+      (l: any) => l.blockers && +new Date(l.work_date) > Date.now() - 14 * 864e5
+    ).length;
+    if (recentBlockers >= 2) {
+      score += recentBlockers * 4;
+      reasons.push({
+        label: "Repeated blockers",
+        detail: `Raised on ${recentBlockers} days in the last fortnight`,
+      });
+    }
+
+    if (reasons.length) {
+      out.push({
+        id: p.id,
+        name: p.name,
+        clientName: (p.clients as any)?.name ?? null,
+        score,
+        reasons,
+      });
+    }
+  }
+
+  return out.sort((a, b) => b.score - a.score).slice(0, limit);
 }

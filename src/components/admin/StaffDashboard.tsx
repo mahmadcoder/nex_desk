@@ -6,7 +6,12 @@ import Avatar from "@/components/Avatar";
 import { Clock, AlertCircle, ListChecks } from "lucide-react";
 import PerformanceCard from "@/components/admin/PerformanceCard";
 import { staffPerformance } from "@/lib/insights";
-import { fmtDateLong, fmtDate } from "@/lib/datetime";
+import { fmtDateLong, fmtDate, agencyDay } from "@/lib/datetime";
+import AttendanceWidget from "@/components/admin/AttendanceWidget";
+import TimerBar from "@/components/admin/TimerBar";
+import { myAttendanceToday } from "@/lib/actions/attendance";
+import { runningTimer, myTrackedToday } from "@/lib/actions/timeTracking";
+import { humanDuration } from "@/lib/workHours";
 
 const BASE = `/${process.env.ADMIN_PATH || "nx-control"}`;
 
@@ -25,11 +30,37 @@ export default async function StaffDashboard({ me }: { me: CurrentStaff }) {
   const db = createAdminClient();
   const clientIds = await assignedClientIds(me.employeeId);
 
+  // Agency time, not UTC. `attendance.ts` keys every check-in row on
+  // `agencyDay()`, so computing the dashboard's idea of "today" from
+  // `toISOString()` made the two disagree between midnight and 5am local —
+  // the panel would read yesterday's attendance and highlight yesterday's
+  // tasks as due today.
   const weekStart = new Date();
   weekStart.setDate(weekStart.getDate() - 6);
-  const weekStartStr = weekStart.toISOString().slice(0, 10);
+  const weekStartStr = agencyDay(weekStart);
 
-  const todayStr = new Date().toISOString().slice(0, 10);
+  const todayStr = agencyDay();
+
+  // The two clocks. Both degrade to null/0 when the 2027-26 migration has not
+  // been run, so a dashboard never breaks over a feature that is not on yet.
+  const [attendance, running, trackedTodaySec] = await Promise.all([
+    myAttendanceToday(),
+    runningTimer(),
+    myTrackedToday(),
+  ]);
+
+  // Next three calls, for clients this person is actually on. Degrades to an
+  // empty list before the meetings migration.
+  const { data: upcomingMeetings } = clientIds.length
+    ? await db
+        .from("meetings")
+        .select("id, title, starts_at, join_url, clients(name)")
+        .in("client_id", clientIds)
+        .eq("status", "scheduled")
+        .gte("starts_at", new Date().toISOString())
+        .order("starts_at")
+        .limit(3)
+    : { data: [] as any[] };
 
   const [{ data: projects }, { data: myLogs }, { data: openBlockers }, { data: openTasks, error: tasksError }] = await Promise.all([
     clientIds.length
@@ -77,6 +108,15 @@ export default async function StaffDashboard({ me }: { me: CurrentStaff }) {
   }
   const myTasks = openTasks ?? [];
 
+  // Split rather than one undifferentiated list. Overdue and "today" are the
+  // only two questions anyone opens this page to answer.
+  const overdueTasks = myTasks.filter(
+    (t: any) => t.due_date && t.due_date < todayStr
+  );
+  const todayTasks = myTasks.filter(
+    (t: any) => t.due_date === todayStr || t.status === "doing"
+  );
+
   const logs = myLogs ?? [];
   const hoursThisWeek = logs.reduce((s, l) => s + Number(l.hours_spent || 0), 0);
   const blockers = (openBlockers ?? []).filter((b) => String(b.blockers || "").trim());
@@ -107,9 +147,107 @@ export default async function StaffDashboard({ me }: { me: CurrentStaff }) {
         </Link>
       </div>
 
+      {/* The clock comes first: it is the thing with a deadline attached to it,
+          and everything below is a summary that can wait. */}
+      <div className="mb-6 grid gap-4 lg:grid-cols-2">
+        {attendance && (
+          <AttendanceWidget
+            row={attendance.row}
+            verdict={attendance.verdict}
+            hours={attendance.hours}
+          />
+        )}
+        <div className="card p-4">
+          <p className="mono-tag mb-2 text-[10px]">
+            Time tracking · {humanDuration(trackedTodaySec)} today
+          </p>
+          <TimerBar
+            running={running}
+            tasks={(openTasks ?? []).map((t: any) => ({
+              id: t.id,
+              title: t.title,
+              project_id: t.project_id,
+            }))}
+          />
+        </div>
+      </div>
+
+      {/* Overdue first, and only when there is something overdue — a heading
+          that is usually empty stops being read. */}
+      {!!overdueTasks.length && (
+        <section className="card mb-6 border-amber-400/30 bg-amber-400/[0.04] p-4">
+          <p className="mono-tag mb-2 text-amber-300">
+            Overdue · {overdueTasks.length}
+          </p>
+          <ul className="space-y-1.5 text-sm">
+            {overdueTasks.slice(0, 5).map((t: any) => (
+              <li key={t.id} className="flex flex-wrap items-center justify-between gap-2">
+                <span className="text-bone-100">{t.title}</span>
+                <span className="mono-tag text-[10px] text-amber-400">
+                  due {fmtDate(t.due_date)}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
+      <div className="mb-6 grid gap-4 lg:grid-cols-2">
+        <section className="card p-4">
+          <p className="mono-tag mb-2 text-[10px]">
+            Today · {todayTasks.length} task{todayTasks.length === 1 ? "" : "s"}
+          </p>
+          {todayTasks.length ? (
+            <ul className="space-y-1.5 text-sm">
+              {todayTasks.slice(0, 6).map((t: any) => (
+                <li key={t.id} className="flex flex-wrap items-center justify-between gap-2">
+                  <span className="min-w-0 truncate text-bone-100">{t.title}</span>
+                  <span className="mono-tag shrink-0 text-[10px] capitalize">{t.status}</span>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="text-sm text-bone-400">Nothing due today.</p>
+          )}
+          <Link href={`${BASE}/tasks`} className="mono-tag mt-3 inline-block hover:text-lime-400">
+            Open the board →
+          </Link>
+        </section>
+
+        <section className="card p-4">
+          <p className="mono-tag mb-2 text-[10px]">Upcoming meetings</p>
+          {(upcomingMeetings ?? []).length ? (
+            <ul className="space-y-2 text-sm">
+              {(upcomingMeetings ?? []).map((m: any) => (
+                <li key={m.id} className="flex flex-wrap items-center justify-between gap-2">
+                  <div className="min-w-0">
+                    <p className="truncate text-bone-100">{m.title}</p>
+                    <p className="mono-tag text-[10px]">
+                      {fmtDate(m.starts_at)} · {m.clients?.name ?? ""}
+                    </p>
+                  </div>
+                  {m.join_url && (
+                    <a
+                      href={m.join_url}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="mono-tag shrink-0 text-[11px] text-lime-400 hover:underline"
+                    >
+                      Join
+                    </a>
+                  )}
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="text-sm text-bone-400">No calls booked.</p>
+          )}
+        </section>
+      </div>
+
       <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
         <Stat label="My active projects" value={String(projects?.length ?? 0)} />
-        <Stat label="Hours logged (7 days)" value={hoursThisWeek.toFixed(1)} tone="good" />
+        <Stat label="Tracked today" value={humanDuration(trackedTodaySec)} tone="good" />
         <Stat label="Entries this week" value={String(logs.length)} />
         <Stat
           label="Open blockers"

@@ -40,7 +40,21 @@ export type NotifyKind =
   // an employee changed or asked to remove their own profile photo
   | "profile.photo"
   // somebody submitted the public contact form
-  | "lead.new";
+  | "lead.new"
+  // a meeting was booked, moved or cancelled
+  | "meeting.scheduled"
+  // a client wrote in a project thread
+  | "message.received"
+  // ---- addressed to a client, in their portal ----
+  | "project.progress"
+  | "project.delivered"
+  | "invoice.paid"
+  | "file.shared"
+  | "meeting.reminder"
+  // ---- support tickets ----
+  | "ticket.raised"
+  | "ticket.replied"
+  | "ticket.resolved";
 
 export async function notify(n: {
   kind: NotifyKind;
@@ -54,13 +68,20 @@ export async function notify(n: {
   clientId?: string | null;
   /** Present ⇒ addressed to that one person. Absent ⇒ every owner/admin. */
   employeeId?: string | null;
+  /**
+   * Who reads this. Explicit rather than derived, so a client notification is
+   * always deliberate — deriving "client" from the presence of clientId would
+   * silently re-address the dozens of admin notifications that already carry a
+   * clientId for context.
+   */
+  audience?: "admins" | "employee" | "client";
   meta?: Record<string, any>;
 }): Promise<void> {
   try {
     const db = createAdminClient();
 
     const { error } = await db.from("notifications").insert({
-      audience: n.employeeId ? "employee" : "admins",
+      audience: n.audience ?? (n.employeeId ? "employee" : "admins"),
       employee_id: n.employeeId ?? null,
       kind: n.kind,
       title: n.title,

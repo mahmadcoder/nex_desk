@@ -12,7 +12,12 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     db.from("posts").select("slug, published_at").eq("is_published", true),
   ]);
 
-  const statics = ["", "/services", "/work", "/pricing", "/about", "/faq", "/checklist", "/blog", "/contact"];
+  // Privacy, terms and security were missing. All three are pages a buyer
+  // searches for by name before they contact you, so they belong here.
+  const statics = [
+    "", "/services", "/work", "/pricing", "/about", "/faq", "/checklist", "/blog", "/contact",
+    "/security", "/privacy", "/terms",
+  ];
 
   return [
     ...statics.map((p) => ({ url: `${base}${p}`, priority: p === "" ? 1 : 0.8 })),

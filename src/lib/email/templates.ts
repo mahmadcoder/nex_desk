@@ -144,6 +144,67 @@ If any of that is wrong, reply to this email and we will put it right — you do
 Nex Desk`,
   },
 
+  /**
+   * The wrapper for the handful of client notifications that also email.
+   *
+   * sendEmail REFUSES to send a template with no copy behind it, so without
+   * this entry every invoice-paid and meeting-reminder email would be silently
+   * logged as failed. The subject is always overridden per send.
+   */
+  client_update: {
+    subject: "{{headline}}",
+    body: `Hi {{client_name}},
+
+{{headline}}
+
+{{detail}}
+
+See it in your portal:
+{{portal_url}}
+
+Nex Desk`,
+  },
+
+  meeting_scheduled: {
+    subject: "{{title}} — {{when}}",
+    body: `Hi {{client_name}},
+
+Here are the details for our call. A calendar invite is attached — open it once and it drops straight into whichever calendar you use.
+
+**{{title}}**
+When: {{when}}
+Length: {{duration}}
+Join: {{join}}
+
+**What we will cover**
+{{agenda}}
+
+If that time does not work, just reply to this email and we will move it — no need to explain.
+
+You can see it any time in your portal:
+{{portal_url}}
+
+Nex Desk`,
+  },
+
+  meeting_cancelled: {
+    subject: "Cancelled: {{title}} — {{when}}",
+    body: `Hi {{client_name}},
+
+We have cancelled this one:
+
+**{{title}}**
+Was: {{when}}
+
+{{reason}}
+
+The attached invite removes it from your calendar automatically, so there is nothing for you to tidy up.
+
+Nothing else about your project changes. Reply here whenever you want to put another time in.
+
+Nex Desk`,
+  },
+
   services_updated: {
     subject: "Update on what we are doing for {{project_name}}",
     body: `Hi {{client_name}},

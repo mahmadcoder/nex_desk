@@ -32,7 +32,12 @@ export type SalaryPaymentInput = {
   employeeId: string;
   /** Any date inside the month being paid for; normalised to the 1st. */
   periodMonth: string;
+  /** BASE pay. Net is derived as amount + bonus - deductions, never stored. */
   amount: number;
+  bonus?: number;
+  deductions?: number;
+  bonusNote?: string | null;
+  deductionNote?: string | null;
   currency: string;
   paidOn?: string | null;
   method?: string | null;
@@ -74,12 +79,25 @@ export async function recordSalaryPayment(
     .from("employees").select("id, full_name, email").eq("id", employeeId).maybeSingle();
   if (!employee) return { ok: false, error: "Employee not found." };
 
+  // Clamped at zero: a negative bonus is a deduction, and letting one be
+  // entered as the other makes the payslip lie about which is which.
+  const bonus = Math.max(0, Number(input.bonus) || 0);
+  const deductions = Math.max(0, Number(input.deductions) || 0);
+
+  if (deductions > amount + bonus) {
+    return { ok: false, error: "Deductions cannot exceed the gross pay." };
+  }
+
   const currency = String(input.currency || "USD").toUpperCase();
 
   const { data, error } = await db.from("salary_payments").insert({
     employee_id: employeeId,
     period_month: period,
     amount,
+    bonus,
+    deductions,
+    bonus_note: bonus > 0 ? input.bonusNote?.trim() || null : null,
+    deduction_note: deductions > 0 ? input.deductionNote?.trim() || null : null,
     currency,
     paid_on: input.paidOn || new Date().toISOString().slice(0, 10),
     method: input.method || "bank_transfer",

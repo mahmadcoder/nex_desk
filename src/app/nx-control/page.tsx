@@ -7,10 +7,10 @@ import { money } from "@/lib/utils";
 import DashboardCurrencyTabs from "@/components/admin/DashboardCurrencyTabs";
 import StaffDashboard from "@/components/admin/StaffDashboard";
 import { getLiveExchangeRates, convertCurrency } from "@/lib/currency";
-import { atRiskClients } from "@/lib/insights";
+import { atRiskClients, projectRisk } from "@/lib/insights";
 import { expenseInvoiceIds } from "@/lib/billing";
 import { AlertTriangle } from "lucide-react";
-import { fmtDateLong, fmtDate } from "@/lib/datetime";
+import { fmtDateLong, fmtDate, agencyDay } from "@/lib/datetime";
 
 const BASE = `/${process.env.ADMIN_PATH || "nx-control"}`;
 export const metadata = { title: "Control" };
@@ -39,7 +39,10 @@ export default async function Dashboard({
   const mode = modeSource === "converted" ? "converted" : "strict";
 
   const db = createAdminClient();
-  const monthStart = new Date(new Date().setDate(1)).toISOString().slice(0, 10);
+  // Built from the agency day rather than a UTC Date. On the 1st of a month,
+  // before 5am local, the old form rolled back into the previous month and the
+  // dashboard reported a full extra month of revenue as "this month".
+  const monthStart = `${agencyDay().slice(0, 8)}01`;
 
   const [payments, invoices, projects, leads, deals, changeRequests, purchases, rates] = await Promise.all([
     db.from("payments").select("invoice_id, amount, currency, paid_on, exchange_rate, realized_base_amount").gte("paid_on", monthStart),
@@ -136,8 +139,11 @@ export default async function Dashboard({
 
   // Who is off, and what is waiting on a decision. Leave that nobody sees is
   // leave that gets approved straight into a deadline.
-  const weekEnd = new Date(Date.now() + 7 * 864e5).toISOString().slice(0, 10);
-  const todayStr = new Date().toISOString().slice(0, 10);
+  // Agency time. Leave and deadlines are stored as agency-local dates, so a
+  // UTC "today" made the owner dashboard read a day behind between midnight
+  // and 5am — exactly when someone checks whether tomorrow is covered.
+  const weekEnd = agencyDay(new Date(Date.now() + 7 * 864e5));
+  const todayStr = agencyDay();
 
   const [{ data: offSoon }, { count: pendingLeave }] = await Promise.all([
     db.from("leave_requests")
@@ -150,7 +156,7 @@ export default async function Dashboard({
   ]);
 
   // Accounts that need attention today. Totals hide all three of these.
-  const risks = await atRiskClients();
+  const [risks, projectRisks] = await Promise.all([atRiskClients(), projectRisk(6)]);
 
   const overdue = (invoices.data ?? []).filter((i) => i.status === "overdue").length;
   const newLeads = (leads.data ?? []).filter((l) => l.status === "new").length;
@@ -187,6 +193,43 @@ export default async function Dashboard({
                       }`}
                     >
                       {reason}
+                    </li>
+                  ))}
+                </ul>
+              </Link>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {!!projectRisks.length && (
+        <section className="mb-6">
+          <h2 className="mb-1 flex items-center gap-2 text-base">
+            <AlertTriangle size={15} className="text-amber-400" /> Projects at risk (
+            {projectRisks.length})
+          </h2>
+          {/* Every flag names the numbers behind it. A risk you cannot argue
+              with is a risk nobody acts on. */}
+          <p className="mb-3 text-xs text-bone-400">
+            Worked out from progress, deadlines, overdue tasks and how recently anyone logged
+            work — not a prediction.
+          </p>
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+            {projectRisks.map((r) => (
+              <Link
+                key={r.id}
+                href={BASE + "/projects/" + r.id}
+                className="card p-4 transition-colors hover:border-lime-400/40"
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <p className="min-w-0 truncate text-sm font-semibold text-bone-50">{r.name}</p>
+                  <span className="mono-tag shrink-0 text-[10px] text-amber-400">{r.score}</span>
+                </div>
+                {r.clientName && <p className="mono-tag text-[10px]">{r.clientName}</p>}
+                <ul className="mt-2 space-y-1">
+                  {r.reasons.map((reason) => (
+                    <li key={reason.label} className="text-xs leading-relaxed text-amber-300">
+                      <span className="text-bone-300">{reason.label}:</span> {reason.detail}
                     </li>
                   ))}
                 </ul>

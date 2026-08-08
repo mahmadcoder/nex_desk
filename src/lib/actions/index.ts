@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { createClient, createAdminClient } from "@/lib/supabase/server";
 import { requireStaff, requireOwnerAdmin } from "@/lib/auth/guards";
@@ -14,6 +14,8 @@ import { provisionLockedDeal } from "@/lib/deals/provision";
 import { contractPosition } from "@/lib/billing";
 import { diffFields, changeLines, CLIENT_FIELDS } from "@/lib/diff";
 import { fmtDateTime, fmtDate } from "@/lib/datetime";
+import { notifyClient } from "@/lib/actions/notifyClient";
+import { recordAudit } from "@/lib/actions/audit";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
@@ -37,13 +39,53 @@ async function audit(actorId: string, action: string, entity: string, entityId?:
 
 
 
+/**
+ * Reads the caller's IP the same way `agreements.ts` does.
+ *
+ * `x-forwarded-for` is a comma-separated chain; the first entry is the client
+ * and everything after it is a proxy.
+ */
+async function callerIp(): Promise<string | null> {
+  try {
+    const h = await headers();
+    return h.get("x-forwarded-for")?.split(",")[0].trim() || h.get("x-real-ip") || null;
+  } catch {
+    return null;
+  }
+}
+
 export async function signIn(_prev: unknown, formData: FormData) {
   const supabase = await createClient();
-  const { error } = await supabase.auth.signInWithPassword({
-    email: String(formData.get("email")),
+  const email = String(formData.get("email"));
+
+  const { data: auth, error } = await supabase.auth.signInWithPassword({
+    email,
     password: String(formData.get("password")),
   });
-  if (error) return { error: "Those details don't match an account." };
+
+  const ip = await callerIp();
+
+  if (error) {
+    // Recorded too. One failure is a typo; six against the same address in a
+    // minute is the thing an audit log exists to show you.
+    //
+    // The email only — never the password, and never the attempted one either,
+    // because people mistype their password with their OTHER password.
+    //
+    // actor_id is null by necessity: nobody authenticated, so there is no
+    // profile to attribute this to.
+    await recordAudit(null, "auth.login_failed", "profiles", null, { email }, ip);
+    return { error: "Those details don't match an account." };
+  }
+
+  await recordAudit(
+    auth.user?.id ?? null,
+    "auth.login",
+    "profiles",
+    auth.user?.id ?? null,
+    { email },
+    ip
+  );
 
   const cookieStore = await cookies();
   const now = Date.now().toString();
@@ -701,6 +743,23 @@ export async function recordPayment(data: any, notify = true) {
     );
   }
 
+  // In their portal bell as well as their inbox. The receipt email below is
+  // the record; this is so the payment is visible next time they log in
+  // without hunting through email. `alsoEmail: false` because the receipt
+  // immediately after IS the email — two would be noise.
+  await notifyClient({
+    clientId: payment.client_id,
+    kind: "invoice.paid",
+    title: settledInFull
+      ? "Payment received — you are settled in full"
+      : `Payment received — ${money(payAmount, payCurrency)}`,
+    body: projectName ? `Against ${projectName}.` : null,
+    href: "/portal/invoices",
+    entity: "payments",
+    entityId: payment.id,
+    alsoEmail: false,
+  });
+
   if (notify) {
     // 1. Client Receipt Email — the final one says so, so nobody is left
     //    wondering whether another invoice is still coming.
@@ -766,7 +825,8 @@ export async function updateProject(id: string, patch: Record<string, unknown>) 
 
   const { data: before } = await db
     .from("projects")
-    .select("id, name, status, staging_url, deadline, staging_shared_at, paused_at, client_id, clients(id, name, email)")
+    // `progress` is read so a threshold CROSSING can be detected below.
+    .select("id, name, status, progress, staging_url, deadline, staging_shared_at, paused_at, client_id, clients(id, name, email)")
     .eq("id", id)
     .maybeSingle();
 
@@ -796,6 +856,44 @@ export async function updateProject(id: string, patch: Record<string, unknown>) 
 
   await db.from("projects").update({ ...patch, ...extra }).eq("id", id);
   await audit(me.userId, "project.update", "projects", id, patch);
+
+  // ---- Client-facing notifications ----
+  //
+  // Fired on a CROSSING, not on a value. Notifying whenever progress is saved
+  // would tell a client "you reached 80%" every time anyone touched the record.
+  if (before?.client_id && patch.progress !== undefined) {
+    const from = Number(before.progress ?? 0);
+    const to = Number(patch.progress ?? 0);
+    const crossed = [25, 50, 75, 100].filter((t) => from < t && to >= t).pop();
+    if (crossed) {
+      await notifyClient({
+        clientId: before.client_id,
+        kind: "project.progress",
+        title: `${before.name} reached ${crossed}%`,
+        body:
+          crossed === 100
+            ? "The build is complete."
+            : "We will keep you posted as it moves.",
+        href: `/portal/projects/${id}`,
+        entity: "projects",
+        entityId: id,
+        projectId: id,
+      });
+    }
+  }
+
+  if (before?.client_id && nextStatus === "delivered" && before.status !== "delivered") {
+    await notifyClient({
+      clientId: before.client_id,
+      kind: "project.delivered",
+      title: `${before.name} has been delivered`,
+      body: "Everything is in your portal — files, documents and your support window.",
+      href: `/portal/projects/${id}`,
+      entity: "projects",
+      entityId: id,
+      projectId: id,
+    });
+  }
 
   // Emails are best-effort: a delivery failure must not lose the save the
   // admin just made.

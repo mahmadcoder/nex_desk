@@ -17,6 +17,14 @@ const schema = z.object({
   timeline: z.string().optional(),
   message: z.string().optional(),
   referred_by: z.string().optional(),
+  // Attribution. Optional and length-capped: these come straight off a URL a
+  // stranger controls, and an unbounded string from the open internet has no
+  // business reaching the database.
+  utm_source: z.string().max(120).optional(),
+  utm_medium: z.string().max(120).optional(),
+  utm_campaign: z.string().max(200).optional(),
+  referrer: z.string().max(500).optional(),
+  landing_page: z.string().max(500).optional(),
   website: z.string().max(0).optional(),
 });
 

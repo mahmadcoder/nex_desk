@@ -10,6 +10,7 @@ import { Loader2 } from "lucide-react";
 
 const field = "w-full rounded-lg border border-ink-500 bg-ink-800 px-3 py-2 text-sm focus:border-lime-400 focus:outline-none";
 const STATUSES = ["not_started", "in_progress", "review", "on_hold", "delivered", "completed", "cancelled"];
+const PRIORITIES = ["low", "normal", "high", "urgent"];
 
 export default function ProjectControls({
   project, clientEmail,
@@ -19,6 +20,13 @@ export default function ProjectControls({
     staging_url: project.staging_url ?? "",
     live_url: project.live_url ?? "",
     deadline: project.deadline ?? "",
+    priority: project.priority ?? "normal",
+    estimated_delivery: project.estimated_delivery ?? "",
+    // Edited as one comma-separated line and stored as text[]. A chip editor
+    // would be nicer and is not worth a second state machine here.
+    tech_stack: (project.tech_stack ?? []).join(", "),
+    client_notes: project.client_notes ?? "",
+    budget: project.budget ?? "",
   });
   const [pending, start] = useTransition();
 
@@ -38,6 +46,13 @@ export default function ProjectControls({
           staging_url: externalUrl(f.staging_url),
           live_url: externalUrl(f.live_url),
           deadline: f.deadline || null,
+          estimated_delivery: f.estimated_delivery || null,
+          tech_stack: f.tech_stack
+            .split(",")
+            .map((t: string) => t.trim())
+            .filter(Boolean),
+          client_notes: f.client_notes.trim() || null,
+          budget: f.budget === "" ? null : Number(f.budget),
           delivered_at: f.status === "delivered" ? new Date().toISOString() : project.delivered_at,
         });
         // Reflect what was actually stored, so the field shows https:// too.
@@ -95,6 +110,74 @@ export default function ProjectControls({
       <div>
         <label className="mono-tag mb-1.5 block">Deadline</label>
         <input className={field} type="date" value={f.deadline} onChange={(e) => setF({ ...f, deadline: e.target.value })} />
+        <p className="mt-1 text-[11px] text-bone-400">The agreed date. It is on the signed PDF — do not move it quietly.</p>
+      </div>
+
+      <div>
+        <label className="mono-tag mb-1.5 block">Estimated delivery</label>
+        <input
+          className={field}
+          type="date"
+          value={f.estimated_delivery}
+          onChange={(e) => setF({ ...f, estimated_delivery: e.target.value })}
+        />
+        {/* Two dates on purpose. The client's portal shows both and flags the
+            gap — which is the number they actually want and never get. */}
+        <p className="mt-1 text-[11px] text-bone-400">
+          Where you honestly think it lands. Past the deadline shows the client a slip warning.
+        </p>
+      </div>
+
+      <div>
+        <label className="mono-tag mb-1.5 block">Delivery budget</label>
+        <input
+          className={field}
+          type="number"
+          min="0"
+          step="1"
+          value={f.budget}
+          onChange={(e) => setF({ ...f, budget: e.target.value })}
+          placeholder="What you are willing to spend delivering it"
+        />
+        {/* Not the client price — that lives on the signed agreement. This is
+            what the work is allowed to cost us, and it is what the cost panel
+            measures tracked hours and expenses against. */}
+        <p className="mt-1 text-[11px] text-bone-400">
+          Internal only. Never shown to the client, and never the same thing as the deal total.
+        </p>
+      </div>
+
+      <div>
+        <label className="mono-tag mb-1.5 block">Priority</label>
+        <CustomSelect
+          value={f.priority}
+          onChange={(v) => setF({ ...f, priority: v })}
+          options={PRIORITIES.map((p) => ({ value: p, label: p }))}
+        />
+      </div>
+
+      <div>
+        <label className="mono-tag mb-1.5 block">Technology stack</label>
+        <input
+          className={field}
+          value={f.tech_stack}
+          onChange={(e) => setF({ ...f, tech_stack: e.target.value })}
+          placeholder="Next.js, Supabase, Stripe"
+        />
+        <p className="mt-1 text-[11px] text-bone-400">Comma separated. Shown as chips in the client portal.</p>
+      </div>
+
+      <div className="sm:col-span-2">
+        <label className="mono-tag mb-1.5 block">Notes for the client</label>
+        <textarea
+          className={`${field} min-h-[90px] resize-y`}
+          value={f.client_notes}
+          onChange={(e) => setF({ ...f, client_notes: e.target.value })}
+          placeholder="Anything they should know outside the day-to-day updates."
+        />
+        <p className="mt-1 text-[11px] text-bone-400">
+          The client reads this word for word on their project&apos;s Notes tab.
+        </p>
       </div>
 
       {/* Each button reports its own progress. Both simply greying out told you

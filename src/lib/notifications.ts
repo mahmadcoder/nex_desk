@@ -127,3 +127,74 @@ export async function newLeadCount(me: CurrentStaff | null): Promise<number> {
     return 0;
   }
 }
+
+/* ============================================================
+   CLIENT SIDE
+   ============================================================ */
+
+/**
+ * The portal bell.
+ *
+ * Deliberately NOT routed through `scope()` above: that function answers "which
+ * staff stream is this?" and client rows must never appear in it. Keeping them
+ * apart is what stops a client notification leaking into the admin panel and,
+ * more importantly, one client's into another's.
+ *
+ * Runs on every portal page load, so like its staff counterpart it returns 0
+ * rather than breaking the page when the migration has not been run.
+ */
+export async function unreadClientCount(clientId: string | null): Promise<number> {
+  if (!clientId) return 0;
+
+  try {
+    const { count, error } = await createAdminClient()
+      .from("notifications")
+      .select("id", { count: "exact", head: true })
+      .eq("audience", "client")
+      .eq("client_id", clientId)
+      .is("read_at", null);
+
+    if (error) {
+      console.error(
+        error.code === "42P01"
+          ? "notifications: table missing — run supabase/idempotent_fixes_2027_11.sql"
+          : "notifications: client count failed",
+        error
+      );
+      return 0;
+    }
+    return count ?? 0;
+  } catch (e) {
+    console.error("unreadClientCount failed:", e);
+    return 0;
+  }
+}
+
+export async function listClientNotifications(
+  clientId: string | null,
+  opts: { read?: boolean; limit?: number } = {}
+) {
+  if (!clientId) return [];
+
+  try {
+    let q = createAdminClient()
+      .from("notifications")
+      .select("*")
+      .eq("audience", "client")
+      .eq("client_id", clientId)
+      .order("created_at", { ascending: false })
+      .limit(opts.limit ?? 100);
+
+    q = opts.read ? q.not("read_at", "is", null) : q.is("read_at", null);
+
+    const { data, error } = await q;
+    if (error) {
+      console.error("notifications: client list failed", error);
+      return [];
+    }
+    return data ?? [];
+  } catch (e) {
+    console.error("listClientNotifications failed:", e);
+    return [];
+  }
+}

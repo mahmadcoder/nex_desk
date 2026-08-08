@@ -4,7 +4,10 @@ import { sendEmail, adminNotifyAddress } from "@/lib/email/send";
 import { getSiteBaseUrl, money } from "@/lib/utils";
 import { expenseCategoryLabel, isCriticalCategory } from "@/config/expenseCategories";
 import { notify } from "@/lib/actions/notify";
-import { fmtMonth } from "@/lib/datetime";
+import { fmtMonth, fmtDateTime, TZ_LABEL } from "@/lib/datetime";
+import { notifyClient } from "@/lib/actions/notifyClient";
+import { closeStaleTimers } from "@/lib/actions/timeTracking";
+import { materialiseRecurringTasks } from "@/lib/actions/tasks";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -734,6 +737,88 @@ export async function GET(req: Request) {
     }
   } catch (e) {
     console.error("cron: deadline warnings failed", e);
+    ran.errors++;
+  }
+
+  /* ---------- Meeting reminders -------------------------------------------
+   *
+   * Meetings starting in the next 24 hours. `reminded_at` is stamped as each
+   * one goes out, so a second run on the same day sends nothing — the cron is
+   * daily today, but a manual re-trigger or a retry must not double-remind a
+   * client about the same call.
+   * ---------------------------------------------------------------------- */
+  try {
+    const from = new Date().toISOString();
+    const to = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
+
+    const { data: soon, error: meetErr } = await db
+      .from("meetings")
+      .select("id, title, starts_at, duration_min, join_url, client_id, project_id, clients(name)")
+      .eq("status", "scheduled")
+      .is("reminded_at", null)
+      .gte("starts_at", from)
+      .lte("starts_at", to);
+
+    // 42P01/42703 = the 2027-24/25 migration has not been run. Not an error
+    // worth counting — the feature simply is not on yet.
+    if (meetErr && meetErr.code !== "42P01" && meetErr.code !== "42703") throw meetErr;
+
+    for (const m of soon ?? []) {
+      await notifyClient({
+        clientId: m.client_id,
+        kind: "meeting.reminder",
+        title: `Tomorrow: ${m.title}`,
+        body: `${fmtDateTime(m.starts_at)} (${TZ_LABEL}) · ${m.duration_min} min${
+          m.join_url ? `\n\nJoin: ${m.join_url}` : ""
+        }`,
+        href: "/portal/meetings",
+        entity: "meetings",
+        entityId: m.id,
+        projectId: m.project_id,
+      });
+
+      // Only the staff on that client, same rule as the booking itself.
+      await notify({
+        kind: "meeting.reminder",
+        title: `Tomorrow: ${m.title}`,
+        body: `${(m.clients as any)?.name ?? "Client"} · ${fmtDateTime(m.starts_at)}`,
+        href: `/${ADMIN}/meetings`,
+        entity: "meetings",
+        entityId: m.id,
+        clientId: m.client_id,
+      });
+
+      await db.from("meetings").update({ reminded_at: new Date().toISOString() }).eq("id", m.id);
+      ran.meeting_reminders = (ran.meeting_reminders ?? 0) + 1;
+    }
+  } catch (e) {
+    console.error("cron: meeting reminders failed", e);
+    ran.errors++;
+  }
+
+  /* ---------- Timers nobody stopped -----------------------------------------
+   *
+   * Someone shut their laptop. Billing a client nineteen hours for that is
+   * worse than billing too few, so the entry is capped at 12 hours and marked
+   * `manual` — which makes it stand out on the timesheet rather than looking
+   * like a real figure somebody produced.
+   * ------------------------------------------------------------------------ */
+  try {
+    ran.timers_closed = await closeStaleTimers(12);
+  } catch (e) {
+    console.error("cron: stale timer sweep failed", e);
+    ran.errors++;
+  }
+
+  /* ---------- Recurring tasks -----------------------------------------------
+   *
+   * Idempotent through `last_spawned_on`, so a manual re-trigger of this
+   * endpoint does not duplicate every recurring task in the agency.
+   * ------------------------------------------------------------------------ */
+  try {
+    ran.tasks_spawned = await materialiseRecurringTasks();
+  } catch (e) {
+    console.error("cron: recurring tasks failed", e);
     ran.errors++;
   }
 

@@ -96,6 +96,15 @@ E'Hi {{name}},\n\nWe have updated your details on our system. Here is exactly wh
 ('services_updated','Services updated','Update on what we are doing for {{project_name}}',
 E'Hi {{client_name}},\n\nWe have updated what {{project_name}} covers, so your records match ours:\n\n{{changes}}\n\n**Still included:** {{still_included}}\n\nNothing about your price, payment schedule or invoices has changed — this is only about what we are working on. If any of it looks wrong, reply and we will put it right.\n\nYou can see everything in your portal:\n{{portal_url}}\n\nNex Desk', null,'Sent when an admin changes which services a deal covers. Services are a label only — no price or invoice changes.'),
 
+('meeting_scheduled','Meeting scheduled','{{title}} — {{when}}',
+E'Hi {{client_name}},\n\nHere are the details for our call. A calendar invite is attached — open it once and it drops straight into whichever calendar you use.\n\n**{{title}}**\nWhen: {{when}}\nLength: {{duration}}\nJoin: {{join}}\n\n**What we will cover**\n{{agenda}}\n\nIf that time does not work, just reply to this email and we will move it — no need to explain.\n\nYou can see it any time in your portal:\n{{portal_url}}\n\nNex Desk', null,'Sent when a meeting is booked, moved or updated. invite.ics is attached automatically.'),
+
+('meeting_cancelled','Meeting cancelled','Cancelled: {{title}} — {{when}}',
+E'Hi {{client_name}},\n\nWe have cancelled this one:\n\n**{{title}}**\nWas: {{when}}\n\n{{reason}}\n\nThe attached invite removes it from your calendar automatically, so there is nothing for you to tidy up.\n\nNothing else about your project changes. Reply here whenever you want to put another time in.\n\nNex Desk', null,'Sent on cancellation. The attached ics uses METHOD:CANCEL so the event disappears from the attendee calendar.'),
+
+('client_update','Client portal update','{{headline}}',
+E'Hi {{client_name}},\n\n{{headline}}\n\n{{detail}}\n\nSee it in your portal:\n{{portal_url}}\n\nNex Desk', null,'Generic wrapper for the few client notifications that also email — invoice paid, project delivered, meeting reminder. Subject is overridden per send.'),
+
 ('portal_invite','Client portal invite','🔑 Your Nex Desk client portal',
 E'Hi {{client_name}},\n\nYou have a portal for {{project_name}} where you can follow progress, download every document and upload files to us.\n\n• Portal: {{portal_url}}\n• Email: {{client_email}}\n• Password: {{client_password}}\n\n**Please change your password after your first sign-in.**\n\n{{sender_name}}\nNex Desk', null,'Sent alongside the deal-locked email.'),
 

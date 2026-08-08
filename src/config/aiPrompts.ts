@@ -22,7 +22,10 @@ export type AIFieldId =
   | "service_desc"
   | "work_log"
   | "client_email"
-  | "blog_excerpt";
+  | "blog_excerpt"
+  | "meeting_summary"
+  | "task_breakdown"
+  | "bug_summary";
 
 export type AIMode = "improve" | "suggest";
 
@@ -63,6 +66,62 @@ export const AI_PROMPTS: Record<AIFieldId, PromptBuilder> = {
       mode === "improve"
         ? `Rewrite this draft, keeping every exclusion it names:\n${text}`
         : `Suggest sensible exclusions for this kind of project (for example content writing, photography, ad spend, third-party licences, hosting fees — only where they fit).`
+    }`,
+
+
+  meeting_summary: ({ text, context, mode }) =>
+    `${VOICE}
+
+You are writing up what was DECIDED in a client call, for the client to read in their portal. Only decisions, owners and dates — not a transcript, not small talk. If the input does not say what was decided, say what was discussed and leave it at that; inventing an agreement the client never made is the worst possible failure here. 40–100 words.
+
+Meeting:
+${ctxLines(context)}
+
+${
+      mode === "improve"
+        ? `Tidy these notes into something the client can read. Keep every commitment exactly as written — change no dates, names or numbers:
+${text}`
+        : `Draft the notes from the meeting details above. Where something is not stated, leave it out rather than guessing.`
+    }`,
+
+  task_breakdown: ({ text, context, mode }) =>
+    `${VOICE}
+
+You are breaking a project scope into the tasks a developer or designer would actually do. Rules:
+- One task per line, no numbering, no bullets, no headings.
+- Each line is a concrete piece of work someone can finish and tick off — "Build the checkout form validation", not "Frontend work".
+- Order them the way the work would happen.
+- Between 5 and 15 lines.
+- Cover only what the scope implies. Invent nothing, and do not add generic filler like "kick-off meeting" or "final testing" unless the scope calls for it.
+
+Project:
+${ctxLines(context)}
+
+${
+      mode === "improve"
+        ? `Rewrite this task list, keeping every task it contains:
+${text}`
+        : `Write the task list from the project details above.`
+    }`,
+
+
+  bug_summary: ({ text, context, mode }) =>
+    `${VOICE}
+
+You are turning a support ticket written by a non-technical client into something a developer can act on. Produce exactly three short labelled lines and nothing else:
+
+Problem: what is actually broken, in one sentence.
+Steps: what the client did, as far as the message says.
+Needed: the specific information missing to reproduce it — or "nothing, this is reproducible" if the message is already complete.
+
+Do NOT guess at a cause, and do NOT invent steps the client did not describe. A confident wrong diagnosis costs more time than no diagnosis.
+
+Ticket:
+${ctxLines(context)}
+
+${
+      mode === "improve" ? `Tighten this summary:
+${text}` : `Summarise the ticket above.`
     }`,
 
   faq_answer: ({ text, context, mode }) =>

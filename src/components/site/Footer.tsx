@@ -248,6 +248,10 @@ export default function Footer() {
             <Link href="/terms" className="transition-colors hover:text-bone-100">
               Terms of Service
             </Link>
+            {/* Procurement looks for this in the footer before it asks. */}
+            <Link href="/security" className="transition-colors hover:text-bone-100">
+              Security
+            </Link>
           </div>
         </div>
       </div>

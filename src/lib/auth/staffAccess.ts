@@ -26,7 +26,41 @@ const STAFF_ALLOWED_SEGMENTS = [
   // `avatar_url` matched on the caller's user_id, never an id from the client.
   "profile",
   "login",
+
+  // ---- Added alongside the screens themselves ----------------------------
+  //
+  // Each of these is in STAFF_NAV and each scopes itself server-side. They
+  // were missing from this list, so a staff member clicking their own sidebar
+  // was silently bounced back to the dashboard.
+
+  // The Kanban. Scoped twice in the query: `assigned_employee_id = me`, then
+  // filtered again against `assignedClientIds`.
+  "tasks",
+  // Meetings, deadlines, milestones and their own leave — every source scoped
+  // to their assigned clients inside the page.
+  "calendar",
+  // Only meetings for clients they are assigned to, and they cannot book.
+  "meetings",
+  // Tickets for their assigned clients. `visibleTickets` fails closed.
+  "tickets",
+  // The handbook is FOR staff. Every employee reads; owner/admin write.
+  "handbook",
 ];
+
+/**
+ * Deliberately still closed to staff, and why — so the next person adding a
+ * route knows this list is a decision rather than an oversight:
+ *
+ *   hr, recruitment, payroll  — salaries and applicants' expected salaries
+ *   attendance, timesheets    — everyone else's hours and lateness
+ *   reports, insights, profit — margin, lifetime client value, cost per hour
+ *   audit                     — who changed and deleted what, agency-wide
+ *   leads, deals, invoices    — money and the pipeline
+ *   employees, settings       — the team's records and agency configuration
+ *
+ * The allowlist fails closed, so a new route is unreachable by staff until it
+ * is added here on purpose.
+ */
 
 /** True when a role may open the given path under the admin base. */
 export function canStaffAccess(role: string, pathname: string, base: string): boolean {

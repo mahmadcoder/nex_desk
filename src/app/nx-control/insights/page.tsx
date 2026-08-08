@@ -1,4 +1,5 @@
 import { cookies } from "next/headers";
+import { createAdminClient } from "@/lib/supabase/server";
 import { getCurrentStaff } from "@/lib/auth/staff";
 import { PageHead, Stat } from "@/components/admin/ui";
 import { PlatformIcon } from "@/components/brand/PlatformIcons";
@@ -45,12 +46,42 @@ export default async function InsightsPage({
     range = rangeFor(key);
   }
 
-  const [sources, timeline, delivery, pipeline] = await Promise.all([
+  const [sources, timeline, delivery, pipeline, { data: rangeLeads }] = await Promise.all([
     clientsBySource(range),
     overTime(range),
     deliveryStats(range),
     pipelineInRange(range),
+    // Attribution. Rows before the 2027-28 migration simply have nulls, which
+    // group under "Direct / unknown" rather than breaking the panel.
+    createAdminClient()
+      .from("leads")
+      .select("status, utm_source, utm_campaign, referrer, landing_page")
+      .gte("created_at", range.from)
+      .lte("created_at", range.to + "T23:59:59"),
   ]);
+
+  /** Group leads by a field, counting how many of each were won. */
+  const attributionBy = (key: "utm_source" | "landing_page") => {
+    const map = new Map<string, { total: number; won: number }>();
+    for (const l of rangeLeads ?? []) {
+      const raw = (l as any)[key];
+      // A lead with no utm arrived by a route nobody tagged — saying so is
+      // more honest than dropping it from the count entirely.
+      const label = raw?.trim() || (key === "utm_source" ? "Direct / untagged" : "—");
+      const row = map.get(label) ?? { total: 0, won: 0 };
+      row.total++;
+      if (l.status === "won") row.won++;
+      map.set(label, row);
+    }
+    return [...map.entries()]
+      .map(([label, v]) => ({ label, ...v }))
+      .sort((a, b) => b.total - a.total)
+      .slice(0, 8);
+  };
+
+  const bySource = attributionBy("utm_source");
+  const byPage = attributionBy("landing_page");
+  const totalLeads = (rangeLeads ?? []).length;
 
   const newClients = timeline.months.reduce((s, m) => s + m.clients, 0);
   const collected = timeline.currencies.map((cur) => ({
@@ -90,6 +121,21 @@ export default async function InsightsPage({
           tone={delivery.onTimeRate !== null && delivery.onTimeRate < 60 ? "warn" : "default"}
         />
       </div>
+
+      {/* ── Lead attribution ─────────────────────────────────────── */}
+      {totalLeads > 0 && (
+        <section className="mt-8">
+          <h2 className="text-base">Where leads come from</h2>
+          <p className="mb-3 mt-1 text-xs leading-relaxed text-bone-300">
+            {totalLeads} lead{totalLeads === 1 ? "" : "s"} in this range. Won-rate matters more
+            than volume — a page that sends thirty leads and closes none is costing you time.
+          </p>
+          <div className="grid gap-4 lg:grid-cols-2">
+            <AttributionTable title="By campaign source" rows={bySource} />
+            <AttributionTable title="By landing page" rows={byPage} />
+          </div>
+        </section>
+      )}
 
       {/* ── Where clients come from ─────────────────────────────── */}
       <section className="mt-8">
@@ -263,5 +309,54 @@ export default async function InsightsPage({
         </div>
       </section>
     </>
+  );
+}
+
+/**
+ * Leads grouped by where they came from, with the won-rate beside the count.
+ *
+ * Volume alone is misleading: a landing page that sends thirty leads and closes
+ * none is worse than one that sends four and closes two, and only the second
+ * column tells you which is which.
+ */
+function AttributionTable({
+  title,
+  rows,
+}: {
+  title: string;
+  rows: { label: string; total: number; won: number }[];
+}) {
+  if (!rows.length) return null;
+  const max = Math.max(...rows.map((r) => r.total), 1);
+
+  return (
+    <div className="card p-5">
+      <p className="mono-tag mb-3">{title}</p>
+      <ul className="space-y-2.5">
+        {rows.map((r) => (
+          <li key={r.label}>
+            <div className="flex items-baseline justify-between gap-3 text-sm">
+              <span className="min-w-0 truncate text-bone-200" title={r.label}>
+                {r.label}
+              </span>
+              <span className="shrink-0 text-bone-400">
+                {r.total}
+                {r.won > 0 && (
+                  <span className="ml-1.5 text-lime-400">
+                    · {Math.round((r.won / r.total) * 100)}% won
+                  </span>
+                )}
+              </span>
+            </div>
+            <div className="mt-1 h-1 w-full overflow-hidden rounded-full bg-ink-700">
+              <div
+                className="h-full rounded-full bg-lime-400/60"
+                style={{ width: `${(r.total / max) * 100}%` }}
+              />
+            </div>
+          </li>
+        ))}
+      </ul>
+    </div>
   );
 }

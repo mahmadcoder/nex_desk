@@ -4,6 +4,7 @@ import { getCurrentStaff, assignedClientIds } from "@/lib/auth/staff";
 import { PageHead, Table, Empty } from "@/components/admin/ui";
 import { moneyMulti, sumByCurrency } from "@/lib/utils";
 import ClientDialog from "@/components/admin/ClientDialog";
+import RequestDetailsClient from "@/components/admin/RequestDetailsClient";
 import { PlatformIcon } from "@/components/brand/PlatformIcons";
 
 const BASE = `/${process.env.ADMIN_PATH || "nx-control"}`;
@@ -71,7 +72,16 @@ export default async function ClientsPage({
             ? "Everyone you've worked with and their acquisition channels."
             : "The clients you are assigned to."
         }
-        action={canManage ? <ClientDialog /> : undefined}
+        action={
+          canManage ? (
+            <span className="flex flex-wrap items-center gap-2">
+              {/* After a call: send the checklist instead of typing their
+                  billing address off a WhatsApp thread. */}
+              <RequestDetailsClient kind="client" />
+              <ClientDialog />
+            </span>
+          ) : undefined
+        }
       />
 
       {canManage && !!dormantCount && (

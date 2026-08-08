@@ -8,7 +8,7 @@ import { cn } from "@/lib/utils";
 import {
   LayoutDashboard, Inbox, Users, Handshake, FolderKanban,
   Receipt, FileText, Mail, Settings, LogOut, Menu, X,
-  MessageSquareQuote, Briefcase, Layers, BookOpen, HelpCircle, UserCheck, Clock, CalendarDays, PackageCheck, TrendingUp, CalendarClock, Bell, Wallet, Scale, ShoppingBag, UserCircle, BarChart3
+  MessageSquareQuote, Briefcase, Layers, BookOpen, HelpCircle, UserCheck, Clock, ListChecks, CalendarDays, PackageCheck, TrendingUp, CalendarClock, Bell, Wallet, Scale, ShoppingBag, UserCircle, BarChart3, ShieldCheck, Building2, UserPlus, LifeBuoy, FileSpreadsheet, ClipboardList
 } from "lucide-react";
 import Avatar from "@/components/Avatar";
 
@@ -19,12 +19,22 @@ const NAV_SECTIONS = [
       { href: "", label: "Dashboard", icon: LayoutDashboard },
       { href: "/notifications", label: "Notifications", icon: Bell },
       { href: "/leads", label: "Leads", icon: Inbox },
+      { href: "/intake", label: "Onboarding", icon: ClipboardList },
       { href: "/clients", label: "Clients", icon: Users },
       { href: "/employees", label: "Employees & Staff", icon: UserCheck },
+      { href: "/hr", label: "HR & Departments", icon: Building2 },
+      { href: "/recruitment", label: "Recruitment", icon: UserPlus },
+      { href: "/payroll", label: "Payroll Run", icon: Wallet },
       { href: "/daily-logs", label: "Daily Work Logs", icon: Clock },
+      { href: "/meetings", label: "Meetings", icon: CalendarClock },
+      { href: "/tickets", label: "Support Tickets", icon: LifeBuoy },
+      { href: "/attendance", label: "Attendance", icon: UserCheck },
+      { href: "/timesheets", label: "Timesheets", icon: Clock },
       { href: "/leave", label: "Leave", icon: CalendarDays },
       { href: "/deals", label: "Deals", icon: Handshake },
       { href: "/projects", label: "Projects", icon: FolderKanban },
+      { href: "/tasks", label: "Task Board", icon: ListChecks },
+      { href: "/calendar", label: "Calendar", icon: CalendarDays },
       { href: "/completed", label: "Completed", icon: PackageCheck },
       { href: "/invoices", label: "Invoices", icon: Receipt },
       { href: "/expenses", label: "Agency Expenses", icon: Wallet },
@@ -32,6 +42,7 @@ const NAV_SECTIONS = [
       { href: "/forecast", label: "Cash Flow", icon: CalendarClock },
       { href: "/books", label: "Money In & Out", icon: Scale },
       { href: "/insights", label: "Insights", icon: BarChart3 },
+      { href: "/reports", label: "Reports", icon: FileSpreadsheet },
       { href: "/purchases", label: "Purchases", icon: ShoppingBag },
       { href: "/documents", label: "Documents", icon: FileText },
       { href: "/emails", label: "Email Centre", icon: Mail },
@@ -51,6 +62,8 @@ const NAV_SECTIONS = [
   {
     title: "SETTINGS",
     items: [
+      { href: "/handbook", label: "Handbook", icon: BookOpen },
+      { href: "/audit", label: "Audit Log", icon: ShieldCheck },
       { href: "/settings", label: "Settings", icon: Settings },
     ],
   },
@@ -69,8 +82,14 @@ const STAFF_NAV = [
       { href: "/notifications", label: "Notifications", icon: Bell },
       { href: "/clients", label: "My Clients", icon: Users },
       { href: "/projects", label: "My Projects", icon: FolderKanban },
+      { href: "/tasks", label: "My Tasks", icon: ListChecks },
+      { href: "/calendar", label: "Calendar", icon: CalendarDays },
       { href: "/daily-logs", label: "Daily Work Logs", icon: Clock },
+      // Scoped to their assigned clients only — enforced on the page itself.
+      { href: "/meetings", label: "My Meetings", icon: CalendarClock },
+      { href: "/tickets", label: "Tickets", icon: LifeBuoy },
       { href: "/leave", label: "My Leave", icon: CalendarDays },
+      { href: "/handbook", label: "Handbook", icon: BookOpen },
       { href: "/my-pay", label: "My Pay", icon: Wallet },
       { href: "/profile", label: "My Profile", icon: UserCircle },
     ],

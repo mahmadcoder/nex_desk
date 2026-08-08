@@ -23,17 +23,24 @@ const GROUPS: Record<string, string[]> = {
 export default async function ProjectsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ status?: string; q?: string }>;
+  searchParams: Promise<{ status?: string; q?: string; archived?: string }>;
 }) {
   const me = await getCurrentStaff();
   if (!me) return null;
 
-  const { status, q } = await searchParams;
+  const { status, q, archived } = await searchParams;
+  const showArchived = archived === "1";
 
   const canManage = me.isPrivileged;
   const db = createAdminClient();
 
   let query = db.from("projects").select("*, clients(name, company)").order("deadline");
+
+  // Archived projects are hidden by default. `is null` rather than a flag
+  // comparison, because the column is null for everything never archived.
+  query = showArchived
+    ? query.not("archived_at", "is", null)
+    : query.is("archived_at", null);
 
   // Staff see only projects belonging to clients they are assigned to.
   if (!canManage) {
@@ -77,7 +84,23 @@ export default async function ProjectsPage({
     <>
       <PageHead
         title={canManage ? "Projects" : "My Projects"}
-        sub={canManage ? "Everything currently on the desk." : "Projects for the clients you are assigned to."}
+        sub={
+          showArchived
+            ? "Archived projects. Everything is still here — nothing was deleted."
+            : canManage
+              ? "Everything currently on the desk."
+              : "Projects for the clients you are assigned to."
+        }
+        action={
+          canManage ? (
+            <Link
+              href={showArchived ? `${BASE}/projects` : `${BASE}/projects?archived=1`}
+              className="mono-tag text-[11px] hover:text-lime-400"
+            >
+              {showArchived ? "← back to active" : "view archived"}
+            </Link>
+          ) : undefined
+        }
       />
 
       {!!all.length && (

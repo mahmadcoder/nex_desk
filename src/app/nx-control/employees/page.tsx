@@ -12,9 +12,11 @@ export const revalidate = 0;
 export default async function EmployeesPage() {
   const db = createAdminClient();
 
-  const [{ data: employees }, { data: jobTitles }] = await Promise.all([
+  const [{ data: employees }, { data: jobTitles }, { data: departments }] = await Promise.all([
     db.from("employees").select("*").order("created_at", { ascending: false }),
     db.from("employee_job_titles").select("*").order("category"),
+    // Null before the 2027-30 migration; the picker then simply does not render.
+    db.from("departments").select("id, name").order("name"),
   ]);
 
   const DEFAULT_JOB_TITLES = [
@@ -33,6 +35,7 @@ export default async function EmployeesPage() {
       <EmployeesClient
         employees={employees ?? []}
         jobTitles={jobTitles?.length ? jobTitles : DEFAULT_JOB_TITLES}
+        departments={departments ?? []}
       />
     </div>
   );

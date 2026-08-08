@@ -984,6 +984,15 @@ export async function submitDailyWorkLog(data: {
   progress_delta?: number;
   /** Answers to the per-service fields, keyed by field id. */
   metrics?: Record<string, string | boolean | number>;
+  /**
+   * Where `hours_spent` came from — the timer, or a person's judgement.
+   *
+   * `adjusted` means a tracked figure was overridden, and `hours_tracked`
+   * keeps the original. Recording this is what makes somebody who adjusts
+   * every single day visible, without anyone being accused of anything.
+   */
+  hours_source?: "manual" | "tracked" | "adjusted";
+  hours_tracked?: number | null;
 }) {
   // Staff-accessible: logging your own work is the whole point of this screen.
   await requireStaff();
@@ -1008,6 +1017,8 @@ export async function submitDailyWorkLog(data: {
     project_title: data.project_title || null,
     work_date: data.work_date,
     hours_spent: data.hours_spent,
+    hours_source: data.hours_source ?? "manual",
+    hours_tracked: data.hours_tracked ?? null,
     tasks_completed: data.tasks_completed,
     blockers: data.blockers || null,
     proof_url: data.proof_url || null,

@@ -4,8 +4,10 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { ListChecks, Plus, Trash2, CalendarDays } from "lucide-react";
+import SuggestTasks from "@/components/admin/SuggestTasks";
+import { setTaskRecurrence } from "@/lib/actions/tasks";
 import { saveTask, toggleTask, deleteTask } from "@/lib/actions/tasks";
-import { fmtDate } from "@/lib/datetime";
+import { fmtDate, agencyDay } from "@/lib/datetime";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
@@ -26,12 +28,15 @@ export default function TasksCard({
   employees,
   canManage,
   myEmployeeId,
+  aiContext,
 }: {
   projectId: string;
   tasks: any[];
   employees: { id: string; full_name: string }[];
   canManage: boolean;
   myEmployeeId: string | null;
+  /** Scope and deliverables, for the task suggester. Absent = no button. */
+  aiContext?: Record<string, string>;
 }) {
   const router = useRouter();
   const [pending, start] = useTransition();
@@ -94,8 +99,11 @@ export default function TasksCard({
     });
   }
 
+  // Agency time. `toISOString()` is UTC, so between midnight and 5am local a
+  // task due yesterday stopped showing as overdue — and due dates are set in
+  // agency time everywhere else.
   const overdue = (t: any) =>
-    t.due_date && t.status !== "done" && t.due_date < new Date().toISOString().slice(0, 10);
+    t.due_date && t.status !== "done" && t.due_date < agencyDay();
 
   return (
     <section className="card space-y-3 border-ink-600 p-5">
@@ -105,9 +113,12 @@ export default function TasksCard({
           {!!open.length && <span className="mono-tag text-[11px]">{open.length} open</span>}
         </h2>
         {canManage && !adding && (
-          <button type="button" onClick={() => setAdding(true)} className="btn btn-sm gap-1.5">
-            <Plus size={13} /> Add
-          </button>
+          <div className="flex items-center gap-3">
+            {aiContext && <SuggestTasks projectId={projectId} context={aiContext} />}
+            <button type="button" onClick={() => setAdding(true)} className="btn btn-sm gap-1.5">
+              <Plus size={13} /> Add
+            </button>
+          </div>
         )}
       </div>
 
@@ -193,14 +204,43 @@ export default function TasksCard({
                   </p>
                 </div>
                 {canManage && (
-                  <button
-                    type="button"
-                    onClick={() => remove(t)}
-                    title="Remove"
-                    className="mt-0.5 shrink-0 text-bone-400 hover:text-rose-400"
-                  >
-                    <Trash2 size={13} />
-                  </button>
+                  <div className="mt-0.5 flex shrink-0 items-center gap-2">
+                    {/* Turning a task recurring makes it a template: it leaves
+                        the board and starts producing dated copies instead. */}
+                    <select
+                      value=""
+                      onChange={(e) => {
+                        const v = e.target.value;
+                        if (!v) return;
+                        start(async () => {
+                          const res = await setTaskRecurrence(
+                            t.id,
+                            v as "daily" | "weekly" | "monthly"
+                          );
+                          if (!res.ok) toast.error(res.error ?? "Could not set that.");
+                          else toast.success("Now recurring — a fresh copy appears each period.");
+                          router.refresh();
+                        });
+                      }}
+                      title="Repeat this task"
+                      aria-label="Repeat this task"
+                      className="rounded border border-ink-600 bg-ink-800 px-1 py-0.5 text-[10px] text-bone-400 hover:text-bone-200"
+                    >
+                      <option value="">↻</option>
+                      <option value="daily">Every day</option>
+                      <option value="weekly">Every week</option>
+                      <option value="monthly">Every month</option>
+                    </select>
+
+                    <button
+                      type="button"
+                      onClick={() => remove(t)}
+                      title="Remove"
+                      className="text-bone-400 hover:text-rose-400"
+                    >
+                      <Trash2 size={13} />
+                    </button>
+                  </div>
                 )}
               </li>
             );

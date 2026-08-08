@@ -4,6 +4,9 @@ import { DocHeader, DocFooter, Field, fmt, date, docAgency } from "./parts";
 import { CONTACT_EMAIL, CONTACT_WHATSAPP, getSiteBaseUrl } from "@/lib/utils";
 import { warrantyTerms } from "@/lib/warranty";
 import { agencyDay } from "@/lib/datetime";
+import { SUB_PROCESSORS } from "@/config/subprocessors";
+import { SECURITY_SECTIONS, SECURITY_PREAMBLE } from "@/config/security";
+import { intakeFieldsFor, intakeTitleFor } from "@/config/intakeFields";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
@@ -950,3 +953,630 @@ export function AgencyTemplatePdfDocument({
   );
 }
 
+
+/**
+ * A payslip for one recorded salary payment.
+ *
+ * Net is computed here from base + bonus − deductions rather than read from a
+ * stored total: a bonus corrected after the fact must change the payslip, and a
+ * denormalised net is exactly the field that would be left behind.
+ *
+ * Every line carries its reason. A deduction with no explanation on the slip is
+ * how trust in payroll evaporates.
+ */
+export function PayslipDoc({
+  payment,
+  employee,
+}: {
+  payment: any;
+  employee: any;
+}) {
+  const no = `PS-${String(payment.id).slice(0, 8).toUpperCase()}`;
+  const currency = String(payment.currency || employee.salary_currency || "USD");
+
+  const base = Number(payment.amount ?? 0);
+  const bonus = Number(payment.bonus ?? 0);
+  const deductions = Number(payment.deductions ?? 0);
+  const net = base + bonus - deductions;
+
+  const period = new Date(payment.period_month).toLocaleDateString("en-GB", {
+    month: "long",
+    year: "numeric",
+  });
+
+  const lines: [string, string, string][] = [
+    ["Base salary", "Agreed monthly pay", fmt(base, currency)],
+  ];
+  if (bonus > 0) {
+    lines.push(["Bonus", String(payment.bonus_note || "Discretionary"), `+ ${fmt(bonus, currency)}`]);
+  }
+  if (deductions > 0) {
+    lines.push([
+      "Deductions",
+      String(payment.deduction_note || "As agreed"),
+      `− ${fmt(deductions, currency)}`,
+    ]);
+  }
+
+  return (
+    <Document title={`Payslip — ${employee.full_name} — ${period}`} author="Nex Desk">
+      <Page size="A4" style={s.page}>
+        <DocHeader type="Payslip" number={no} />
+
+        <View style={{ marginTop: 26 }}>
+          <View style={[s.row, { alignItems: "center" }]}>
+            <Text style={s.h1}>{period}</Text>
+            <Text style={s.badge}>{String(employee.employment_type || "Full-Time")}</Text>
+          </View>
+          <Text style={s.muted}>
+            {employee.full_name}
+            {employee.job_title ? ` · ${employee.job_title}` : ""}
+          </Text>
+        </View>
+
+        <View style={s.cols}>
+          <View style={s.col}>
+            <Text style={s.label}>Paid to</Text>
+            <Text style={{ fontWeight: 500 }}>{employee.full_name}</Text>
+            <Text>{employee.email}</Text>
+          </View>
+          <View style={s.col}>
+            <Text style={s.label}>Paid by</Text>
+            <Text style={{ fontWeight: 500 }}>{docAgency().name}</Text>
+            <Text>{docAgency().location}</Text>
+          </View>
+          <View style={s.col}>
+            <View style={{ marginBottom: 8 }}>
+              <Text style={s.label}>Paid on</Text>
+              <Text>{date(payment.paid_on)}</Text>
+            </View>
+            <View>
+              <Text style={s.label}>Method</Text>
+              <Text>{String(payment.method || "bank transfer").replace(/_/g, " ")}</Text>
+            </View>
+          </View>
+        </View>
+
+        <Text style={s.h2}>Breakdown</Text>
+        <View style={s.table}>
+          <View style={s.th}>
+            <Text style={[s.thText, { flex: 2 }]}>Item</Text>
+            <Text style={[s.thText, { flex: 3 }]}>Detail</Text>
+            <Text style={[s.thText, { flex: 1.6, textAlign: "right" }]}>Amount</Text>
+          </View>
+          {lines.map(([k, detail, amount]) => (
+            <View key={k} style={s.tr}>
+              <Text style={{ flex: 2 }}>{k}</Text>
+              <Text style={[{ flex: 3 }, s.muted]}>{detail}</Text>
+              <Text style={{ flex: 1.6, textAlign: "right" }}>{amount}</Text>
+            </View>
+          ))}
+        </View>
+
+        <View style={s.totals}>
+          <View style={s.totalRow}>
+            <Text style={s.muted}>Gross</Text>
+            <Text>{fmt(base + bonus, currency)}</Text>
+          </View>
+          <View style={s.totalRow}>
+            <Text style={s.muted}>Deductions</Text>
+            <Text>{deductions > 0 ? `− ${fmt(deductions, currency)}` : fmt(0, currency)}</Text>
+          </View>
+          <View style={s.grand}>
+            <Text style={s.grandText}>Net paid</Text>
+            <Text style={s.grandText}>{fmt(net, currency)}</Text>
+          </View>
+        </View>
+
+        {payment.reference && (
+          <>
+            <Text style={[s.label, { marginTop: 22 }]}>Reference</Text>
+            <Text>{payment.reference}</Text>
+          </>
+        )}
+
+        {payment.note && (
+          <>
+            <Text style={[s.label, { marginTop: 14 }]}>Note</Text>
+            <Text style={{ lineHeight: 1.7 }}>{payment.note}</Text>
+          </>
+        )}
+
+        <View style={s.callout}>
+          <Text style={{ fontWeight: 500, marginBottom: 4 }}>Anything wrong?</Text>
+          <Text>
+            Tell us within 30 days and we will correct it on the next run. This payslip is
+            generated from the payment record, so a correction there reissues this document.
+          </Text>
+        </View>
+
+        <DocFooter number={no} />
+      </Page>
+    </Document>
+  );
+}
+
+/**
+ * A mutual non-disclosure agreement.
+ *
+ * Deliberately short and mutual. A one-sided NDA that only binds the client is
+ * the kind of thing a lawyer strikes out and a founder resents, and this is
+ * usually signed before there is any relationship to spend goodwill from.
+ *
+ * The terms are FIXED here, not generated — an LLM inventing confidentiality
+ * clauses for a document people actually sign is a liability, not a feature.
+ */
+export function NdaDoc({ client }: { client: any }) {
+  const no = `NDA-${String(client.id).slice(0, 8).toUpperCase()}`;
+  const today = date(new Date().toISOString());
+  const them = client.company?.trim() || client.name;
+
+  return (
+    <Document title={`Mutual NDA — ${them}`} author="Nex Desk">
+      <Page size="A4" style={s.page}>
+        <DocHeader type="Mutual non-disclosure" number={no} />
+
+        <View style={{ marginTop: 26 }}>
+          <Text style={s.h1}>Mutual non-disclosure agreement</Text>
+          <Text style={s.muted}>
+            Between {docAgency().name} and {them}, dated {today}.
+          </Text>
+        </View>
+
+        <View style={s.cols}>
+          <View style={s.col}>
+            <Text style={s.label}>Party A</Text>
+            <Text style={{ fontWeight: 500 }}>{docAgency().name}</Text>
+            <Text>{CONTACT_EMAIL}</Text>
+            <Text>{docAgency().location}</Text>
+          </View>
+          <View style={s.col}>
+            <Text style={s.label}>Party B</Text>
+            <Text style={{ fontWeight: 500 }}>{them}</Text>
+            {client.email && <Text>{client.email}</Text>}
+            {[client.city, client.country].filter(Boolean).length > 0 && (
+              <Text>{[client.city, client.country].filter(Boolean).join(", ")}</Text>
+            )}
+          </View>
+          <View style={s.col}>
+            <Text style={s.label}>Date</Text>
+            <Text>{today}</Text>
+          </View>
+        </View>
+
+        <Text style={s.h2}>1. What this covers</Text>
+        <Text style={{ lineHeight: 1.7 }}>
+          Each party may share information the other would not otherwise have — designs, code,
+          pricing, customer lists, business plans, credentials, or anything clearly marked
+          confidential. This agreement covers that information in both directions equally.
+        </Text>
+
+        <Text style={s.h2}>2. What each party agrees</Text>
+        <Text style={{ lineHeight: 1.7 }}>
+          To use the other&apos;s confidential information only for the purpose of working
+          together; not to share it with anyone outside their own team without written
+          permission; and to protect it with at least the same care they apply to their own
+          confidential information.
+        </Text>
+
+        <Text style={s.h2}>3. What this does not cover</Text>
+        <Text style={{ lineHeight: 1.7 }}>
+          Information that is already public, was already known before it was shared, is
+          received independently from someone entitled to share it, or is developed
+          independently without using the other party&apos;s information. Nor does it prevent a
+          disclosure required by law or a court — in which case the disclosing party will say so
+          in advance where it is lawful to do.
+        </Text>
+
+        <Text style={s.h2}>4. How long it lasts</Text>
+        <Text style={{ lineHeight: 1.7 }}>
+          Three years from the date above, or for as long as the information stays confidential,
+          whichever ends first. Either party may end the discussions at any time; the obligations
+          in section 2 survive.
+        </Text>
+
+        <Text style={s.h2}>5. Returning things</Text>
+        <Text style={{ lineHeight: 1.7 }}>
+          On request, each party will return or delete the other&apos;s confidential information,
+          apart from copies held automatically in backups and anything a party must keep by law.
+        </Text>
+
+        <Text style={s.h2}>6. What this is not</Text>
+        <Text style={{ lineHeight: 1.7 }}>
+          This is not a contract to do work, an exclusivity arrangement, or a transfer of
+          ownership. Nothing here obliges either party to enter any further agreement, and
+          nothing in it grants a licence to the other&apos;s intellectual property.
+        </Text>
+
+        <View style={s.callout}>
+          <Text style={{ fontWeight: 500, marginBottom: 4 }}>In short</Text>
+          <Text>
+            Both sides keep the other&apos;s private information private, for three years, and
+            neither side is committed to anything beyond that.
+          </Text>
+        </View>
+
+        <View style={[s.cols, { marginTop: 30 }]}>
+          <View style={s.col}>
+            <Text style={s.label}>Signed for {docAgency().name}</Text>
+            <View style={{ borderBottomWidth: 1, borderBottomColor: C.line, marginTop: 26 }} />
+            <Text style={[s.muted, { marginTop: 4 }]}>Name, signature and date</Text>
+          </View>
+          <View style={s.col}>
+            <Text style={s.label}>Signed for {them}</Text>
+            <View style={{ borderBottomWidth: 1, borderBottomColor: C.line, marginTop: 26 }} />
+            <Text style={[s.muted, { marginTop: 4 }]}>Name, signature and date</Text>
+          </View>
+        </View>
+
+        <DocFooter number={no} />
+      </Page>
+    </Document>
+  );
+}
+
+/* ============================================================
+   SUB-PROCESSORS — shared by the DPA and the security document
+   ============================================================ */
+
+/**
+ * One table, two documents.
+ *
+ * Both read `config/subprocessors.ts`, so the list a client sees in the DPA and
+ * the list on the security page cannot drift apart. That matters more than it
+ * looks: a DPA naming a service you dropped is a false written statement.
+ */
+function SubProcessorTable() {
+  return (
+    <View style={s.table}>
+      <View style={s.th}>
+        <Text style={[s.thText, { flex: 1.1 }]}>Service</Text>
+        <Text style={[s.thText, { flex: 2.2 }]}>What it does</Text>
+        <Text style={[s.thText, { flex: 1.4 }]}>Where</Text>
+      </View>
+      {SUB_PROCESSORS.map((p) => (
+        <View key={p.name} style={s.tr} wrap={false}>
+          <View style={{ flex: 1.1, paddingRight: 6 }}>
+            <Text style={{ fontWeight: 500 }}>{p.name}</Text>
+            {!p.handlesPersonalData && (
+              <Text style={[s.muted, { fontSize: 8.5 }]}>no personal data</Text>
+            )}
+          </View>
+          <Text style={{ flex: 2.2, paddingRight: 6 }}>{p.purpose}</Text>
+          <Text style={[s.muted, { flex: 1.4 }]}>{p.location}</Text>
+        </View>
+      ))}
+    </View>
+  );
+}
+
+/**
+ * A data processing agreement.
+ *
+ * The document a cautious buyer asks for before signing anything. Building
+ * their software means we can see their customers' personal data: they are the
+ * controller, we are the processor, and Article 28 of the GDPR requires that
+ * arrangement to be in writing with specific terms in it.
+ *
+ * Like the NDA, the clauses are FIXED. Nothing here is generated — a model
+ * inventing a breach-notification window for a document somebody signs is a
+ * liability, not a feature.
+ */
+export function DpaDoc({ client }: { client: any }) {
+  const no = `DPA-${String(client.id).slice(0, 8).toUpperCase()}`;
+  const today = date(new Date().toISOString());
+  const them = client.company?.trim() || client.name;
+  const us = docAgency().name;
+
+  return (
+    <Document title={`Data Processing Agreement — ${them}`} author={us}>
+      <Page size="A4" style={s.page}>
+        <DocHeader type="Data processing" number={no} />
+
+        <View style={{ marginTop: 26 }}>
+          <Text style={s.h1}>Data processing agreement</Text>
+          <Text style={s.muted}>
+            Between {them} (the controller) and {us} (the processor), dated {today}. This
+            supplements our services agreement and does not replace it.
+          </Text>
+        </View>
+
+        <View style={s.cols}>
+          <View style={s.col}>
+            <Text style={s.label}>Controller</Text>
+            <Text style={{ fontWeight: 500 }}>{them}</Text>
+            {client.email && <Text>{client.email}</Text>}
+            {[client.city, client.country].filter(Boolean).length > 0 && (
+              <Text>{[client.city, client.country].filter(Boolean).join(", ")}</Text>
+            )}
+          </View>
+          <View style={s.col}>
+            <Text style={s.label}>Processor</Text>
+            <Text style={{ fontWeight: 500 }}>{us}</Text>
+            <Text>{docAgency().email}</Text>
+            <Text>{docAgency().location}</Text>
+          </View>
+          <View style={s.col}>
+            <Text style={s.label}>Date</Text>
+            <Text>{today}</Text>
+          </View>
+        </View>
+
+        <Text style={s.h2}>1. Who decides what</Text>
+        <Text style={s.terms}>
+          {them} decides what personal data is collected and why — it is the controller. {us}{" "}
+          processes that data only to deliver the services described in our agreement, and only
+          on {them}&apos;s documented instructions. Where the law requires us to process
+          something anyway, we will say so before we do unless the law forbids telling you.
+        </Text>
+
+        <Text style={s.h2}>2. What we process, and for how long</Text>
+        <Text style={s.terms}>
+          Subject matter: building, hosting support and maintenance of the software described in
+          our agreement. The categories of data subject and of personal data are determined by
+          {" "}{them}&apos;s own product — typically its customers, users and staff, and typically
+          names, contact details, account records and whatever else the product stores. We hold
+          it for as long as the engagement runs, plus the period in section 8.
+        </Text>
+
+        <Text style={s.h2}>3. Confidentiality</Text>
+        <Text style={s.terms}>
+          Everyone we allow near this data is bound to confidentiality, and access is limited to
+          the people who need it to do the work. Access is role-based and enforced in the system
+          itself, not by convention.
+        </Text>
+
+        <Text style={s.h2}>4. Security</Text>
+        <Text style={s.terms}>
+          We keep appropriate technical and organisational measures in place — encryption in
+          transit and at rest, role-based access, an append-only audit log, and private file
+          storage. Our security overview describes them, is available at {getSiteBaseUrl()}
+          /security, and forms part of this agreement as the description of those measures.
+        </Text>
+
+        <Text style={s.h2}>5. Sub-processors</Text>
+        <Text style={s.terms}>
+          {them} gives general authorisation for the services listed below. We remain responsible
+          for what they do with the data. We will give reasonable notice before adding or
+          replacing one, and {them} may object on reasonable data-protection grounds.
+        </Text>
+        <SubProcessorTable />
+
+        <Text style={s.h2}>6. Helping you meet your obligations</Text>
+        <Text style={s.terms}>
+          If one of {them}&apos;s users asks for access, correction, deletion or a copy of their
+          data, we will help you answer within the time the law gives you. We will also help with
+          impact assessments and with regulator enquiries about data we process for you. We do
+          not respond to a data subject directly unless you ask us to.
+        </Text>
+
+        <Text style={s.h2}>7. If there is a breach</Text>
+        <Text style={s.terms}>
+          We will tell {them} without undue delay, and in any case within 72 hours of becoming
+          aware of a personal data breach affecting your data — with what we know at that point,
+          rather than waiting until we know everything. We contain first, then report, then
+          follow up in writing.
+        </Text>
+
+        <Text style={s.h2}>8. Return and deletion</Text>
+        <Text style={s.terms}>
+          When the engagement ends, {them} chooses: we return the data in a usable format, or we
+          delete it. Either happens within 30 days of the request. Copies inside automated
+          backups are removed as those backups age out on their normal schedule, and stay
+          protected by this agreement until they do. We keep only what the law requires.
+        </Text>
+
+        <Text style={s.h2}>9. Audit</Text>
+        <Text style={s.terms}>
+          {them} may ask us to demonstrate compliance with this agreement. We will answer
+          questionnaires and provide the information needed, and will accommodate an audit once a
+          year on reasonable notice at {them}&apos;s cost — or more often if a regulator requires
+          it, or following a breach.
+        </Text>
+
+        <Text style={s.h2}>10. International transfers</Text>
+        <Text style={s.terms}>
+          Some services in section 5 process data outside the country it was collected in. Where
+          that happens we rely on the transfer mechanism the provider offers — standard
+          contractual clauses or an adequacy decision. If {them} needs data kept in a specific
+          region, tell us before the project starts: it is a configuration decision that is
+          simple at the beginning and expensive later.
+        </Text>
+
+        <View style={s.callout}>
+          <Text style={{ fontWeight: 500, marginBottom: 4 }}>In short</Text>
+          <Text>
+            Your data stays yours. We use it only to do the work you asked for, keep it secure,
+            name everyone who touches it, tell you within 72 hours if anything goes wrong, and
+            give it back or delete it when you say so.
+          </Text>
+        </View>
+
+        <View style={[s.cols, { marginTop: 30 }]}>
+          <View style={s.col}>
+            <Text style={s.label}>Signed for {us}</Text>
+            <View style={{ borderBottomWidth: 1, borderBottomColor: C.line, marginTop: 26 }} />
+            <Text style={[s.muted, { marginTop: 4 }]}>Name, signature and date</Text>
+          </View>
+          <View style={s.col}>
+            <Text style={s.label}>Signed for {them}</Text>
+            <View style={{ borderBottomWidth: 1, borderBottomColor: C.line, marginTop: 26 }} />
+            <Text style={[s.muted, { marginTop: 4 }]}>Name, signature and date</Text>
+          </View>
+        </View>
+
+        <DocFooter number={no} />
+      </Page>
+    </Document>
+  );
+}
+
+/**
+ * The security overview.
+ *
+ * What gets attached when a client's procurement team sends a security
+ * questionnaire. The content comes entirely from `config/security.ts` — the
+ * same source as the public `/security` page, so a questionnaire answer cannot
+ * quietly claim something the website does not.
+ */
+export function SecurityDoc({ client }: { client?: any }) {
+  const today = date(new Date().toISOString());
+  const no = `SEC-${agencyDay().replace(/-/g, "").slice(2)}`;
+  const them = client ? client.company?.trim() || client.name : null;
+
+  return (
+    <Document title={`Security overview — ${docAgency().name}`} author={docAgency().name}>
+      <Page size="A4" style={s.page}>
+        <DocHeader type="Security overview" number={no} />
+
+        <View style={{ marginTop: 26 }}>
+          <Text style={s.h1}>How we protect your data</Text>
+          <Text style={s.muted}>
+            {docAgency().name} · {today}
+            {them ? ` · prepared for ${them}` : ""}
+          </Text>
+        </View>
+
+        <View style={s.callout}>
+          <Text>{SECURITY_PREAMBLE}</Text>
+        </View>
+
+        {SECURITY_SECTIONS.map((section) => (
+          <View key={section.title} wrap={false}>
+            <Text style={s.h2}>{section.title}</Text>
+            {section.points.map((point, i) => (
+              <View key={i} style={{ flexDirection: "row", marginBottom: 6 }}>
+                <Text style={{ width: 14, color: C.muted }}>—</Text>
+                <Text style={[s.terms, { flex: 1 }]}>{point}</Text>
+              </View>
+            ))}
+          </View>
+        ))}
+
+        <Text style={s.h2}>Who else touches your data</Text>
+        <Text style={s.terms}>
+          Every third party involved in delivering the service, and what each one is for. This is
+          the same list that appears in our data processing agreement.
+        </Text>
+        <SubProcessorTable />
+
+        <Text style={s.h2}>Asking us something specific</Text>
+        <Text style={s.terms}>
+          If your procurement process needs an answer that is not here, write to{" "}
+          {docAgency().email}. A direct answer to the actual question is more useful than a longer
+          document, and we would rather give you one.
+        </Text>
+
+        <DocFooter number={no} />
+      </Page>
+    </Document>
+  );
+}
+
+/**
+ * The checklist you send after a call.
+ *
+ * Just what is needed, with the private link printed on it. Fields come from
+ * `config/intakeFields.ts`, the same source as the form itself, so the paper
+ * cannot ask for something the form does not collect.
+ *
+ * Rendered on demand and never stored — it carries a live onboarding link, and
+ * a live link sitting in the documents table behind a 30-day signed URL is a
+ * wider blast radius than this needs.
+ */
+export function IntakeRequestDoc({
+  kind,
+  url,
+  recipient,
+}: {
+  kind: "client" | "staff";
+  url?: string | null;
+  recipient?: string | null;
+}) {
+  const fields = intakeFieldsFor(kind);
+  const no = kind === "client" ? "ONBOARDING" : "ONBOARDING-TEAM";
+  const us = docAgency().name;
+
+  return (
+    <Document title={`${intakeTitleFor(kind)} — ${us}`} author={us}>
+      <Page size="A4" style={s.page}>
+        <DocHeader type="What we need" number={no} />
+
+        <View style={{ marginTop: 26 }}>
+          <Text style={s.h1}>{intakeTitleFor(kind)}</Text>
+          <Text style={s.muted}>
+            {recipient ? `For ${recipient}. ` : ""}
+            {kind === "client"
+              ? `A short list so we can set up your ${us} account and get the paperwork right first time.`
+              : `A short list so we can get you set up on the ${us} system.`}
+          </Text>
+        </View>
+
+        {url && (
+          <View style={s.callout}>
+            <Text style={{ fontWeight: 500, marginBottom: 4 }}>
+              Fastest way — fill it in online
+            </Text>
+            <Text>{url}</Text>
+            <Text style={[s.muted, { marginTop: 4, fontSize: 9.5 }]}>
+              Private to you, works on a phone, takes about two minutes. Or write your answers
+              below and send them back.
+            </Text>
+          </View>
+        )}
+
+        <Text style={s.h2}>What to send</Text>
+        <View style={s.table}>
+          <View style={s.th}>
+            <Text style={[s.thText, { flex: 1.5 }]}>Detail</Text>
+            <Text style={[s.thText, { flex: 2 }]}>Your answer</Text>
+          </View>
+          {fields.map((f) => (
+            <View key={f.key} style={s.tr} wrap={false}>
+              <View style={{ flex: 1.5, paddingRight: 10 }}>
+                <Text style={{ fontWeight: 500 }}>
+                  {f.label}
+                  {f.required ? " *" : ""}
+                </Text>
+                {f.hint && <Text style={[s.muted, { fontSize: 9 }]}>{f.hint}</Text>}
+              </View>
+              {/* A ruled line rather than an empty cell — this gets printed and
+                  written on by hand more often than anyone plans for. */}
+              <View style={{ flex: 2, justifyContent: "flex-end", paddingBottom: 2 }}>
+                <View style={{ borderBottomWidth: 1, borderBottomColor: C.line, height: 14 }} />
+              </View>
+            </View>
+          ))}
+        </View>
+
+        <Text style={[s.muted, { marginTop: 10, fontSize: 9.5 }]}>
+          * Required. Everything else is optional and can follow later.
+        </Text>
+
+        {kind === "staff" && (
+          <>
+            <Text style={s.h2}>Not on this list</Text>
+            <Text style={s.terms}>
+              Salary, job title and team are set by {us} on your profile — nothing for you to
+              fill in here. Your bank details are used only to pay you, and are visible to the
+              owner alone.
+            </Text>
+          </>
+        )}
+
+        <Text style={s.h2}>What happens next</Text>
+        <Text style={s.terms}>
+          {kind === "client"
+            ? "Once we have these we create your account and email you a login. From there you can see project progress, invoices, files and meetings in one place, without chasing anyone for an update."
+            : "Once we have these we create your account and email you a login. You will find your tasks, hours, attendance and payslips there."}
+        </Text>
+
+        <Text style={[s.muted, { marginTop: 18, fontSize: 9.5 }]}>
+          Any questions, reply to us at {docAgency().email} or on WhatsApp at {CONTACT_WHATSAPP}.
+        </Text>
+
+        <DocFooter number={no} />
+      </Page>
+    </Document>
+  );
+}

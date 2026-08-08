@@ -33,7 +33,17 @@ export default function SettingsForm({ settings, staff }: { settings: any; staff
     refund_policy: settings?.refund_policy ?? "",
     booking_fee_pct: settings?.booking_fee_pct ?? 25,
     refund_grace_hours: settings?.refund_grace_hours ?? 48,
+    // Attendance is judged against these every time it is displayed, never
+    // stored — so changing the grace period re-judges history too.
+    work_start: String(settings?.work_start ?? "09:00").slice(0, 5),
+    work_end: String(settings?.work_end ?? "18:00").slice(0, 5),
+    work_grace_min: settings?.work_grace_min ?? 15,
   });
+  const [workDays, setWorkDays] = useState<number[]>(
+    Array.isArray(settings?.work_days) && settings.work_days.length
+      ? settings.work_days.map(Number)
+      : [1, 2, 3, 4, 5]
+  );
   const [bank, setBank] = useState<Record<string, string>>(settings?.bank_details ?? {
     "Account title": "", "Bank": "", "Account number": "", "IBAN": "", "Branch code": "",
   });
@@ -41,7 +51,13 @@ export default function SettingsForm({ settings, staff }: { settings: any; staff
   const set = (k: string, v: unknown) => setF((p) => ({ ...p, [k]: v }));
 
   const save = () => start(async () => {
-    await saveSettings({ ...f, tax_percent: Number(f.tax_percent), bank_details: bank });
+    await saveSettings({
+      ...f,
+      tax_percent: Number(f.tax_percent),
+      work_grace_min: Number(f.work_grace_min),
+      work_days: workDays.sort((a, b) => a - b),
+      bank_details: bank,
+    });
     toast.success("Settings saved.");
   });
 
@@ -133,6 +149,52 @@ export default function SettingsForm({ settings, staff }: { settings: any; staff
             </div>
           ))}
         </div>
+      </section>
+
+      <section className="card p-6">
+        <h2 className="mb-2 text-base">Working hours</h2>
+        <p className="mb-5 text-xs leading-relaxed text-bone-400">
+          What counts as on time. Attendance is judged against these values every time a
+          screen loads and never written down, so widening the grace period corrects past
+          days too rather than leaving them flagged under the old rule.
+        </p>
+        <div className="grid gap-4 sm:grid-cols-3">
+          <div>
+            <label className={label}>Day starts</label>
+            <input className={field} type="time" value={f.work_start} onChange={(e) => set("work_start", e.target.value)} />
+          </div>
+          <div>
+            <label className={label}>Day ends</label>
+            <input className={field} type="time" value={f.work_end} onChange={(e) => set("work_end", e.target.value)} />
+          </div>
+          <div>
+            <label className={label}>Grace (minutes)</label>
+            <input className={field} type="number" min="0" max="120" value={f.work_grace_min} onChange={(e) => set("work_grace_min", e.target.value)} />
+          </div>
+        </div>
+
+        <label className={label + " mt-5 block"}>Working days</label>
+        <div className="flex flex-wrap gap-2">
+          {["Mon","Tue","Wed","Thu","Fri","Sat","Sun"].map((d, i) => {
+            const iso = i + 1;
+            const on = workDays.includes(iso);
+            return (
+              <button
+                key={d}
+                type="button"
+                onClick={() => setWorkDays((p) => (on ? p.filter((x) => x !== iso) : [...p, iso]))}
+                className={`rounded-lg border px-3 py-1.5 text-xs transition-colors ${
+                  on ? "border-lime-400 bg-lime-400 font-medium text-lime-950" : "border-ink-500 text-bone-300 hover:border-ink-400"
+                }`}
+              >
+                {d}
+              </button>
+            );
+          })}
+        </div>
+        <p className="mt-2 text-[11px] text-bone-400">
+          A non-working day is never marked absent.
+        </p>
       </section>
 
       <section className="card p-6 xl:col-span-2">

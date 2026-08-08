@@ -66,6 +66,10 @@ export default function SalaryPaymentsCard({
     currency: String(employee.salary_currency || "USD").toUpperCase(),
     paidOn: new Date().toISOString().slice(0, 10),
     method: "bank_transfer",
+    bonus: "",
+    deductions: "",
+    bonusNote: "",
+    deductionNote: "",
     reference: "",
     slipUrl: "",
     note: "",
@@ -109,6 +113,10 @@ export default function SalaryPaymentsCard({
         employeeId: employee.id,
         periodMonth: f.periodMonth,
         amount: Number(f.amount),
+        bonus: Number(f.bonus) || 0,
+        deductions: Number(f.deductions) || 0,
+        bonusNote: f.bonusNote,
+        deductionNote: f.deductionNote,
         currency: f.currency,
         paidOn: f.paidOn,
         method: f.method,
@@ -283,7 +291,7 @@ export default function SalaryPaymentsCard({
 
           <div className="grid gap-3 sm:grid-cols-2">
             <div>
-              <label className="mono-tag mb-1.5 block text-xs">Amount transferred *</label>
+              <label className="mono-tag mb-1.5 block text-xs">Base pay *</label>
               <input
                 className={field}
                 type="number"
@@ -298,6 +306,68 @@ export default function SalaryPaymentsCard({
                   : `Their full monthly salary is ${money(Number(employee.salary_amount || 0), employee.salary_currency)}.`}
               </p>
             </div>
+
+            {/* Separate lines, not a mental adjustment to the base figure. The
+                payslip shows each with its reason — a deduction nobody can
+                explain is how trust in payroll goes. */}
+            <div>
+              <label className="mono-tag mb-1.5 block text-xs">Bonus</label>
+              <input
+                className={field}
+                type="number"
+                min="0"
+                step="0.01"
+                value={f.bonus}
+                onChange={(e) => setF({ ...f, bonus: e.target.value })}
+                placeholder="0"
+              />
+              {Number(f.bonus) > 0 && (
+                <input
+                  className={`${field} mt-1.5 text-xs`}
+                  value={f.bonusNote}
+                  onChange={(e) => setF({ ...f, bonusNote: e.target.value })}
+                  placeholder="What it is for — they see this on the payslip"
+                />
+              )}
+            </div>
+
+            <div>
+              <label className="mono-tag mb-1.5 block text-xs">Deductions</label>
+              <input
+                className={field}
+                type="number"
+                min="0"
+                step="0.01"
+                value={f.deductions}
+                onChange={(e) => setF({ ...f, deductions: e.target.value })}
+                placeholder="0"
+              />
+              {Number(f.deductions) > 0 && (
+                <input
+                  className={`${field} mt-1.5 text-xs`}
+                  value={f.deductionNote}
+                  onChange={(e) => setF({ ...f, deductionNote: e.target.value })}
+                  placeholder="Why — they see this on the payslip"
+                />
+              )}
+            </div>
+
+            {(Number(f.bonus) > 0 || Number(f.deductions) > 0) && (
+              <div className="sm:col-span-2">
+                <p className="rounded-lg border border-lime-400/25 bg-lime-400/[0.06] p-2.5 text-xs text-bone-200">
+                  Net transfer:{" "}
+                  <strong className="text-lime-400">
+                    {money(
+                      (Number(f.amount) || 0) +
+                        (Number(f.bonus) || 0) -
+                        (Number(f.deductions) || 0),
+                      f.currency
+                    )}
+                  </strong>{" "}
+                  — this is the figure that must match your bank transfer.
+                </p>
+              </div>
+            )}
             <div>
               <CustomSelect
                 label="Currency"

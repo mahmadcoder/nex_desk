@@ -183,6 +183,14 @@ export default function LeadRow({
                     ["Country", lead.country],
                     ["Timeline", lead.timeline],
                     ["Source", lead.source],
+                    // Attribution. utm_source is what the LINK claimed;
+                    // referrer is what the browser actually observed, which is
+                    // why both are shown rather than one standing in for the
+                    // other.
+                    ["Campaign", lead.utm_campaign],
+                    ["utm_source", lead.utm_source],
+                    ["Came from", lead.referrer],
+                    ["Landed on", lead.landing_page],
                   ].map(([k, v]) => (
                     <div key={k as string}>
                       <p className="mono-tag">{k}</p>

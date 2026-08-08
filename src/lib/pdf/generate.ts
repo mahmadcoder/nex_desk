@@ -6,14 +6,17 @@ import { decryptCredentials } from "@/lib/crypto";
 import { handoverGate } from "@/lib/delivery/gate";
 import { getAgency } from "@/lib/agency";
 import { setDocAgency } from "./parts";
+import { SUB_PROCESSORS } from "@/config/subprocessors";
 import {
   AgreementDoc, QuotationDoc, InvoiceDoc, ReceiptDoc,
-  ChangeOrderDoc, ProgressDoc, HandoverDoc,
+  ChangeOrderDoc, ProgressDoc, HandoverDoc, NdaDoc,
+  DpaDoc, SecurityDoc,
 } from "./documents";
 
 export type DocType =
   | "agreement" | "quotation" | "invoice" | "receipt"
-  | "change_order" | "progress_report" | "handover";
+  | "change_order" | "progress_report" | "handover" | "nda"
+  | "dpa" | "security";
 
 
 export async function generateDocument(type: DocType, id: string, actorId?: string) {
@@ -38,6 +41,40 @@ export async function generateDocument(type: DocType, id: string, actorId?: stri
       type === "agreement" ? AgreementDoc : QuotationDoc,
       { deal, client, settings: agreementSettings }
     );
+  }
+
+  // Scoped to a CLIENT, not a deal — an NDA is normally signed before there is
+  // a deal to attach it to.
+  if (type === "nda") {
+    const { data: ndaClient } = await db.from("clients").select("*").eq("id", id).single();
+    if (!ndaClient) throw new Error("Client not found");
+    title = `Mutual NDA — ${ndaClient.company?.trim() || ndaClient.name}`;
+    meta = { client_id: ndaClient.id };
+    snapshot = { client_id: ndaClient.id, generated_at: new Date().toISOString() };
+    element = createElement(NdaDoc, { client: ndaClient });
+  }
+
+  // Also client-scoped, and for the same reason: both are asked for during
+  // procurement, before there is a deal to hang them off.
+  if (type === "dpa" || type === "security") {
+    const { data: dpaClient } = await db.from("clients").select("*").eq("id", id).single();
+    if (!dpaClient) throw new Error("Client not found");
+
+    const them = dpaClient.company?.trim() || dpaClient.name;
+    title =
+      type === "dpa"
+        ? `Data Processing Agreement — ${them}`
+        : `Security overview — ${them}`;
+    meta = { client_id: dpaClient.id };
+    snapshot = {
+      client_id: dpaClient.id,
+      generated_at: new Date().toISOString(),
+      // The sub-processor list changes over time and both documents make a
+      // written claim about it. Snapshotting means the copy on file can always
+      // be reconciled with what was actually stated on the day it was signed.
+      sub_processors: SUB_PROCESSORS.map((p) => p.name),
+    };
+    element = createElement(type === "dpa" ? DpaDoc : SecurityDoc, { client: dpaClient });
   }
 
   if (type === "invoice") {

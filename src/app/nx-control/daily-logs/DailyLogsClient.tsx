@@ -11,7 +11,7 @@ import { PageHead } from "@/components/admin/ui";
 import ConfirmModal from "@/components/admin/ConfirmModal";
 import CustomSelect, { SelectOption } from "@/components/ui/CustomSelect";
 import { IDailyWorkLog } from "@/types/cms";
-import { fmtDate } from "@/lib/datetime";
+import { fmtDate, agencyDay } from "@/lib/datetime";
 import {
   Plus,
   Trash2,
@@ -33,6 +33,11 @@ interface DailyLogsClientProps {
   projectsList: { id: string; title: string; category?: string | null }[];
   /** Staff file only as themselves — show their name instead of a picker. */
   lockedToEmployee?: boolean;
+  /**
+   * Seconds the timer recorded today. The log stays the narrative; the timer
+   * supplies the figure, so the two can never quietly disagree.
+   */
+  trackedTodaySec?: number;
 }
 
 export default function DailyLogsClient({
@@ -40,6 +45,7 @@ export default function DailyLogsClient({
   employeesList,
   projectsList,
   lockedToEmployee = false,
+  trackedTodaySec = 0,
 }: DailyLogsClientProps) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -49,11 +55,16 @@ export default function DailyLogsClient({
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
   // Form State
-  const todayStr = new Date().toISOString().split("T")[0];
+  // Agency time. As a UTC slice this prefilled yesterday's date on anyone
+  // logging work after midnight — a wrong default nobody proofreads.
+  const todayStr = agencyDay();
   const [selectedEmployeeId, setSelectedEmployeeId] = useState(employeesList[0]?.id || "");
   const [selectedProjectId, setSelectedProjectId] = useState(projectsList[0]?.id || "");
   const [workDate, setWorkDate] = useState(todayStr);
-  const [hoursSpent, setHoursSpent] = useState("7.5");
+  // Pre-filled from the timer when there is tracked time; "7.5" was a guess
+  // nobody ever corrected.
+  const trackedHours = Math.round((trackedTodaySec / 3600) * 100) / 100;
+  const [hoursSpent, setHoursSpent] = useState(trackedHours > 0 ? String(trackedHours) : "7.5");
   const [tasksCompleted, setTasksCompleted] = useState("");
   const [blockers, setBlockers] = useState("");
   const [proofUrl, setProofUrl] = useState("");
@@ -166,6 +177,15 @@ export default function DailyLogsClient({
           project_title: projObj?.title || "General Agency Work",
           work_date: workDate,
           hours_spent: parseFloat(hoursSpent) || 0,
+          // Which number this is, so somebody adjusting every single day is
+          // visible without anyone being accused of anything.
+          hours_source:
+            trackedHours <= 0
+              ? "manual"
+              : parseFloat(hoursSpent) === trackedHours
+                ? "tracked"
+                : "adjusted",
+          hours_tracked: trackedHours > 0 ? trackedHours : null,
           tasks_completed: tasksCompleted,
           blockers: blockers || null,
           proof_url: proofUrl || null,
@@ -490,6 +510,20 @@ export default function DailyLogsClient({
                     value={hoursSpent}
                     onChange={(e) => setHoursSpent(e.target.value)}
                   />
+                  {/* Say where the number came from. A pre-filled figure with
+                      no explanation reads as an arbitrary default, which is
+                      exactly what the old hardcoded 7.5 was. */}
+                  {trackedHours > 0 && (
+                    <p className="mt-1 text-[11px] text-bone-400">
+                      {parseFloat(hoursSpent) === trackedHours ? (
+                        <>Your timer recorded {trackedHours}h today.</>
+                      ) : (
+                        <span className="text-amber-400">
+                          Your timer recorded {trackedHours}h — this is an adjustment.
+                        </span>
+                      )}
+                    </p>
+                  )}
                 </div>
               </div>
 

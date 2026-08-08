@@ -6,6 +6,7 @@ import { money } from "@/lib/utils";
 import { getLiveExchangeRates, convertCurrency } from "@/lib/currency";
 import { TrendingUp, TrendingDown, Info } from "lucide-react";
 import { expenseInvoiceIds } from "@/lib/billing";
+import { hourlyRates } from "@/lib/projectCost";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
@@ -68,17 +69,10 @@ export default async function ProfitPage() {
   // are surfaced separately rather than silently dropped.
   const unattributed = (outlays ?? []).filter((x) => !x.project_id);
 
-  const HOURS_PER_MONTH = 26 * 8;
-  const rateOf = new Map(
-    (employees ?? []).map((e) => [
-      e.id,
-      {
-        name: e.full_name,
-        hourly: Number(e.salary_amount || 0) / HOURS_PER_MONTH,
-        currency: e.salary_currency || "USD",
-      },
-    ])
-  );
+  // Shared with the per-project budget panel. Two copies of "what does an hour
+  // cost" would disagree the first time either changed, and one screen would
+  // call a project profitable while the other called it a loss.
+  const rateOf = hourlyRates(employees ?? []);
 
   const rows = (projects ?? [])
     .map((p: any) => {

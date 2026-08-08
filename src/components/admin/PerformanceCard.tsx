@@ -17,9 +17,11 @@ export default function PerformanceCard({
   /** True when the staff member is looking at their own figures. */
   ownView?: boolean;
 }) {
-  const onTime = stats.milestonesDone - stats.milestonesLate;
-  const onTimeRate = stats.milestonesDone
-    ? Math.round((onTime / stats.milestonesDone) * 100)
+  // Tasks, not milestones. The old figure counted every milestone on every
+  // project this person had logged against, so on a shared project everyone
+  // was credited with everyone else's work.
+  const onTimeRate = stats.tasksDone
+    ? Math.round(((stats.tasksDone - stats.tasksLate) / stats.tasksDone) * 100)
     : null;
 
   return (
@@ -43,10 +45,45 @@ export default function PerformanceCard({
           <p className="mt-0.5 font-mono text-xl text-bone-50">{stats.sharedRatio}%</p>
         </div>
         <div>
-          <p className="mono-tag text-[11px]">Milestones on time</p>
+          <p className="mono-tag text-[11px]">Tasks done</p>
+          <p className="mt-0.5 font-mono text-xl text-bone-50">{stats.tasksDone}</p>
+        </div>
+      </div>
+
+      <div className="mt-4 grid grid-cols-2 gap-4 border-t border-ink-700 pt-4 sm:grid-cols-4">
+        <div>
+          <p className="mono-tag text-[11px]">On time</p>
           <p className="mt-0.5 font-mono text-xl text-bone-50">
             {onTimeRate === null ? "—" : `${onTimeRate}%`}
           </p>
+        </div>
+        <div>
+          <p className="mono-tag text-[11px]">Overdue now</p>
+          <p
+            className={`mt-0.5 font-mono text-xl ${
+              stats.tasksOverdue ? "text-amber-400" : "text-bone-50"
+            }`}
+          >
+            {stats.tasksOverdue}
+          </p>
+        </div>
+        <div>
+          <p className="mono-tag text-[11px]">Tracked hours</p>
+          <p className="mt-0.5 font-mono text-xl text-bone-50">{stats.trackedHours30}</p>
+        </div>
+        <div>
+          {/* Only ever their OWN average, never an individual score and never
+              who gave it — a rating that traces back to a person stops being an
+              honest rating. */}
+          <p className="mono-tag text-[11px]">Average rating</p>
+          <p className="mt-0.5 font-mono text-xl text-bone-50">
+            {stats.avgRating === null ? "—" : `${stats.avgRating}/5`}
+          </p>
+          {stats.ratedProjects > 0 && (
+            <p className="mono-tag text-[10px] text-bone-500">
+              {stats.ratedProjects} project{stats.ratedProjects === 1 ? "" : "s"}
+            </p>
+          )}
         </div>
       </div>
 
@@ -70,7 +107,7 @@ export default function PerformanceCard({
             )}
             {stats.milestonesLate > 0 && (
               <p>
-                {stats.milestonesLate} of {stats.milestonesDone} milestones landed after their
+                {stats.tasksLate} of {stats.tasksDone} tasks landed after their
                 due date.
               </p>
             )}

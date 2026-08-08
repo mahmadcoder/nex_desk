@@ -306,3 +306,234 @@ export async function closeTasksFromLog(
   revalidatePath(`/${ADMIN}/daily-logs`);
   return { ok: true, closed: data?.length ?? 0 };
 }
+
+/* ============================================================
+   PROJECT RATINGS
+   ============================================================ */
+
+/**
+ * Score a team member on a delivered project.
+ *
+ * Owner/admin only, and captured at handover — the one moment the work is
+ * finished and still fresh enough to judge honestly.
+ *
+ * Upserts on (project_id, employee_id): re-rating corrects the score rather
+ * than stacking a second one, so an average cannot be moved by rating the same
+ * project twice.
+ */
+export async function rateTeamMember(
+  projectId: string,
+  employeeId: string,
+  score: number,
+  note?: string
+): Promise<Result> {
+  const me = await requireOwnerAdmin();
+
+  const clamped = Math.round(Number(score));
+  if (!Number.isFinite(clamped) || clamped < 1 || clamped > 5) {
+    return { ok: false, error: "A score has to be between 1 and 5." };
+  }
+
+  const { error } = await createAdminClient()
+    .from("project_ratings")
+    .upsert(
+      {
+        project_id: projectId,
+        employee_id: employeeId,
+        score: clamped,
+        note: note?.trim() || null,
+        rated_by: me.userId,
+      },
+      { onConflict: "project_id,employee_id" }
+    );
+
+  if (error) {
+    return {
+      ok: false,
+      error:
+        error.code === "42P01"
+          ? "Ratings need their table — run supabase/idempotent_fixes_2027_27.sql."
+          : error.message,
+    };
+  }
+
+  await recordAudit(me.userId, "project.rate", "projects", projectId, { employeeId, score: clamped });
+  revalidatePath(`/${ADMIN}/projects/${projectId}`);
+  return { ok: true };
+}
+
+/** Existing scores for a project, for the rating panel. Owner/admin only. */
+export async function projectRatings(projectId: string) {
+  await requireOwnerAdmin();
+  const { data, error } = await createAdminClient()
+    .from("project_ratings")
+    .select("employee_id, score, note")
+    .eq("project_id", projectId);
+
+  if (error) {
+    if (error.code !== "42P01") console.error("projectRatings failed", error);
+    return [];
+  }
+  return data ?? [];
+}
+
+/* ============================================================
+   PROJECT ARCHIVE
+   ============================================================ */
+
+/**
+ * Hide a finished project from the default list, or bring it back.
+ *
+ * Deliberately separate from `status`. A completed project that is still being
+ * invoiced must stay visible, and a paused one that nobody wants to look at
+ * should be hideable without lying about its status.
+ */
+export async function setProjectArchived(projectId: string, archived: boolean): Promise<Result> {
+  const me = await requireOwnerAdmin();
+
+  const { error } = await createAdminClient()
+    .from("projects")
+    .update({ archived_at: archived ? new Date().toISOString() : null })
+    .eq("id", projectId);
+
+  if (error) {
+    return {
+      ok: false,
+      error:
+        error.code === "42703"
+          ? "Archiving needs its column — run supabase/idempotent_fixes_2027_31.sql."
+          : error.message,
+    };
+  }
+
+  await recordAudit(me.userId, archived ? "project.archive" : "project.restore", "projects", projectId);
+  revalidatePath(`/${ADMIN}/projects`);
+  revalidatePath(`/${ADMIN}/projects/${projectId}`);
+  return { ok: true };
+}
+
+/* ============================================================
+   RECURRING TASKS
+   ============================================================ */
+
+/**
+ * Turn a task into a recurring template, or stop it recurring.
+ *
+ * The template itself is never worked on — it is excluded from every board and
+ * count. The alternative, reopening a finished task each week, destroys the
+ * record of what was actually done when.
+ */
+export async function setTaskRecurrence(
+  taskId: string,
+  recurrence: "daily" | "weekly" | "monthly" | null,
+  until?: string | null
+): Promise<Result> {
+  const me = await requireOwnerAdmin();
+  const id = asUuid(taskId);
+  if (!id) return { ok: false, error: "Invalid task reference." };
+
+  const { data, error } = await createAdminClient()
+    .from("tasks")
+    .update({
+      recurrence,
+      recurrence_until: recurrence ? until || null : null,
+      is_recurring_template: !!recurrence,
+      // Seeded to today so the first occurrence lands on the NEXT period rather
+      // than immediately duplicating the task somebody just wrote.
+      last_spawned_on: recurrence ? new Date().toISOString().slice(0, 10) : null,
+    })
+    .eq("id", id)
+    .select("project_id")
+    .single();
+
+  if (error) {
+    return {
+      ok: false,
+      error:
+        error.code === "42703"
+          ? "Recurring tasks need their columns — run supabase/idempotent_fixes_2027_31.sql."
+          : error.message,
+    };
+  }
+
+  await recordAudit(me.userId, "task.recurrence", "tasks", id, { recurrence });
+  revalidatePath(`/${ADMIN}/projects/${data.project_id}`);
+  revalidatePath(`/${ADMIN}/tasks`);
+  return { ok: true };
+}
+
+/** The next occurrence after `from`, for a given rule. */
+function nextOccurrence(from: Date, rule: string): Date {
+  const d = new Date(from);
+  if (rule === "daily") d.setDate(d.getDate() + 1);
+  else if (rule === "weekly") d.setDate(d.getDate() + 7);
+  // setMonth handles the short-month case: 31 Jan + 1 month lands on 2 or 3
+  // March, which is wrong but predictable — clamped below.
+  else if (rule === "monthly") {
+    const day = d.getDate();
+    d.setMonth(d.getMonth() + 1);
+    if (d.getDate() < day) d.setDate(0);
+  }
+  return d;
+}
+
+/**
+ * Create any occurrences that are due. Called by the daily cron.
+ *
+ * Idempotent through `last_spawned_on`: running it twice in one day produces
+ * nothing the second time, which matters because a manual re-trigger of the
+ * cron would otherwise duplicate every recurring task in the agency.
+ */
+export async function materialiseRecurringTasks(): Promise<number> {
+  const db = createAdminClient();
+  const today = new Date();
+  const todayIso = today.toISOString().slice(0, 10);
+
+  const { data: templates, error } = await db
+    .from("tasks")
+    .select("*")
+    .eq("is_recurring_template", true);
+
+  if (error) {
+    if (error.code !== "42703") console.error("materialiseRecurringTasks failed", error);
+    return 0;
+  }
+
+  let made = 0;
+
+  for (const t of templates ?? []) {
+    if (t.recurrence_until && t.recurrence_until < todayIso) continue;
+
+    const last = t.last_spawned_on ? new Date(t.last_spawned_on) : new Date(t.created_at);
+    const due = nextOccurrence(last, t.recurrence);
+    if (due > today) continue;
+
+    const dueIso = due.toISOString().slice(0, 10);
+
+    const { error: insErr } = await db.from("tasks").insert({
+      project_id: t.project_id,
+      milestone_id: t.milestone_id,
+      title: t.title,
+      description: t.description,
+      status: "todo",
+      priority: t.priority,
+      assigned_to: t.assigned_to,
+      assigned_employee_id: t.assigned_employee_id,
+      due_date: dueIso,
+      is_internal: t.is_internal,
+      spawned_from: t.id,
+    });
+
+    if (insErr) {
+      console.error("Could not spawn recurring task", t.id, insErr);
+      continue;
+    }
+
+    // Stamped only after the copy exists, so a failure retries tomorrow rather
+    // than silently skipping an occurrence.
+    await db.from("tasks").update({ last_spawned_on: dueIso }).eq("id", t.id);
+    made++;
+  }
+
+  return made;
+}
