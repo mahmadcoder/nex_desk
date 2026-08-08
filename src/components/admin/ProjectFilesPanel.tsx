@@ -10,6 +10,7 @@ import {
   deleteProjectFile,
 } from "@/lib/actions/projectFiles";
 import { fmtDate } from "@/lib/datetime";
+import CustomSelect from "@/components/ui/CustomSelect";
 import { Upload, Download, Trash2, Eye, EyeOff, Loader2, Paperclip } from "lucide-react";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -126,18 +127,14 @@ export default function ProjectFilesPanel({
             {uploading ? "Uploading…" : "Upload a file"}
           </button>
 
-          <select
-            value={kind}
-            onChange={(e) => setKind(e.target.value)}
-            className="rounded-lg border border-ink-500 bg-ink-800 px-2.5 py-1.5 text-xs focus:border-lime-400 focus:outline-none"
-            aria-label="File category"
-          >
-            {KINDS.map(([v, label]) => (
-              <option key={v} value={v}>
-                {label}
-              </option>
-            ))}
-          </select>
+          <div className="w-full sm:w-[150px]">
+            <CustomSelect
+              value={kind}
+              onChange={setKind}
+              className="py-1.5 text-xs"
+              options={KINDS.map(([value, label]) => ({ value, label }))}
+            />
+          </div>
 
           <label className="flex cursor-pointer items-center gap-2 text-xs text-bone-300">
             <input

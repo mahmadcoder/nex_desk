@@ -7,6 +7,7 @@ import { createClient } from "@/lib/supabase/client";
 import Modal from "@/components/admin/Modal";
 import { addInternalDoc, deleteInternalDoc } from "@/lib/actions/internalDocs";
 import { DOC_CATEGORIES } from "@/config/docCategories";
+import CustomSelect from "@/components/ui/CustomSelect";
 import { Plus, Upload, Link2, Trash2, Loader2 } from "lucide-react";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -123,20 +124,12 @@ export default function HandbookClient() {
             />
           </div>
 
-          <div>
-            <label className="mono-tag mb-1.5 block">Category</label>
-            <select
-              className={field}
-              value={f.category}
-              onChange={(e) => setF({ ...f, category: e.target.value })}
-            >
-              {DOC_CATEGORIES.map(([v, label]) => (
-                <option key={v} value={v}>
-                  {label}
-                </option>
-              ))}
-            </select>
-          </div>
+          <CustomSelect
+            label="Category"
+            value={f.category}
+            onChange={(v) => setF({ ...f, category: v })}
+            options={DOC_CATEGORIES.map(([value, label]) => ({ value, label }))}
+          />
 
           <div>
             <label className="mono-tag mb-1.5 block">What is it for</label>

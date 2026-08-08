@@ -22,9 +22,14 @@ interface CustomSelectProps {
 /**
  * The one dropdown in the app.
  *
- * A native `<select>` is drawn by the operating system, so on Windows it opens
- * as a white menu in the middle of a dark panel. Every remaining `<select>`
- * (deal form, project controls, settings) has been replaced with this.
+ * **The rule: no native `<select>` anywhere in this codebase.** One is drawn by
+ * the operating system, so on Windows it opens as a white menu in the middle of
+ * a dark panel — the app looks like two apps.
+ *
+ * This is written as a standing rule rather than as "everything has been
+ * converted", because the second kind of comment stops being true the first
+ * time somebody adds a screen. `grep -rn "<select" src/` should only ever match
+ * this file. Twelve of them had crept back in before that was checked.
  *
  * Keyboard behaviour matches a real listbox: ↑/↓ move, Home/End jump, Enter or
  * Space commits, Escape closes and returns focus to the trigger, and typing

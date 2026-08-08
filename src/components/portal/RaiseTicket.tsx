@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { Plus, Loader2 } from "lucide-react";
 import Modal from "@/components/admin/Modal";
 import { raiseTicket } from "@/lib/actions/tickets";
+import CustomSelect from "@/components/ui/CustomSelect";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
@@ -101,35 +102,30 @@ export default function RaiseTicket({
           </div>
 
           {projects.length > 0 && (
-            <div>
-              <label className="mono-tag mb-1.5 block">Which project</label>
-              <select
-                className={field}
-                value={f.projectId}
-                onChange={(e) => setF({ ...f, projectId: e.target.value })}
-              >
-                <option value="">Not sure / something else</option>
-                {projects.map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.name}
-                  </option>
-                ))}
-              </select>
-            </div>
+            <CustomSelect
+              label="Which project"
+              value={f.projectId}
+              onChange={(v) => setF({ ...f, projectId: v })}
+              placeholder="Not sure / something else"
+              options={[
+                { value: "", label: "Not sure / something else" },
+                ...projects.map((p) => ({ value: p.id, label: p.name })),
+              ]}
+            />
           )}
 
           <div>
-            <label className="mono-tag mb-1.5 block">How urgent</label>
-            <select
-              className={field}
+            <CustomSelect
+              label="How urgent"
               value={f.priority}
-              onChange={(e) => setF({ ...f, priority: e.target.value })}
-            >
-              <option value="low">Low — whenever you get to it</option>
-              <option value="normal">Normal</option>
-              <option value="high">High — it is blocking work</option>
-              <option value="urgent">Urgent — the site is down</option>
-            </select>
+              onChange={(v) => setF({ ...f, priority: v })}
+              options={[
+                { value: "low", label: "Low — whenever you get to it" },
+                { value: "normal", label: "Normal" },
+                { value: "high", label: "High — it is blocking work" },
+                { value: "urgent", label: "Urgent — the site is down" },
+              ]}
+            />
             {/* Said plainly rather than quietly ignored. */}
             <p className="mt-1 text-[11px] text-bone-400">
               A starting point for us, not a promise. We may adjust it once we have looked, and

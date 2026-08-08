@@ -60,6 +60,9 @@ const ACTIONS: Record<string, string> = {
   "employee.photo": "Changed an employee photo",
   "employee.photo_decision": "Decided on a photo request",
   "compensation.delete": "Deleted a pay record",
+  // Presence an admin set by hand rather than somebody clocking in. Worth its
+  // own line precisely because it is the exception.
+  "attendance.override": "Corrected an attendance record",
 
   "email.resend": "Re-sent a failed email",
   "document.uploaded": "Uploaded a document",
@@ -82,6 +85,7 @@ export const ENTITY_FILTERS: [string, string][] = [
   ["payments", "Payments"],
   ["change_requests", "Change requests"],
   ["employees", "Employees"],
+  ["attendance", "Attendance"],
   ["meetings", "Meetings"],
   ["email_log", "Emails"],
   ["settings", "Settings"],

@@ -296,17 +296,17 @@ export default function DailyLogsClient({
           </div>
 
           {!lockedToEmployee && employeesList.length > 1 && (
-            <select
-              value={filterEmployee}
-              onChange={(e) => setFilterEmployee(e.target.value)}
-              aria-label="Filter by employee"
-              className="rounded-lg border border-ink-500 bg-ink-800 px-3 py-2 text-sm text-bone-50 focus:border-lime-400 focus:outline-none"
-            >
-              <option value="">Everyone</option>
-              {employeesList.map((e) => (
-                <option key={e.id} value={e.id}>{e.name}</option>
-              ))}
-            </select>
+            <div className="w-full sm:w-[200px]">
+              <CustomSelect
+                value={filterEmployee}
+                onChange={setFilterEmployee}
+                placeholder="Everyone"
+                options={[
+                  { value: "", label: "Everyone" },
+                  ...employeesList.map((e) => ({ value: e.id, label: e.name })),
+                ]}
+              />
+            </div>
           )}
 
           {(filterText || filterEmployee) && (

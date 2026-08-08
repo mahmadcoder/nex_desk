@@ -46,10 +46,20 @@ export default async function TasksPage({
     q = q.eq("assigned_employee_id", who);
   }
 
-  const [{ data: tasks, error }, { data: employees }] = await Promise.all([
+  const [{ data: tasks, error }, { data: employees }, { data: projectList }] = await Promise.all([
     q,
     canManage
       ? db.from("employees").select("id, full_name").neq("status", "Terminated").order("full_name")
+      : Promise.resolve({ data: [] as any[] }),
+    // Only for the Add dialog, so only fetched for the people who get one.
+    // Cancelled projects are excluded: handing out work on one is a mistake
+    // the picker should not make easy.
+    canManage
+      ? db
+          .from("projects")
+          .select("id, name")
+          .neq("status", "cancelled")
+          .order("created_at", { ascending: false })
       : Promise.resolve({ data: [] as any[] }),
   ]);
 
@@ -93,7 +103,7 @@ export default async function TasksPage({
         title={canManage ? "Task board" : "My tasks"}
         sub={
           canManage
-            ? "Every task across the agency. Move a card with the arrows — it saves immediately."
+            ? "Every task across the agency. Add one here, click a card to reassign it, or move it with the arrows — everything saves immediately."
             : "Work assigned to you. Move a card with the arrows as you go."
         }
       />
@@ -112,14 +122,20 @@ export default async function TasksPage({
         </div>
       )}
 
-      {!cards.length ? (
+      {/* Rendered even when empty for an admin, because the board is now where
+          you add the first task — the old copy sent people to a project page
+          to do something this screen can do. */}
+      {!cards.length && !canManage ? (
         <p className="card p-8 text-center text-sm text-bone-400">
-          {canManage
-            ? "No tasks yet. Add them from a project."
-            : "Nothing assigned to you right now."}
+          Nothing assigned to you right now.
         </p>
       ) : (
-        <TaskBoard tasks={cards} />
+        <TaskBoard
+          tasks={cards}
+          canManage={canManage}
+          projects={projectList ?? []}
+          employees={employees ?? []}
+        />
       )}
     </>
   );

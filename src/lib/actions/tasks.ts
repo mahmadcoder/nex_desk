@@ -148,6 +148,9 @@ export async function saveTask(input: TaskInput): Promise<Result<{ id: string }>
   }
 
   revalidatePath(`/${ADMIN}/projects/${projectId}`);
+  // The board is now a place tasks are created and reassigned, not only a
+  // place they are looked at, so it has to be invalidated like the project page.
+  revalidatePath(`/${ADMIN}/tasks`);
   revalidatePath(`/${ADMIN}`);
   return { ok: true, id: data.id };
 }
@@ -185,6 +188,7 @@ export async function toggleTask(
   });
 
   revalidatePath(`/${ADMIN}/projects/${task.project_id}`);
+  revalidatePath(`/${ADMIN}/tasks`);
   revalidatePath(`/${ADMIN}`);
   return { ok: true, status: done ? "done" : "todo" };
 }
@@ -210,6 +214,7 @@ export async function setTaskStatus(
   if (error) return { ok: false, error: error.message };
 
   revalidatePath(`/${ADMIN}/projects/${task.project_id}`);
+  revalidatePath(`/${ADMIN}/tasks`);
   revalidatePath(`/${ADMIN}`);
   return { ok: true };
 }

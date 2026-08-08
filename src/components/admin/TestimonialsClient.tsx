@@ -10,6 +10,7 @@ import { PageHead } from "@/components/admin/ui";
 import { ITestimonial } from "@/types/cms";
 import ConfirmModal from "@/components/admin/ConfirmModal";
 import AIAssist from "@/components/ui/AIAssist";
+import CustomSelect from "@/components/ui/CustomSelect";
 
 export default function TestimonialsClient({
   testimonials,
@@ -267,24 +268,19 @@ export default function TestimonialsClient({
               </div>
 
               <div>
-                <label className="mono-tag text-xs mb-1 block">Which project is this about?</label>
-                <select
-                  className="w-full rounded-lg border border-ink-500 bg-ink-800 px-3 py-2 text-sm text-bone-50 focus:border-lime-400 focus:outline-none"
+                <CustomSelect
+                  label="Which project is this about?"
                   value={(editing as any).project_id ?? ""}
-                  onChange={(e) =>
-                    setEditing({ ...editing, project_id: e.target.value || null } as any)
-                  }
-                >
-                  <option value="">Not linked to a project</option>
-                  {projects.map((p: any) => {
-                    const who = p.clients?.company || p.clients?.name;
-                    return (
-                      <option key={p.id} value={p.id}>
-                        {who ? p.name + " — " + who : p.name}
-                      </option>
-                    );
-                  })}
-                </select>
+                  onChange={(v) => setEditing({ ...editing, project_id: v || null } as any)}
+                  placeholder="Not linked to a project"
+                  options={[
+                    { value: "", label: "Not linked to a project" },
+                    ...projects.map((p: any) => {
+                      const who = p.clients?.company || p.clients?.name;
+                      return { value: p.id, label: who ? `${p.name} — ${who}` : p.name };
+                    }),
+                  ]}
+                />
                 <p className="mt-1 text-[11px] leading-relaxed text-bone-400">
                   Linking it stops the automatic day-14 email asking this client for feedback they
                   have already given.

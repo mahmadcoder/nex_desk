@@ -87,6 +87,17 @@ export type AttendanceVerdict = {
   presentSec: number | null;
   /** The holiday's name, when `status` is `holiday`. */
   label?: string | null;
+  /** True when an admin set this rather than the person clocking in. */
+  edited?: boolean;
+};
+
+/** The shape `judgeAttendance` reads. Everything optional — a null row is a day. */
+export type AttendanceRow = {
+  checked_in_at?: string | null;
+  checked_out_at?: string | null;
+  status_override?: string | null;
+  edit_reason?: string | null;
+  edited_at?: string | null;
 };
 
 /**
@@ -97,7 +108,7 @@ export type AttendanceVerdict = {
  * system tells them.
  */
 export function judgeAttendance(
-  row: { checked_in_at?: string | null; checked_out_at?: string | null } | null,
+  row: AttendanceRow | null,
   hours: WorkHours,
   opts: {
     date: string | Date;
@@ -107,6 +118,7 @@ export function judgeAttendance(
   }
 ): AttendanceVerdict {
   const none = { lateBy: 0, presentSec: null };
+  const edited = !!row?.edited_at;
 
   if (opts.onLeave) return { status: "on_leave", ...none };
 
@@ -115,8 +127,24 @@ export function judgeAttendance(
   // kind of error that makes people stop believing the rest of the numbers.
   if (opts.holiday) return { status: "holiday", label: opts.holiday, ...none };
 
+  // An admin's word, but only AFTER leave and holidays. An override that could
+  // paint over an approved leave request would leave two parts of the system
+  // stating different things about the same day in writing.
+  //
+  // Deliberately above the working-day check as well: somebody who came in on a
+  // Saturday to ship something did come in, and the grid should say so.
+  if (row?.status_override === "absent") return { status: "absent", ...none, edited };
+  if (row?.status_override === "present") {
+    const overrideSec = row.checked_in_at && row.checked_out_at
+      ? Math.max(0, Math.round((+new Date(row.checked_out_at) - +new Date(row.checked_in_at)) / 1000))
+      : null;
+    // Never "late". An admin asserting presence is settling the question, and
+    // re-litigating the arrival time against the grace period would undo that.
+    return { status: "present", lateBy: 0, presentSec: overrideSec, edited };
+  }
+
   if (!isWorkingDay(opts.date, hours)) return { status: "off", ...none };
-  if (!row?.checked_in_at) return { status: "absent", ...none };
+  if (!row?.checked_in_at) return { status: "absent", ...none, edited };
 
   const presentSec = row.checked_out_at
     ? Math.max(0, Math.round((+new Date(row.checked_out_at) - +new Date(row.checked_in_at)) / 1000))
@@ -126,8 +154,8 @@ export function judgeAttendance(
   const arrived = minutesOfDay(row.checked_in_at);
 
   return arrived > deadline
-    ? { status: "late", lateBy: arrived - deadline, presentSec }
-    : { status: "present", lateBy: 0, presentSec };
+    ? { status: "late", lateBy: arrived - deadline, presentSec, edited }
+    : { status: "present", lateBy: 0, presentSec, edited };
 }
 
 /** "6h 40m" — used everywhere hours are shown, so they read the same way. */

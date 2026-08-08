@@ -1,12 +1,16 @@
-import Link from "next/link";
 import { createAdminClient } from "@/lib/supabase/server";
 import { requireOwnerAdmin } from "@/lib/auth/guards";
 import { PageHead, Table } from "@/components/admin/ui";
 import { fmtDateTime } from "@/lib/datetime";
 import { describeAction, ENTITY_FILTERS } from "@/config/auditActions";
+import AuditFilters from "@/components/admin/AuditFilters";
 import { ShieldAlert } from "lucide-react";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
+
+// The reset link was hardcoded to /nx-control, which breaks the moment
+// ADMIN_PATH is changed — the one thing that path is configurable for.
+const ADMIN = process.env.ADMIN_PATH || "nx-control";
 
 export const metadata = { title: "Audit log" };
 export const dynamic = "force-dynamic";
@@ -77,71 +81,13 @@ export default async function AuditPage({
         sub="Every recorded change, newest first. Reading this page changes nothing and is not itself recorded."
       />
 
-      <form className="mb-5 flex flex-wrap items-end gap-2">
-        <div>
-          <label className="mono-tag mb-1.5 block text-[10px]">Who</label>
-          <select
-            name="who"
-            defaultValue={who ?? ""}
-            className="rounded-lg border border-ink-500 bg-ink-800 px-2.5 py-1.5 text-xs focus:border-lime-400 focus:outline-none"
-          >
-            <option value="">Anyone</option>
-            {(actors ?? []).map((a: any) => (
-              <option key={a.id} value={a.id}>
-                {a.full_name || a.email}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        <div>
-          <label className="mono-tag mb-1.5 block text-[10px]">What</label>
-          <select
-            name="entity"
-            defaultValue={entity ?? ""}
-            className="rounded-lg border border-ink-500 bg-ink-800 px-2.5 py-1.5 text-xs focus:border-lime-400 focus:outline-none"
-          >
-            <option value="">Everything</option>
-            {ENTITY_FILTERS.map(([value, label]) => (
-              <option key={value} value={value}>
-                {label}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        <div>
-          <label className="mono-tag mb-1.5 block text-[10px]">When</label>
-          <select
-            name="days"
-            defaultValue={days}
-            className="rounded-lg border border-ink-500 bg-ink-800 px-2.5 py-1.5 text-xs focus:border-lime-400 focus:outline-none"
-          >
-            {RANGES.map((r) => (
-              <option key={r.key} value={r.key}>
-                {r.label}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        <div className="min-w-[150px] flex-1">
-          <label className="mono-tag mb-1.5 block text-[10px]">Search</label>
-          <input
-            name="q"
-            defaultValue={q ?? ""}
-            placeholder="a name, an email, a field…"
-            className="w-full rounded-lg border border-ink-500 bg-ink-800 px-2.5 py-1.5 text-xs focus:border-lime-400 focus:outline-none"
-          />
-        </div>
-
-        <button className="btn btn-primary h-[30px] px-3 text-xs">Filter</button>
-        {(who || entity || q || days !== "7") && (
-          <Link href="/nx-control/audit" className="mono-tag text-[11px] hover:text-lime-400">
-            reset
-          </Link>
-        )}
-      </form>
+      <AuditFilters
+        actors={(actors ?? []) as any}
+        entities={ENTITY_FILTERS}
+        ranges={RANGES}
+        initial={{ who: who ?? "", entity: entity ?? "", days, q: q ?? "" }}
+        resetHref={`/${ADMIN}/audit`}
+      />
 
       <p className="mono-tag mb-3 text-[11px]">
         {list.length} record{list.length === 1 ? "" : "s"}

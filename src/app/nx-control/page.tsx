@@ -6,6 +6,8 @@ import { PageHead, Stat, Badge, Table } from "@/components/admin/ui";
 import { money } from "@/lib/utils";
 import DashboardCurrencyTabs from "@/components/admin/DashboardCurrencyTabs";
 import StaffDashboard from "@/components/admin/StaffDashboard";
+import AttendanceWidget from "@/components/admin/AttendanceWidget";
+import { myAttendanceToday } from "@/lib/actions/attendance";
 import { getLiveExchangeRates, convertCurrency } from "@/lib/currency";
 import { atRiskClients, projectRisk } from "@/lib/insights";
 import { expenseInvoiceIds } from "@/lib/billing";
@@ -145,6 +147,10 @@ export default async function Dashboard({
   const weekEnd = agencyDay(new Date(Date.now() + 7 * 864e5));
   const todayStr = agencyDay();
 
+  // Returns null when the signed-in admin has no employees row, which is the
+  // correct self-limiting behaviour — no row, nothing to record against.
+  const myAttendance = await myAttendanceToday();
+
   const [{ data: offSoon }, { count: pendingLeave }] = await Promise.all([
     db.from("leave_requests")
       .select("start_date, end_date, leave_type, employees(full_name)")
@@ -168,6 +174,23 @@ export default async function Dashboard({
         sub={fmtDateLong()}
         action={<Link href={`${BASE}/deals/new`} className="btn btn-primary h-10">Lock a deal</Link>}
       />
+
+      {/* Keyed on having an employee record, not on role.
+          `employeeId` is resolved by matching the login email to an `employees`
+          row whatever the role is, and the attendance grid lists every
+          non-terminated employee — so an admin who is also on the payroll
+          appeared in that grid and was marked absent every single working day,
+          with no button anywhere that could change it. An owner with no
+          employee record simply does not see this. */}
+      {myAttendance && (
+        <div className="mb-6 max-w-md">
+          <AttendanceWidget
+            row={myAttendance.row}
+            verdict={myAttendance.verdict}
+            hours={myAttendance.hours}
+          />
+        </div>
+      )}
 
       {!!risks.length && (
         <section className="mb-6">

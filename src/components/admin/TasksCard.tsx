@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { ListChecks, Plus, Trash2, CalendarDays } from "lucide-react";
 import SuggestTasks from "@/components/admin/SuggestTasks";
+import CustomSelect from "@/components/ui/CustomSelect";
 import { setTaskRecurrence } from "@/lib/actions/tasks";
 import { saveTask, toggleTask, deleteTask } from "@/lib/actions/tasks";
 import { fmtDate, agencyDay } from "@/lib/datetime";
@@ -136,21 +137,21 @@ export default function TasksCard({
             }}
             placeholder="What needs doing?"
           />
-          <div className="flex flex-wrap gap-2">
-            <select
-              className={`${field} flex-1`}
+          {/* Stacked on a phone. Side by side these two are ~150px each, and a
+              name plus a date control do not fit in that. */}
+          <div className="grid gap-2 sm:grid-cols-2">
+            <CustomSelect
               value={who}
-              onChange={(e) => setWho(e.target.value)}
-              aria-label="Assign to"
-            >
-              <option value="">Nobody yet</option>
-              {employees.map((e) => (
-                <option key={e.id} value={e.id}>{e.full_name}</option>
-              ))}
-            </select>
+              onChange={setWho}
+              placeholder="Nobody yet"
+              options={[
+                { value: "", label: "Nobody yet" },
+                ...employees.map((e) => ({ value: e.id, label: e.full_name })),
+              ]}
+            />
             <input
               type="date"
-              className={`${field} flex-1`}
+              className={field}
               value={due}
               onChange={(e) => setDue(e.target.value)}
               aria-label="Due date"
@@ -206,31 +207,35 @@ export default function TasksCard({
                 {canManage && (
                   <div className="mt-0.5 flex shrink-0 items-center gap-2">
                     {/* Turning a task recurring makes it a template: it leaves
-                        the board and starts producing dated copies instead. */}
-                    <select
-                      value=""
-                      onChange={(e) => {
-                        const v = e.target.value;
-                        if (!v) return;
-                        start(async () => {
-                          const res = await setTaskRecurrence(
-                            t.id,
-                            v as "daily" | "weekly" | "monthly"
-                          );
-                          if (!res.ok) toast.error(res.error ?? "Could not set that.");
-                          else toast.success("Now recurring — a fresh copy appears each period.");
-                          router.refresh();
-                        });
-                      }}
-                      title="Repeat this task"
-                      aria-label="Repeat this task"
-                      className="rounded border border-ink-600 bg-ink-800 px-1 py-0.5 text-[10px] text-bone-400 hover:text-bone-200"
-                    >
-                      <option value="">↻</option>
-                      <option value="daily">Every day</option>
-                      <option value="weekly">Every week</option>
-                      <option value="monthly">Every month</option>
-                    </select>
+                        the board and starts producing dated copies instead.
+                        An action menu rather than a value picker — `value` is
+                        permanently "", so the placeholder always shows. It
+                        needs a real width: as a bare "↻" glyph nobody could
+                        tell it was a control at all. */}
+                    <div className="w-[112px]">
+                      <CustomSelect
+                        value=""
+                        placeholder="Repeat…"
+                        className="px-2 py-1 text-[11px]"
+                        onChange={(v) => {
+                          if (!v) return;
+                          start(async () => {
+                            const res = await setTaskRecurrence(
+                              t.id,
+                              v as "daily" | "weekly" | "monthly"
+                            );
+                            if (!res.ok) toast.error(res.error ?? "Could not set that.");
+                            else toast.success("Now recurring — a fresh copy appears each period.");
+                            router.refresh();
+                          });
+                        }}
+                        options={[
+                          { value: "daily", label: "Every day" },
+                          { value: "weekly", label: "Every week" },
+                          { value: "monthly", label: "Every month" },
+                        ]}
+                      />
+                    </div>
 
                     <button
                       type="button"

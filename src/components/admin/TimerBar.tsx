@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { Play, Pause, Square, Timer } from "lucide-react";
 import { startTimer, stopTimer } from "@/lib/actions/timeTracking";
 import { humanDuration } from "@/lib/workHours";
+import CustomSelect from "@/components/ui/CustomSelect";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
@@ -77,19 +78,20 @@ export default function TimerBar({
       <div className="flex flex-wrap items-center gap-2 rounded-lg border border-ink-600 bg-ink-800/50 p-2.5">
         <Timer size={15} className="shrink-0 text-bone-400" aria-hidden />
 
-        <select
-          value={taskId}
-          onChange={(e) => setTaskId(e.target.value)}
-          className="min-w-0 flex-1 rounded-lg border border-ink-500 bg-ink-800 px-2.5 py-1.5 text-xs focus:border-lime-400 focus:outline-none"
-          aria-label="What are you working on?"
-        >
-          <option value="">General work (no task)</option>
-          {tasks.map((t) => (
-            <option key={t.id} value={t.id}>
-              {t.title}
-            </option>
-          ))}
-        </select>
+        {/* min-w-0 on the flex child, or a long task title stretches the bar
+            past its container instead of truncating inside it. */}
+        <div className="min-w-0 flex-1">
+          <CustomSelect
+            value={taskId}
+            onChange={setTaskId}
+            placeholder="General work (no task)"
+            className="py-1.5 text-xs"
+            options={[
+              { value: "", label: "General work (no task)" },
+              ...tasks.map((t) => ({ value: t.id, label: t.title })),
+            ]}
+          />
+        </div>
 
         <button
           type="button"

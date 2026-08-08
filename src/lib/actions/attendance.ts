@@ -2,9 +2,10 @@
 
 import { revalidatePath } from "next/cache";
 import { createAdminClient } from "@/lib/supabase/server";
-import { requireStaff } from "@/lib/auth/guards";
+import { requireStaff, requireOwnerAdmin } from "@/lib/auth/guards";
 import { getCurrentStaff } from "@/lib/auth/staff";
-import { agencyDay } from "@/lib/datetime";
+import { recordAudit } from "@/lib/actions/audit";
+import { agencyDay, AGENCY_TZ } from "@/lib/datetime";
 import { workHoursFrom, judgeAttendance, type WorkHours } from "@/lib/workHours";
 import { holidayMap } from "@/lib/actions/hr";
 
@@ -163,4 +164,195 @@ export async function myAttendanceToday() {
   const staff = await getCurrentStaff();
   if (!staff?.employeeId) return null;
   return todayFor(staff.employeeId);
+}
+
+/* ============================================================
+   ADMIN CORRECTIONS
+   ============================================================ */
+
+/**
+ * Everything below takes an `employeeId`, and everything above deliberately
+ * does not. That is the whole reason these are separate functions rather than
+ * an optional argument on `checkIn`: the moment self-service accepts an id,
+ * one missing guard means anybody can clock in as anybody.
+ *
+ * Every correction requires a reason and is written to the audit log. An
+ * edited day has to be visibly different from a day somebody actually clocked.
+ */
+
+const HHMM = /^([01]\d|2[0-3]):[0-5]\d$/;
+
+/**
+ * How many minutes the agency zone runs ahead of UTC at a given instant.
+ *
+ * The date parts have to come back from Intl along with the time. Comparing
+ * only hours and minutes looks like it works and then fails at the edges of the
+ * day: 23:50 formats as 04:50 *the next morning*, and reading that as a
+ * same-day difference makes the zone look nineteen hours behind UTC.
+ */
+function zoneOffsetMin(at: Date): number {
+  const parts = Object.fromEntries(
+    new Intl.DateTimeFormat("en-CA", {
+      timeZone: AGENCY_TZ,
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+      hour12: false,
+    })
+      .formatToParts(at)
+      .map((p) => [p.type, p.value])
+  ) as Record<string, string>;
+
+  const wall = Date.UTC(
+    Number(parts.year),
+    Number(parts.month) - 1,
+    Number(parts.day),
+    // Intl renders midnight as "24" in some engines.
+    Number(parts.hour) % 24,
+    Number(parts.minute),
+    Number(parts.second)
+  );
+
+  return (wall - at.getTime()) / 60_000;
+}
+
+/**
+ * "09:12" on a given agency-local day → the instant to store.
+ *
+ * Not `new Date("2026-08-06T09:12")`, which the server reads as UTC and stores
+ * five hours out. The offset is resolved for that specific date, so a zone with
+ * a half-hour offset or a daylight-saving shift still lands on the right
+ * moment.
+ */
+function atAgencyTime(day: string, hm: string): string {
+  const [y, mo, d] = day.split("-").map(Number);
+  const [h, mi] = hm.split(":").map(Number);
+
+  const wall = Date.UTC(y, mo - 1, d, h, mi);
+
+  // Two passes. The first offset is measured at roughly the right instant; if
+  // the guess happens to straddle a DST boundary the second measurement
+  // disagrees, and that one is taken instead.
+  const first = zoneOffsetMin(new Date(wall));
+  let result = wall - first * 60_000;
+
+  const second = zoneOffsetMin(new Date(result));
+  if (second !== first) result = wall - second * 60_000;
+
+  return new Date(result).toISOString();
+}
+
+export async function adminSetAttendance(input: {
+  employeeId: string;
+  /** YYYY-MM-DD, agency local. */
+  date: string;
+  /** "09:12", or empty to leave unset. */
+  inAt?: string | null;
+  outAt?: string | null;
+  /** Asserts the day when there are no times to give. */
+  status?: "present" | "absent" | null;
+  reason: string;
+}) {
+  const me = await requireOwnerAdmin();
+
+  const reason = input.reason?.trim();
+  if (!reason) {
+    return { ok: false as const, error: "Say why this is being changed — it goes on the record." };
+  }
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(input.date)) {
+    return { ok: false as const, error: "That date is not valid." };
+  }
+
+  const inHm = input.inAt?.trim() || "";
+  const outHm = input.outAt?.trim() || "";
+  if (inHm && !HHMM.test(inHm)) return { ok: false as const, error: "Arrival must look like 09:00." };
+  if (outHm && !HHMM.test(outHm)) return { ok: false as const, error: "Leaving must look like 18:00." };
+  if (inHm && outHm && outHm <= inHm) {
+    // Compared as strings, which is safe for zero-padded HH:MM and avoids
+    // pretending we support a shift running past midnight — we do not, and a
+    // silently accepted negative duration would be worse than this message.
+    return { ok: false as const, error: "Leaving has to be after arriving." };
+  }
+  if (!inHm && !input.status) {
+    return {
+      ok: false as const,
+      error: "Give an arrival time, or mark the day present or absent.",
+    };
+  }
+  if (outHm && !inHm) {
+    return { ok: false as const, error: "A leaving time needs an arrival time to sit against." };
+  }
+
+  const db = createAdminClient();
+  const now = new Date().toISOString();
+
+  const { error } = await db.from("attendance").upsert(
+    {
+      employee_id: input.employeeId,
+      work_date: input.date,
+      checked_in_at: inHm ? atAgencyTime(input.date, inHm) : null,
+      checked_out_at: outHm ? atAgencyTime(input.date, outHm) : null,
+      status_override: input.status ?? null,
+      edit_reason: reason,
+      edited_by: me.userId,
+      edited_at: now,
+      updated_at: now,
+    },
+    { onConflict: "employee_id,work_date" }
+  );
+
+  if (error) {
+    return {
+      ok: false as const,
+      error:
+        error.code === "42703"
+          ? "Attendance needs its override columns — run supabase/idempotent_fixes_2027_35.sql."
+          : error.code === "42P01"
+            ? "Attendance needs its table — run supabase/idempotent_fixes_2027_26.sql."
+            : error.message,
+    };
+  }
+
+  await recordAudit(me.userId, "attendance.override", "attendance", null, {
+    employee_id: input.employeeId,
+    date: input.date,
+    in: inHm || null,
+    out: outHm || null,
+    marked: input.status ?? null,
+    reason,
+  });
+
+  revalidatePath(`/${ADMIN}`);
+  revalidatePath(`/${ADMIN}/attendance`);
+  return { ok: true as const };
+}
+
+/** Back to no record at all — the day reads however the rules say it should. */
+export async function adminClearAttendance(employeeId: string, date: string, reason: string) {
+  const me = await requireOwnerAdmin();
+
+  const why = reason?.trim();
+  if (!why) return { ok: false as const, error: "Say why this is being cleared." };
+
+  const { error } = await createAdminClient()
+    .from("attendance")
+    .delete()
+    .eq("employee_id", employeeId)
+    .eq("work_date", date);
+
+  if (error) return { ok: false as const, error: error.message };
+
+  await recordAudit(me.userId, "attendance.override", "attendance", null, {
+    employee_id: employeeId,
+    date,
+    cleared: true,
+    reason: why,
+  });
+
+  revalidatePath(`/${ADMIN}`);
+  revalidatePath(`/${ADMIN}/attendance`);
+  return { ok: true as const };
 }

@@ -6,6 +6,7 @@ import { holidayMap } from "@/lib/actions/hr";
 import { judgeAttendance, humanDuration, isWorkingDay } from "@/lib/workHours";
 import { agencyDay, fmtMonth, fmtTime, TZ_LABEL } from "@/lib/datetime";
 import Avatar from "@/components/Avatar";
+import AttendanceCell from "@/components/admin/AttendanceCell";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
@@ -21,14 +22,8 @@ const CELL: Record<string, string> = {
   off: "bg-ink-800 text-bone-600",
 };
 
-const MARK: Record<string, string> = {
-  present: "P",
-  late: "L",
-  absent: "A",
-  on_leave: "—",
-  holiday: "H",
-  off: "",
-};
+// The letters live in AttendanceCell now, alongside the click handling. CELL
+// stays here only because the legend below still paints swatches from it.
 
 /**
  * Who was in, and when.
@@ -91,6 +86,20 @@ export default async function AttendancePage({
   }
 
   const byKey = new Map((rows ?? []).map((r: any) => [`${r.employee_id}|${r.work_date}`, r]));
+
+  // Who corrected what, resolved in one query rather than per cell. Only the
+  // ids that actually appear — most months this is nobody.
+  const editorIds = [...new Set((rows ?? []).map((r: any) => r.edited_by).filter(Boolean))];
+  const editorName = new Map<string, string>();
+  if (editorIds.length) {
+    const { data: editors } = await db
+      .from("profiles")
+      .select("id, full_name, email")
+      .in("id", editorIds as string[]);
+    for (const p of editors ?? []) {
+      editorName.set(p.id, p.full_name || p.email || "an admin");
+    }
+  }
   const onLeave = (employeeId: string, iso: string) =>
     (leaves ?? []).some(
       (l: any) => l.employee_id === employeeId && l.start_date <= iso && l.end_date >= iso
@@ -104,7 +113,7 @@ export default async function AttendancePage({
     <>
       <PageHead
         title="Attendance"
-        sub={`${hours.start}–${hours.end} ${TZ_LABEL}, ${hours.graceMin} minutes' grace. Late is recalculated from Settings every time this page loads.`}
+        sub={`${hours.start}–${hours.end} ${TZ_LABEL}, ${hours.graceMin} minutes' grace. Click any day to correct it. Late is recalculated from Settings every time this page loads.`}
       />
 
       <div className="mb-4 flex items-center justify-between">
@@ -123,6 +132,10 @@ export default async function AttendancePage({
           <Key tone="absent" label="Absent" />
           <Key tone="on_leave" label="On leave" />
           <Key tone="holiday" label="Holiday" />
+          <span className="inline-flex items-center gap-1.5">
+            <span className="inline-block h-1.5 w-1.5 rounded-full bg-sky-400" />
+            Corrected
+          </span>
         </div>
       </div>
 
@@ -157,14 +170,15 @@ export default async function AttendancePage({
                 const iso = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(
                   d.getDate()
                 ).padStart(2, "0")}`;
-                const v = judgeAttendance(byKey.get(`${e.id}|${iso}`) ?? null, hours, {
+                const row = byKey.get(`${e.id}|${iso}`) ?? null;
+                const v = judgeAttendance(row, hours, {
                   date: d,
                   onLeave: onLeave(e.id, iso),
                   holiday: holidays[iso] ?? null,
                 });
                 totalSec += v.presentSec ?? 0;
                 if (v.status === "late") lates++;
-                return { iso, v };
+                return { iso, v, row };
               });
 
               return (
@@ -181,18 +195,19 @@ export default async function AttendancePage({
                     </div>
                   </td>
 
-                  {cells.map(({ iso, v }) => (
+                  {cells.map(({ iso, v, row }) => (
                     <td key={iso} className="px-0.5 py-2.5 text-center">
-                      <span
-                        // Names the holiday rather than just saying "holiday" —
-                        // the whole point of recording it was the reason.
-                        title={`${iso} — ${v.label ?? v.status.replace("_", " ")}${
-                          v.lateBy ? ` (${v.lateBy}m late)` : ""
-                        }`}
-                        className={`inline-flex h-6 w-6 items-center justify-center rounded text-[10px] font-medium ${CELL[v.status]}`}
-                      >
-                        {MARK[v.status]}
-                      </span>
+                      {/* Clickable. The tooltip still names the holiday rather
+                          than just saying "holiday" — the whole point of
+                          recording it was the reason. */}
+                      <AttendanceCell
+                        employeeId={e.id}
+                        employeeName={e.full_name}
+                        date={iso}
+                        verdict={v}
+                        row={row}
+                        editorName={row?.edited_by ? editorName.get(row.edited_by) ?? null : null}
+                      />
                     </td>
                   ))}
 
