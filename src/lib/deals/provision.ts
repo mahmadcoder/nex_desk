@@ -41,6 +41,14 @@ export async function provisionLockedDeal(
       .eq("id", deal.client_id);
   }
 
+  if (deal.client_id) {
+    const { data: clientObj } = await db.from("clients").select("lead_id").eq("id", deal.client_id).maybeSingle();
+    if (clientObj?.lead_id) {
+      await db.from("leads").update({ status: "won" }).eq("id", clientObj.lead_id);
+      revalidatePath(`/${ADMIN}/leads`);
+    }
+  }
+
   /* ---------- Project: at most one per deal ------------------------------
    *
    * Stage invoices have always been protected by the unique index on

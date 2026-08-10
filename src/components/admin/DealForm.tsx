@@ -255,7 +255,7 @@ export default function DealForm({
   }
 
   return (
-    <div className="grid gap-6 xl:grid-cols-[1fr_340px]">
+    <div className="grid gap-6 lg:grid-cols-[1fr_340px]">
       <div className="space-y-6">
         {/* ---- client + project ---- */}
         <section className="card p-6">
@@ -370,7 +370,7 @@ export default function DealForm({
 
           <div className="space-y-3">
             {items.map((it, i) => (
-              <div key={i} className="flex flex-col gap-2 sm:grid sm:grid-cols-[1fr_70px_130px_32px] sm:items-start">
+              <div key={i} className="flex flex-col gap-2 sm:grid sm:grid-cols-[1fr_70px_130px_32px] sm:items-center">
                 <div>
                   <input className={field} placeholder="Deliverable" value={it.item}
                     onChange={(e) => setItems((p) => p.map((x, j) => j === i ? { ...x, item: e.target.value } : x))} />
@@ -379,9 +379,14 @@ export default function DealForm({
                 </div>
                 <input className={field} type="number" min={1} value={it.qty}
                   onChange={(e) => setItems((p) => p.map((x, j) => j === i ? { ...x, qty: Number(e.target.value) } : x))} />
-                <input className={field} type="number" min={0} placeholder="0" value={it.price}
-                  onChange={(e) => setItems((p) => p.map((x, j) => j === i ? { ...x, price: Number(e.target.value) } : x))} />
-                <button type="button" className="mt-2 text-bone-400 hover:text-[#F87171]"
+                <input className={field} type="text" inputMode="decimal" placeholder="0" value={it.price || ""}
+                  onChange={(e) => {
+                    const raw = e.target.value;
+                    if (raw === "" || /^\d*\.?\d*$/.test(raw)) {
+                      setItems((p) => p.map((x, j) => j === i ? { ...x, price: raw === "" ? 0 : Number(raw) } : x));
+                    }
+                  }} />
+                <button type="button" className="text-bone-400 hover:text-[#F87171]"
                   onClick={() => setItems((p) => p.filter((_, j) => j !== i))} aria-label="Remove line">
                   <Trash2 size={15} />
                 </button>
@@ -450,7 +455,7 @@ export default function DealForm({
         {/* ---- timeline + terms ---- */}
         <section className="card p-6">
           <h2 className="mb-5 text-base">Timeline and terms</h2>
-          <div className="grid gap-4 grid-cols-2 sm:grid-cols-3 lg:grid-cols-5">
+          <div className="grid items-start gap-x-4 gap-y-4 grid-cols-2 sm:grid-cols-3 lg:grid-cols-5">
             <div>
               <label className={label}>Start date</label>
               <input className={field} type="date" value={d.start_date} onChange={(e) => set("start_date", e.target.value)} />
@@ -502,7 +507,7 @@ export default function DealForm({
       </div>
 
       {/* ---- summary rail ---- */}
-      <aside className="xl:sticky xl:top-8 xl:self-start">
+      <aside className="lg:sticky lg:top-8 lg:self-start">
         <div className="card p-6">
           <h2 className="text-base">Summary</h2>
 

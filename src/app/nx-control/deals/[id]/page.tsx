@@ -70,12 +70,11 @@ export default async function DealDetail({ params }: { params: Promise<{ id: str
         }
       />
 
-      <div className="grid gap-6 xl:grid-cols-[1fr_340px]">
-        <div className="space-y-6">
-          {/* A locked deal is an agreement with a project, milestones and
-              invoices behind it. Editing the figures now would silently
-              disagree with the PDF the client already signed. */}
-          {locked ? (
+
+      {locked ? (
+        /* ── Locked deal: sidebar layout works fine, no nested DealForm grid ── */
+        <div className="grid gap-6 lg:grid-cols-[1fr_340px]">
+          <div className="space-y-6">
             <section className="card p-6">
               <h2 className="mb-4 text-base">Agreement</h2>
               <dl className="space-y-2.5 text-sm">
@@ -125,62 +124,96 @@ export default async function DealDetail({ params }: { params: Promise<{ id: str
                 project. Services above are only a label and can be corrected any time.
               </p>
             </section>
-          ) : (
-            <>
-              <div className="rounded-lg border border-ink-600 bg-ink-800/50 p-3.5">
-                <p className="text-xs leading-relaxed text-bone-300">
-                  {isLost
-                    ? "This one was lost. Adjust anything below and send it again to reopen it — re-quoting clears the loss."
-                    : "Change anything, then either send the revised quote or lock it in. Nothing reaches the client until you press one of those."}
-                </p>
-              </div>
+          </div>
 
-              <DealForm
-                clients={clients ?? []}
-                services={services ?? []}
-                defaultTerms={settings?.default_terms ?? ""}
-                taxDefault={Number(settings?.tax_percent ?? 0)}
-                defaultCurrency={settings?.default_currency ?? "PKR"}
-                initialDeal={deal}
-                templates={[]}
-              />
-            </>
-          )}
-        </div>
-
-        <aside className="space-y-4">
-          <section className="card p-5">
-            <div className="mb-3 flex items-center justify-between gap-3 border-b border-ink-700 pb-3">
-              <h2 className="text-base">Status</h2>
-              <Badge>{isLost ? "lost" : deal.status}</Badge>
-            </div>
-            <QuoteActions deal={deal} />
-          </section>
-
-          <section className="card p-5">
-            <h2 className="mb-3 border-b border-ink-700 pb-3 text-base">Documents</h2>
-            <div className="space-y-2">
-              <DocButton type="quotation" id={deal.id} label="Quotation PDF" />
-              {locked && <DocButton type="agreement" id={deal.id} label="Agreement PDF" />}
-            </div>
-            <p className="mt-3 text-[11px] leading-relaxed text-bone-400">
-              Generating a PDF here saves a copy to the client&rsquo;s documents.
-            </p>
-          </section>
-
-          {project && (
+          <aside className="space-y-4 lg:sticky lg:top-8 lg:self-start">
             <section className="card p-5">
-              <h2 className="mb-3 border-b border-ink-700 pb-3 text-base">Project</h2>
-              <Link
-                href={`${BASE}/projects/${project.id}`}
-                className="text-sm text-bone-100 hover:text-lime-400"
-              >
-                {project.name} →
-              </Link>
+              <div className="mb-3 flex items-center justify-between gap-3 border-b border-ink-700 pb-3">
+                <h2 className="text-base">Status</h2>
+                <Badge>{isLost ? "lost" : deal.status}</Badge>
+              </div>
+              <QuoteActions deal={deal} />
             </section>
-          )}
-        </aside>
-      </div>
+
+            <section className="card p-5">
+              <h2 className="mb-3 border-b border-ink-700 pb-3 text-base">Documents</h2>
+              <div className="space-y-2">
+                <DocButton type="quotation" id={deal.id} label="Quotation PDF" />
+                {locked && <DocButton type="agreement" id={deal.id} label="Agreement PDF" />}
+              </div>
+              <p className="mt-3 text-[11px] leading-relaxed text-bone-400">
+                Generating a PDF here saves a copy to the client&rsquo;s documents.
+              </p>
+            </section>
+
+            {project && (
+              <section className="card p-5">
+                <h2 className="mb-3 border-b border-ink-700 pb-3 text-base">Project</h2>
+                <Link
+                  href={`${BASE}/projects/${project.id}`}
+                  className="text-sm text-bone-100 hover:text-lime-400"
+                >
+                  {project.name} →
+                </Link>
+              </section>
+            )}
+          </aside>
+        </div>
+      ) : (
+        /* ── Open / lost deal: Status + Documents sit above the DealForm so the
+             DealForm's own sidebar layout is not nested inside another grid. ── */
+        <div className="space-y-6">
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            <section className="card p-5">
+              <div className="mb-3 flex items-center justify-between gap-3 border-b border-ink-700 pb-3">
+                <h2 className="text-base">Status</h2>
+                <Badge>{isLost ? "lost" : deal.status}</Badge>
+              </div>
+              <QuoteActions deal={deal} />
+            </section>
+
+            <section className="card p-5">
+              <h2 className="mb-3 border-b border-ink-700 pb-3 text-base">Documents</h2>
+              <div className="space-y-2">
+                <DocButton type="quotation" id={deal.id} label="Quotation PDF" />
+              </div>
+              <p className="mt-3 text-[11px] leading-relaxed text-bone-400">
+                Generating a PDF here saves a copy to the client&rsquo;s documents.
+              </p>
+            </section>
+
+            {project && (
+              <section className="card p-5">
+                <h2 className="mb-3 border-b border-ink-700 pb-3 text-base">Project</h2>
+                <Link
+                  href={`${BASE}/projects/${project.id}`}
+                  className="text-sm text-bone-100 hover:text-lime-400"
+                >
+                  {project.name} →
+                </Link>
+              </section>
+            )}
+          </div>
+
+          <div className="rounded-lg border border-ink-600 bg-ink-800/50 p-3.5">
+            <p className="text-xs leading-relaxed text-bone-300">
+              {isLost
+                ? "This one was lost. Adjust anything below and send it again to reopen it — re-quoting clears the loss."
+                : "Change anything, then either send the revised quote or lock it in. Nothing reaches the client until you press one of those."}
+            </p>
+          </div>
+
+          <DealForm
+            clients={clients ?? []}
+            services={services ?? []}
+            defaultTerms={settings?.default_terms ?? ""}
+            taxDefault={Number(settings?.tax_percent ?? 0)}
+            defaultCurrency={settings?.default_currency ?? "PKR"}
+            initialDeal={deal}
+            templates={[]}
+          />
+        </div>
+      )}
     </>
   );
 }

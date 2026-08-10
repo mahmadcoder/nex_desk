@@ -216,7 +216,9 @@ export async function convertLeadToClient(leadId: string) {
     throw new Error(insertErr?.message || "Could not create the client record.");
   }
 
-  await db.from("leads").update({ status: "won" }).eq("id", leadId);
+  if (lead.status === "new") {
+    await db.from("leads").update({ status: "contacted" }).eq("id", leadId);
+  }
 
   // Provision the portal account so the client actually receives their
   // credentials and the admin is notified. Without this a converted lead has

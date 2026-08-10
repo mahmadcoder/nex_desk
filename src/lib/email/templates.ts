@@ -46,8 +46,7 @@ You can see recent work here:
 {{portal_url}}
 
 Best regards,
-{{sender_name}}
-Nex Desk Software Agency`,
+{{sender_name}}`,
   },
 
   newsletter_welcome: {

@@ -16,7 +16,7 @@ import { contractPosition, extrasPosition, isContractInvoice, splitInvoices } fr
 import ActivityTimeline from "@/components/admin/ActivityTimeline";
 import { clientActivity } from "@/lib/insights";
 import { revealPreview } from "@/lib/crypto";
-import { Calendar, Layers, Clock, CheckCircle2, ShieldCheck, Mail, Globe, Lock, Plus } from "lucide-react";
+import { Calendar, Layers, Clock, CheckCircle2, ShieldCheck, Mail, Globe, Lock, Plus, FileText, Send } from "lucide-react";
 
 const BASE = `/${process.env.ADMIN_PATH || "nx-control"}`;
 export const dynamic = "force-dynamic";
@@ -132,6 +132,8 @@ export default async function ClientDetail({ params }: { params: Promise<{ id: s
     ? (projects ?? []).find((p) => p.deal_id === lockedDeal.id) ?? (projects ?? [])[0] ?? null
     : null;
 
+  const openQuote = allDeals.find((d: any) => d.status === "sent" || d.status === "draft") ?? null;
+
   // Grouped per currency, and drafts excluded: a draft is a payment stage that
   // has not been billed yet, so it is neither invoiced nor owed today. Summing
   // raw numbers and labelling the result `preferred_currency` used to show a
@@ -238,7 +240,11 @@ export default async function ClientDetail({ params }: { params: Promise<{ id: s
               <DocButton type="nda" id={id} label="NDA" />
               <DocButton type="dpa" id={id} label="DPA" />
               <DocButton type="security" id={id} label="Security" />
-              {services.length ? (
+              {openQuote ? (
+                <Link href={`${BASE}/deals/${openQuote.id}`} className="btn btn-primary h-10">
+                  <Send size={14} /> Deal Quoted ({openQuote.deal_no})
+                </Link>
+              ) : services.length ? (
                 <>
                   <MonthlyReportButton clientId={id} clientName={client.name} />
                   <Link href={`${BASE}/deals/new?client=${id}`} className="btn btn-primary h-10">
