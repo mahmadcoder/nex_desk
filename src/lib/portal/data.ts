@@ -122,7 +122,7 @@ export async function loadBilling(clientId: string) {
   // leave the portal showing no contract value at all.
   const dealIdsViaProjects = (projects ?? []).map((p) => p.deal_id).filter(Boolean) as string[];
   const { data: dealsViaProjects } = dealIdsViaProjects.length
-    ? await db.from("deals").select("deal_no, total, currency, status").in("id", dealIdsViaProjects)
+    ? await db.from("deals").select("id, deal_no, title, total, currency, status, accepted_at, accepted_name").in("id", dealIdsViaProjects)
     : { data: [] as any[] };
 
   const lockedDeals = Array.from(

@@ -27,98 +27,106 @@ const ADMIN = process.env.ADMIN_PATH || "nx-control";
  * Ownership is proven against the signed-in portal user, not against anything
  * the browser sends: this runs with the service-role key.
  */
-export async function acceptAgreement(dealId: string, typedName: string) {
-  const db = createAdminClient();
+export async function acceptAgreement(
+  dealId: string,
+  typedName: string
+): Promise<({ ok: true } | { ok: false; error: string })> {
+  try {
+    const db = createAdminClient();
 
-  const id = asUuid(dealId);
-  if (!id) throw new Error("Invalid agreement reference.");
-  if (!typedName?.trim()) throw new Error("Type your full name to accept.");
+    const id = asUuid(dealId);
+    if (!id) return { ok: false, error: "Invalid agreement reference." };
+    if (!typedName?.trim()) return { ok: false, error: "Type your full name to accept." };
 
-  const { data: deal } = await db
-    .from("deals").select("*, clients(id, name, email, profile_id)").eq("id", id).maybeSingle();
-  if (!deal) throw new Error("Agreement not found.");
-  if (deal.status !== "locked") throw new Error("That agreement is not ready to accept.");
-  if (deal.accepted_at) throw new Error("This agreement has already been accepted.");
+    const { data: deal } = await db
+      .from("deals").select("*, clients(id, name, email, profile_id)").eq("id", id).maybeSingle();
+    if (!deal) return { ok: false, error: "Agreement not found." };
+    if (deal.status !== "locked") return { ok: false, error: "That agreement is not ready to accept." };
+    if (deal.accepted_at) return { ok: false, error: "This agreement has already been accepted." };
 
-  const client = (deal.clients as any) ?? null;
+    const client = (deal.clients as any) ?? null;
 
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  const ownsRecord =
-    !!user &&
-    (client?.profile_id === user.id ||
-      client?.email?.toLowerCase() === user.email?.toLowerCase());
-  if (!ownsRecord) throw new Error("Sign in to your portal to accept this agreement.");
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    const ownsRecord =
+      !!user &&
+      (client?.profile_id === user.id ||
+        client?.email?.toLowerCase() === user.email?.toLowerCase());
+    if (!ownsRecord) return { ok: false, error: "Sign in to your portal to accept this agreement." };
 
-  // Behind a proxy the real address is the first entry in x-forwarded-for.
-  const h = await headers();
-  const ip =
-    h.get("x-forwarded-for")?.split(",")[0].trim() ||
-    h.get("x-real-ip") ||
-    null;
+    // Behind a proxy the real address is the first entry in x-forwarded-for.
+    const h = await headers();
+    const ip =
+      h.get("x-forwarded-for")?.split(",")[0].trim() ||
+      h.get("x-real-ip") ||
+      null;
 
-  await db.from("deals").update({
-    accepted_at: new Date().toISOString(),
-    accepted_name: typedName.trim(),
-    accepted_ip: ip,
-    accepted_ua: h.get("user-agent")?.slice(0, 300) ?? null,
-  }).eq("id", id);
-
-  await recordAudit(
-    null,
-    "deal.accepted",
-    "deals",
-    id,
-    { name: typedName.trim(), deal_no: deal.deal_no }
-  );
-
-  await notify({
-    kind: "agreement.accepted",
-    title: `${client?.name ?? "A client"} accepted ${deal.deal_no}`,
-    body: `Signed as “${typedName.trim()}”. The advance invoice can go out.`,
-    href: `/${ADMIN}/deals/${id}`,
-    entity: "deals",
-    entityId: id,
-    actorLabel: client?.name ?? null,
-    actorKind: "client",
-    clientId: deal.client_id,
-  });
-
-  await sendEmail({
-    templateKey: "admin_agreement_accepted",
-    to: await adminNotifyAddress(),
-    clientId: deal.client_id,
-    vars: {
-      client_name: client?.name ?? "The client",
-      deal_no: deal.deal_no,
-      project_name: deal.title,
+    await db.from("deals").update({
+      accepted_at: new Date().toISOString(),
       accepted_name: typedName.trim(),
-      accepted_at: fmtDateTime(),
-      ip: ip ?? "unknown",
-      admin_url: `${getSiteBaseUrl()}/${ADMIN}/clients/${deal.client_id}`,
-    },
-  }).catch((e) => console.error("Acceptance notice failed:", e));
+      accepted_ip: ip,
+      accepted_ua: h.get("user-agent")?.slice(0, 300) ?? null,
+    }).eq("id", id);
 
-  // Their own copy of what they just agreed to, for their records.
-  if (client?.email) {
-    await sendEmail({
-      templateKey: "client_agreement_accepted",
-      to: client.email,
+    await recordAudit(
+      null,
+      "deal.accepted",
+      "deals",
+      id,
+      { name: typedName.trim(), deal_no: deal.deal_no }
+    );
+
+    await notify({
+      kind: "agreement.accepted",
+      title: `${client?.name ?? "A client"} accepted ${deal.deal_no}`,
+      body: `Signed as “${typedName.trim()}”. The advance invoice can go out.`,
+      href: `/${ADMIN}/deals/${id}`,
+      entity: "deals",
+      entityId: id,
+      actorLabel: client?.name ?? null,
+      actorKind: "client",
       clientId: deal.client_id,
-      attach: { type: "agreement", id },
-      vars: {
-        client_name: client.name,
-        project_name: deal.title,
-        deal_no: deal.deal_no,
-        amount: money(Number(deal.total), deal.currency),
-        accepted_at: fmtDateTime(),
-      },
-    }).catch((e) => console.error("Acceptance receipt failed:", e));
-  }
+    });
 
-  revalidatePath("/portal");
-  revalidatePath(`/${ADMIN}/clients/${deal.client_id}`);
-  return { ok: true as const };
+    await sendEmail({
+      templateKey: "admin_agreement_accepted",
+      to: await adminNotifyAddress(),
+      clientId: deal.client_id,
+      vars: {
+        client_name: client?.name ?? "The client",
+        deal_no: deal.deal_no,
+        project_name: deal.title,
+        accepted_name: typedName.trim(),
+        accepted_at: fmtDateTime(),
+        ip: ip ?? "unknown",
+        admin_url: `${getSiteBaseUrl()}/${ADMIN}/clients/${deal.client_id}`,
+      },
+    }).catch((e) => console.error("Acceptance notice failed:", e));
+
+    // Their own copy of what they just agreed to, for their records.
+    if (client?.email) {
+      await sendEmail({
+        templateKey: "client_agreement_accepted",
+        to: client.email,
+        clientId: deal.client_id,
+        attach: { type: "agreement", id },
+        vars: {
+          client_name: client.name,
+          project_name: deal.title,
+          deal_no: deal.deal_no,
+          amount: money(Number(deal.total), deal.currency),
+          accepted_at: fmtDateTime(),
+        },
+      }).catch((e) => console.error("Acceptance receipt failed:", e));
+    }
+
+    revalidatePath("/portal");
+    revalidatePath(`/${ADMIN}/clients/${deal.client_id}`);
+    return { ok: true as const };
+  } catch (e: any) {
+    console.error("acceptAgreement error:", e);
+    return { ok: false, error: e?.message || "Could not accept that agreement." };
+  }
 }
 
 /* ============================================================

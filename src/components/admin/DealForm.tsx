@@ -455,19 +455,25 @@ export default function DealForm({
         {/* ---- timeline + terms ---- */}
         <section className="card p-6">
           <h2 className="mb-5 text-base">Timeline and terms</h2>
-          <div className="grid items-start gap-x-4 gap-y-4 grid-cols-2 sm:grid-cols-3 md:grid-cols-3 xl:grid-cols-5">
+          
+          {/* Row 1: Dates & Duration — 3 spacious columns so dates never truncate */}
+          <div className="grid items-start gap-4 grid-cols-1 sm:grid-cols-3">
             <div>
               <label className={label}>Start date</label>
-              <input className={field} type="date" value={d.start_date} onChange={(e) => set("start_date", e.target.value)} />
+              <input className={`${field} min-w-[140px]`} type="date" value={d.start_date} onChange={(e) => set("start_date", e.target.value)} />
             </div>
             <div>
               <label className={label}>Deadline</label>
-              <input className={field} type="date" value={d.deadline} onChange={(e) => set("deadline", e.target.value)} />
+              <input className={`${field} min-w-[140px]`} type="date" value={d.deadline} onChange={(e) => set("deadline", e.target.value)} />
             </div>
             <div>
               <label className={label}>Working days</label>
               <input className={field} type="number" min={1} value={d.duration_days} onChange={(e) => set("duration_days", e.target.value)} />
             </div>
+          </div>
+
+          {/* Row 2: Revisions & Support — 2 spacious columns */}
+          <div className="mt-4 grid items-start gap-4 grid-cols-1 sm:grid-cols-2">
             <div>
               <label className={label}>Revision rounds</label>
               <input className={field} type="number" min={0} value={d.revisions_included} onChange={(e) => set("revisions_included", e.target.value)} />

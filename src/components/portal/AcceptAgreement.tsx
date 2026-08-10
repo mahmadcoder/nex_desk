@@ -51,7 +51,11 @@ export default function AcceptAgreement({
     if (name.trim().length < 3) return toast.error("Type your full name to accept.");
     start(async () => {
       try {
-        await acceptAgreement(deal.id, name);
+        const res = await acceptAgreement(deal.id, name);
+        if (!res.ok) {
+          toast.error(res.error || "Could not record that.");
+          return;
+        }
         toast.success("Accepted. A copy is on its way to your inbox.");
         setOpen(false);
         router.refresh();
