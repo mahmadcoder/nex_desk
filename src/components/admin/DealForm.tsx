@@ -22,8 +22,8 @@ type Client = {
 };
 
 const field =
-  "w-full rounded-lg border border-ink-500 bg-ink-800 px-3 py-2.5 text-sm text-bone-50 placeholder:text-bone-600 focus:border-lime-400 focus:outline-none";
-const label = "mono-tag mb-1.5 block";
+  "w-full h-10 rounded-lg border border-ink-500 bg-ink-800 px-3 py-2 text-sm text-bone-50 placeholder:text-bone-600 focus:border-lime-400 focus:outline-none";
+const label = "mono-tag mb-1.5 block whitespace-nowrap overflow-hidden text-ellipsis";
 
 export default function DealForm({
   clients, services, defaultTerms, taxDefault, defaultCurrency, initialClientId, templates = [],
@@ -424,7 +424,7 @@ export default function DealForm({
 
           <div className="space-y-3">
             {schedule.map((p, i) => (
-              <div key={i} className="flex flex-col gap-2 sm:grid sm:grid-cols-[1fr_80px_150px_100px_32px] sm:items-center">
+              <div key={i} className="flex flex-col gap-2 sm:grid sm:grid-cols-[1fr_75px_165px_110px_32px] sm:items-center">
                 <input className={field} placeholder="Stage" value={p.label}
                   onChange={(e) => setSchedule((s) => s.map((x, j) => j === i ? { ...x, label: e.target.value } : x))} />
                 <input className={field} type="number" min={0} max={100} value={p.percent}
@@ -455,7 +455,7 @@ export default function DealForm({
         {/* ---- timeline + terms ---- */}
         <section className="card p-6">
           <h2 className="mb-5 text-base">Timeline and terms</h2>
-          <div className="grid items-start gap-x-4 gap-y-4 grid-cols-2 sm:grid-cols-3 lg:grid-cols-5">
+          <div className="grid items-start gap-x-4 gap-y-4 grid-cols-2 sm:grid-cols-3 md:grid-cols-3 xl:grid-cols-5">
             <div>
               <label className={label}>Start date</label>
               <input className={field} type="date" value={d.start_date} onChange={(e) => set("start_date", e.target.value)} />
