@@ -1,13 +1,14 @@
-"use client";
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { saveSettings } from "@/lib/actions";
 import { CURRENCIES } from "@/lib/utils";
 import CustomSelect from "@/components/ui/CustomSelect";
 import { Badge } from "./ui";
 import ImageUpload from "@/components/admin/ImageUpload";
-
 import SignaturePad from "@/components/ui/SignaturePad";
+import Modal from "@/components/admin/Modal";
+import { AlertCircle } from "lucide-react";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
@@ -15,6 +16,7 @@ const field = "w-full rounded-lg border border-ink-500 bg-ink-800 px-3 py-2.5 te
 const label = "mono-tag mb-1.5 block";
 
 export default function SettingsForm({ settings, staff }: { settings: any; staff: any[] }) {
+  const router = useRouter();
   const [pending, start] = useTransition();
   const [f, setF] = useState({
     company_name: settings?.company_name ?? "Nex Desk",
@@ -51,18 +53,78 @@ export default function SettingsForm({ settings, staff }: { settings: any; staff
     "Account title": "", "Bank": "", "Account number": "", "IBAN": "", "Branch code": "",
   });
 
+  const [initialState, setInitialState] = useState(() => JSON.stringify({ f, workDays, bank }));
+  const [pendingUrl, setPendingUrl] = useState<string | null>(null);
+  const [confirmOpen, setConfirmOpen] = useState(false);
+
+  const currentState = JSON.stringify({ f, workDays, bank });
+  const isDirty = currentState !== initialState;
+
+  // Browser tab close / refresh listener
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (isDirty) {
+        e.preventDefault();
+        e.returnValue = "";
+      }
+    };
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
+  }, [isDirty]);
+
+  // Link click interceptor for in-app navigation
+  useEffect(() => {
+    if (!isDirty) return;
+
+    const handleAnchorClick = (e: MouseEvent) => {
+      const target = e.target as HTMLElement | null;
+      const anchor = target?.closest("a");
+      if (!anchor) return;
+
+      const href = anchor.getAttribute("href");
+      if (!href || href.startsWith("#") || href.startsWith("javascript:") || anchor.target === "_blank") return;
+      if (href === window.location.pathname || href === window.location.href) return;
+
+      e.preventDefault();
+      e.stopPropagation();
+      setPendingUrl(href);
+      setConfirmOpen(true);
+    };
+
+    document.addEventListener("click", handleAnchorClick, true);
+    return () => document.removeEventListener("click", handleAnchorClick, true);
+  }, [isDirty]);
+
   const set = (k: string, v: unknown) => setF((p) => ({ ...p, [k]: v }));
 
-  const save = () => start(async () => {
-    await saveSettings({
-      ...f,
-      tax_percent: Number(f.tax_percent),
-      work_grace_min: Number(f.work_grace_min),
-      work_days: workDays.sort((a, b) => a - b),
-      bank_details: bank,
+  const save = (andNavigateUrl?: string | null) =>
+    start(async () => {
+      try {
+        await saveSettings({
+          ...f,
+          tax_percent: Number(f.tax_percent),
+          work_grace_min: Number(f.work_grace_min),
+          work_days: workDays.sort((a, b) => a - b),
+          bank_details: bank,
+        });
+        setInitialState(JSON.stringify({ f, workDays, bank }));
+        toast.success("Settings saved.");
+        setConfirmOpen(false);
+        if (andNavigateUrl) {
+          router.push(andNavigateUrl);
+        }
+      } catch (e: any) {
+        toast.error(e?.message || "Could not save settings.");
+      }
     });
-    toast.success("Settings saved.");
-  });
+
+  const handleDiscardAndLeave = () => {
+    setInitialState(currentState);
+    setConfirmOpen(false);
+    if (pendingUrl) {
+      router.push(pendingUrl);
+    }
+  };
 
   return (
     <div className="grid gap-6 xl:grid-cols-2">
@@ -286,10 +348,72 @@ export default function SettingsForm({ settings, staff }: { settings: any; staff
       </section>
 
       <div className="xl:col-span-2">
-        <button className="btn btn-primary" onClick={save} disabled={pending}>
+        <button className="btn btn-primary" onClick={() => save()} disabled={pending}>
           {pending ? "Saving…" : "Save settings"}
         </button>
       </div>
+
+      {isDirty && (
+        <div className="fixed bottom-6 left-1/2 z-40 flex -translate-x-1/2 flex-wrap items-center justify-between gap-4 rounded-xl border border-lime-400/40 bg-ink-900/95 px-5 py-3 shadow-2xl backdrop-blur sm:min-w-[440px]">
+          <span className="flex items-center gap-2 text-xs font-medium text-bone-100">
+            <AlertCircle size={15} className="shrink-0 text-lime-400" />
+            Unsaved changes in Settings
+          </span>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              className="mono-tag rounded-lg border border-ink-600 px-3 py-1.5 text-xs text-bone-300 hover:border-ink-400 hover:text-bone-100"
+              onClick={() => {
+                const init = JSON.parse(initialState);
+                setF(init.f);
+                setWorkDays(init.workDays);
+                setBank(init.bank);
+              }}
+            >
+              Discard
+            </button>
+            <button
+              type="button"
+              className="btn btn-primary h-8 px-3 text-xs"
+              onClick={() => save()}
+              disabled={pending}
+            >
+              {pending ? "Saving…" : "Save settings"}
+            </button>
+          </div>
+        </div>
+      )}
+
+      <Modal
+        open={confirmOpen}
+        onClose={() => setConfirmOpen(false)}
+        title="Discard unsaved changes?"
+        eyebrow="Unsaved Settings"
+        description="You have unsaved changes in Agency Settings. If you leave without saving, your edits will be discarded."
+        footer={
+          <>
+            <button
+              type="button"
+              className="btn h-10 border-rose-500/30 text-rose-300 hover:bg-rose-500/10"
+              onClick={handleDiscardAndLeave}
+            >
+              Discard &amp; leave
+            </button>
+            <button
+              type="button"
+              className="btn btn-primary h-10"
+              onClick={() => save(pendingUrl)}
+              disabled={pending}
+            >
+              {pending ? "Saving…" : "Save & leave"}
+            </button>
+          </>
+        }
+      >
+        <p className="text-sm leading-relaxed text-bone-200">
+          Would you like to save your edits before leaving this page?
+        </p>
+      </Modal>
     </div>
   );
 }
