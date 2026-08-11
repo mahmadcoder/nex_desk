@@ -794,12 +794,19 @@ export async function recordPayment(data: any, notify = true) {
     }
 
     // 2. Owner Payment Alert Email
-    const proofMsg = payment.proof_url ? `\nPayment Slip URL: ${payment.proof_url}` : "";
+    const proofMsg = payment.proof_url ? `\n• Payment Slip: ${payment.proof_url}` : "";
+    const formattedMethod = (payment.method || "Other").replace(/_/g, " ").toUpperCase();
     await sendEmail({
       templateKey: "internal_payment_received",
       to: await adminNotifyAddress(),
       subjectOverride: `Payment Received — ${payment.currency} ${Number(payment.amount).toLocaleString()} from ${payment.clients.name}`,
-      bodyOverride: `Payment Confirmation:\n\nClient: ${payment.clients.name} (${payment.clients.email})\nAmount: ${payment.currency} ${Number(payment.amount).toLocaleString()}\nMethod: ${payment.method}\nReference: ${payment.reference || "N/A"}${proofMsg}\nDate: ${fmtDate(payment.paid_on)}`,
+      bodyOverride: `Payment Received & Recorded:
+
+• Client: ${payment.clients.name} (${payment.clients.email})
+• Amount: ${payment.currency} ${Number(payment.amount).toLocaleString()}
+• Payment Method: ${formattedMethod}
+• Reference No: ${payment.reference || "N/A"}${proofMsg}
+• Payment Date: ${fmtDate(payment.paid_on)}`,
       vars: {},
     });
   }

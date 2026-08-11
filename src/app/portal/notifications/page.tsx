@@ -21,8 +21,8 @@ export default async function PortalNotifications({
   const session = await getPortalSession();
   if (!session) redirect("/portal");
 
-  const { show } = await searchParams;
-  const readTab = show === "read";
+  const params = (await searchParams) ?? {};
+  const readTab = params.show === "read";
 
   const items = await listClientNotifications(session.client.id, { read: readTab });
 
@@ -53,8 +53,10 @@ export default async function PortalNotifications({
       ) : (
         <ul className="mt-6 space-y-2.5">
           {items.map((n: any) => {
-            const style = describeKind(n.kind);
-            const Icon = style.icon;
+            const style = describeKind(n?.kind ?? "");
+            const Icon = style?.icon ?? Bell;
+            const toneClass = (style?.tone && TONE_CLASS[style.tone]) ? TONE_CLASS[style.tone] : TONE_CLASS.default;
+
             return (
               <li
                 key={n.id}
@@ -63,7 +65,7 @@ export default async function PortalNotifications({
                   !n.read_at && "border-lime-400/20 bg-lime-400/[0.03]"
                 )}
               >
-                <span className={cn("mt-0.5 shrink-0", TONE_CLASS[style.tone])}>
+                <span className={cn("mt-0.5 shrink-0", toneClass)}>
                   <Icon size={16} aria-hidden />
                 </span>
 
