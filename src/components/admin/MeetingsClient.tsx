@@ -202,7 +202,7 @@ export default function MeetingsClient({
  * cancellation sends a CANCEL invite that removes the event from every
  * attendee's calendar — there is nothing for them to tidy up.
  */
-function Actions({ meetingId, title }: { meetingId: string; title: string }) {
+export function MeetingActions({ meetingId, title }: { meetingId: string; title: string }) {
   const router = useRouter();
   const [pending, start] = useTransition();
   const [open, setOpen] = useState(false);
@@ -276,57 +276,57 @@ function Actions({ meetingId, title }: { meetingId: string; title: string }) {
  * `sequence` or re-announce — typing up what was agreed must never fire a
  * fresh calendar invite at everyone who attended.
  */
-function Notes({
+export function MeetingNotes({
   meetingId,
   notes,
-  title = "",
-  agenda = "",
 }: {
   meetingId: string;
-  notes: string;
-  title?: string;
-  agenda?: string;
+  notes?: string | null;
 }) {
   const router = useRouter();
-  const [pending, start] = useTransition();
-  const [value, setValue] = useState(notes);
   const [editing, setEditing] = useState(false);
+  const [value, setValue] = useState(notes ?? "");
+  const [pending, start] = useTransition();
 
   if (!editing) {
     return (
-      <div className="mt-2">
+      <div className="group rounded-lg border border-ink-600 bg-ink-900/60 p-3">
+        <div className="flex items-center justify-between gap-2">
+          <p className="mono-tag text-[10px] text-bone-400">Notes &amp; summary</p>
+          <button
+            type="button"
+            onClick={() => setEditing(true)}
+            className="mono-tag text-[11px] text-lime-400 hover:underline"
+          >
+            {notes ? "Edit" : "+ Add notes"}
+          </button>
+        </div>
         {notes ? (
-          <p className="whitespace-pre-line rounded-lg border border-ink-600 bg-ink-800/50 p-2.5 text-xs leading-relaxed text-bone-200">
-            {notes}
-          </p>
-        ) : null}
-        <button
-          type="button"
-          onClick={() => setEditing(true)}
-          className="mono-tag mt-1.5 inline-flex items-center gap-1 text-[11px] text-bone-400 hover:text-lime-400"
-        >
-          <NotebookPen size={11} /> {notes ? "Edit notes" : "Add notes"}
-        </button>
+          <p className="mt-1.5 whitespace-pre-line text-xs leading-relaxed text-bone-200">{notes}</p>
+        ) : (
+          <p className="mt-1.5 text-xs text-bone-500 italic">No notes recorded for this call.</p>
+        )}
       </div>
     );
   }
 
   return (
-    <div className="mt-2">
+    <div className="space-y-2 rounded-lg border border-lime-400/30 bg-ink-900/90 p-3">
+      <div className="flex items-center justify-between">
+        <label className="mono-tag text-[10px] text-lime-400">Notes &amp; summary</label>
+        <span className="text-[10px] text-bone-500">Not e-mailed to client</span>
+      </div>
       <textarea
+        className={`${field} min-h-24 font-mono text-xs`}
         value={value}
         onChange={(e) => setValue(e.target.value)}
-        rows={3}
-        placeholder="What was agreed. The client reads this word for word."
-        className={`${field} min-h-[70px] resize-y text-xs`}
+        placeholder="What was decided? Action items? Paste call notes here..."
       />
-      <div className="mt-1.5 flex flex-wrap items-center gap-2">
-        {/* Drafts into the box. It never writes notes on its own — a summary of
-            a call nobody checked is worse than no summary. */}
+      <div className="flex items-center justify-between gap-2">
         <AIAssist
           field="meeting_summary"
           getText={() => value}
-          context={{ title, agenda }}
+          context={{ notes: value }}
           onApply={(t) => setValue(t)}
         />
         <button
@@ -351,7 +351,7 @@ function Notes({
           type="button"
           disabled={pending}
           onClick={() => {
-            setValue(notes);
+            setValue(notes ?? "");
             setEditing(false);
           }}
           className="mono-tag text-[11px] text-bone-400 hover:text-bone-100"
@@ -362,6 +362,3 @@ function Notes({
     </div>
   );
 }
-
-MeetingsClient.Actions = Actions;
-MeetingsClient.Notes = Notes;

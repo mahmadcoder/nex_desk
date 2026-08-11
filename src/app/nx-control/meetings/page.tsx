@@ -3,7 +3,7 @@ import { getCurrentStaff } from "@/lib/auth/staff";
 import { assignedClientIds } from "@/lib/auth/staff";
 import { PageHead, Badge } from "@/components/admin/ui";
 import { fmtDateTime, TZ_LABEL } from "@/lib/datetime";
-import MeetingsClient from "@/components/admin/MeetingsClient";
+import MeetingsClient, { MeetingActions, MeetingNotes } from "@/components/admin/MeetingsClient";
 import { CalendarClock, Video } from "lucide-react";
 import { meetingProvider } from "@/lib/meetings";
 
@@ -156,11 +156,9 @@ function Section({
                       an invite or bump the sequence — nobody wants a fresh
                       calendar prompt because someone typed up minutes. */}
                   {canManage && isPast && !cancelled && (
-                    <MeetingsClient.Notes
+                    <MeetingNotes
                       meetingId={m.id}
                       notes={m.notes ?? ""}
-                      title={m.title}
-                      agenda={m.agenda ?? ""}
                     />
                   )}
                   {!canManage && m.notes && (
@@ -183,7 +181,7 @@ function Section({
                     </a>
                   )}
                   {canManage && !cancelled && (
-                    <MeetingsClient.Actions meetingId={m.id} title={m.title} />
+                    <MeetingActions meetingId={m.id} title={m.title} />
                   )}
                 </div>
               </div>
