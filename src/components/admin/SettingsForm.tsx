@@ -1,7 +1,6 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
+import { useState, useTransition } from "react";
 import { toast } from "sonner";
 import { saveSettings } from "@/lib/actions";
 import { CURRENCIES } from "@/lib/utils";
@@ -9,7 +8,6 @@ import CustomSelect from "@/components/ui/CustomSelect";
 import { Badge } from "./ui";
 import ImageUpload from "@/components/admin/ImageUpload";
 import SignaturePad from "@/components/ui/SignaturePad";
-import Modal from "@/components/admin/Modal";
 import { AlertCircle, Trash2, PenTool } from "lucide-react";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -18,7 +16,6 @@ const field = "w-full rounded-lg border border-ink-500 bg-ink-800 px-3 py-2.5 te
 const label = "mono-tag mb-1.5 block";
 
 export default function SettingsForm({ settings, staff }: { settings: any; staff: any[] }) {
-  const router = useRouter();
   const [pending, start] = useTransition();
   const [f, setF] = useState({
     company_name: settings?.company_name ?? "Nex Desk",
@@ -58,50 +55,12 @@ export default function SettingsForm({ settings, staff }: { settings: any; staff
   const [isEditingSignature, setIsEditingSignature] = useState(false);
 
   const [initialState, setInitialState] = useState(() => JSON.stringify({ f, workDays, bank }));
-  const [pendingUrl, setPendingUrl] = useState<string | null>(null);
-  const [confirmOpen, setConfirmOpen] = useState(false);
-
   const currentState = JSON.stringify({ f, workDays, bank });
   const isDirty = currentState !== initialState;
 
-  // Browser tab close / refresh listener
-  useEffect(() => {
-    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
-      if (isDirty) {
-        e.preventDefault();
-        e.returnValue = "";
-      }
-    };
-    window.addEventListener("beforeunload", handleBeforeUnload);
-    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
-  }, [isDirty]);
-
-  // Link click interceptor for in-app navigation
-  useEffect(() => {
-    if (!isDirty) return;
-
-    const handleAnchorClick = (e: MouseEvent) => {
-      const target = e.target as HTMLElement | null;
-      const anchor = target?.closest("a");
-      if (!anchor) return;
-
-      const href = anchor.getAttribute("href");
-      if (!href || href.startsWith("#") || href.startsWith("javascript:") || anchor.target === "_blank") return;
-      if (href === window.location.pathname || href === window.location.href) return;
-
-      e.preventDefault();
-      e.stopPropagation();
-      setPendingUrl(href);
-      setConfirmOpen(true);
-    };
-
-    document.addEventListener("click", handleAnchorClick, true);
-    return () => document.removeEventListener("click", handleAnchorClick, true);
-  }, [isDirty]);
-
   const set = (k: string, v: unknown) => setF((p) => ({ ...p, [k]: v }));
 
-  const save = (andNavigateUrl?: string | null) =>
+  const save = () =>
     start(async () => {
       try {
         await saveSettings({
@@ -113,22 +72,10 @@ export default function SettingsForm({ settings, staff }: { settings: any; staff
         });
         setInitialState(JSON.stringify({ f, workDays, bank }));
         toast.success("Settings saved.");
-        setConfirmOpen(false);
-        if (andNavigateUrl) {
-          router.push(andNavigateUrl);
-        }
       } catch (e: any) {
         toast.error(e?.message || "Could not save settings.");
       }
     });
-
-  const handleDiscardAndLeave = () => {
-    setInitialState(currentState);
-    setConfirmOpen(false);
-    if (pendingUrl) {
-      router.push(pendingUrl);
-    }
-  };
 
   return (
     <div className="grid gap-6 xl:grid-cols-2">
@@ -433,37 +380,6 @@ export default function SettingsForm({ settings, staff }: { settings: any; staff
           </div>
         </div>
       )}
-
-      <Modal
-        open={confirmOpen}
-        onClose={() => setConfirmOpen(false)}
-        title="Discard unsaved changes?"
-        eyebrow="Unsaved Settings"
-        description="You have unsaved changes in Agency Settings. If you leave without saving, your edits will be discarded."
-        footer={
-          <>
-            <button
-              type="button"
-              className="btn h-10 border-rose-500/30 text-rose-300 hover:bg-rose-500/10"
-              onClick={handleDiscardAndLeave}
-            >
-              Discard &amp; leave
-            </button>
-            <button
-              type="button"
-              className="btn btn-primary h-10"
-              onClick={() => save(pendingUrl)}
-              disabled={pending}
-            >
-              {pending ? "Saving…" : "Save & leave"}
-            </button>
-          </>
-        }
-      >
-        <p className="text-sm leading-relaxed text-bone-200">
-          Would you like to save your edits before leaving this page?
-        </p>
-      </Modal>
     </div>
   );
 }
