@@ -112,7 +112,7 @@ export default function RequestDetailsClient({ kind }: { kind: "client" | "staff
   return (
     <>
       <button className="btn gap-2" onClick={() => setOpen(true)}>
-        <Send size={14} /> Request details
+        <Send size={14} /> Request {kind === "client" ? "Client" : "Staff"} Details
       </button>
 
       <Modal
