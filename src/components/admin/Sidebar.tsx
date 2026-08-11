@@ -82,6 +82,7 @@ const STAFF_NAV = [
     items: [
       { href: "", label: "Dashboard", icon: LayoutDashboard },
       { href: "/notifications", label: "Notifications", icon: Bell },
+      { href: "/intake", label: "Onboarding", icon: ClipboardList },
       { href: "/clients", label: "My Clients", icon: Users },
       { href: "/projects", label: "My Projects", icon: FolderKanban },
       { href: "/tasks", label: "My Tasks", icon: ListChecks },
