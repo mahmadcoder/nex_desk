@@ -113,7 +113,8 @@ export default function AcceptAgreement({
           <SignaturePad
             value={signature}
             onChange={setSignature}
-            label="Draw your handwritten signature (mouse or touch screen)"
+            defaultName={name}
+            label="Signature (Draw, Type in Cursive, or Upload Image)"
           />
 
           <p className="rounded-lg border border-ink-600 bg-ink-900/60 p-3 text-[11px] leading-relaxed text-bone-300">

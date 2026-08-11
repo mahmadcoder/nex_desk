@@ -241,6 +241,17 @@ export function AgreementDoc({ deal, client, settings }: { deal: any; client: Pa
           </View>
         </View>
 
+        {deal.accepted_at && (
+          <View style={{ marginTop: 12, padding: 7, borderRadius: 4, backgroundColor: C.ink, border: `1px solid ${C.lime}` }}>
+            <Text style={{ fontSize: 8, color: C.lime, fontWeight: 500 }}>
+              VERIFIED ELECTRONIC SIGNATURE & LEGAL AUDIT TRAIL
+            </Text>
+            <Text style={{ fontSize: 7, color: C.bone, marginTop: 2 }}>
+              Electronically signed by {deal.accepted_name || client.name} on {date(deal.accepted_at)}. Authenticated via Nex Desk Portal.
+            </Text>
+          </View>
+        )}
+
         <DocFooter number={deal.deal_no} />
       </Page>
     </Document>
