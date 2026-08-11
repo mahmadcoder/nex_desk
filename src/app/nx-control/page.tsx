@@ -6,7 +6,6 @@ import { PageHead, Stat, Badge, Table } from "@/components/admin/ui";
 import { money } from "@/lib/utils";
 import DashboardCurrencyTabs from "@/components/admin/DashboardCurrencyTabs";
 import StaffDashboard from "@/components/admin/StaffDashboard";
-import RequestDetailsClient from "@/components/admin/RequestDetailsClient";
 import AttendanceWidget from "@/components/admin/AttendanceWidget";
 import { myAttendanceToday } from "@/lib/actions/attendance";
 import { getLiveExchangeRates, convertCurrency } from "@/lib/currency";
@@ -173,12 +172,7 @@ export default async function Dashboard({
       <PageHead
         title="Dashboard"
         sub={fmtDateLong()}
-        action={
-          <div className="flex flex-wrap items-center gap-2">
-            <RequestDetailsClient kind="client" />
-            <Link href={`${BASE}/deals/new`} className="btn btn-primary">Lock a deal</Link>
-          </div>
-        }
+        action={<Link href={`${BASE}/deals/new`} className="btn btn-primary h-10">Lock a deal</Link>}
       />
 
       {/* Keyed on having an employee record, not on role.

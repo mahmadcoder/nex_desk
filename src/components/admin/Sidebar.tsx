@@ -19,7 +19,7 @@ const NAV_SECTIONS = [
       { href: "", label: "Dashboard", icon: LayoutDashboard },
       { href: "/notifications", label: "Notifications", icon: Bell },
       { href: "/leads", label: "Leads", icon: Inbox },
-      { href: "/intake", label: "Onboarding", icon: ClipboardList },
+      { href: "/intake", label: "Request Details", icon: ClipboardList },
       { href: "/clients", label: "Clients", icon: Users },
       { href: "/employees", label: "Employees & Staff", icon: UserCheck },
       { href: "/hr", label: "HR & Departments", icon: Building2 },
@@ -82,7 +82,7 @@ const STAFF_NAV = [
     items: [
       { href: "", label: "Dashboard", icon: LayoutDashboard },
       { href: "/notifications", label: "Notifications", icon: Bell },
-      { href: "/intake", label: "Onboarding", icon: ClipboardList },
+      { href: "/intake", label: "Request Details", icon: ClipboardList },
       { href: "/clients", label: "My Clients", icon: Users },
       { href: "/projects", label: "My Projects", icon: FolderKanban },
       { href: "/tasks", label: "My Tasks", icon: ListChecks },
