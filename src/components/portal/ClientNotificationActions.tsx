@@ -16,7 +16,7 @@ import {
  * here is only ever used to pick a row within that client's own set.
  */
 
-function MarkOne({ id }: { id: string }) {
+export function MarkOne({ id }: { id: string }) {
   const router = useRouter();
   const [pending, start] = useTransition();
 
@@ -40,7 +40,7 @@ function MarkOne({ id }: { id: string }) {
   );
 }
 
-function MarkAll() {
+export function MarkAll() {
   const router = useRouter();
   const [pending, start] = useTransition();
 

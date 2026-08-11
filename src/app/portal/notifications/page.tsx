@@ -5,7 +5,7 @@ import { listClientNotifications } from "@/lib/notifications";
 import { describeKind, TONE_CLASS } from "@/config/notificationKinds";
 import { fmtDayLabel, fmtTime } from "@/lib/datetime";
 import { cn } from "@/lib/utils";
-import ClientNotificationActions from "@/components/portal/ClientNotificationActions";
+import { MarkOne, MarkAll } from "@/components/portal/ClientNotificationActions";
 import { Bell } from "lucide-react";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -35,7 +35,7 @@ export default async function PortalNotifications({
             What has changed.
           </h1>
         </div>
-        {!readTab && items.length > 0 && <ClientNotificationActions.MarkAll />}
+        {!readTab && items.length > 0 && <MarkAll />}
       </header>
 
       <div className="mt-6 flex gap-1 border-b border-ink-600">
@@ -92,7 +92,7 @@ export default async function PortalNotifications({
                   )}
                 </div>
 
-                {!n.read_at && <ClientNotificationActions.MarkOne id={n.id} />}
+                {!n.read_at && <MarkOne id={n.id} />}
               </li>
             );
           })}
