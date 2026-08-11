@@ -720,9 +720,8 @@ The Nex Desk Team`,
 • Reference: {{deal_no}}
 • Typed name: {{accepted_name}}
 • When: {{accepted_at}}
-• IP: {{ip}}
 
-That is your record of acceptance — timestamp, typed name and IP against a signed-in portal session. Stronger than a photographed signature and it took them five seconds.
+That is your record of acceptance — timestamp, typed name and digital signature against a signed-in portal session.
 
 {{admin_url}}`,
   },

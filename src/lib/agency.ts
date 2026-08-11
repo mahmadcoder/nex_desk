@@ -26,6 +26,7 @@ export type Agency = {
   taxId: string | null;
   logoUrl: string | null;
   website: string | null;
+  adminSignature: string | null;
 };
 
 export const AGENCY_FALLBACK: Agency = {
@@ -38,6 +39,7 @@ export const AGENCY_FALLBACK: Agency = {
   taxId: null,
   logoUrl: null,
   website: null,
+  adminSignature: null,
 };
 
 /**
@@ -48,7 +50,7 @@ export const getAgency = cache(async (): Promise<Agency> => {
   try {
     const { data } = await createAdminClient()
       .from("settings")
-      .select("company_name, tagline, email, phone, whatsapp, address, city, country, tax_id, logo_url, website")
+      .select("company_name, tagline, email, phone, whatsapp, address, city, country, tax_id, logo_url, website, admin_signature")
       .eq("id", 1)
       .maybeSingle();
 
@@ -70,6 +72,7 @@ export const getAgency = cache(async (): Promise<Agency> => {
       taxId: String(data.tax_id || "").trim() || null,
       logoUrl: String(data.logo_url || "").trim() || null,
       website: String(data.website || "").trim() || null,
+      adminSignature: (data as any)?.admin_signature ? String((data as any).admin_signature).trim() : null,
     };
   } catch (e) {
     console.error("getAgency: falling back to defaults —", e);

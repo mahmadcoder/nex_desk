@@ -43,6 +43,7 @@ let DOC_AGENCY: {
   location: string;
   taxId: string | null;
   logoUrl: string | null;
+  adminSignature?: string | null;
 } = {
   name: "Nex Desk",
   tagline: "Software agency",
@@ -50,6 +51,7 @@ let DOC_AGENCY: {
   location: "Multan, Pakistan",
   taxId: null,
   logoUrl: null,
+  adminSignature: null,
 };
 
 export function setDocAgency(a: typeof DOC_AGENCY) {

@@ -1,4 +1,4 @@
-import { Document, Page, Text, View } from "@react-pdf/renderer";
+import { Document, Page, Text, View, Image } from "@react-pdf/renderer";
 import { s, C } from "./theme";
 import { DocHeader, DocFooter, Field, fmt, date, docAgency } from "./parts";
 import { CONTACT_EMAIL, CONTACT_WHATSAPP, getSiteBaseUrl } from "@/lib/utils";
@@ -214,10 +214,10 @@ export function AgreementDoc({ deal, client, settings }: { deal: any; client: Pa
         <View style={s.signRow}>
           <View style={s.signBox}>
             <Text style={s.label}>For the client</Text>
-            {/* The name the client actually typed when accepting in the portal.
-                That IS the signature — it was being ignored in favour of
-                `signature_name`, a field the admin fills in. */}
-            <Text style={{ marginTop: 12, fontWeight: 500 }}>
+            {deal.accepted_signature ? (
+              <Image src={deal.accepted_signature} style={{ height: 36, width: 120, objectFit: "contain", marginVertical: 4 }} />
+            ) : null}
+            <Text style={{ marginTop: deal.accepted_signature ? 4 : 12, fontWeight: 500 }}>
               {deal.accepted_name || deal.signature_name || client.name}
             </Text>
             <Text style={s.muted}>{client.company || client.email}</Text>
@@ -226,14 +226,16 @@ export function AgreementDoc({ deal, client, settings }: { deal: any; client: Pa
             </Text>
             {deal.accepted_at && (
               <Text style={[s.muted, { marginTop: 4, fontSize: 9 }]}>
-                Accepted electronically in the client portal
-                {deal.accepted_ip ? ` from ${deal.accepted_ip}` : ""}
+                Accepted electronically in the client portal by {deal.accepted_name || client.name}
               </Text>
             )}
           </View>
           <View style={s.signBox}>
             <Text style={s.label}>For {docAgency().name}</Text>
-            <Text style={{ marginTop: 12, fontWeight: 500 }}>{docAgency().name}</Text>
+            {docAgency().adminSignature ? (
+              <Image src={docAgency().adminSignature!} style={{ height: 36, width: 120, objectFit: "contain", marginVertical: 4 }} />
+            ) : null}
+            <Text style={{ marginTop: docAgency().adminSignature ? 4 : 12, fontWeight: 500 }}>{docAgency().name}</Text>
             <Text style={s.muted}>{CONTACT_EMAIL}</Text>
             <Text style={[s.muted, { marginTop: 6 }]}>Date: {date(deal.locked_at)}</Text>
           </View>

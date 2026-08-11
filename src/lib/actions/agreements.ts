@@ -29,7 +29,8 @@ const ADMIN = process.env.ADMIN_PATH || "nx-control";
  */
 export async function acceptAgreement(
   dealId: string,
-  typedName: string
+  typedName: string,
+  signatureDataUrl?: string | null
 ): Promise<({ ok: true } | { ok: false; error: string })> {
   try {
     const db = createAdminClient();
@@ -66,6 +67,7 @@ export async function acceptAgreement(
       accepted_name: typedName.trim(),
       accepted_ip: ip,
       accepted_ua: h.get("user-agent")?.slice(0, 300) ?? null,
+      ...(signatureDataUrl ? { accepted_signature: signatureDataUrl } : {}),
     }).eq("id", id);
 
     await recordAudit(

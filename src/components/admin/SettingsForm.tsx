@@ -7,6 +7,8 @@ import CustomSelect from "@/components/ui/CustomSelect";
 import { Badge } from "./ui";
 import ImageUpload from "@/components/admin/ImageUpload";
 
+import SignaturePad from "@/components/ui/SignaturePad";
+
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 const field = "w-full rounded-lg border border-ink-500 bg-ink-800 px-3 py-2.5 text-sm focus:border-lime-400 focus:outline-none";
@@ -25,6 +27,7 @@ export default function SettingsForm({ settings, staff }: { settings: any; staff
     country: settings?.country ?? "Pakistan",
     tax_id: settings?.tax_id ?? "",
     logo_url: settings?.logo_url ?? "",
+    admin_signature: settings?.admin_signature ?? "",
     default_currency: settings?.default_currency ?? "PKR",
     tax_percent: settings?.tax_percent ?? 0,
     invoice_prefix: settings?.invoice_prefix ?? "ND",
@@ -111,10 +114,20 @@ export default function SettingsForm({ settings, staff }: { settings: any; staff
           </p>
         </div>
 
+        <div className="mt-5 border-t border-ink-700 pt-5">
+          <SignaturePad
+            value={f.admin_signature}
+            onChange={(sig) => set("admin_signature", sig ?? "")}
+            label="Official Agency Signature (for PDFs & agreements)"
+            height={120}
+          />
+          <p className="mt-1.5 text-[11px] leading-relaxed text-bone-400">
+            Draw your official agency signature using a mouse, stylus or touch screen. This signature is rendered on official PDFs under &ldquo;FOR NEX DESK&rdquo;.
+          </p>
+        </div>
+
         <p className="mt-5 border-t border-ink-700 pt-4 text-[11px] leading-relaxed text-bone-400">
-          Everything on this card appears on your invoices, agreements and emails. Until recently
-          it was saved here and read by nothing — the documents said &ldquo;Nex Desk, Multan,
-          Pakistan&rdquo; whatever you typed.
+          Everything on this card appears on your invoices, agreements and emails.
         </p>
       </section>
 
