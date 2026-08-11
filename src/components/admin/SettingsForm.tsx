@@ -10,7 +10,7 @@ import { Badge } from "./ui";
 import ImageUpload from "@/components/admin/ImageUpload";
 import SignaturePad from "@/components/ui/SignaturePad";
 import Modal from "@/components/admin/Modal";
-import { AlertCircle } from "lucide-react";
+import { AlertCircle, Trash2, PenTool } from "lucide-react";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
@@ -54,6 +54,8 @@ export default function SettingsForm({ settings, staff }: { settings: any; staff
   const [bank, setBank] = useState<Record<string, string>>(settings?.bank_details ?? {
     "Account title": "", "Bank": "", "Account number": "", "IBAN": "", "Branch code": "",
   });
+
+  const [isEditingSignature, setIsEditingSignature] = useState(false);
 
   const [initialState, setInitialState] = useState(() => JSON.stringify({ f, workDays, bank }));
   const [pendingUrl, setPendingUrl] = useState<string | null>(null);
@@ -179,15 +181,61 @@ export default function SettingsForm({ settings, staff }: { settings: any; staff
         </div>
 
         <div className="mt-5 border-t border-ink-700 pt-5">
-          <SignaturePad
-            value={f.admin_signature}
-            onChange={(sig) => set("admin_signature", sig ?? "")}
-            label="Official Agency Signature (for PDFs & agreements)"
-            height={120}
-          />
-          <p className="mt-1.5 text-[11px] leading-relaxed text-bone-400">
-            Draw your official agency signature using a mouse, stylus or touch screen. This signature is rendered on official PDFs under &ldquo;FOR NEX DESK&rdquo;.
-          </p>
+          {f.admin_signature && !isEditingSignature ? (
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <label className="mono-tag text-xs text-bone-300">Official Agency Signature</label>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setIsEditingSignature(true)}
+                    className="mono-tag flex items-center gap-1 text-xs text-lime-400 hover:text-lime-300 transition-colors"
+                  >
+                    <PenTool size={12} /> Edit / Change
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      set("admin_signature", "");
+                      setIsEditingSignature(false);
+                    }}
+                    className="mono-tag flex items-center gap-1 text-xs text-rose-400 hover:text-rose-300 transition-colors"
+                  >
+                    <Trash2 size={12} /> Remove
+                  </button>
+                </div>
+              </div>
+              <div className="flex items-center justify-center rounded-lg border border-lime-400/30 bg-ink-900/90 p-4">
+                <img src={f.admin_signature} alt="Official Agency Signature" className="max-h-20 object-contain" />
+              </div>
+              <p className="text-[11px] text-bone-400">
+                Active official signature rendered on all generated PDFs under &ldquo;FOR NEX DESK&rdquo;.
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {f.admin_signature && isEditingSignature && (
+                <div className="flex items-center justify-end">
+                  <button
+                    type="button"
+                    onClick={() => setIsEditingSignature(false)}
+                    className="mono-tag text-xs text-bone-400 hover:text-bone-200"
+                  >
+                    Done editing
+                  </button>
+                </div>
+              )}
+              <SignaturePad
+                value={f.admin_signature}
+                onChange={(sig) => set("admin_signature", sig ?? "")}
+                label="Official Agency Signature (for PDFs & agreements)"
+                height={120}
+              />
+              <p className="mt-1.5 text-[11px] leading-relaxed text-bone-400">
+                Draw, type in cursive, or upload your official agency signature image. This signature is rendered on official PDFs under &ldquo;FOR NEX DESK&rdquo;.
+              </p>
+            </div>
+          )}
         </div>
 
         <p className="mt-5 border-t border-ink-700 pt-4 text-[11px] leading-relaxed text-bone-400">

@@ -364,3 +364,29 @@ export async function updateDealServices(dealId: string, slugs: string[]) {
   revalidatePath(`/${ADMIN}/daily-logs`);
   return { ok: true as const, changed: true, added, removed, emailed };
 }
+
+export async function resetAgreementSignature(dealId: string) {
+  const me = await requireOwnerAdmin();
+  const db = createAdminClient();
+  const id = asUuid(dealId);
+  if (!id) return { ok: false, error: "Invalid agreement ID" };
+
+  await db.from("deals").update({
+    accepted_at: null,
+    accepted_name: null,
+    accepted_signature: null,
+    accepted_ip: null,
+    accepted_ua: null,
+  }).eq("id", id);
+
+  await recordAudit(
+    me.userId,
+    "agreement.reset_signature",
+    "deals",
+    id,
+    { summary: `Reset agreement signature for deal ${id}` }
+  );
+
+  revalidatePath(`/${ADMIN}/deals/${id}`);
+  return { ok: true };
+}
