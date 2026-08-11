@@ -5,6 +5,8 @@ import { intakeByToken } from "@/lib/actions/intake";
 import { intakeFieldsFor, intakeTitleFor } from "@/config/intakeFields";
 import IntakeForm from "@/components/site/IntakeForm";
 import { getAgency } from "@/lib/agency";
+import { CheckCircle2 } from "lucide-react";
+import { fmtDate } from "@/lib/datetime";
 
 export const dynamic = "force-dynamic";
 
@@ -47,16 +49,28 @@ export default async function IntakePage({
       </header>
 
       <main className="mx-auto w-full max-w-2xl flex-1 px-4 py-8 sm:px-6 sm:py-12">
-        {!request ? (
+        {!request || request.isExpired ? (
           <div className="card p-8 text-center sm:p-10">
             <h1 className="text-2xl text-bone-50">This link is no longer valid</h1>
             <p className="mx-auto mt-3 max-w-md text-sm leading-relaxed text-bone-300">
-              It may have already been used, or it may have expired. Ask us for a fresh one and
-              it will take two minutes.
+              It may have expired or been revoked. Ask us for a fresh link and we will send it over.
             </p>
             <a href={`mailto:${agency.email}`} className="btn mt-6 inline-flex">
               {agency.email}
             </a>
+          </div>
+        ) : request.status !== "pending" ? (
+          <div className="card p-8 text-center sm:p-10">
+            <CheckCircle2 className="mx-auto h-12 w-12 text-emerald-400" />
+            <h1 className="mt-4 text-2xl font-semibold text-bone-50">Details Received</h1>
+            <p className="mx-auto mt-3 max-w-md text-sm leading-relaxed text-bone-300">
+              {request.recipientName ? `Thank you, ${request.recipientName}! ` : "Thank you! "}
+              Your details were received by {agency.name} on{" "}
+              <strong>{request.submittedAt ? fmtDate(request.submittedAt) : "record"}</strong>.
+            </p>
+            <p className="mt-4 text-xs text-bone-400">
+              Your information is securely stored. No further action is needed on this link.
+            </p>
           </div>
         ) : (
           <IntakeForm

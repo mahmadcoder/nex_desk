@@ -15,22 +15,41 @@ export const dynamic = "force-dynamic";
  * Owner/admin only — a submitted payload holds someone's address, bank details
  * and phone number before they are on the team.
  */
-export default async function IntakePage() {
+import Link from "next/link";
+import { cn } from "@/lib/utils";
+
+export default async function IntakePage({
+  searchParams,
+}: {
+  searchParams: Promise<{ tab?: string }>;
+}) {
   await requireOwnerAdmin();
   const rows = await listIntakeRequests();
 
+  const params = (await searchParams) ?? {};
+  const activeTab = params.tab || "all";
+
   const waiting = rows.filter((r: any) => r.status === "submitted");
   const pending = rows.filter((r: any) => r.status === "pending");
-  const closed = rows.filter((r: any) => ["approved", "revoked"].includes(r.status));
+  const closed = rows.filter((r: any) => ["approved", "resolved", "revoked"].includes(r.status));
+
+  const filteredRows =
+    activeTab === "submitted"
+      ? waiting
+      : activeTab === "pending"
+        ? pending
+        : activeTab === "resolved"
+          ? closed
+          : rows;
 
   return (
     <>
       <PageHead
-        title="Onboarding"
+        title="Request Details & Onboarding"
         sub={
           waiting.length
-            ? `${waiting.length} ready to add.`
-            : "Send someone a link after a call and their details land here."
+            ? `${waiting.length} submission(s) received & ready for review.`
+            : "Send clients or staff a link after a call to collect details."
         }
         action={
           <div className="flex flex-wrap gap-2">
@@ -40,23 +59,63 @@ export default async function IntakePage() {
         }
       />
 
-      {!rows.length ? (
+      <div className="mt-6 flex flex-wrap gap-2 border-b border-ink-600 pb-3">
+        <TabLink href="/nx-control/intake" label="All Requests" count={rows.length} active={activeTab === "all"} />
+        <TabLink href="/nx-control/intake?tab=submitted" label="Received / Submitted" count={waiting.length} active={activeTab === "submitted"} />
+        <TabLink href="/nx-control/intake?tab=pending" label="Waiting on Them" count={pending.length} active={activeTab === "pending"} />
+        <TabLink href="/nx-control/intake?tab=resolved" label="Resolved / Done" count={closed.length} active={activeTab === "resolved"} />
+      </div>
+
+      {!filteredRows.length ? (
         <div className="card mt-6 p-10 text-center">
           <Inbox className="mx-auto h-8 w-8 text-bone-500" aria-hidden />
-          <p className="mt-4 text-sm text-bone-200">Nothing requested yet.</p>
+          <p className="mt-4 text-sm text-bone-200">No request details in this view.</p>
           <p className="mx-auto mt-2 max-w-md text-sm leading-relaxed text-bone-400">
-            After a call, press Request details. You get a message for WhatsApp, a PDF and a
-            link — whichever suits the person.
+            Press Request details to generate a custom WhatsApp message, PDF, and link for any client or team member.
           </p>
+        </div>
+      ) : activeTab !== "all" ? (
+        <div className="mt-6">
+          <ul className="card divide-y divide-ink-600">
+            {filteredRows.map((r: any) => (
+              <IntakeRow key={r.id} row={r} />
+            ))}
+          </ul>
         </div>
       ) : (
         <div className="mt-6 space-y-8">
-          <Group title="Ready to add" rows={waiting} />
-          <Group title="Waiting on them" rows={pending} />
-          <Group title="Done" rows={closed} />
+          <Group title="Received & Ready to Review" rows={waiting} />
+          <Group title="Waiting on Client / Staff" rows={pending} />
+          <Group title="Resolved & Done" rows={closed} />
         </div>
       )}
     </>
+  );
+}
+
+function TabLink({
+  href,
+  label,
+  count,
+  active,
+}: {
+  href: string;
+  label: string;
+  count: number;
+  active: boolean;
+}) {
+  return (
+    <Link
+      href={href}
+      className={cn(
+        "mono-tag inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs transition-colors",
+        active
+          ? "bg-lime-400/10 text-lime-400 font-semibold border border-lime-400/30"
+          : "text-bone-400 hover:text-bone-100 hover:bg-ink-800"
+      )}
+    >
+      {label} <span className="text-[10px] text-bone-500">({count})</span>
+    </Link>
   );
 }
 

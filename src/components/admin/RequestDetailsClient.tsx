@@ -3,9 +3,9 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { Send, Copy, Check, FileDown, Loader2, UserPlus, Trash2 } from "lucide-react";
+import { Send, Copy, Check, FileDown, Loader2, UserPlus, Trash2, CheckCircle2, Eye } from "lucide-react";
 import Modal from "@/components/admin/Modal";
-import { createIntakeRequest, approveIntake, revokeIntake } from "@/lib/actions/intake";
+import { createIntakeRequest, approveIntake, revokeIntake, resolveIntake } from "@/lib/actions/intake";
 import { intakeFieldsFor, intakeMessage } from "@/config/intakeFields";
 import { fmtDate, fmtDateTime } from "@/lib/datetime";
 
@@ -26,6 +26,8 @@ export default function RequestDetailsClient({ kind }: { kind: "client" | "staff
   const [open, setOpen] = useState(false);
   const [pending, start] = useTransition();
   const [label, setLabel] = useState("");
+  const [recipientName, setRecipientName] = useState("");
+  const [recipientEmail, setRecipientEmail] = useState("");
   const [note, setNote] = useState("");
   const [made, setMade] = useState<{
     token: string;
@@ -38,7 +40,13 @@ export default function RequestDetailsClient({ kind }: { kind: "client" | "staff
 
   const create = () =>
     start(async () => {
-      const res = await createIntakeRequest({ kind, label, note });
+      const res = await createIntakeRequest({
+        kind,
+        label,
+        note,
+        recipientName,
+        recipientEmail,
+      });
       if (!res.ok) {
         toast.error(res.error);
         return;
@@ -137,13 +145,34 @@ export default function RequestDetailsClient({ kind }: { kind: "client" | "staff
       >
         {!made ? (
           <div className="space-y-4">
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div>
+                <label className="mono-tag mb-1.5 block">Recipient Name (Who it is sent to)</label>
+                <input
+                  className={field}
+                  value={recipientName}
+                  onChange={(e) => setRecipientName(e.target.value)}
+                  placeholder="e.g. Ahmed Sadiq"
+                />
+              </div>
+              <div>
+                <label className="mono-tag mb-1.5 block">Recipient Email (optional)</label>
+                <input
+                  type="email"
+                  className={field}
+                  value={recipientEmail}
+                  onChange={(e) => setRecipientEmail(e.target.value)}
+                  placeholder="ahmed@example.com"
+                />
+              </div>
+            </div>
             <div>
-              <label className="mono-tag mb-1.5 block">Who is this for</label>
+              <label className="mono-tag mb-1.5 block">Internal Label / Reference</label>
               <input
                 className={field}
                 value={label}
                 onChange={(e) => setLabel(e.target.value)}
-                placeholder="Ahmed at Zenith — so you recognise it in the list"
+                placeholder="e.g. Zenith E-commerce Onboarding Call"
               />
             </div>
             <div>
@@ -246,48 +275,104 @@ export function IntakeRow({ row }: { row: any }) {
       router.refresh();
     });
 
+  const resolve = () =>
+    start(async () => {
+      const res = await resolveIntake(row.id);
+      if (!res.ok) {
+        toast.error(res.error);
+        return;
+      }
+      toast.success("Request marked as resolved.");
+      setOpen(false);
+      router.refresh();
+    });
+
+  const recipient = row.recipient_name || row.recipient_email || row.label || "Direct Link";
+
   return (
     <>
       <li className="flex flex-wrap items-start justify-between gap-3 p-4">
-        <div className="min-w-0">
-          <p className="text-sm font-medium text-bone-100">{who}</p>
-          <p className="mono-tag mt-1 text-[10px]">
+        <div className="min-w-0 space-y-1">
+          <div className="flex flex-wrap items-center gap-2">
+            <p className="text-sm font-semibold text-bone-100">{who}</p>
+            {row.recipient_name && row.recipient_name !== who && (
+              <span className="mono-tag text-[10px] text-bone-400">
+                To: {row.recipient_name}
+              </span>
+            )}
+          </div>
+
+          <p className="mono-tag text-[10px]">
             {row.kind === "client" ? "Client" : "Team member"} ·{" "}
             {row.status === "submitted"
               ? `sent ${fmtDateTime(row.submitted_at)}`
-              : row.status === "approved"
-                ? `added ${fmtDate(row.approved_at)}`
+              : row.status === "approved" || row.status === "resolved"
+                ? `resolved ${fmtDate(row.resolved_at || row.approved_at)}`
                 : row.status === "revoked"
                   ? "revoked"
                   : `waiting · expires ${fmtDate(row.expires_at)}`}
           </p>
-          {row.label && row.label !== who && (
-            <p className="mt-0.5 text-xs text-bone-400">{row.label}</p>
+
+          {(row.recipient_email || p.email) && (
+            <p className="text-xs text-bone-400">
+              Email: {p.email || row.recipient_email}
+            </p>
+          )}
+
+          {row.label && row.label !== who && row.label !== row.recipient_name && (
+            <p className="mt-0.5 text-xs text-bone-400">Note: {row.label}</p>
           )}
         </div>
 
-        <div className="flex shrink-0 items-center gap-2">
+        <div className="flex shrink-0 flex-wrap items-center gap-2">
           {row.status === "submitted" && (
-            <button className="btn btn-sm gap-1.5" onClick={() => setOpen(true)}>
-              <UserPlus size={13} /> Review & add
-            </button>
+            <>
+              <button className="btn btn-sm gap-1.5" onClick={() => setOpen(true)}>
+                <Eye size={13} /> View details
+              </button>
+              <button
+                type="button"
+                disabled={pending}
+                onClick={resolve}
+                className="btn btn-sm border-emerald-400/40 text-emerald-300 hover:bg-emerald-400/10"
+                title="Mark as resolved / cleared without creating a new record"
+              >
+                <CheckCircle2 size={13} /> Mark resolved
+              </button>
+            </>
           )}
           {row.status === "pending" && (
-            <button
-              type="button"
-              disabled={pending}
-              title="Revoke this link"
-              onClick={() =>
-                start(async () => {
-                  const res = await revokeIntake(row.id);
-                  if (!res.ok) toast.error(res.error);
-                  router.refresh();
-                })
-              }
-              className="rounded p-1.5 text-bone-500 hover:bg-ink-800 hover:text-rose-400"
-            >
-              <Trash2 size={14} />
-            </button>
+            <>
+              <button
+                type="button"
+                disabled={pending}
+                onClick={resolve}
+                className="mono-tag inline-flex items-center gap-1 rounded border border-ink-600 px-2 py-1 text-[11px] text-bone-300 hover:border-emerald-400/40 hover:text-emerald-300"
+                title="Mark as resolved / cleared"
+              >
+                <CheckCircle2 size={11} /> Resolve
+              </button>
+              <button
+                type="button"
+                disabled={pending}
+                title="Revoke this link"
+                onClick={() =>
+                  start(async () => {
+                    const res = await revokeIntake(row.id);
+                    if (!res.ok) toast.error(res.error);
+                    router.refresh();
+                  })
+                }
+                className="rounded p-1.5 text-bone-500 hover:bg-ink-800 hover:text-rose-400"
+              >
+                <Trash2 size={14} />
+              </button>
+            </>
+          )}
+          {(row.status === "approved" || row.status === "resolved") && (
+            <span className="mono-tag inline-flex items-center gap-1 text-[11px] text-emerald-400">
+              <CheckCircle2 size={12} /> Resolved
+            </span>
           )}
         </div>
       </li>

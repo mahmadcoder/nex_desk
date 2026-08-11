@@ -43,6 +43,10 @@ export async function createIntakeRequest(input: {
   label?: string | null;
   note?: string | null;
   days?: number;
+  recipientName?: string | null;
+  recipientEmail?: string | null;
+  clientId?: string | null;
+  staffId?: string | null;
 }) {
   const me = await requireOwnerAdmin();
 
@@ -52,10 +56,14 @@ export async function createIntakeRequest(input: {
     .from("intake_requests")
     .insert({
       kind: input.kind,
-      label: input.label?.trim() || null,
+      label: input.label?.trim() || input.recipientName?.trim() || null,
       note: input.note?.trim() || null,
       expires_at: new Date(Date.now() + days * 864e5).toISOString(),
       created_by: me.userId,
+      recipient_name: input.recipientName?.trim() || null,
+      recipient_email: input.recipientEmail?.trim() || null,
+      client_id: input.clientId || null,
+      staff_id: input.staffId || null,
     })
     .select("id, token, expires_at")
     .single();
@@ -70,9 +78,6 @@ export async function createIntakeRequest(input: {
     token: data.token as string,
     url: `${getSiteBaseUrl()}/intake/${data.token}`,
     expiresAt: data.expires_at as string,
-    // Returned so the WhatsApp message signs off with whatever Settings says
-    // rather than a hardcoded "Nex Desk". The PDF already reads it via
-    // `docAgency()`; the copy text used to disagree with the attachment.
     agency: (await getAgency()).name,
   };
 }
@@ -84,26 +89,32 @@ export async function createIntakeRequest(input: {
 /**
  * Look up a request by its token, for the public page.
  *
- * Returns the SAME null for an unknown, expired, already-submitted or revoked
- * token. Distinguishing them tells a stranger which tokens exist, and how many
- * guesses they are away from a live one.
+ * Supports browser persistence so submitted forms display a clean
+ * "Details Received" confirmation instead of a broken expired error.
  */
 export async function intakeByToken(token: string) {
   if (!/^[0-9a-f-]{36}$/i.test(token)) return null;
 
   const { data, error } = await createAdminClient()
     .from("intake_requests")
-    .select("id, token, kind, status, expires_at, note")
+    .select("id, token, kind, status, expires_at, note, submitted_at, recipient_name")
     .eq("token", token)
     .maybeSingle();
 
   if (error || !data) return null;
-  if (data.status !== "pending") return null;
-  if (new Date(data.expires_at) < new Date()) return null;
+  if (data.status === "revoked") return null;
 
-  // Only what the form needs. The label, who created it and the payload of any
-  // other request are none of a public visitor's business.
-  return { kind: data.kind as "client" | "staff", note: data.note as string | null };
+  const isExpired = new Date(data.expires_at) < new Date() && data.status === "pending";
+
+  return {
+    id: data.id,
+    kind: data.kind as "client" | "staff",
+    status: data.status as "pending" | "submitted" | "approved" | "resolved" | "revoked",
+    isExpired,
+    note: data.note as string | null,
+    submittedAt: data.submitted_at as string | null,
+    recipientName: data.recipient_name as string | null,
+  };
 }
 
 /**
@@ -344,4 +355,45 @@ export async function listIntakeRequests() {
     return [];
   }
   return data ?? [];
+}
+
+export async function resolveIntake(id: string) {
+  const me = await requireOwnerAdmin();
+
+  const { error } = await createAdminClient()
+    .from("intake_requests")
+    .update({
+      status: "approved",
+      resolved_at: new Date().toISOString(),
+      resolved_by: me.userId,
+    })
+    .eq("id", id);
+
+  if (error) return { ok: false as const, error: describe(error) };
+
+  await recordAudit(me.userId, "intake.resolve", "intake_requests", id);
+  revalidatePath(`/${ADMIN}/intake`);
+  return { ok: true as const };
+}
+
+export async function linkIntakeToClientOrStaff(
+  id: string,
+  clientId?: string | null,
+  staffId?: string | null
+) {
+  const me = await requireOwnerAdmin();
+
+  const { error } = await createAdminClient()
+    .from("intake_requests")
+    .update({
+      client_id: clientId || null,
+      staff_id: staffId || null,
+    })
+    .eq("id", id);
+
+  if (error) return { ok: false as const, error: describe(error) };
+
+  await recordAudit(me.userId, "intake.link", "intake_requests", id);
+  revalidatePath(`/${ADMIN}/intake`);
+  return { ok: true as const };
 }
