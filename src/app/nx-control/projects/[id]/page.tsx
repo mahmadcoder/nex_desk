@@ -255,7 +255,7 @@ export default async function ProjectDetail({ params }: { params: Promise<{ id: 
         <div className="space-y-8">
           <section>
             <h2 className="mb-3 text-base">Milestones</h2>
-            <MilestoneList milestones={milestones ?? []} projectId={project.id} />
+            <MilestoneList milestones={milestones ?? []} projectId={project.id} canManage={canManage} />
           </section>
 
           {/* Milestones are what the client sees; tasks are how the work
@@ -462,19 +462,21 @@ export default async function ProjectDetail({ params }: { params: Promise<{ id: 
             </div>
           </section>
 
-          <section>
-            <h2 className="mb-3 text-base">
-              Messages
-              {unreadFromClient > 0 && (
-                <span className="ml-2 rounded-full bg-lime-400 px-1.5 py-0.5 text-[10px] font-semibold leading-none text-lime-950">
-                  {unreadFromClient} new
-                </span>
-              )}
-            </h2>
-            <div className="card p-5">
-              <MessageThread projectId={project.id} side="staff" messages={messages} />
-            </div>
-          </section>
+          {canManage && (
+            <section>
+              <h2 className="mb-3 text-base">
+                Messages
+                {unreadFromClient > 0 && (
+                  <span className="ml-2 rounded-full bg-lime-400 px-1.5 py-0.5 text-[10px] font-semibold leading-none text-lime-950">
+                    {unreadFromClient} new
+                  </span>
+                )}
+              </h2>
+              <div className="card p-5">
+                <MessageThread projectId={project.id} side="staff" messages={messages} />
+              </div>
+            </section>
+          )}
 
           {canManage && (
             <section>

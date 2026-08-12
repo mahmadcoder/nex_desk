@@ -5,32 +5,51 @@ import { Check } from "lucide-react";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-export default function MilestoneList({ milestones, projectId }: { milestones: any[]; projectId: string }) {
+export default function MilestoneList({
+  milestones,
+  projectId,
+  canManage = true,
+}: {
+  milestones: any[];
+  projectId: string;
+  canManage?: boolean;
+}) {
   const [local, setLocal] = useState(milestones);
   const [, start] = useTransition();
 
   const toggle = (id: string, done: boolean) => {
+    if (!canManage) return;
     setLocal((p) => p.map((m) => (m.id === id ? { ...m, is_done: done } : m)));
     start(() => { toggleMilestone(id, done); });
   };
 
   if (!local.length) {
     return <div className="card p-10 text-center text-sm text-bone-400">
-      No milestones. They're created from the payment schedule when a deal is locked.
+      No milestones. They&apos;re created from the payment schedule when a deal is locked.
     </div>;
   }
 
   return (
     <div className="card divide-y divide-ink-600">
       {local.map((m) => (
-        <label key={m.id} className="flex cursor-pointer items-start gap-3 p-4 hover:bg-ink-700/30">
+        <div
+          key={m.id}
+          className={`flex items-start gap-3 p-4 ${canManage ? "cursor-pointer hover:bg-ink-700/30" : "cursor-default"}`}
+          onClick={() => {
+            if (canManage) toggle(m.id, !m.is_done);
+          }}
+        >
           <button
             type="button"
-            onClick={() => toggle(m.id, !m.is_done)}
+            disabled={!canManage}
+            onClick={(e) => {
+              e.stopPropagation();
+              if (canManage) toggle(m.id, !m.is_done);
+            }}
             aria-pressed={m.is_done}
             className={`mt-0.5 grid h-5 w-5 shrink-0 place-items-center rounded border transition-colors ${
               m.is_done ? "border-lime-400 bg-lime-400 text-lime-950" : "border-ink-500"
-            }`}
+            } ${!canManage ? "cursor-default opacity-80" : ""}`}
           >
             {m.is_done && <Check size={13} strokeWidth={3} />}
           </button>
@@ -39,11 +58,13 @@ export default function MilestoneList({ milestones, projectId }: { milestones: a
             {m.description && <p className="mt-0.5 text-xs text-bone-400">{m.description}</p>}
           </div>
           <span className="mono-tag shrink-0">{m.due_date ?? "no date"}</span>
-        </label>
+        </div>
       ))}
-      <p className="p-4 text-xs text-bone-400">
-        Ticking a milestone recalculates project progress and updates the client portal instantly.
-      </p>
+      {canManage && (
+        <p className="p-4 text-xs text-bone-400">
+          Ticking a milestone recalculates project progress and updates the client portal instantly.
+        </p>
+      )}
     </div>
   );
 }

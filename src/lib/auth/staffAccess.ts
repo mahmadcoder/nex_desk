@@ -26,6 +26,7 @@ const STAFF_ALLOWED_SEGMENTS = [
   // `avatar_url` matched on the caller's user_id, never an id from the client.
   "profile",
   "login",
+  "intake",
 
   // ---- Added alongside the screens themselves ----------------------------
   //

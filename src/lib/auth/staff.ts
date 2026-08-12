@@ -13,6 +13,7 @@ export const isPrivilegedRole = (role?: string | null): boolean =>
 
 export type CurrentStaff = {
   userId: string;
+  email: string;
   role: StaffRole;
   fullName: string;
   /** `employees.avatar_url` — a public URL, or null when no photo is set. */
@@ -161,6 +162,7 @@ export async function getCurrentStaff(): Promise<CurrentStaff | null> {
 
   return {
     userId: user.id,
+    email: user.email ?? "",
     role,
     fullName,
     avatarUrl: photo,

@@ -1,30 +1,35 @@
-import { requireOwnerAdmin } from "@/lib/auth/guards";
+import { getCurrentStaff } from "@/lib/auth/staff";
 import { PageHead } from "@/components/admin/ui";
 import { listIntakeRequests } from "@/lib/actions/intake";
 import RequestDetailsClient, { IntakeRow } from "@/components/admin/RequestDetailsClient";
-import { Inbox } from "lucide-react";
+import { Inbox, Calendar, FileText } from "lucide-react";
+import Link from "next/link";
+import { cn } from "@/lib/utils";
+import { fmtDate } from "@/lib/datetime";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-export const metadata = { title: "Onboarding" };
+export const metadata = { title: "Onboarding & Request Details" };
 export const dynamic = "force-dynamic";
-
-/**
- * Details requested, and details received.
- *
- * Owner/admin only — a submitted payload holds someone's address, bank details
- * and phone number before they are on the team.
- */
-import Link from "next/link";
-import { cn } from "@/lib/utils";
 
 export default async function IntakePage({
   searchParams,
 }: {
   searchParams: Promise<{ tab?: string }>;
 }) {
-  await requireOwnerAdmin();
-  const rows = await listIntakeRequests();
+  const me = await getCurrentStaff();
+  if (!me) return null;
+
+  const allRows = await listIntakeRequests();
+  const isPrivileged = me.isPrivileged;
+
+  // Staff only see forms requested from or filled by them specifically
+  const rows = isPrivileged
+    ? allRows
+    : allRows.filter((r: any) =>
+        (r.recipient_email && r.recipient_email.toLowerCase() === me.email.toLowerCase()) ||
+        r.staff_id === me.employeeId
+      );
 
   const params = (await searchParams) ?? {};
   const activeTab = params.tab || "all";
@@ -45,17 +50,21 @@ export default async function IntakePage({
   return (
     <>
       <PageHead
-        title="Request Details & Onboarding"
+        title={isPrivileged ? "Request Details & Onboarding" : "My Request Details Forms"}
         sub={
-          waiting.length
-            ? `${waiting.length} submission(s) received & ready for review.`
-            : "Send clients or staff a link after a call to collect details."
+          isPrivileged
+            ? waiting.length
+              ? `${waiting.length} submission(s) received & ready for review.`
+              : "Send clients or staff a link after a call to collect details."
+            : "View the onboarding and details forms requested from you."
         }
         action={
-          <div className="flex flex-wrap gap-2">
-            <RequestDetailsClient kind="client" />
-            <RequestDetailsClient kind="staff" />
-          </div>
+          isPrivileged ? (
+            <div className="flex flex-wrap gap-2">
+              <RequestDetailsClient kind="client" />
+              <RequestDetailsClient kind="staff" />
+            </div>
+          ) : null
         }
       />
 
