@@ -12,6 +12,7 @@ import TimerBar from "@/components/admin/TimerBar";
 import { myAttendanceToday } from "@/lib/actions/attendance";
 import { runningTimer, myTrackedToday } from "@/lib/actions/timeTracking";
 import { humanDuration } from "@/lib/workHours";
+import HolidayNoticeBanner, { type HolidayItem } from "@/components/ui/HolidayNoticeBanner";
 
 const BASE = `/${process.env.ADMIN_PATH || "nx-control"}`;
 
@@ -26,7 +27,13 @@ const BASE = `/${process.env.ADMIN_PATH || "nx-control"}`;
  * to, and fails closed — an employee with no assignments sees an empty state,
  * not the whole agency.
  */
-export default async function StaffDashboard({ me }: { me: CurrentStaff }) {
+export default async function StaffDashboard({
+  me,
+  holidays = [],
+}: {
+  me: CurrentStaff;
+  holidays?: HolidayItem[];
+}) {
   const db = createAdminClient();
   const clientIds = await assignedClientIds(me.employeeId);
 
@@ -146,6 +153,8 @@ export default async function StaffDashboard({ me }: { me: CurrentStaff }) {
           <Clock size={15} /> Log today&apos;s work
         </Link>
       </div>
+
+      <HolidayNoticeBanner holidays={holidays} />
 
       {/* The clock comes first: it is the thing with a deadline attached to it,
           and everything below is a summary that can wait. */}

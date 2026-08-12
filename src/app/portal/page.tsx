@@ -15,6 +15,8 @@ import {
   ArrowRight,
   CircleDot,
 } from "lucide-react";
+import { getUpcomingHolidays } from "@/lib/holidays";
+import HolidayNoticeBanner from "@/components/ui/HolidayNoticeBanner";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
@@ -47,11 +49,12 @@ export default async function PortalDashboard() {
 
   const { client, isPaused, perms } = session;
 
-  const [{ projects, milestones, teamFor }, billing, documents, meetings] = await Promise.all([
+  const [{ projects, milestones, teamFor }, billing, documents, meetings, holidays] = await Promise.all([
     loadProjects(client.id),
     loadBilling(client.id),
     loadDocuments(client.id),
     loadMeetings(client.id, { upcomingOnly: true }),
+    getUpcomingHolidays(),
   ]);
 
   const active = projects.filter(
@@ -90,6 +93,10 @@ export default async function PortalDashboard() {
             : "Here is where everything stands right now."}
         </p>
       </header>
+
+      <div className="mt-6">
+        <HolidayNoticeBanner holidays={holidays} />
+      </div>
 
       {isPaused && (
         <section className="card mt-8 border-lime-400/25 bg-lime-400/[0.04] p-6">

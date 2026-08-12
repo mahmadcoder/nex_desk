@@ -13,6 +13,8 @@ import { atRiskClients, projectRisk } from "@/lib/insights";
 import { expenseInvoiceIds } from "@/lib/billing";
 import { AlertTriangle } from "lucide-react";
 import { fmtDateLong, fmtDate, agencyDay } from "@/lib/datetime";
+import { getUpcomingHolidays } from "@/lib/holidays";
+import HolidayNoticeBanner from "@/components/ui/HolidayNoticeBanner";
 
 const BASE = `/${process.env.ADMIN_PATH || "nx-control"}`;
 export const metadata = { title: "Control" };
@@ -26,9 +28,9 @@ export default async function Dashboard({
   const me = await getCurrentStaff();
   if (!me) return null; // middleware redirects; nothing to render
 
-  // Everything below this line is agency-wide money and pipeline data. Employees
-  // get their own scoped, money-free dashboard instead.
-  if (!me.isPrivileged) return <StaffDashboard me={me} />;
+  const holidays = await getUpcomingHolidays();
+
+  if (!me.isPrivileged) return <StaffDashboard me={me} holidays={holidays} />;
 
   // The URL wins so a shared link still works; otherwise fall back to what the
   // tabs last remembered. Without the cookie, every link back to the dashboard
@@ -174,6 +176,8 @@ export default async function Dashboard({
         sub={fmtDateLong()}
         action={<Link href={`${BASE}/deals/new`} className="btn btn-primary h-10">Lock a deal</Link>}
       />
+
+      <HolidayNoticeBanner holidays={holidays} />
 
       {/* Keyed on having an employee record, not on role.
           `employeeId` is resolved by matching the login email to an `employees`
