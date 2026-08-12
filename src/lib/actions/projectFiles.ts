@@ -34,6 +34,7 @@ export async function recordProjectFile(input: {
       visible_to_client — attaching to a task is not a way around that. */
   taskId?: string | null;
   visibleToClient: boolean;
+  visibleToStaff?: boolean;
 }) {
   const me = await requireStaff();
   const db = createAdminClient();
@@ -50,6 +51,7 @@ export async function recordProjectFile(input: {
       kind: input.kind || "other",
       task_id: input.taskId || null,
       visible_to_client: input.visibleToClient,
+      visible_to_staff: input.visibleToStaff ?? true,
       uploaded_by: me.userId,
     })
     .select("id")
@@ -60,7 +62,7 @@ export async function recordProjectFile(input: {
       ok: false as const,
       error:
         error.code === "42703"
-          ? "Project files needs its columns — run supabase/idempotent_fixes_2027_24.sql."
+          ? "Project files needs its columns — run supabase/idempotent_fixes_2027_36.sql."
           : error.message,
     };
   }
@@ -69,6 +71,7 @@ export async function recordProjectFile(input: {
     project_id: input.projectId,
     name: input.name,
     visible_to_client: input.visibleToClient,
+    visible_to_staff: input.visibleToStaff ?? true,
   });
 
   // An internal file is not the client's business, so it never notifies.
@@ -126,6 +129,28 @@ export async function setProjectFileVisibility(id: string, visible: boolean) {
   return { ok: true as const };
 }
 
+/**
+ * Show or hide a file from regular staff.
+ * Owner/admin only.
+ */
+export async function setProjectFileStaffVisibility(id: string, visible: boolean) {
+  const me = await requireOwnerAdmin();
+  const db = createAdminClient();
+
+  const { data, error } = await db
+    .from("project_files")
+    .update({ visible_to_staff: visible })
+    .eq("id", id)
+    .select("project_id")
+    .single();
+
+  if (error) return { ok: false as const, error: error.message };
+
+  await recordAudit(me.userId, "project_file.staff_visibility", "project_files", id, { visible });
+  revalidatePath(`/${ADMIN}/projects/${data.project_id}`);
+  return { ok: true as const };
+}
+
 export async function deleteProjectFile(id: string) {
   const me = await requireOwnerAdmin();
   const db = createAdminClient();
@@ -163,7 +188,11 @@ export async function deleteProjectFile(id: string) {
  */
 export async function listProjectFiles(
   projectId: string,
-  { clientView = false, taskId }: { clientView?: boolean; taskId?: string } = {}
+  {
+    clientView = false,
+    staffView = false,
+    taskId,
+  }: { clientView?: boolean; staffView?: boolean; taskId?: string } = {}
 ) {
   const db = createAdminClient();
 
@@ -174,6 +203,7 @@ export async function listProjectFiles(
     .order("created_at", { ascending: false });
 
   if (clientView) q = q.eq("visible_to_client", true);
+  if (staffView) q = q.eq("visible_to_staff", true);
   if (taskId) q = q.eq("task_id", taskId);
 
   const { data, error } = await q;

@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import { getUpcomingHolidays } from "@/lib/holidays";
 import HolidayNoticeBanner from "@/components/ui/HolidayNoticeBanner";
+import LiveClockGreeting from "@/components/ui/LiveClockGreeting";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
@@ -79,6 +80,13 @@ export default async function PortalDashboard() {
 
   return (
     <>
+      <LiveClockGreeting
+        name={client.name}
+        role="client"
+        subText={client.company ? `${client.company} · Client Portal` : "Client Portal"}
+        className="mb-6"
+      />
+
       {/* ── Welcome ── */}
       <header className="border-b border-ink-600 pb-6">
         <p className="mono-tag text-lime-400">Client portal</p>

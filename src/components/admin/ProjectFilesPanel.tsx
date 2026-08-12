@@ -7,11 +7,12 @@ import { createClient } from "@/lib/supabase/client";
 import {
   recordProjectFile,
   setProjectFileVisibility,
+  setProjectFileStaffVisibility,
   deleteProjectFile,
 } from "@/lib/actions/projectFiles";
 import { fmtDate } from "@/lib/datetime";
 import CustomSelect from "@/components/ui/CustomSelect";
-import { Upload, Download, Trash2, Eye, EyeOff, Loader2, Paperclip } from "lucide-react";
+import { Upload, Download, Trash2, Eye, EyeOff, Loader2, Paperclip, UserCheck, UserX } from "lucide-react";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
@@ -58,6 +59,7 @@ export default function ProjectFilesPanel({
   const inputRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
   const [visible, setVisible] = useState(true);
+  const [visibleStaff, setVisibleStaff] = useState(true);
   const [kind, setKind] = useState<string>("design");
   const [pending, start] = useTransition();
 
@@ -84,13 +86,11 @@ export default function ProjectFilesPanel({
         fileSize: file.size,
         kind,
         visibleToClient: visible,
+        visibleToStaff: visibleStaff,
       });
       if (!res.ok) throw new Error(res.error);
 
-      toast.success(
-        visible ? "Uploaded — the client can see it." : "Uploaded, hidden from the client.",
-        { id: toastId }
-      );
+      toast.success("Uploaded successfully.", { id: toastId });
       router.refresh();
     } catch (e: any) {
       toast.error(e?.message || "Upload failed.", { id: toastId });
@@ -143,7 +143,17 @@ export default function ProjectFilesPanel({
               onChange={(e) => setVisible(e.target.checked)}
               className="accent-lime-400"
             />
-            Visible to the client
+            Visible to client
+          </label>
+
+          <label className="flex cursor-pointer items-center gap-2 text-xs text-bone-300">
+            <input
+              type="checkbox"
+              checked={visibleStaff}
+              onChange={(e) => setVisibleStaff(e.target.checked)}
+              className="accent-lime-400"
+            />
+            Visible to staff
           </label>
 
           <span className="mono-tag ml-auto text-[10px] text-bone-500">max {MAX_MB}MB</span>
@@ -163,6 +173,7 @@ export default function ProjectFilesPanel({
                     {f.file_size ? ` · ${size(f.file_size)}` : ""}
                     {f.kind && f.kind !== "other" ? ` · ${f.kind}` : ""}
                     {canManage && !f.visible_to_client ? " · hidden from client" : ""}
+                    {canManage && f.visible_to_staff === false ? " · hidden from staff" : ""}
                   </p>
                 </div>
               </div>
@@ -195,6 +206,22 @@ export default function ProjectFilesPanel({
                       className="text-bone-400 hover:text-lime-400"
                     >
                       {f.visible_to_client ? <Eye size={14} /> : <EyeOff size={14} />}
+                    </button>
+
+                    <button
+                      type="button"
+                      disabled={pending}
+                      title={f.visible_to_staff !== false ? "Hide from staff" : "Show to staff"}
+                      onClick={() =>
+                        start(async () => {
+                          const res = await setProjectFileStaffVisibility(f.id, f.visible_to_staff === false);
+                          if (!res.ok) toast.error(res.error ?? "Could not change that.");
+                          router.refresh();
+                        })
+                      }
+                      className={f.visible_to_staff !== false ? "text-bone-400 hover:text-lime-400" : "text-amber-400 hover:text-lime-400"}
+                    >
+                      {f.visible_to_staff !== false ? <UserCheck size={14} /> : <UserX size={14} />}
                     </button>
 
                     <button

@@ -1054,9 +1054,8 @@ export async function recomputeProjectProgress(projectId: string, bump = 0) {
     ? clamp((all.filter((x) => x.is_done).length / all.length) * 100)
     : 0;
 
-  // `max` rather than a sum: they measure the same thing two ways, so adding
-  // them would let a project read 140% complete.
-  const pct = all?.length ? Math.max(milestonePct, manual) : manual;
+  // Combine milestone base progress and accumulated work log progress.
+  const pct = all?.length ? clamp(milestonePct + manual) : manual;
 
   await db.from("projects")
     .update({ progress: clamp(pct), manual_progress: manual })

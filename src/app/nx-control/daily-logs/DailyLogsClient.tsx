@@ -30,7 +30,7 @@ import {
 interface DailyLogsClientProps {
   initialLogs: IDailyWorkLog[];
   employeesList: { id: string; name: string }[];
-  projectsList: { id: string; title: string; category?: string | null }[];
+  projectsList: { id: string; title: string; category?: string | null; progress?: number }[];
   /** Staff file only as themselves — show their name instead of a picker. */
   lockedToEmployee?: boolean;
   /**
@@ -676,20 +676,29 @@ export default function DailyLogsClient({
                 </label>
 
                 {shareWithClient && (
-                  <div className="flex items-center gap-3 border-t border-ink-700 pt-3">
-                    <label className="mono-tag text-[10px] whitespace-nowrap">Move progress by</label>
-                    <input
-                      type="number"
-                      min="0"
-                      max="100"
-                      step="5"
-                      className="w-20 rounded-lg border border-ink-500 bg-ink-800 px-2 py-1.5 text-xs text-bone-50 focus:border-lime-400 focus:outline-none"
-                      value={progressDelta}
-                      onChange={(e) => setProgressDelta(e.target.value)}
-                    />
-                    <span className="text-[11px] text-bone-400">
-                      % — ignored when the project has milestones, which set progress themselves.
-                    </span>
+                  <div className="flex flex-wrap items-center justify-between gap-3 border-t border-ink-700 pt-3">
+                    <div className="flex items-center gap-2">
+                      <label className="mono-tag text-[10px] whitespace-nowrap">Move progress by</label>
+                      <input
+                        type="number"
+                        min="0"
+                        max="100"
+                        step="5"
+                        className="w-20 rounded-lg border border-ink-500 bg-ink-800 px-2 py-1.5 text-xs text-bone-50 focus:border-lime-400 focus:outline-none"
+                        value={progressDelta}
+                        onChange={(e) => setProgressDelta(e.target.value)}
+                      />
+                      <span className="mono-tag text-xs">%</span>
+                    </div>
+
+                    <div className="mono-tag text-xs text-bone-300">
+                      Current: <span className="font-semibold text-bone-100">{activeProject?.progress ?? 0}%</span>
+                      {Number(progressDelta) > 0 && (
+                        <span className="ml-2 text-lime-400 font-semibold">
+                          ➔ New: {Math.min(100, (activeProject?.progress ?? 0) + (Number(progressDelta) || 0))}%
+                        </span>
+                      )}
+                    </div>
                   </div>
                 )}
               </div>

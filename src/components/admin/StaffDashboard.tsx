@@ -13,6 +13,7 @@ import { myAttendanceToday } from "@/lib/actions/attendance";
 import { runningTimer, myTrackedToday } from "@/lib/actions/timeTracking";
 import { humanDuration } from "@/lib/workHours";
 import HolidayNoticeBanner, { type HolidayItem } from "@/components/ui/HolidayNoticeBanner";
+import LiveClockGreeting from "@/components/ui/LiveClockGreeting";
 
 const BASE = `/${process.env.ADMIN_PATH || "nx-control"}`;
 
@@ -134,6 +135,8 @@ export default async function StaffDashboard({
 
   return (
     <>
+      <LiveClockGreeting name={me.fullName} role="staff" className="mb-6" />
+
       {/* Written out rather than passed to PageHead, whose `title` is a string
           and so cannot carry the avatar. flex-wrap + min-w-0 so a long name
           wraps instead of squeezing the photo on a phone. */}

@@ -35,7 +35,7 @@ export default async function DailyLogsPage() {
   // decides the extra fields on the log form.
   let projectsQuery = db
     .from("projects")
-    .select("id, name, deals(service_slugs)")
+    .select("id, name, progress, deals(service_slugs)")
     .order("name");
   if (!canManage) {
     if (!assignedIds?.length) projectsQuery = projectsQuery.eq("id", "00000000-0000-0000-0000-000000000000");
@@ -89,6 +89,7 @@ export default async function DailyLogsPage() {
     return {
       id: p.id,
       title: p.name,
+      progress: Number(p.progress || 0),
       category:
         projectSlugs.map((s) => categoryBySlug.get(s)).find(Boolean) ??
         projectSlugs[0] ??

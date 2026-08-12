@@ -15,6 +15,7 @@ import { AlertTriangle } from "lucide-react";
 import { fmtDateLong, fmtDate, agencyDay } from "@/lib/datetime";
 import { getUpcomingHolidays } from "@/lib/holidays";
 import HolidayNoticeBanner from "@/components/ui/HolidayNoticeBanner";
+import LiveClockGreeting from "@/components/ui/LiveClockGreeting";
 
 const BASE = `/${process.env.ADMIN_PATH || "nx-control"}`;
 export const metadata = { title: "Control" };
@@ -171,6 +172,8 @@ export default async function Dashboard({
 
   return (
     <>
+      <LiveClockGreeting name={me.fullName} role={me.role} className="mb-6" />
+
       <PageHead
         title="Dashboard"
         sub={fmtDateLong()}

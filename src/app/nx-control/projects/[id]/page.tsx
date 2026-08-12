@@ -76,7 +76,7 @@ export default async function ProjectDetail({ params }: { params: Promise<{ id: 
   // Signed URLs and the thread. Read after the assignment check above, so an
   // unauthorised staff member never causes the files to be signed at all.
   const [projectFiles, messages] = await Promise.all([
-    listProjectFiles(id),
+    listProjectFiles(id, { staffView: !canManage }),
     listMessages(id),
   ]);
   const unreadFromClient = messages.filter(
