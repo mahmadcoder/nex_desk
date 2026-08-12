@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createAdminClient } from "@/lib/supabase/server";
-import { requireOwnerAdmin } from "@/lib/auth/guards";
+import { requireOwnerAdmin, requireStaff } from "@/lib/auth/guards";
 import { recordAudit } from "@/lib/actions/audit";
 import { notify } from "@/lib/actions/notify";
 import { getSiteBaseUrl } from "@/lib/utils";
@@ -342,7 +342,7 @@ export async function revokeIntake(id: string) {
 }
 
 export async function listIntakeRequests() {
-  await requireOwnerAdmin();
+  await requireStaff();
 
   const { data, error } = await createAdminClient()
     .from("intake_requests")

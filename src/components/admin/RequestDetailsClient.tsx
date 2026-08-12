@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { Send, Copy, Check, FileDown, Loader2, UserPlus, Trash2, CheckCircle2, Eye } from "lucide-react";
+import { Send, Copy, Check, FileDown, Loader2, UserPlus, Trash2, CheckCircle2, Eye, ExternalLink } from "lucide-react";
 import Modal from "@/components/admin/Modal";
 import { createIntakeRequest, approveIntake, revokeIntake, resolveIntake } from "@/lib/actions/intake";
 import { intakeFieldsFor, intakeMessage } from "@/config/intakeFields";
@@ -254,7 +254,7 @@ export default function RequestDetailsClient({ kind }: { kind: "client" | "staff
 
 /* ---------------- Approval ---------------- */
 
-export function IntakeRow({ row }: { row: any }) {
+export function IntakeRow({ row, isPrivileged = true }: { row: any; isPrivileged?: boolean }) {
   const router = useRouter();
   const [pending, start] = useTransition();
   const [open, setOpen] = useState(false);
@@ -325,23 +325,35 @@ export function IntakeRow({ row }: { row: any }) {
         </div>
 
         <div className="flex shrink-0 flex-wrap items-center gap-2">
+          {row.token && (
+            <a
+              href={`/intake/${row.token}`}
+              target="_blank"
+              rel="noreferrer"
+              className="mono-tag inline-flex items-center gap-1 rounded border border-ink-600 px-2 py-1 text-[11px] text-lime-400 hover:border-lime-400/40"
+            >
+              <ExternalLink size={11} /> Open Form
+            </a>
+          )}
           {row.status === "submitted" && (
             <>
               <button className="btn btn-sm gap-1.5" onClick={() => setOpen(true)}>
                 <Eye size={13} /> View details
               </button>
-              <button
-                type="button"
-                disabled={pending}
-                onClick={resolve}
-                className="btn btn-sm border-emerald-400/40 text-emerald-300 hover:bg-emerald-400/10"
-                title="Mark as resolved / cleared without creating a new record"
-              >
-                <CheckCircle2 size={13} /> Mark resolved
-              </button>
+              {isPrivileged && (
+                <button
+                  type="button"
+                  disabled={pending}
+                  onClick={resolve}
+                  className="btn btn-sm border-emerald-400/40 text-emerald-300 hover:bg-emerald-400/10"
+                  title="Mark as resolved / cleared without creating a new record"
+                >
+                  <CheckCircle2 size={13} /> Mark resolved
+                </button>
+              )}
             </>
           )}
-          {row.status === "pending" && (
+          {row.status === "pending" && isPrivileged && (
             <>
               <button
                 type="button"

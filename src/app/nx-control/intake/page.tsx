@@ -79,23 +79,25 @@ export default async function IntakePage({
         <div className="card mt-6 p-10 text-center">
           <Inbox className="mx-auto h-8 w-8 text-bone-500" aria-hidden />
           <p className="mt-4 text-sm text-bone-200">No request details in this view.</p>
-          <p className="mx-auto mt-2 max-w-md text-sm leading-relaxed text-bone-400">
-            Press Request details to generate a custom WhatsApp message, PDF, and link for any client or team member.
-          </p>
+          {isPrivileged && (
+            <p className="mx-auto mt-2 max-w-md text-sm leading-relaxed text-bone-400">
+              Press Request details to generate a custom WhatsApp message, PDF, and link for any client or team member.
+            </p>
+          )}
         </div>
       ) : activeTab !== "all" ? (
         <div className="mt-6">
           <ul className="card divide-y divide-ink-600">
             {filteredRows.map((r: any) => (
-              <IntakeRow key={r.id} row={r} />
+              <IntakeRow key={r.id} row={r} isPrivileged={isPrivileged} />
             ))}
           </ul>
         </div>
       ) : (
         <div className="mt-6 space-y-8">
-          <Group title="Received & Ready to Review" rows={waiting} />
-          <Group title="Waiting on Client / Staff" rows={pending} />
-          <Group title="Resolved & Done" rows={closed} />
+          <Group title="Received & Ready to Review" rows={waiting} isPrivileged={isPrivileged} />
+          <Group title="Waiting on Client / Staff" rows={pending} isPrivileged={isPrivileged} />
+          <Group title="Resolved & Done" rows={closed} isPrivileged={isPrivileged} />
         </div>
       )}
     </>
@@ -128,7 +130,7 @@ function TabLink({
   );
 }
 
-function Group({ title, rows }: { title: string; rows: any[] }) {
+function Group({ title, rows, isPrivileged = true }: { title: string; rows: any[]; isPrivileged?: boolean }) {
   if (!rows.length) return null;
 
   return (
@@ -138,7 +140,7 @@ function Group({ title, rows }: { title: string; rows: any[] }) {
       </h2>
       <ul className="card divide-y divide-ink-600">
         {rows.map((r) => (
-          <IntakeRow key={r.id} row={r} />
+          <IntakeRow key={r.id} row={r} isPrivileged={isPrivileged} />
         ))}
       </ul>
     </section>
