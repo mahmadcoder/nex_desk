@@ -110,31 +110,47 @@ export async function middleware(req: NextRequest) {
       }
     }
 
-    // Resolve the role, not just a boolean — employees sign in here too and
-    // are limited to their own work (see canStaffAccess).
+    // Resolve the role and ensure the account is active
     let role: string | null = null;
-    const metaRole = user.user_metadata?.role;
-    if (STAFF_ROLES.includes(metaRole)) {
-      role = metaRole;
-    } else if (user.id) {
+    let isActive = true;
+
+    if (user.id) {
       try {
         const adminDb = getAdminClient();
-        const { data: profile } = await adminDb
-          .from("profiles")
-          .select("role, is_active")
-          .eq("id", user.id)
-          .maybeSingle();
-        if (profile?.is_active && STAFF_ROLES.includes(profile.role)) {
-          role = profile.role;
+        const [{ data: profile }, { data: employee }] = await Promise.all([
+          adminDb.from("profiles").select("role, is_active").eq("id", user.id).maybeSingle(),
+          adminDb
+            .from("employees")
+            .select("status")
+            .or(`user_id.eq.${user.id},email.ilike.${user.email}`)
+            .maybeSingle(),
+        ]);
+
+        if (profile) {
+          if (profile.is_active === false) isActive = false;
+          if (STAFF_ROLES.includes(profile.role)) role = profile.role;
+        }
+
+        if (
+          employee &&
+          (String(employee.status).toLowerCase() === "terminated" ||
+            String(employee.status).toLowerCase() === "inactive")
+        ) {
+          isActive = false;
+        }
+
+        if (!role && STAFF_ROLES.includes(user.user_metadata?.role)) {
+          role = user.user_metadata.role;
         }
       } catch {
-        role = null;
+        role = STAFF_ROLES.includes(user.user_metadata?.role) ? user.user_metadata.role : null;
       }
     }
 
-    if (!role) {
+    if (!role || !isActive) {
       if (isLoginPage) return res;
-      return NextResponse.redirect(new URL(`/${ADMIN_PATH}/login`, req.url));
+      await supabase.auth.signOut();
+      return NextResponse.redirect(new URL(`/${ADMIN_PATH}/login?deactivated=1`, req.url));
     }
 
     if (isLoginPage) {
@@ -150,9 +166,42 @@ export async function middleware(req: NextRequest) {
 
   // ---------- CLIENT PORTAL ----------
   if (pathname === "/portal/login") {
-    if (user) return NextResponse.redirect(new URL("/portal", req.url));
+    if (user) {
+      try {
+        const adminDb = getAdminClient();
+        const { data: client } = await adminDb
+          .from("clients")
+          .select("lifecycle, is_active")
+          .eq("email", user.email!)
+          .maybeSingle();
+
+        if (client && (client.lifecycle === "archived" || client.is_active === false)) {
+          await supabase.auth.signOut();
+          return res;
+        }
+      } catch {
+        // ignore
+      }
+      return NextResponse.redirect(new URL("/portal", req.url));
+    }
   } else if (pathname.startsWith("/portal")) {
     if (!user) return NextResponse.redirect(new URL("/portal/login", req.url));
+
+    try {
+      const adminDb = getAdminClient();
+      const { data: client } = await adminDb
+        .from("clients")
+        .select("lifecycle, is_active")
+        .eq("email", user.email!)
+        .maybeSingle();
+
+      if (client && (client.lifecycle === "archived" || client.is_active === false)) {
+        await supabase.auth.signOut();
+        return NextResponse.redirect(new URL("/portal/login?deactivated=1", req.url));
+      }
+    } catch {
+      // ignore
+    }
   }
 
   return res;

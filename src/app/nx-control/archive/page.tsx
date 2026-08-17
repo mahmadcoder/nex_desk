@@ -16,18 +16,21 @@ export default async function ArchivePage() {
 
   const db = createAdminClient();
 
-  const [{ data: clients }, { data: employees }] = await Promise.all([
+  const [{ data: clients, error: clientErr }, { data: employees, error: empErr }] = await Promise.all([
     db
       .from("clients")
-      .select("id, name, company, email, phone, created_at, status, is_active, lifecycle")
-      .or("lifecycle.eq.archived,is_active.eq.false,status.eq.inactive")
+      .select("id, name, company, email, phone, created_at, is_active, lifecycle")
+      .or("lifecycle.eq.archived,is_active.eq.false")
       .order("created_at", { ascending: false }),
     db
       .from("employees")
-      .select("id, full_name, email, job_title, created_at, status, employment_status")
-      .or("status.ilike.inactive,employment_status.ilike.inactive")
+      .select("id, full_name, email, job_title, created_at, status")
+      .or("status.ilike.inactive,status.ilike.terminated")
       .order("created_at", { ascending: false }),
   ]);
+
+  if (clientErr) console.error("ArchivePage: clients fetch error:", clientErr);
+  if (empErr) console.error("ArchivePage: employees fetch error:", empErr);
 
   const archivedClients = clients ?? [];
   const inactiveEmployees = employees ?? [];

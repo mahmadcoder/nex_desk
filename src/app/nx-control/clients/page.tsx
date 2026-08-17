@@ -35,12 +35,10 @@ export default async function ClientsPage({
     .order("created_at", { ascending: false });
 
   if (!showAll) {
-    query = query.eq("lifecycle", "active");
+    query = query.eq("lifecycle", "active").eq("is_active", true);
   } else {
-    query = query.neq("lifecycle", "archived");
+    query = query.neq("lifecycle", "archived").eq("is_active", true);
   }
-  // Exclude soft-deleted / inactive clients
-  query = query.not("status", "eq", "inactive").not("is_active", "eq", false);
 
   if (!canManage) {
     const ids = await assignedClientIds(me.employeeId);

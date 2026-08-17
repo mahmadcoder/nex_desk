@@ -326,16 +326,36 @@ export async function saveClient(id: string | null, data: Record<string, unknown
 export async function deleteClient(id: string) {
   const me = await requireOwnerAdmin();
   const db = createAdminClient();
-  
-  // Soft delete: set lifecycle to 'archived', is_active to false, status to 'inactive'
+
+  const { data: client } = await db
+    .from("clients")
+    .select("profile_id, email")
+    .eq("id", id)
+    .maybeSingle();
+
+  // Soft delete: set lifecycle to 'archived' and is_active to false
   await db
     .from("clients")
     .update({
       lifecycle: "archived",
       is_active: false,
-      status: "inactive",
     })
     .eq("id", id);
+
+  // Invalidate linked auth profile if present
+  if (client?.profile_id) {
+    try {
+      await db.from("profiles").update({ is_active: false }).eq("id", client.profile_id);
+    } catch {
+      // ignore
+    }
+  } else if (client?.email) {
+    try {
+      await db.from("profiles").update({ is_active: false }).ilike("email", client.email);
+    } catch {
+      // ignore
+    }
+  }
 
   await audit(me.userId, "client.archive", "clients", id);
   revalidatePath(`/${ADMIN}/clients`);
@@ -348,14 +368,33 @@ export async function restoreClient(id: string) {
   const me = await requireOwnerAdmin();
   const db = createAdminClient();
 
+  const { data: client } = await db
+    .from("clients")
+    .select("profile_id, email")
+    .eq("id", id)
+    .maybeSingle();
+
   await db
     .from("clients")
     .update({
       lifecycle: "active",
       is_active: true,
-      status: "active",
     })
     .eq("id", id);
+
+  if (client?.profile_id) {
+    try {
+      await db.from("profiles").update({ is_active: true }).eq("id", client.profile_id);
+    } catch {
+      // ignore
+    }
+  } else if (client?.email) {
+    try {
+      await db.from("profiles").update({ is_active: true }).ilike("email", client.email);
+    } catch {
+      // ignore
+    }
+  }
 
   await audit(me.userId, "client.restore", "clients", id);
   revalidatePath(`/${ADMIN}/clients`);
@@ -375,7 +414,15 @@ export async function updateClientPermissions(id: string, permissions: Record<st
 export async function getClientEmailByToken(token: string) {
   if (!token) return null;
   const db = createAdminClient();
-  const { data } = await db.from("clients").select("email").eq("portal_access_token", token).maybeSingle();
+  const { data } = await db
+    .from("clients")
+    .select("email, is_active, lifecycle")
+    .eq("portal_access_token", token)
+    .maybeSingle();
+
+  if (!data || data.lifecycle === "archived" || data.is_active === false) {
+    return null;
+  }
   return data?.email || null;
 }
 
@@ -392,10 +439,13 @@ export async function getPortalGreeting(token: string) {
   const db = createAdminClient();
   const { data } = await db
     .from("clients")
-    .select("name, email, company, portal_login_count")
+    .select("name, email, company, portal_login_count, is_active, lifecycle")
     .eq("portal_access_token", token)
     .maybeSingle();
-  if (!data) return null;
+
+  if (!data || data.lifecycle === "archived" || data.is_active === false) {
+    return null;
+  }
 
   return {
     firstName: String(data.name || "").trim().split(/\s+/)[0] || null,

@@ -19,6 +19,9 @@ function AdminLoginForm() {
     if (searchParams.get("logged_out") === "1") {
       toast.success("Successfully logged out.");
     }
+    if (searchParams.get("deactivated") === "1") {
+      toast.error("This staff account is currently inactive or deactivated. Please contact your agency administrator.");
+    }
   }, [searchParams]);
 
   return (

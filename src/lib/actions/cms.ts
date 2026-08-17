@@ -667,24 +667,34 @@ export async function saveEmployee(
 }
 
 export async function deleteEmployee(id: string) {
-  const me = await requireOwnerAdmin();
+  await requireOwnerAdmin();
   const db = createAdminClient();
 
-  // Soft delete: set status to Inactive while preserving all work logs and attendance records
+  const { data: employee } = await db
+    .from("employees")
+    .select("user_id, email")
+    .eq("id", id)
+    .maybeSingle();
+
+  // Soft delete: set status to Terminated
   await db
     .from("employees")
     .update({
-      status: "Inactive",
-      employment_status: "inactive",
+      status: "Terminated",
     })
     .eq("id", id);
 
-  const { data: employee } = await db.from("employees").select("user_id").eq("id", id).maybeSingle();
   if (employee?.user_id) {
     try {
       await db.from("profiles").update({ is_active: false }).eq("id", employee.user_id);
     } catch (e) {
       console.error("Could not deactivate employee profile:", e);
+    }
+  } else if (employee?.email) {
+    try {
+      await db.from("profiles").update({ is_active: false }).ilike("email", employee.email);
+    } catch (e) {
+      console.error("Could not deactivate employee profile by email:", e);
     }
   }
 
@@ -697,20 +707,30 @@ export async function restoreEmployee(id: string) {
   await requireOwnerAdmin();
   const db = createAdminClient();
 
+  const { data: employee } = await db
+    .from("employees")
+    .select("user_id, email")
+    .eq("id", id)
+    .maybeSingle();
+
   await db
     .from("employees")
     .update({
       status: "Active",
-      employment_status: "active",
     })
     .eq("id", id);
 
-  const { data: employee } = await db.from("employees").select("user_id").eq("id", id).maybeSingle();
   if (employee?.user_id) {
     try {
       await db.from("profiles").update({ is_active: true }).eq("id", employee.user_id);
     } catch (e) {
       console.error("Could not reactivate employee profile:", e);
+    }
+  } else if (employee?.email) {
+    try {
+      await db.from("profiles").update({ is_active: true }).ilike("email", employee.email);
+    } catch (e) {
+      console.error("Could not reactivate employee profile by email:", e);
     }
   }
 

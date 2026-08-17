@@ -120,19 +120,16 @@ export async function getCurrentStaff(): Promise<CurrentStaff | null> {
   try {
     const { data: employee } = await db
       .from("employees")
-      .select("id, status, avatar_url, full_name")
-      .eq("user_id", user.id)
+      .select("id, status, avatar_url, full_name, email")
+      .or(`user_id.eq.${user.id},email.ilike.${user.email}`)
       .maybeSingle();
 
-    // `employees.status` was recorded and never checked, so somebody marked
-    // Terminated kept full access to the panel — the only working kill switch
-    // was `profiles.is_active`, in a different table from the one the admin
-    // was editing. Refusing the session outright is the point of the field.
-    //
-    // "On Leave" deliberately still works: someone on leave still needs their
-    // own pay and leave pages, and locking them out would create a support
-    // request every single time anyone took a holiday.
-    if (employee && String(employee.status) === "Terminated") {
+    // Refuse session if employee is Terminated or Inactive
+    if (
+      employee &&
+      (String(employee.status).toLowerCase() === "terminated" ||
+       String(employee.status).toLowerCase() === "inactive")
+    ) {
       return null;
     }
 

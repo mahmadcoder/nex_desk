@@ -78,6 +78,9 @@ function PortalLoginForm() {
     if (searchParams.get("logged_out") === "1") {
       toast.success("Signed out. See you soon.");
     }
+    if (searchParams.get("deactivated") === "1") {
+      toast.error("This portal account is currently inactive or archived. Please contact your account manager.");
+    }
   }, [searchParams]);
 
   async function handleLogin(e: React.FormEvent) {

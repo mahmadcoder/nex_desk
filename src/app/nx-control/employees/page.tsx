@@ -13,7 +13,11 @@ export default async function EmployeesPage() {
   const db = createAdminClient();
 
   const [{ data: employees }, { data: jobTitles }, { data: departments }] = await Promise.all([
-    db.from("employees").select("*").order("created_at", { ascending: false }),
+    db
+      .from("employees")
+      .select("*")
+      .not("status", "in", '("Terminated","Inactive")')
+      .order("created_at", { ascending: false }),
     db.from("employee_job_titles").select("*").order("category"),
     // Null before the 2027-30 migration; the picker then simply does not render.
     db.from("departments").select("id, name").order("name"),
