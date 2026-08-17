@@ -19,8 +19,8 @@ export default async function ArchivePage() {
   const [{ data: clients }, { data: employees }] = await Promise.all([
     db
       .from("clients")
-      .select("id, name, company, email, phone, created_at, status, is_active")
-      .or("is_active.eq.false,status.eq.inactive")
+      .select("id, name, company, email, phone, created_at, status, is_active, lifecycle")
+      .or("lifecycle.eq.archived,is_active.eq.false,status.eq.inactive")
       .order("created_at", { ascending: false }),
     db
       .from("employees")

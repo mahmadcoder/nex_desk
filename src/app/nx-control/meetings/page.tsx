@@ -3,7 +3,7 @@ import { getCurrentStaff, assignedClientIds } from "@/lib/auth/staff";
 import { PageHead, Badge, Stat } from "@/components/admin/ui";
 import { fmtDateTime, TZ_LABEL } from "@/lib/datetime";
 import MeetingsClient, { MeetingActions, MeetingNotes } from "@/components/admin/MeetingsClient";
-import { CalendarClock, Video, CheckCircle2, XCircle, Clock } from "lucide-react";
+import { CalendarClock, Video, CheckCircle2, XCircle, Clock, FileText } from "lucide-react";
 import { meetingProvider } from "@/lib/meetings";
 import { externalUrl } from "@/lib/utils";
 
@@ -212,21 +212,33 @@ function Section({
                   </p>
 
                   {m.agenda && (
-                    <p className="mt-1.5 whitespace-pre-line text-xs leading-relaxed text-bone-300">
-                      {m.agenda}
-                    </p>
+                    <div className="mt-2.5 rounded-lg border border-ink-600/70 bg-ink-800/40 p-2.5">
+                      <p className="mono-tag text-[10px] text-bone-400 mb-1 flex items-center gap-1 font-semibold">
+                        <FileText size={11} className="text-lime-400" /> Meeting Agenda &amp; Topics
+                      </p>
+                      <p className="whitespace-pre-line text-xs leading-relaxed text-bone-200">
+                        {m.agenda}
+                      </p>
+                    </div>
                   )}
 
                   {canManage && isPast && !cancelled && (
-                    <MeetingNotes
-                      meetingId={m.id}
-                      notes={m.notes ?? ""}
-                    />
+                    <div className="mt-2.5">
+                      <MeetingNotes
+                        meetingId={m.id}
+                        notes={m.notes ?? ""}
+                      />
+                    </div>
                   )}
                   {!canManage && m.notes && (
-                    <p className="mt-2 whitespace-pre-line rounded-lg border border-ink-600 bg-ink-800/50 p-2.5 text-xs leading-relaxed text-bone-200">
-                      {m.notes}
-                    </p>
+                    <div className="mt-2.5 rounded-lg border border-lime-400/30 bg-lime-950/10 p-2.5">
+                      <p className="mono-tag text-[10px] text-lime-400 mb-1 font-semibold">
+                        Post-Meeting Notes &amp; Decisions
+                      </p>
+                      <p className="whitespace-pre-line text-xs leading-relaxed text-bone-200">
+                        {m.notes}
+                      </p>
+                    </div>
                   )}
                 </div>
 

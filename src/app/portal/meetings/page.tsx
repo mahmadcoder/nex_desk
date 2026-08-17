@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import { getPortalSession } from "@/lib/portal/session";
 import { loadMeetings } from "@/lib/portal/data";
 import { fmtDateTime, TZ_LABEL, daysUntil } from "@/lib/datetime";
-import { CalendarClock, Video, CheckCircle2, XCircle, Clock } from "lucide-react";
+import { CalendarClock, Video, CheckCircle2, XCircle, Clock, FileText, NotebookPen } from "lucide-react";
 import { Badge, Stat } from "@/components/admin/ui";
 import { meetingProvider } from "@/lib/meetings";
 import { externalUrl } from "@/lib/utils";
@@ -151,15 +151,22 @@ function MeetingRow({ m, highlight }: { m: any; highlight?: boolean }) {
           </p>
 
           {m.agenda && (
-            <p className="mt-3 whitespace-pre-line text-sm leading-relaxed text-bone-300">
-              {m.agenda}
-            </p>
+            <div className="mt-3 rounded-lg border border-ink-600/70 bg-ink-800/40 p-3">
+              <p className="mono-tag mb-1.5 text-[10px] text-bone-400 flex items-center gap-1.5 font-semibold">
+                <FileText size={12} className="text-lime-400" /> Meeting Agenda &amp; Topics
+              </p>
+              <p className="whitespace-pre-line text-xs leading-relaxed text-bone-200">
+                {m.agenda}
+              </p>
+            </div>
           )}
 
           {m.notes && (
-            <div className="mt-3 rounded-lg border border-ink-600 bg-ink-800/50 p-3">
-              <p className="mono-tag mb-1 text-[10px] text-lime-400">What we agreed / Call Notes</p>
-              <p className="whitespace-pre-line text-sm leading-relaxed text-bone-200">
+            <div className="mt-3 rounded-lg border border-lime-400/30 bg-lime-950/10 p-3.5">
+              <p className="mono-tag mb-1.5 text-[11px] text-lime-300 flex items-center gap-1.5 font-semibold">
+                <NotebookPen size={13} className="text-lime-400" /> Post-Meeting Notes &amp; Key Decisions
+              </p>
+              <p className="whitespace-pre-line text-xs leading-relaxed text-bone-100">
                 {m.notes}
               </p>
             </div>

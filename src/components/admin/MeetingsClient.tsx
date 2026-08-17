@@ -289,12 +289,18 @@ export default function MeetingsClient({
           )}
 
           <div className="sm:col-span-2">
-            <label className="mono-tag mb-1.5 block">Agenda</label>
+            <div className="flex items-center justify-between mb-1.5">
+              <label className="mono-tag block text-[11px] text-bone-200">Meeting Agenda & Topics</label>
+              <span className="mono-tag text-[9px] text-bone-400">Optional · Sent in invite</span>
+            </div>
+            <p className="text-[11px] text-bone-400 mb-1.5 leading-relaxed">
+              What will be discussed during this call. Attendees (client & team) will receive this in their calendar invite.
+            </p>
             <textarea
-              className={`${field} min-h-[90px] resize-y`}
+              className={`${field} min-h-[90px] resize-y placeholder:text-bone-500 text-bone-50`}
               value={f.agenda}
               onChange={(e) => setF({ ...f, agenda: e.target.value })}
-              placeholder="What we will cover. The client reads this in the invite."
+              placeholder={"e.g.\n1. Review sprint deliverables and current progress\n2. Discuss design feedback on UI wireframes\n3. Align on next milestones and deadlines"}
             />
           </div>
         </div>
@@ -400,19 +406,21 @@ export function MeetingNotes({
     return (
       <div className="group rounded-lg border border-ink-600 bg-ink-900/60 p-3">
         <div className="flex items-center justify-between gap-2">
-          <p className="mono-tag text-[10px] text-bone-400">Notes &amp; summary</p>
+          <p className="mono-tag text-[10px] text-lime-400 font-semibold flex items-center gap-1.5">
+            <NotebookPen size={12} /> Post-Meeting Notes &amp; Decisions
+          </p>
           <button
             type="button"
             onClick={() => setEditing(true)}
             className="mono-tag text-[11px] text-lime-400 hover:underline"
           >
-            {notes ? "Edit" : "+ Add notes"}
+            {notes ? "Edit" : "+ Add post-call notes"}
           </button>
         </div>
         {notes ? (
           <p className="mt-1.5 whitespace-pre-line text-xs leading-relaxed text-bone-200">{notes}</p>
         ) : (
-          <p className="mt-1.5 text-xs text-bone-500 italic">No notes recorded for this call.</p>
+          <p className="mt-1.5 text-xs text-bone-500 italic">No post-call notes recorded yet.</p>
         )}
       </div>
     );
@@ -421,14 +429,16 @@ export function MeetingNotes({
   return (
     <div className="space-y-2 rounded-lg border border-lime-400/30 bg-ink-900/90 p-3">
       <div className="flex items-center justify-between">
-        <label className="mono-tag text-[10px] text-lime-400">Notes &amp; summary</label>
-        <span className="text-[10px] text-bone-500">Not e-mailed to client</span>
+        <label className="mono-tag text-[10px] text-lime-400 font-semibold flex items-center gap-1.5">
+          <NotebookPen size={12} /> Post-Meeting Notes &amp; Decisions
+        </label>
+        <span className="mono-tag text-[9px] text-bone-400">Recorded after call</span>
       </div>
       <textarea
-        className={`${field} min-h-24 font-mono text-xs`}
+        className={`${field} min-h-24 font-mono text-xs placeholder:text-bone-500 text-bone-50`}
         value={value}
         onChange={(e) => setValue(e.target.value)}
-        placeholder="What was decided? Action items? Paste call notes here..."
+        placeholder="What was decided? Next action items? Paste call notes here..."
       />
       <div className="flex items-center justify-between gap-2">
         <AIAssist

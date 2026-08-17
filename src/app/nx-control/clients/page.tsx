@@ -34,7 +34,13 @@ export default async function ClientsPage({
     .select(canManage ? "*, projects(id), invoices(total, amount_paid, currency, status)" : "*, projects(id)")
     .order("created_at", { ascending: false });
 
-  if (!showAll) query = query.eq("lifecycle", "active");
+  if (!showAll) {
+    query = query.eq("lifecycle", "active");
+  } else {
+    query = query.neq("lifecycle", "archived");
+  }
+  // Exclude soft-deleted / inactive clients
+  query = query.not("status", "eq", "inactive").not("is_active", "eq", false);
 
   if (!canManage) {
     const ids = await assignedClientIds(me.employeeId);

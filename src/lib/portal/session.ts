@@ -86,9 +86,18 @@ export async function getPortalSessionOptional(): Promise<PortalSession | null> 
 
   if (!client) return null;
 
+  // Block access if client has been soft-deleted / archived or marked inactive
+  if (
+    client.lifecycle === "archived" ||
+    client.status === "inactive" ||
+    client.is_active === false
+  ) {
+    return null;
+  }
+
   return {
     client,
-    isPaused: String(client.lifecycle ?? "active") !== "active",
+    isPaused: String(client.lifecycle ?? "active") === "paused",
     perms: {
       ...DEFAULT_PERMS,
       ...((client.client_permissions as Record<string, boolean>) || {}),

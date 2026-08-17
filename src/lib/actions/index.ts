@@ -327,10 +327,11 @@ export async function deleteClient(id: string) {
   const me = await requireOwnerAdmin();
   const db = createAdminClient();
   
-  // Soft delete: keep record in Supabase database so invoices, deals, projects remain intact
+  // Soft delete: set lifecycle to 'archived', is_active to false, status to 'inactive'
   await db
     .from("clients")
     .update({
+      lifecycle: "archived",
       is_active: false,
       status: "inactive",
     })
@@ -339,6 +340,7 @@ export async function deleteClient(id: string) {
   await audit(me.userId, "client.archive", "clients", id);
   revalidatePath(`/${ADMIN}/clients`);
   revalidatePath(`/${ADMIN}/archive`);
+  revalidatePath("/portal");
   return { success: true };
 }
 
@@ -349,6 +351,7 @@ export async function restoreClient(id: string) {
   await db
     .from("clients")
     .update({
+      lifecycle: "active",
       is_active: true,
       status: "active",
     })
@@ -357,6 +360,7 @@ export async function restoreClient(id: string) {
   await audit(me.userId, "client.restore", "clients", id);
   revalidatePath(`/${ADMIN}/clients`);
   revalidatePath(`/${ADMIN}/archive`);
+  revalidatePath("/portal");
   return { success: true };
 }
 
