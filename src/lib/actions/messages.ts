@@ -25,6 +25,8 @@ const ADMIN = process.env.ADMIN_PATH || "nx-control";
 
 const MAX = 4000;
 
+import { notifyClientGrouped } from "@/lib/actions/notifyClient";
+
 export async function postStaffMessage(projectId: string, body: string) {
   const me = await requireStaff();
   const text = body.trim();
@@ -44,9 +46,31 @@ export async function postStaffMessage(projectId: string, body: string) {
     read_at: new Date().toISOString(),
   });
 
-  if (error) return { ok: false as const, error: describe(error) };
+  if (error) return { ok: false as const, error: error.message };
 
   await recordAudit(me.userId, "message.post", "projects", projectId, { chars: text.length });
+
+  // Look up project client to send in-app notification to client portal
+  const { data: project } = await db
+    .from("projects")
+    .select("name, client_id")
+    .eq("id", projectId)
+    .maybeSingle();
+
+  if (project?.client_id) {
+    await notifyClientGrouped({
+      clientId: project.client_id,
+      kind: "message.received",
+      title: (count) =>
+        count === 1
+          ? `New message on ${project.name}`
+          : `${count} new messages on ${project.name}`,
+      body: text.slice(0, 140),
+      href: `/portal/projects/${projectId}?tab=messages`,
+      entityId: projectId,
+    });
+  }
+
   revalidatePath(`/${ADMIN}/projects/${projectId}`);
   revalidatePath(`/portal/projects/${projectId}`);
   return { ok: true as const };
@@ -101,13 +125,13 @@ export async function postClientMessage(projectId: string, body: string) {
     body: text,
   });
 
-  if (error) return { ok: false as const, error: describe(error) };
+  if (error) return { ok: false as const, error: error.message };
 
   await notify({
     kind: "message.received",
-    title: `${client.name} sent a message`,
+    title: `${client.name} sent a message on ${project.name}`,
     body: text.slice(0, 140),
-    href: `/${ADMIN}/projects/${projectId}`,
+    href: `/${ADMIN}/projects/${projectId}?tab=messages`,
     entity: "projects",
     entityId: projectId,
     clientId: client.id,
@@ -128,6 +152,17 @@ export async function markProjectMessagesRead(projectId: string) {
     .update({ read_at: new Date().toISOString() })
     .eq("project_id", projectId)
     .eq("sender_kind", "client")
+    .is("read_at", null);
+  return { ok: true as const };
+}
+
+/** Marks staff messages as read when the client opens the messages tab in the portal. */
+export async function markClientMessagesRead(projectId: string) {
+  await createAdminClient()
+    .from("messages")
+    .update({ read_at: new Date().toISOString() })
+    .eq("project_id", projectId)
+    .eq("sender_kind", "staff")
     .is("read_at", null);
   return { ok: true as const };
 }

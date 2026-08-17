@@ -3,7 +3,8 @@ import { createAdminClient } from "@/lib/supabase/server";
 import { getCurrentStaff } from "@/lib/auth/staff";
 import { PageHead, Stat, Empty } from "@/components/admin/ui";
 import AttendanceWidget from "@/components/admin/AttendanceWidget";
-import { getWorkHours, myAttendanceToday } from "@/lib/actions/attendance";
+import OvertimeWidget from "@/components/admin/OvertimeWidget";
+import { getWorkHours, myAttendanceToday, getMyOvertimeSummary } from "@/lib/actions/attendance";
 import { holidayMap } from "@/lib/actions/hr";
 import { judgeAttendance, humanDuration, isWorkingDay } from "@/lib/workHours";
 import { agencyDay, fmtMonth, fmtDate, fmtTime, TZ_LABEL } from "@/lib/datetime";
@@ -74,24 +75,26 @@ export default async function MyAttendancePage({
   const to = `${year}-${pad(mon + 1)}-${pad(last.getDate())}`;
   const today = agencyDay();
 
-  const [{ data: rows, error }, { data: leaves }, hours, holidays, todayState] = await Promise.all([
-    db
-      .from("attendance")
-      .select("*")
-      .eq("employee_id", me.employeeId)
-      .gte("work_date", from)
-      .lte("work_date", to),
-    db
-      .from("leave_requests")
-      .select("start_date, end_date")
-      .eq("employee_id", me.employeeId)
-      .eq("status", "approved")
-      .lte("start_date", to)
-      .gte("end_date", from),
-    getWorkHours(),
-    holidayMap(from, to),
-    myAttendanceToday(),
-  ]);
+  const [{ data: rows, error }, { data: leaves }, hours, holidays, todayState, overtimeSummary] =
+    await Promise.all([
+      db
+        .from("attendance")
+        .select("*")
+        .eq("employee_id", me.employeeId)
+        .gte("work_date", from)
+        .lte("work_date", to),
+      db
+        .from("leave_requests")
+        .select("start_date, end_date")
+        .eq("employee_id", me.employeeId)
+        .eq("status", "approved")
+        .lte("start_date", to)
+        .gte("end_date", from),
+      getWorkHours(),
+      holidayMap(from, to),
+      myAttendanceToday(),
+      getMyOvertimeSummary(from.slice(0, 7)),
+    ]);
 
   if (error?.code === "42P01") {
     return (
@@ -185,6 +188,10 @@ export default async function MyAttendancePage({
           hint="working days only"
         />
         <Stat label="Hours recorded" value={humanDuration(totalSec)} hint="clocked in to out" />
+      </div>
+
+      <div className="mb-6">
+        <OvertimeWidget summary={overtimeSummary} />
       </div>
 
       {!counted.length ? (

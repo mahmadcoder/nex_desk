@@ -167,7 +167,14 @@ export default function ProjectFilesPanel({
               <div className="flex min-w-0 items-center gap-2.5">
                 <Paperclip size={14} className="shrink-0 text-bone-400" aria-hidden />
                 <div className="min-w-0">
-                  <p className="truncate text-bone-100">{f.name}</p>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <p className="truncate text-bone-100 font-medium">{f.name}</p>
+                    {f.uploaded_by === "client" && (
+                      <span className="mono-tag text-[9px] px-1.5 py-0.5 rounded bg-blue-400/15 text-blue-300 border border-blue-400/30 font-semibold">
+                        Uploaded by Client
+                      </span>
+                    )}
+                  </div>
                   <p className="mono-tag text-[10px]">
                     {fmtDate(f.created_at)}
                     {f.file_size ? ` · ${size(f.file_size)}` : ""}
@@ -175,10 +182,31 @@ export default function ProjectFilesPanel({
                     {canManage && !f.visible_to_client ? " · hidden from client" : ""}
                     {canManage && f.visible_to_staff === false ? " · hidden from staff" : ""}
                   </p>
+                  {f.description && (
+                    <p className="text-xs text-bone-300 mt-0.5">{f.description}</p>
+                  )}
                 </div>
               </div>
 
-              <div className="flex shrink-0 items-center gap-3">
+              <div className="flex shrink-0 items-center gap-2.5">
+                {canManage && f.visible_to_staff === false && (
+                  <button
+                    type="button"
+                    disabled={pending}
+                    onClick={() =>
+                      start(async () => {
+                        const res = await setProjectFileStaffVisibility(f.id, true);
+                        if (!res.ok) toast.error(res.error ?? "Could not change visibility.");
+                        else toast.success("Shared with staff and notified assigned team.");
+                        router.refresh();
+                      })
+                    }
+                    className="mono-tag inline-flex items-center gap-1 rounded bg-amber-400/15 px-2.5 py-1 text-[11px] font-semibold text-amber-300 border border-amber-400/40 hover:bg-amber-400/25 transition-colors cursor-pointer"
+                  >
+                    <UserCheck size={12} /> Allow Staff to See
+                  </button>
+                )}
+
                 {f.url && (
                   <a
                     href={f.url}

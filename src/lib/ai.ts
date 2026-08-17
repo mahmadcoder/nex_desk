@@ -49,11 +49,21 @@ export async function aiComplete(prompt: string): Promise<AIResult> {
  * the pinned names behind it cover keys old enough to predate the alias.
  * `GEMINI_MODEL` in the environment overrides the whole list.
  */
-const GEMINI_MODELS = ["gemini-flash-latest", "gemini-2.5-flash", "gemini-2.0-flash"];
+const GEMINI_MODELS = [
+  "gemini-1.5-flash",
+  "gemini-2.0-flash",
+  "gemini-1.5-flash-latest",
+  "gemini-1.5-pro",
+  "gemini-pro",
+];
 
 async function gemini(prompt: string): Promise<AIResult> {
   const key = process.env.GEMINI_API_KEY?.trim();
   if (!key) {
+    // If Groq key is available, fallback to Groq directly
+    if (process.env.GROQ_API_KEY?.trim()) {
+      return await groq(prompt);
+    }
     return {
       ok: false,
       error:
@@ -69,61 +79,57 @@ async function gemini(prompt: string): Promise<AIResult> {
   let lastError = "The AI service returned an error. Try again in a moment.";
 
   for (const model of models) {
-    const res = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "x-goog-api-key": key },
-        body: JSON.stringify({
-          contents: [{ parts: [{ text: prompt }] }],
-          // Newer flash models spend output tokens on internal "thinking"
-          // before the visible answer, so the budget is generous — 1024 was
-          // getting eaten before the reply finished.
-          generationConfig: { temperature: 0.6, maxOutputTokens: 2048 },
-        }),
-        signal: AbortSignal.timeout(TIMEOUT_MS),
+    try {
+      const res = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "x-goog-api-key": key },
+          body: JSON.stringify({
+            contents: [{ parts: [{ text: prompt }] }],
+            generationConfig: { temperature: 0.6, maxOutputTokens: 2048 },
+          }),
+          signal: AbortSignal.timeout(TIMEOUT_MS),
+        }
+      );
+
+      if (res.ok) {
+        const data = await res.json();
+        const text: string | undefined = data?.candidates?.[0]?.content?.parts
+          ?.map((p: { text?: string }) => p.text ?? "")
+          .join("");
+        if (text?.trim()) {
+          return { ok: true, text: text.trim() };
+        }
       }
-    );
 
-    if (res.ok) {
-      const data = await res.json();
-      const text: string | undefined = data?.candidates?.[0]?.content?.parts
-        ?.map((p: { text?: string }) => p.text ?? "")
-        .join("");
-      if (!text?.trim()) {
-        return { ok: false, error: "The AI returned nothing usable. Try again." };
+      const detail = await res.text().catch(() => "");
+      console.error(`Gemini error on ${model}:`, res.status, detail.slice(0, 300));
+
+      if (/API_KEY_INVALID|API key not valid/i.test(detail)) {
+        return {
+          ok: false,
+          error:
+            "Google rejected GEMINI_API_KEY as invalid. Create a fresh key at " +
+            "aistudio.google.com/apikey and replace it in the environment.",
+        };
       }
-      return { ok: true, text: text.trim() };
+
+      if (res.status === 429) {
+        lastError = "The free AI limit was hit for this minute — wait a moment and try again.";
+      }
+    } catch (err) {
+      console.error(`Fetch exception on model ${model}:`, err);
     }
+  }
 
-    const detail = await res.text().catch(() => "");
-    console.error(`Gemini error on ${model}:`, res.status, detail.slice(0, 300));
-
-    if (/API_KEY_INVALID|API key not valid/i.test(detail)) {
-      return {
-        ok: false,
-        error:
-          "Google rejected GEMINI_API_KEY as invalid. Create a fresh key at " +
-          "aistudio.google.com/apikey and replace it in the environment.",
-      };
+  // If Gemini failed on all models and Groq key exists, try Groq fallback
+  if (process.env.GROQ_API_KEY?.trim()) {
+    try {
+      return await groq(prompt);
+    } catch {
+      // ignore
     }
-
-    // 403/404 here usually means THIS MODEL is retired or gated for this key
-    // — the next candidate may well work, so fall through to it.
-    if (res.status === 403 || res.status === 404) {
-      lastError =
-        "None of the configured Gemini models are available to this key. " +
-        "Set GEMINI_MODEL in the environment to a model your key lists.";
-      continue;
-    }
-
-    return {
-      ok: false,
-      error:
-        res.status === 429
-          ? "The free AI limit was hit for this minute — wait a moment and try again."
-          : "The AI service returned an error. Try again in a moment.",
-    };
   }
 
   return { ok: false, error: lastError };

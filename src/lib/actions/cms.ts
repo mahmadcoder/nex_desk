@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { notify } from "@/lib/actions/notify";
+import { notifyClientGrouped } from "@/lib/actions/notifyClient";
 import { createClient, createAdminClient } from "@/lib/supabase/server";
 import { requireStaff, requireOwnerAdmin } from "@/lib/auth/guards";
 import { asUuid, getSiteBaseUrl, money, pdfFilename } from "@/lib/utils";
@@ -666,21 +667,56 @@ export async function saveEmployee(
 }
 
 export async function deleteEmployee(id: string) {
-  await requireOwnerAdmin();
+  const me = await requireOwnerAdmin();
   const db = createAdminClient();
 
-  // Remove the login too, otherwise a deleted employee keeps panel access.
+  // Soft delete: set status to Inactive while preserving all work logs and attendance records
+  await db
+    .from("employees")
+    .update({
+      status: "Inactive",
+      employment_status: "inactive",
+    })
+    .eq("id", id);
+
   const { data: employee } = await db.from("employees").select("user_id").eq("id", id).maybeSingle();
   if (employee?.user_id) {
     try {
-      await db.auth.admin.deleteUser(employee.user_id);
+      await db.from("profiles").update({ is_active: false }).eq("id", employee.user_id);
     } catch (e) {
-      console.error("Could not delete employee auth user:", e);
+      console.error("Could not deactivate employee profile:", e);
     }
   }
 
-  await db.from("employees").delete().eq("id", id);
   revalidatePath(`/${ADMIN}/employees`);
+  revalidatePath(`/${ADMIN}/archive`);
+  return { success: true };
+}
+
+export async function restoreEmployee(id: string) {
+  await requireOwnerAdmin();
+  const db = createAdminClient();
+
+  await db
+    .from("employees")
+    .update({
+      status: "Active",
+      employment_status: "active",
+    })
+    .eq("id", id);
+
+  const { data: employee } = await db.from("employees").select("user_id").eq("id", id).maybeSingle();
+  if (employee?.user_id) {
+    try {
+      await db.from("profiles").update({ is_active: true }).eq("id", employee.user_id);
+    } catch (e) {
+      console.error("Could not reactivate employee profile:", e);
+    }
+  }
+
+  revalidatePath(`/${ADMIN}/employees`);
+  revalidatePath(`/${ADMIN}/archive`);
+  return { success: true };
 }
 
 export async function saveJobTitle(id: string | null, data: Record<string, unknown>) {
@@ -1074,6 +1110,21 @@ export async function submitDailyWorkLog(data: {
         },
       });
       emailed.client = res.ok;
+
+      // Trigger in-app notification in client portal
+      if (project?.client_id) {
+        await notifyClientGrouped({
+          clientId: project.client_id,
+          kind: "project.progress",
+          title: (count) =>
+            count === 1
+              ? `New work update on ${project.name || "your project"}`
+              : `${count} new work updates on ${project.name || "your project"}`,
+          body: String(data.tasks_completed).split("\n")[0].slice(0, 140),
+          href: `/portal/projects/${projectId}?tab=timeline`,
+          entityId: projectId,
+        }).catch(() => null);
+      }
     }
   }
 

@@ -185,10 +185,25 @@ export async function toggleTask(
 
   await recordAudit(me.userId, done ? "task.done" : "task.reopen", "tasks", id, {
     title: task.title,
+    by: me.fullName,
   });
+
+  if (done) {
+    await notify({
+      kind: "task.assigned",
+      title: `${me.fullName} completed task: "${task.title}"`,
+      body: `Project: ${(task.projects as any)?.name || "Project"} · Marked as Done`,
+      href: `/${ADMIN}/projects/${task.project_id}?tab=tasks`,
+      entity: "tasks",
+      entityId: id,
+      actorKind: "staff",
+      actorLabel: me.fullName ?? null,
+    }).catch(() => null);
+  }
 
   revalidatePath(`/${ADMIN}/projects/${task.project_id}`);
   revalidatePath(`/${ADMIN}/tasks`);
+  revalidatePath(`/${ADMIN}/staff-activity`);
   revalidatePath(`/${ADMIN}`);
   return { ok: true, status: done ? "done" : "todo" };
 }
@@ -213,8 +228,39 @@ export async function setTaskStatus(
 
   if (error) return { ok: false, error: error.message };
 
+  await recordAudit(me.userId, "task.status", "tasks", id, {
+    title: task.title,
+    from: task.status,
+    to: status,
+    by: me.fullName,
+  });
+
+  // Notify Admins on significant task status changes
+  const statusLabel =
+    status === "doing"
+      ? "IN PROGRESS"
+      : status === "review"
+        ? "READY FOR REVIEW"
+        : status === "done"
+          ? "DONE"
+          : status.toUpperCase();
+
+  if (status === "doing" || status === "review" || status === "done") {
+    await notify({
+      kind: "task.assigned",
+      title: `${me.fullName} moved "${task.title}" to ${statusLabel}`,
+      body: `Project: ${(task.projects as any)?.name || "Project"}`,
+      href: `/${ADMIN}/projects/${task.project_id}?tab=tasks`,
+      entity: "tasks",
+      entityId: id,
+      actorKind: "staff",
+      actorLabel: me.fullName ?? null,
+    }).catch(() => null);
+  }
+
   revalidatePath(`/${ADMIN}/projects/${task.project_id}`);
   revalidatePath(`/${ADMIN}/tasks`);
+  revalidatePath(`/${ADMIN}/staff-activity`);
   revalidatePath(`/${ADMIN}`);
   return { ok: true };
 }

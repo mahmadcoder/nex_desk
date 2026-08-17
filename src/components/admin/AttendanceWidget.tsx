@@ -66,6 +66,29 @@ export default function AttendanceWidget({
     }
   })();
 
+  if (verdict.status === "on_leave") {
+    return (
+      <div className="card border-lime-400/30 bg-gradient-to-r from-lime-400/[0.06] via-ink-900/80 to-lime-400/[0.04] p-4">
+        <div className="flex items-center gap-3">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-lime-400/10 text-lime-400 text-lg">
+            🌴
+          </div>
+          <div>
+            <span className="mono-tag text-[10px] text-lime-400 font-semibold uppercase tracking-wider">
+              Approved Leave Today
+            </span>
+            <p className="text-sm font-semibold text-bone-50">
+              You are currently on Approved Leave today.
+            </p>
+            <p className="text-xs text-bone-300 mt-0.5">
+              Enjoy your time off! Check-in is disabled during your scheduled leave.
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="card p-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -86,8 +109,7 @@ export default function AttendanceWidget({
             would invite a record that contradicts the leave request. */}
         {/* Nothing to press on leave, a day off, or a holiday — offering a
             button there invites a record that contradicts the reason. */}
-        {verdict.status !== "on_leave" &&
-          verdict.status !== "off" &&
+        {verdict.status !== "off" &&
           verdict.status !== "holiday" && (
           <div className="shrink-0">
             {!inAt ? (

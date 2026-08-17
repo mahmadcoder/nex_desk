@@ -5,6 +5,7 @@ import { createAdminClient } from "@/lib/supabase/server";
 import { requireStaff, requireOwnerAdmin } from "@/lib/auth/guards";
 import { recordAudit } from "@/lib/actions/audit";
 import { notifyClientGrouped } from "@/lib/actions/notifyClient";
+import { notify } from "@/lib/actions/notify";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
@@ -74,28 +75,45 @@ export async function recordProjectFile(input: {
     visible_to_staff: input.visibleToStaff ?? true,
   });
 
-  // An internal file is not the client's business, so it never notifies.
-  if (input.visibleToClient) {
-    const { data: project } = await db
-      .from("projects")
-      .select("name, client_id")
-      .eq("id", input.projectId)
-      .maybeSingle();
+  const { data: project } = await db
+    .from("projects")
+    .select("name, client_id")
+    .eq("id", input.projectId)
+    .maybeSingle();
 
-    if (project?.client_id) {
-      // Grouped: uploading seven assets should leave one line in the bell, not
-      // seven, or a batch buries everything else in it.
-      await notifyClientGrouped({
-        clientId: project.client_id,
+  // Notify Client if visible to client
+  if (input.visibleToClient && project?.client_id) {
+    await notifyClientGrouped({
+      clientId: project.client_id,
+      kind: "file.shared",
+      title: (count) =>
+        count === 1
+          ? `New file — ${input.name}`
+          : `${count} new files on ${project.name}`,
+      body: project.name,
+      href: `/portal/projects/${input.projectId}?tab=files`,
+      entityId: input.projectId,
+    });
+  }
+
+  // Notify assigned staff if visible to staff
+  if ((input.visibleToStaff ?? true) && project?.client_id) {
+    const { data: assignments } = await db
+      .from("client_employee_assignments")
+      .select("employee_id")
+      .eq("client_id", project.client_id);
+
+    for (const a of assignments ?? []) {
+      await notify({
         kind: "file.shared",
-        title: (count) =>
-          count === 1
-            ? `New file — ${input.name}`
-            : `${count} new files on ${project.name}`,
-        body: project.name,
-        href: `/portal/projects/${input.projectId}?tab=files`,
+        employeeId: a.employee_id,
+        title: `New project file — ${input.name}`,
+        body: project.name ? `Project: ${project.name}` : undefined,
+        href: `/${ADMIN}/projects/${input.projectId}?tab=files`,
+        entity: "projects",
         entityId: input.projectId,
-      });
+        actorKind: "staff",
+      }).catch(() => null);
     }
   }
 
@@ -129,9 +147,78 @@ export async function setProjectFileVisibility(id: string, visible: boolean) {
   return { ok: true as const };
 }
 
+import { getPortalSession } from "@/lib/portal/session";
+
+/**
+ * Client uploading assets, PDFs, or design files to their project.
+ * Files are marked visible_to_staff = false by default pending Admin review.
+ */
+export async function clientUploadProjectFile(input: {
+  projectId: string;
+  name: string;
+  storagePath: string;
+  mimeType?: string | null;
+  fileSize?: number | null;
+  description?: string | null;
+  kind?: string;
+}) {
+  const session = await getPortalSession();
+  if (!session) return { ok: false as const, error: "Please log in to upload files." };
+  const { client } = session;
+
+  const db = createAdminClient();
+
+  // Verify the project belongs to this client
+  const { data: project } = await db
+    .from("projects")
+    .select("id, name, client_id")
+    .eq("id", input.projectId)
+    .eq("client_id", client.id)
+    .maybeSingle();
+
+  if (!project) return { ok: false as const, error: "Project not found." };
+
+  const { data, error } = await db
+    .from("project_files")
+    .insert({
+      project_id: input.projectId,
+      name: input.name,
+      storage_path: input.storagePath,
+      mime_type: input.mimeType ?? null,
+      file_size: input.fileSize ?? null,
+      description: input.description?.trim() || null,
+      kind: input.kind || "assets",
+      visible_to_client: true,
+      visible_to_staff: false, // Default false: Requires Admin to allow staff access!
+      uploaded_by: "client",
+    })
+    .select("id")
+    .single();
+
+  if (error) {
+    return { ok: false as const, error: error.message };
+  }
+
+  // Notify Admins in-app
+  await notify({
+    kind: "file.shared",
+    title: `${client.name} uploaded asset: "${input.name}"`,
+    body: `Project: ${project.name} · Requires Admin Staff Visibility Review`,
+    href: `/${ADMIN}/projects/${input.projectId}?tab=files`,
+    entity: "projects",
+    entityId: input.projectId,
+    actorKind: "client",
+    actorLabel: client.name,
+  }).catch(() => null);
+
+  revalidatePath(`/${ADMIN}/projects/${input.projectId}`);
+  revalidatePath(`/portal/projects/${input.projectId}`);
+  return { ok: true as const, id: data.id };
+}
+
 /**
  * Show or hide a file from regular staff.
- * Owner/admin only.
+ * Owner/admin only. When enabled, notifies assigned staff members.
  */
 export async function setProjectFileStaffVisibility(id: string, visible: boolean) {
   const me = await requireOwnerAdmin();
@@ -141,12 +228,35 @@ export async function setProjectFileStaffVisibility(id: string, visible: boolean
     .from("project_files")
     .update({ visible_to_staff: visible })
     .eq("id", id)
-    .select("project_id")
+    .select("id, project_id, name, projects(name, client_id)")
     .single();
 
   if (error) return { ok: false as const, error: error.message };
 
   await recordAudit(me.userId, "project_file.staff_visibility", "project_files", id, { visible });
+
+  // If approved for staff, notify assigned staff
+  if (visible && (data.projects as any)?.client_id) {
+    const { data: assignments } = await db
+      .from("client_employee_assignments")
+      .select("employee_id")
+      .eq("client_id", (data.projects as any).client_id);
+
+    for (const a of assignments ?? []) {
+      await notify({
+        kind: "file.shared",
+        employeeId: a.employee_id,
+        title: `Client file approved for staff — ${data.name}`,
+        body: (data.projects as any)?.name ? `Project: ${(data.projects as any).name}` : undefined,
+        href: `/${ADMIN}/projects/${data.project_id}?tab=files`,
+        entity: "projects",
+        entityId: data.project_id,
+        actorKind: "staff",
+        actorLabel: me.fullName,
+      }).catch(() => null);
+    }
+  }
+
   revalidatePath(`/${ADMIN}/projects/${data.project_id}`);
   return { ok: true as const };
 }

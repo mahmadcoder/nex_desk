@@ -8,7 +8,7 @@ import { cn } from "@/lib/utils";
 import {
   LayoutDashboard, Inbox, Users, Handshake, FolderKanban,
   Receipt, FileText, Mail, Settings, LogOut, Menu, X,
-  MessageSquareQuote, Briefcase, Layers, BookOpen, HelpCircle, UserCheck, Clock, ListChecks, CalendarDays, PackageCheck, TrendingUp, CalendarClock, Bell, Wallet, Scale, ShoppingBag, UserCircle, BarChart3, ShieldCheck, Building2, UserPlus, LifeBuoy, FileSpreadsheet, ClipboardList
+  MessageSquareQuote, Briefcase, Layers, BookOpen, HelpCircle, UserCheck, Clock, ListChecks, CalendarDays, PackageCheck, TrendingUp, CalendarClock, Bell, Wallet, Scale, ShoppingBag, UserCircle, BarChart3, ShieldCheck, Building2, UserPlus, LifeBuoy, FileSpreadsheet, ClipboardList, Archive
 } from "lucide-react";
 import Avatar from "@/components/Avatar";
 
@@ -36,6 +36,7 @@ const NAV_SECTIONS = [
       { href: "/deals", label: "Deals", icon: Handshake },
       { href: "/projects", label: "Projects", icon: FolderKanban },
       { href: "/tasks", label: "Task Board", icon: ListChecks },
+      { href: "/staff-activity", label: "Staff Task Tracker", icon: Clock },
       { href: "/calendar", label: "Calendar", icon: CalendarDays },
       { href: "/completed", label: "Completed", icon: PackageCheck },
       { href: "/invoices", label: "Invoices", icon: Receipt },
@@ -64,6 +65,7 @@ const NAV_SECTIONS = [
   {
     title: "SETTINGS",
     items: [
+      { href: "/archive", label: "Archive Directory", icon: Archive },
       { href: "/handbook", label: "Handbook", icon: BookOpen },
       { href: "/audit", label: "Audit Log", icon: ShieldCheck },
       { href: "/settings", label: "Settings", icon: Settings },

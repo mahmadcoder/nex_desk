@@ -214,12 +214,22 @@ export default async function ClientDetail({ params }: { params: Promise<{ id: s
 
       <PageHead
         title={client.name}
-        sub={[
-          client.company ? `Company: ${client.company}` : null,
-          client.email,
-          [client.city, client.country].filter(Boolean).join(", "),
-          client.source ? `Acquisition: ${client.source.charAt(0).toUpperCase() + client.source.slice(1).replace(/_/g, " ")}` : null,
-        ].filter(Boolean).join(" · ")}
+        sub={
+          canManage
+            ? [
+                client.company ? `Company: ${client.company}` : null,
+                client.email,
+                [client.city, client.country].filter(Boolean).join(", "),
+                client.source
+                  ? `Acquisition: ${client.source.charAt(0).toUpperCase() + client.source.slice(1).replace(/_/g, " ")}`
+                  : null,
+              ]
+                .filter(Boolean)
+                .join(" · ")
+            : client.company
+              ? `Company: ${client.company}`
+              : "Assigned Client"
+        }
         action={
           // Selling a second service is normal, so this no longer dead-ends at
           // "Deal locked" — it offers the next one. Each becomes its own deal,

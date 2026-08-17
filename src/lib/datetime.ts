@@ -177,3 +177,13 @@ export function daysUntil(value: Input): number | null {
   const [ny, nm, nd] = today.split("-").map(Number);
   return Math.round((Date.UTC(ty, tm - 1, td) - Date.UTC(ny, nm - 1, nd)) / 864e5);
 }
+
+export function humanDuration(seconds: number): string {
+  const s = Math.max(0, Math.round(seconds));
+  const h = Math.floor(s / 3600);
+  const m = Math.floor((s % 3600) / 60);
+  const remSec = s % 60;
+  if (h > 0) return `${h}h ${m}m`;
+  if (m > 0) return `${m}m ${remSec}s`;
+  return `${remSec}s`;
+}

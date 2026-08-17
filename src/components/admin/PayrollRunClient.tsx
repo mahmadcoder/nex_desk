@@ -107,7 +107,8 @@ export default function PayrollRunClient({
             <tr className="border-b border-ink-600 text-left">
               <th className="px-4 py-3 font-medium text-bone-300">Pay</th>
               <th className="px-4 py-3 font-medium text-bone-300">Employee</th>
-              <th className="px-4 py-3 font-medium text-bone-300">Monthly salary</th>
+              <th className="px-4 py-3 font-medium text-bone-300">Base salary</th>
+              <th className="px-4 py-3 font-medium text-bone-300">Overtime / Offset</th>
               <th className="px-4 py-3 font-medium text-bone-300">This run</th>
               <th className="px-4 py-3 font-medium text-bone-300">Status</th>
             </tr>
@@ -146,18 +147,45 @@ export default function PayrollRunClient({
                 </td>
 
                 <td className="px-4 py-3">
+                  {r.overtimePay > 0 ? (
+                    <div className="space-y-0.5">
+                      <span className="mono-tag text-[11px] text-lime-400 font-semibold">
+                        +{money(Number(r.overtimePay), r.currency)}
+                      </span>
+                      <p className="text-[10px] text-bone-400">
+                        {r.overtimeHours}h overtime
+                        {r.deficitRecoveredHours > 0 ? ` (${r.deficitRecoveredHours}h late offset)` : ""}
+                      </p>
+                    </div>
+                  ) : r.deficitRecoveredHours > 0 ? (
+                    <span className="mono-tag text-[10px] text-emerald-400">
+                      {r.deficitRecoveredHours}h late offset
+                    </span>
+                  ) : (
+                    <span className="text-bone-500 text-xs">—</span>
+                  )}
+                </td>
+
+                <td className="px-4 py-3">
                   {r.alreadyPaid ? (
                     <span className="text-bone-500">—</span>
                   ) : (
-                    <input
-                      className={`${field} w-32`}
-                      type="number"
-                      min="0"
-                      step="0.01"
-                      disabled={!picked.has(r.id) || pending}
-                      value={amounts[r.id] ?? ""}
-                      onChange={(e) => setAmounts({ ...amounts, [r.id]: e.target.value })}
-                    />
+                    <div>
+                      <input
+                        className={`${field} w-32`}
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        disabled={!picked.has(r.id) || pending}
+                        value={amounts[r.id] ?? ""}
+                        onChange={(e) => setAmounts({ ...amounts, [r.id]: e.target.value })}
+                      />
+                      {r.overtimePay > 0 && (
+                        <p className="mt-0.5 text-[10px] text-lime-400">
+                          Base {money(Number(r.baseSalary), r.currency)} + OT {money(Number(r.overtimePay), r.currency)}
+                        </p>
+                      )}
+                    </div>
                   )}
                   {r.proRataReason && (
                     <p className="mt-1 text-[11px] text-amber-300">{r.proRataReason}</p>

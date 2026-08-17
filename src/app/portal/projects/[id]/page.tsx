@@ -13,9 +13,10 @@ import SupportWindow from "@/components/SupportWindow";
 import ApproveMilestone from "@/components/portal/ApproveMilestone";
 import KickoffChecklist from "@/components/portal/KickoffChecklist";
 import ClientChangeRequest from "@/components/portal/ClientChangeRequest";
+import ClientFileUpload from "@/components/portal/ClientFileUpload";
 import ProjectTabs, { type TabKey } from "@/components/portal/ProjectTabs";
 import MessageThread from "@/components/MessageThread";
-import { listMessages } from "@/lib/actions/messages";
+import { listMessages, markClientMessagesRead } from "@/lib/actions/messages";
 import {
   ArrowLeft,
   CheckCircle,
@@ -91,7 +92,11 @@ export default async function PortalProject({
   // Only for the tab actually being rendered — a client on Overview should not
   // pay for signing every file URL.
   const fileGroups = tab === "files" ? await loadProjectFileGroups(project.id, { clientView: true }) : [];
-  const messages = tab === "messages" ? await listMessages(project.id) : [];
+  const messages = await listMessages(project.id);
+
+  if (tab === "messages") {
+    await markClientMessagesRead(project.id);
+  }
 
   // `task_status` is backlog | todo | doing | review | done, which maps onto
   // the three groups a client actually asks about.
@@ -100,6 +105,10 @@ export default async function PortalProject({
     upcoming: (tasks ?? []).filter((t: any) => ["todo", "backlog"].includes(t.status)),
     completed: (tasks ?? []).filter((t: any) => t.status === "done"),
   };
+
+  const unreadMessagesCount = tab === "messages" ? 0 : messages.filter((m: any) => m.sender_kind === "staff" && !m.read_at).length;
+  const pendingMilestonesCount = ms.filter((m: any) => m.is_done && !m.approved_at).length;
+  const activeTasksCount = taskGroups.current.length;
 
   const timeline = buildActivity(
     { projects: [project], milestones: ms },
@@ -180,7 +189,16 @@ export default async function PortalProject({
         </div>
       </header>
 
-      <ProjectTabs projectId={project.id} active={tab} milestoneCount={ms.length} />
+      <ProjectTabs
+        projectId={project.id}
+        active={tab}
+        milestoneCount={ms.length}
+        badges={{
+          messages: unreadMessagesCount,
+          milestones: pendingMilestonesCount,
+          tasks: activeTasksCount,
+        }}
+      />
 
       <div className="mt-6">
         {tab === "overview" && (
@@ -427,12 +445,15 @@ export default async function PortalProject({
         )}
 
         {tab === "files" && (
-          <section className="card p-5 sm:p-6">
-            <h2 className="text-base font-medium text-bone-50">Files</h2>
-            <p className="mt-1 text-xs text-bone-400">
-              Everything for this project, grouped by what it is — your proposal and contract
-              alongside the design files and assets.
-            </p>
+          <div className="space-y-6">
+            <ClientFileUpload projectId={project.id} projectName={project.name} />
+
+            <section className="card p-5 sm:p-6">
+              <h2 className="text-base font-medium text-bone-50">Project Repository & Deliverables</h2>
+              <p className="mt-1 text-xs text-bone-400">
+                Everything for this project, grouped by what it is — your proposal and contract
+                alongside the design files and assets.
+              </p>
 
             {fileGroups.length ? (
               <div className="mt-5 space-y-6">
@@ -477,7 +498,8 @@ export default async function PortalProject({
               <p className="mt-3 text-sm text-bone-400">Nothing shared with you yet.</p>
             )}
           </section>
-        )}
+        </div>
+      )}
 
         {tab === "messages" && (
           <section className="card p-5 sm:p-6">

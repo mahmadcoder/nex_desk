@@ -1,10 +1,11 @@
 import { createAdminClient } from "@/lib/supabase/server";
 import { requireOwnerAdmin } from "@/lib/auth/guards";
 import { PageHead } from "@/components/admin/ui";
-import { getWorkHours } from "@/lib/actions/attendance";
+import { getWorkHours, getTeamOvertimeSummary } from "@/lib/actions/attendance";
 import { holidayMap } from "@/lib/actions/hr";
 import { judgeAttendance, humanDuration, isWorkingDay } from "@/lib/workHours";
 import { agencyDay, fmtMonth, fmtTime, TZ_LABEL } from "@/lib/datetime";
+import { money } from "@/lib/utils";
 import Avatar from "@/components/Avatar";
 import AttendanceCell from "@/components/admin/AttendanceCell";
 
@@ -55,7 +56,7 @@ export default async function AttendancePage({
   const from = `${year}-${String(mon + 1).padStart(2, "0")}-01`;
   const to = `${year}-${String(mon + 1).padStart(2, "0")}-${String(last.getDate()).padStart(2, "0")}`;
 
-  const [{ data: employees }, { data: rows, error }, { data: leaves }, hours, holidays] =
+  const [{ data: employees }, { data: rows, error }, { data: leaves }, hours, holidays, overtimeList] =
     await Promise.all([
     db
       .from("employees")
@@ -71,6 +72,7 @@ export default async function AttendancePage({
       .gte("end_date", from),
     getWorkHours(),
     holidayMap(from, to),
+    getTeamOvertimeSummary(from.slice(0, 7)),
   ]);
 
   if (error?.code === "42P01") {
@@ -227,6 +229,71 @@ export default async function AttendancePage({
           </tbody>
         </table>
       </div>
+
+      {/* Monthly Overtime & Deficit Offset Summary */}
+      <section className="mt-8 space-y-3">
+        <div>
+          <h2 className="text-base font-semibold text-bone-50">
+            Monthly Overtime & Late-Deficit Balance
+          </h2>
+          <p className="text-xs text-bone-300">
+            Extra time worked automatically offsets previous late attendance before qualifying as payable overtime.
+          </p>
+        </div>
+
+        <div className="card overflow-x-auto border-ink-600">
+          <table className="w-full min-w-max text-left text-xs">
+            <thead className="border-b border-ink-700 bg-ink-800/80 text-bone-400">
+              <tr>
+                <th className="p-3 font-medium">Employee</th>
+                <th className="p-3 font-medium">Total Extra Worked</th>
+                <th className="p-3 font-medium">Late Deficit Recovered</th>
+                <th className="p-3 font-medium">Net Payable Overtime</th>
+                <th className="p-3 font-medium">Unrecovered Deficit</th>
+                <th className="p-3 font-medium">Overtime Compensation</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-ink-700/60 font-mono">
+              {(overtimeList ?? []).map(({ employee, summary }: any) => (
+                <tr key={employee.id} className="hover:bg-ink-800/30 transition-colors">
+                  <td className="p-3 font-sans">
+                    <p className="font-semibold text-bone-100">{employee.full_name}</p>
+                    <p className="mono-tag text-[10px] text-bone-400">{employee.job_title}</p>
+                  </td>
+                  <td className="p-3 text-blue-300">
+                    {summary.totalExtraSec > 0 ? `+${humanDuration(summary.totalExtraSec)}` : "0m"}
+                  </td>
+                  <td className="p-3 text-emerald-300">
+                    {summary.recoveredDeficitSec > 0 ? `-${humanDuration(summary.recoveredDeficitSec)}` : "0m"}
+                  </td>
+                  <td className="p-3 text-lime-400 font-bold">
+                    {summary.netOvertimeSec > 0 ? humanDuration(summary.netOvertimeSec) : "0m"}
+                  </td>
+                  <td className="p-3 text-amber-300">
+                    {summary.unrecoveredDeficitSec > 0 ? humanDuration(summary.unrecoveredDeficitSec) : "0m"}
+                  </td>
+                  <td className="p-3 font-sans">
+                    {summary.overtimePay > 0 ? (
+                      <span className="mono-tag text-[11px] px-2 py-0.5 rounded bg-lime-400/15 text-lime-300 font-bold border border-lime-400/30">
+                        {money(summary.overtimePay, summary.currency)}
+                      </span>
+                    ) : (
+                      <span className="text-bone-500 font-mono">—</span>
+                    )}
+                  </td>
+                </tr>
+              ))}
+              {!overtimeList?.length && (
+                <tr>
+                  <td colSpan={6} className="p-6 text-center text-bone-400 font-sans">
+                    No active employees.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </section>
     </>
   );
 }

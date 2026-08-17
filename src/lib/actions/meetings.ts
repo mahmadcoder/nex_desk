@@ -29,22 +29,31 @@ const ADMIN = process.env.ADMIN_PATH || "nx-control";
  * `client_employee_assignments` is the existing source of that truth; this is
  * the reverse of `assignedClientIds` in `auth/staff.ts`.
  */
-async function meetingRecipients(clientId: string) {
+async function meetingRecipients(clientId: string, staffIds: string[] = []) {
   const db = createAdminClient();
 
-  const [{ data: client }, { data: rows }, adminEmail] = await Promise.all([
+  const [{ data: client }, { data: assignedRows }, { data: explicitStaffRows }, adminEmail] = await Promise.all([
     db.from("clients").select("id, name, email").eq("id", clientId).maybeSingle(),
     db
       .from("client_employee_assignments")
       .select("employees(id, full_name, email, employment_status)")
       .eq("client_id", clientId),
+    staffIds.length
+      ? db
+          .from("employees")
+          .select("id, full_name, email, employment_status")
+          .in("id", staffIds)
+      : Promise.resolve({ data: [] as any[] }),
     adminNotifyAddress(),
   ]);
 
+  const assignedEmployees = (assignedRows ?? []).map((r: any) => r.employees);
+  const explicitEmployees = explicitStaffRows ?? [];
+  const combined = [...assignedEmployees, ...explicitEmployees];
+
   const staff = Array.from(
     new Map(
-      (rows ?? [])
-        .map((r: any) => r.employees)
+      combined
         .filter((e: any) => e?.email && e.employment_status !== "inactive")
         .map((e: any) => [e.email.toLowerCase(), e])
     ).values()
@@ -73,6 +82,7 @@ export async function createMeeting(input: {
   startsAt: string;
   durationMin: number;
   joinUrl?: string | null;
+  staffIds?: string[];
 }) {
   const me = await requireOwnerAdmin();
   const db = createAdminClient();
@@ -91,6 +101,7 @@ export async function createMeeting(input: {
       duration_min: input.durationMin || 30,
       join_url: input.joinUrl?.trim() || null,
       created_by: me.userId,
+      staff_ids: input.staffIds || [],
     })
     .select("*")
     .single();
@@ -102,7 +113,7 @@ export async function createMeeting(input: {
       ok: false as const,
       error:
         error.code === "42P01"
-          ? "Meetings needs its table — run supabase/idempotent_fixes_2027_24.sql."
+          ? "Meetings needs its table — run supabase/idempotent_fixes_2027_37.sql."
           : error.message,
     };
   }
@@ -208,7 +219,7 @@ async function announce(
   reason?: string
 ): Promise<number> {
   try {
-    const { client, staff, adminEmail } = await meetingRecipients(meeting.client_id);
+    const { client, staff, adminEmail } = await meetingRecipients(meeting.client_id, meeting.staff_ids || []);
     const agency = await getAgency();
     const cancelled = kind === "cancelled";
 

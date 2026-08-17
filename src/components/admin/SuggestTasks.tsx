@@ -43,11 +43,12 @@ export default function SuggestTasks({
         body: JSON.stringify({ field: "task_breakdown", mode: "suggest", text: "", context }),
       });
       const data = await res.json();
-      if (!res.ok || !data.text) throw new Error(data.error || "Nothing came back.");
+      const rawText = data?.text || data?.suggestion;
+      if (!res.ok || !rawText) throw new Error(data?.error || "Nothing came back.");
 
       // The prompt asks for one task per line, but models add bullets and
       // numbers anyway. Strip them rather than trusting the instruction.
-      const parsed = String(data.text)
+      const parsed = String(rawText)
         .split("\n")
         .map((l: string) => l.replace(/^\s*(?:[-*•]|\d+[.)])\s*/, "").trim())
         .filter((l: string) => l.length > 2 && l.length < 200);

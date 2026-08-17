@@ -102,8 +102,7 @@ export async function intakeByToken(token: string) {
     .maybeSingle();
 
   if (error || !data) return null;
-  if (data.status === "revoked") return null;
-
+  const isRevoked = data.status === "revoked";
   const isExpired = new Date(data.expires_at) < new Date() && data.status === "pending";
 
   return {
@@ -111,6 +110,7 @@ export async function intakeByToken(token: string) {
     kind: data.kind as "client" | "staff",
     status: data.status as "pending" | "submitted" | "approved" | "resolved" | "revoked",
     isExpired,
+    isRevoked,
     note: data.note as string | null,
     submittedAt: data.submitted_at as string | null,
     recipientName: data.recipient_name as string | null,
@@ -394,6 +394,53 @@ export async function linkIntakeToClientOrStaff(
   if (error) return { ok: false as const, error: describe(error) };
 
   await recordAudit(me.userId, "intake.link", "intake_requests", id);
+  revalidatePath(`/${ADMIN}/intake`);
+  return { ok: true as const };
+}
+
+export async function updateIntakeRequest(
+  id: string,
+  patch: {
+    label?: string | null;
+    note?: string | null;
+    recipientName?: string | null;
+    recipientEmail?: string | null;
+    kind?: "client" | "staff";
+  }
+) {
+  const me = await requireOwnerAdmin();
+
+  const next: Record<string, any> = {};
+  if (patch.label !== undefined) next.label = patch.label?.trim() || null;
+  if (patch.note !== undefined) next.note = patch.note?.trim() || null;
+  if (patch.recipientName !== undefined) next.recipient_name = patch.recipientName?.trim() || null;
+  if (patch.recipientEmail !== undefined) next.recipient_email = patch.recipientEmail?.trim() || null;
+  if (patch.kind) next.kind = patch.kind;
+
+  const { error } = await createAdminClient()
+    .from("intake_requests")
+    .update(next)
+    .eq("id", id);
+
+  if (error) return { ok: false as const, error: describe(error) };
+
+  await recordAudit(me.userId, "intake.update", "intake_requests", id, patch);
+  revalidatePath(`/${ADMIN}/intake`);
+  return { ok: true as const };
+}
+
+export async function deleteIntakeRequest(id: string) {
+  const me = await requireOwnerAdmin();
+
+  // Permanently revoke and mark as deleted so any links fail cleanly
+  const { error } = await createAdminClient()
+    .from("intake_requests")
+    .update({ status: "revoked" })
+    .eq("id", id);
+
+  if (error) return { ok: false as const, error: describe(error) };
+
+  await recordAudit(me.userId, "intake.delete", "intake_requests", id);
   revalidatePath(`/${ADMIN}/intake`);
   return { ok: true as const };
 }

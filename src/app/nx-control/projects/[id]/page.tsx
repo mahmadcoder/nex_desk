@@ -208,7 +208,13 @@ export default async function ProjectDetail({ params }: { params: Promise<{ id: 
 
       <PageHead
         title={project.name}
-        sub={`${client?.name}${client?.company ? ` · ${client.company}` : ""}`}
+        sub={
+          canManage
+            ? `${client?.name}${client?.company ? ` · ${client.company}` : ""}`
+            : client?.company
+              ? `Company: ${client.company}`
+              : client?.name ?? ""
+        }
         action={
           <div className="flex flex-wrap items-center gap-2">
             <DocButton type="progress_report" id={project.id} label="Progress PDF" />
@@ -235,11 +241,7 @@ export default async function ProjectDetail({ params }: { params: Promise<{ id: 
                 ? `${money(paidInContractCurrency, contractCurrency!)} / ${money(contractValue, contractCurrency!)}`
                 : `${moneyMulti(contract.paid, "—")} / ${moneyMulti(contract.billed, "—")}`
             }
-            // Extras are shown beside the contract, never inside it. Folding
-            // them in is what made a paid domain look like a paid milestone.
             hint={
-              // Why the total is not the deal figure. Without this, an agreed
-              // change request makes the contract look like it was typed wrong.
               agreedChangeValue > 0
                 ? `${money(Number(deal.total), contractCurrency!)} agreed + ${money(agreedChangeValue, contractCurrency!)} of changes they approved`
                 : extras.billed.length
@@ -251,16 +253,15 @@ export default async function ProjectDetail({ params }: { params: Promise<{ id: 
         )}
       </div>
 
-      <div className="mt-8 grid gap-6 lg:grid-cols-[1.4fr_1fr]">
+      <div className="mt-8 grid gap-6 lg:grid-cols-[1.35fr_1fr]">
+        {/* Primary Working Left Column */}
         <div className="space-y-8">
           <section>
             <h2 className="mb-3 text-base">Milestones</h2>
             <MilestoneList milestones={milestones ?? []} projectId={project.id} canManage={canManage} />
           </section>
 
-          {/* Milestones are what the client sees; tasks are how the work
-              actually gets divided up. Staff see this too — they need their
-              own work — but only owner/admin can hand it out. */}
+          {/* Tasks Kanban Board */}
           <TasksCard
             projectId={project.id}
             tasks={tasks ?? []}
@@ -277,8 +278,32 @@ export default async function ProjectDetail({ params }: { params: Promise<{ id: 
             }}
           />
 
-          {/* The work log feed. Entries marked "shared" are what the client
-              sees on their portal timeline. */}
+          {/* Project Files Panel */}
+          <section>
+            <h2 className="mb-3 text-base">Files</h2>
+            <div className="card p-5">
+              <ProjectFilesPanel projectId={project.id} files={projectFiles} canManage={canManage} />
+            </div>
+          </section>
+
+          {/* Messages & Project Conversation */}
+          {canManage && (
+            <section>
+              <h2 className="mb-3 text-base flex items-center justify-between">
+                <span>Messages</span>
+                {unreadFromClient > 0 && (
+                  <span className="rounded-full bg-lime-400 px-2 py-0.5 text-[10px] font-semibold leading-none text-lime-950">
+                    {unreadFromClient} new
+                  </span>
+                )}
+              </h2>
+              <div className="card p-5">
+                <MessageThread projectId={project.id} side="staff" messages={messages} />
+              </div>
+            </section>
+          )}
+
+          {/* The work log feed */}
           <section>
             <div className="mb-3 flex items-baseline justify-between">
               <h2 className="text-base">Work log</h2>
@@ -319,7 +344,6 @@ export default async function ProjectDetail({ params }: { params: Promise<{ id: 
                     <p className="mt-2 whitespace-pre-line text-sm leading-relaxed text-bone-100">
                       {l.tasks_completed}
                     </p>
-                    {/* The per-service numbers, if the staff member filled any in. */}
                     {!!describeMetrics(l.metrics).length && (
                       <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1">
                         {describeMetrics(l.metrics).map((m) => (
@@ -339,145 +363,8 @@ export default async function ProjectDetail({ params }: { params: Promise<{ id: 
               </ol>
             )}
           </section>
-        </div>
 
-        <div className="space-y-6">
-          {/* Status, staging links and the client progress email are the
-              account owner's calls — staff report through the work log. */}
-          {canManage && (
-            <HandoverPanel
-              project={{
-                id: project.id,
-                name: project.name,
-                handed_over_at: project.handed_over_at ?? null,
-                thanked_at: project.thanked_at ?? null,
-              }}
-              ready={handoverReady}
-              reasons={handoverReasons}
-              warnings={handoverWarnings}
-              clientName={client?.name ?? ""}
-              // WhatsApp first, the ordinary phone number second — most clients
-              // have one number that is both, and only one of the two columns
-              // tends to get filled in.
-              clientWhatsapp={client?.whatsapp || client?.phone || null}
-            />
-          )}
-
-          {/* Only once it has actually been handed over. Rating work still in
-              flight measures mood, not delivery. */}
-          {canManage && project.handed_over_at && (
-            <TeamRatingCard projectId={id} team={deliveredTeam} existing={ratings} />
-          )}
-
-          {canManage && (
-            <CredentialsCard
-              projectId={project.id}
-              count={((project.credentials as any[]) ?? []).length}
-            />
-          )}
-
-          {canManage && deal && <DealExtrasCard deal={deal} />}
-
-          {/* Cancelling is a settlement, not a status change — the panel works
-              out what goes back before anything is written. */}
-          {canManage && <CancelProjectPanel project={project} />}
-
-          {/* Domains, licences, hosting bought for this project. Scoped to the
-              project here; the client page shows every one across the account. */}
-          {canManage && (
-            <ExpensesCard
-              clientId={project.client_id}
-              clientName={client?.name ?? "this client"}
-              projectId={project.id}
-              defaultCurrency={contractCurrency || client?.preferred_currency || "USD"}
-              expenses={expenses ?? []}
-            />
-          )}
-
-          {canManage && (
-            <ChangeRequestsCard
-              projectId={project.id}
-              defaultCurrency={contractCurrency || client?.preferred_currency || "USD"}
-              requests={changeRequests ?? []}
-            />
-          )}
-
-          {/* Whose move it is. A project that looks stalled is usually waiting
-              on the client, and without this the delay reads as the agency's
-              fault by default. */}
-          {canManage && project.staging_shared_at && !project.handed_over_at && (
-            <section className="card border-ink-600 p-5">
-              <h2 className="mb-2 flex items-center gap-2 text-base">
-                <Clock size={15} className="text-lime-400" /> Review
-              </h2>
-              <p className="text-sm leading-relaxed text-bone-200">
-                Staging shared with {client?.name ?? "the client"}{" "}
-                {fmtDate(project.staging_shared_at)} —{" "}
-                <strong>
-                  {Math.floor(
-                    (Date.now() - new Date(project.staging_shared_at).getTime()) / 864e5
-                  )}{" "}
-                  days ago
-                </strong>
-                .
-              </p>
-              <p className="mt-1.5 text-xs leading-relaxed text-bone-400">
-                {Number(project.feedback_nudge_count ?? 0) === 0
-                  ? "Not chased yet. The first reminder goes out three days after sharing."
-                  : Number(project.feedback_nudge_count) >= 3
-                    ? "Chased three times with no answer — automatic reminders have stopped. Worth a call."
-                    : `Chased ${project.feedback_nudge_count} of 3 times. Reminders stop after the third.`}
-              </p>
-            </section>
-          )}
-
-          {canManage && (
-            <div className="flex justify-end">
-              <ArchiveProjectButton projectId={id} archived={!!project.archived_at} />
-            </div>
-          )}
-
-          {canManage && spendData && (
-            <BudgetPanel
-              spend={spendData.spend}
-              health={spendData.health}
-              currency={spendData.currency}
-            />
-          )}
-
-          {canManage && (
-            <section>
-              <h2 className="mb-3 text-base">Project controls</h2>
-              <ProjectControls project={project} clientEmail={client?.email} />
-            </section>
-          )}
-
-          {/* Files and the conversation. Both tables have existed since the
-              beginning with nothing using them, so a deliverable could only be
-              handed over by email and a conversation only lived in WhatsApp. */}
-          <section>
-            <h2 className="mb-3 text-base">Files</h2>
-            <div className="card p-5">
-              <ProjectFilesPanel projectId={project.id} files={projectFiles} canManage={canManage} />
-            </div>
-          </section>
-
-          {canManage && (
-            <section>
-              <h2 className="mb-3 text-base">
-                Messages
-                {unreadFromClient > 0 && (
-                  <span className="ml-2 rounded-full bg-lime-400 px-1.5 py-0.5 text-[10px] font-semibold leading-none text-lime-950">
-                    {unreadFromClient} new
-                  </span>
-                )}
-              </h2>
-              <div className="card p-5">
-                <MessageThread projectId={project.id} side="staff" messages={messages} />
-              </div>
-            </section>
-          )}
-
+          {/* Invoices */}
           {canManage && (
             <section>
               <h2 className="mb-3 text-base">Invoices</h2>
@@ -512,6 +399,7 @@ export default async function ProjectDetail({ params }: { params: Promise<{ id: 
             </section>
           )}
 
+          {/* Agreement */}
           {canManage && project.deals && (
             <section>
               <h2 className="mb-3 text-base">Agreement</h2>
@@ -526,18 +414,127 @@ export default async function ProjectDetail({ params }: { params: Promise<{ id: 
               </div>
             </section>
           )}
+        </div>
 
+        {/* Sidebar Controls & Metadata Right Column */}
+        <div className="space-y-6">
+          {/* Budget Health Panel */}
+          {canManage && spendData && (
+            <BudgetPanel
+              spend={spendData.spend}
+              health={spendData.health}
+              currency={spendData.currency}
+            />
+          )}
+
+          {/* Review Staging Status */}
+          {canManage && project.staging_shared_at && !project.handed_over_at && (
+            <section className="card border-ink-600 p-5">
+              <h2 className="mb-2 flex items-center gap-2 text-base">
+                <Clock size={15} className="text-lime-400" /> Review
+              </h2>
+              <p className="text-sm leading-relaxed text-bone-200">
+                Staging shared with {client?.name ?? "the client"}{" "}
+                {fmtDate(project.staging_shared_at)} —{" "}
+                <strong>
+                  {Math.floor(
+                    (Date.now() - new Date(project.staging_shared_at).getTime()) / 864e5
+                  )}{" "}
+                  days ago
+                </strong>
+                .
+              </p>
+              <p className="mt-1.5 text-xs leading-relaxed text-bone-400">
+                {Number(project.feedback_nudge_count ?? 0) === 0
+                  ? "Not chased yet. The first reminder goes out three days after sharing."
+                  : Number(project.feedback_nudge_count) >= 3
+                    ? "Chased three times with no answer — automatic reminders have stopped. Worth a call."
+                    : `Chased ${project.feedback_nudge_count} of 3 times. Reminders stop after the third.`}
+              </p>
+            </section>
+          )}
+
+          {/* Handover & Delivery Management */}
+          {canManage && (
+            <HandoverPanel
+              project={{
+                id: project.id,
+                name: project.name,
+                handed_over_at: project.handed_over_at ?? null,
+                thanked_at: project.thanked_at ?? null,
+              }}
+              ready={handoverReady}
+              reasons={handoverReasons}
+              warnings={handoverWarnings}
+              clientName={client?.name ?? ""}
+              clientWhatsapp={client?.whatsapp || client?.phone || null}
+            />
+          )}
+
+          {canManage && project.handed_over_at && (
+            <TeamRatingCard projectId={id} team={deliveredTeam} existing={ratings} />
+          )}
+
+          {/* Client Credentials Storage */}
+          {canManage && (
+            <CredentialsCard
+              projectId={project.id}
+              count={((project.credentials as any[]) ?? []).length}
+            />
+          )}
+
+          {/* Agreement Options & Retainers */}
+          {canManage && deal && <DealExtrasCard deal={deal} />}
+
+          {/* Expenses & Change Requests */}
+          {canManage && (
+            <ExpensesCard
+              clientId={project.client_id}
+              clientName={client?.name ?? "this client"}
+              projectId={project.id}
+              defaultCurrency={contractCurrency || client?.preferred_currency || "USD"}
+              expenses={expenses ?? []}
+            />
+          )}
+
+          {canManage && (
+            <ChangeRequestsCard
+              projectId={project.id}
+              defaultCurrency={contractCurrency || client?.preferred_currency || "USD"}
+              requests={changeRequests ?? []}
+            />
+          )}
+
+          {/* Project Management Controls */}
+          {canManage && (
+            <section>
+              <h2 className="mb-3 text-base">Project controls</h2>
+              <ProjectControls project={project} clientEmail={client?.email} />
+            </section>
+          )}
+
+          {/* Cancellation & Archival */}
+          {canManage && <CancelProjectPanel project={project} />}
+
+          {canManage && (
+            <div className="flex justify-end pt-2">
+              <ArchiveProjectButton projectId={id} archived={!!project.archived_at} />
+            </div>
+          )}
+
+          {/* Staff Client Quick Link */}
           {!canManage && (
             <section>
-              <h2 className="mb-3 text-base">Client</h2>
-              <div className="card p-4 text-sm">
-                <Link href={`${BASE}/clients/${project.client_id}`} className="font-medium hover:text-lime-400">
-                  {client?.name}
-                </Link>
-                {client?.company && <p className="mt-0.5 text-xs text-bone-300">{client.company}</p>}
+              <h2 className="mb-3 text-base">Client Information</h2>
+              <div className="card p-5 text-sm space-y-3">
+                <div>
+                  <span className="mono-tag text-[10px] text-bone-400">Assigned Client</span>
+                  <p className="font-semibold text-bone-100 mt-0.5">{client?.name}</p>
+                  {client?.company && <p className="text-xs text-bone-300 mt-0.5">{client.company}</p>}
+                </div>
                 <Link
                   href={`${BASE}/daily-logs`}
-                  className="btn btn-primary mt-4 h-9 w-full justify-center text-sm"
+                  className="btn btn-primary h-9 w-full justify-center text-sm"
                 >
                   Log work on this project
                 </Link>

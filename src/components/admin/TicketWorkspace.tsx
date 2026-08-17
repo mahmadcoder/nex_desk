@@ -82,8 +82,9 @@ export default function TicketWorkspace({
         }),
       });
       const data = await res.json();
-      if (!res.ok || !data.text) throw new Error(data.error || "Nothing came back.");
-      setSummary(String(data.text).trim());
+      const rawText = data?.text || data?.suggestion;
+      if (!res.ok || !rawText) throw new Error(data?.error || "Nothing came back.");
+      setSummary(String(rawText).trim());
     } catch (e: any) {
       toast.error(e?.message || "Could not summarise that.");
     } finally {

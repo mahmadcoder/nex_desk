@@ -56,6 +56,9 @@ export async function isOnLeave(employeeId: string, date: string): Promise<boole
   }
 }
 
+import { notify } from "@/lib/actions/notify";
+import { fmtTime } from "@/lib/datetime";
+
 export async function checkIn(note?: string) {
   const me = await requireStaff();
   const staff = await getCurrentStaff();
@@ -66,9 +69,6 @@ export async function checkIn(note?: string) {
   const db = createAdminClient();
   const day = agencyDay();
 
-  // `ignoreDuplicates` on the (employee_id, work_date) unique index. A second
-  // check-in is a NO-OP, not a new arrival time — otherwise refreshing the page
-  // at 11am would rewrite a 09:00 arrival, and the record would be worthless.
   const { error } = await db
     .from("attendance")
     .upsert(
@@ -86,9 +86,20 @@ export async function checkIn(note?: string) {
     };
   }
 
+  const todayData = await todayFor(staff.employeeId);
+  if (todayData.verdict.status === "late") {
+    await notify({
+      kind: "staff.late",
+      title: `Late Attendance: ${staff.fullName} checked in ${todayData.verdict.lateBy}m late`,
+      body: `Arrival: ${fmtTime(new Date().toISOString())} (Scheduled: ${todayData.hours.start})`,
+      href: `/${ADMIN}/attendance`,
+      actorKind: "staff",
+    }).catch(() => null);
+  }
+
   revalidatePath(`/${ADMIN}`);
   revalidatePath(`/${ADMIN}/attendance`);
-  return { ok: true as const, ...(await todayFor(staff.employeeId)) };
+  return { ok: true as const, ...todayData };
 }
 
 export async function checkOut(note?: string) {
@@ -355,4 +366,136 @@ export async function adminClearAttendance(employeeId: string, date: string, rea
   revalidatePath(`/${ADMIN}`);
   revalidatePath(`/${ADMIN}/attendance`);
   return { ok: true as const };
+}
+
+import { computeMonthlyOvertimeSummary, type MonthlyOvertimeSummary } from "@/lib/overtime";
+
+/**
+ * Returns the signed-in staff member's overtime & late deficit summary for a given month.
+ */
+export async function getMyOvertimeSummary(periodMonth?: string): Promise<MonthlyOvertimeSummary | null> {
+  const me = await getCurrentStaff();
+  if (!me?.employeeId) return null;
+
+  const db = createAdminClient();
+  const period = String(periodMonth || new Date().toISOString()).slice(0, 7);
+  const startDay = `${period}-01`;
+  const endDay = `${period}-31`;
+
+  const [{ data: employee }, { data: attendance }, hours, holidays] = await Promise.all([
+    db
+      .from("employees")
+      .select("id, full_name, salary_amount, salary_currency")
+      .eq("id", me.employeeId)
+      .maybeSingle(),
+    db
+      .from("attendance")
+      .select("*")
+      .eq("employee_id", me.employeeId)
+      .gte("work_date", startDay)
+      .lte("work_date", endDay)
+      .order("work_date", { ascending: true }),
+    getWorkHours(),
+    holidayMap(startDay, endDay),
+  ]);
+
+  const { data: leaves } = await db
+    .from("leave_requests")
+    .select("start_date, end_date")
+    .eq("employee_id", me.employeeId)
+    .eq("status", "approved")
+    .lte("start_date", endDay)
+    .gte("end_date", startDay);
+
+  const leaveDays = new Set<string>();
+  for (const l of leaves ?? []) {
+    const s = new Date(l.start_date);
+    const e = new Date(l.end_date);
+    for (let d = new Date(s); d <= e; d.setDate(d.getDate() + 1)) {
+      leaveDays.add(d.toISOString().slice(0, 10));
+    }
+  }
+
+  return computeMonthlyOvertimeSummary({
+    periodMonth: period,
+    attendanceRows: attendance ?? [],
+    hours,
+    salaryAmount: Number(employee?.salary_amount || 0),
+    salaryCurrency: employee?.salary_currency || "USD",
+    leaveDays,
+    holidays,
+  });
+}
+
+/**
+ * Returns overtime summaries for all active employees for a given month. Owner/Admin only.
+ */
+export async function getTeamOvertimeSummary(periodMonth?: string) {
+  await requireOwnerAdmin();
+  const db = createAdminClient();
+  const period = String(periodMonth || new Date().toISOString()).slice(0, 7);
+  const startDay = `${period}-01`;
+  const endDay = `${period}-31`;
+
+  const [{ data: employees }, { data: allAttendance }, hours, holidays, { data: allLeaves }] =
+    await Promise.all([
+      db
+        .from("employees")
+        .select("id, full_name, avatar_url, job_title, salary_amount, salary_currency, status")
+        .ilike("status", "active")
+        .order("full_name"),
+      db
+        .from("attendance")
+        .select("*")
+        .gte("work_date", startDay)
+        .lte("work_date", endDay),
+      getWorkHours(),
+      holidayMap(startDay, endDay),
+      db
+        .from("leave_requests")
+        .select("employee_id, start_date, end_date")
+        .eq("status", "approved")
+        .lte("start_date", endDay)
+        .gte("end_date", startDay),
+    ]);
+
+  const attendanceByEmp = new Map<string, any[]>();
+  for (const a of allAttendance ?? []) {
+    if (!attendanceByEmp.has(a.employee_id)) {
+      attendanceByEmp.set(a.employee_id, []);
+    }
+    attendanceByEmp.get(a.employee_id)!.push(a);
+  }
+
+  const leavesByEmp = new Map<string, Set<string>>();
+  for (const l of allLeaves ?? []) {
+    if (!leavesByEmp.has(l.employee_id)) {
+      leavesByEmp.set(l.employee_id, new Set());
+    }
+    const set = leavesByEmp.get(l.employee_id)!;
+    const s = new Date(l.start_date);
+    const e = new Date(l.end_date);
+    for (let d = new Date(s); d <= e; d.setDate(d.getDate() + 1)) {
+      set.add(d.toISOString().slice(0, 10));
+    }
+  }
+
+  const results = (employees ?? []).map((emp) => {
+    const summary = computeMonthlyOvertimeSummary({
+      periodMonth: period,
+      attendanceRows: attendanceByEmp.get(emp.id) ?? [],
+      hours,
+      salaryAmount: Number(emp.salary_amount || 0),
+      salaryCurrency: emp.salary_currency || "USD",
+      leaveDays: leavesByEmp.get(emp.id) ?? new Set(),
+      holidays,
+    });
+
+    return {
+      employee: emp,
+      summary,
+    };
+  });
+
+  return results;
 }

@@ -29,6 +29,7 @@ export type NotifyKind =
   // staff-driven
   | "worklog.submitted"
   | "leave.requested"
+  | "staff.late"
   // addressed to one employee
   | "task.assigned"
   | "leave.decided"
@@ -79,9 +80,39 @@ export async function notify(n: {
 }): Promise<void> {
   try {
     const db = createAdminClient();
+    const audience = n.audience ?? (n.employeeId ? "employee" : "admins");
+
+    // 5-minute debouncing: check if an unread notification with identical subject exists
+    const fiveMinAgo = new Date(Date.now() - 5 * 60_000).toISOString();
+    let checkQuery = db
+      .from("notifications")
+      .select("id")
+      .eq("audience", audience)
+      .eq("kind", n.kind)
+      .eq("title", n.title)
+      .is("read_at", null)
+      .gte("created_at", fiveMinAgo);
+
+    if (n.employeeId) checkQuery = checkQuery.eq("employee_id", n.employeeId);
+    if (n.clientId) checkQuery = checkQuery.eq("client_id", n.clientId);
+    if (n.entityId) checkQuery = checkQuery.eq("entity_id", n.entityId);
+
+    const { data: existing } = await checkQuery.limit(1).maybeSingle();
+
+    if (existing) {
+      // Update the existing notification rather than inserting duplicate records
+      await db
+        .from("notifications")
+        .update({
+          body: n.body ?? null,
+          created_at: new Date().toISOString(),
+        })
+        .eq("id", existing.id);
+      return;
+    }
 
     const { error } = await db.from("notifications").insert({
-      audience: n.audience ?? (n.employeeId ? "employee" : "admins"),
+      audience,
       employee_id: n.employeeId ?? null,
       kind: n.kind,
       title: n.title,
@@ -96,8 +127,6 @@ export async function notify(n: {
     });
 
     if (error) {
-      // 42P01 = the table is not there yet. Named explicitly so a missing
-      // migration reads as a missing migration rather than a mystery.
       console.error(
         error.code === "42P01"
           ? "notify: notifications table missing — run supabase/idempotent_fixes_2027_11.sql"

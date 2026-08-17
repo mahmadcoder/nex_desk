@@ -1,31 +1,22 @@
 import { createAdminClient } from "@/lib/supabase/server";
-import { getCurrentStaff } from "@/lib/auth/staff";
-import { assignedClientIds } from "@/lib/auth/staff";
-import { PageHead, Badge } from "@/components/admin/ui";
+import { getCurrentStaff, assignedClientIds } from "@/lib/auth/staff";
+import { PageHead, Badge, Stat } from "@/components/admin/ui";
 import { fmtDateTime, TZ_LABEL } from "@/lib/datetime";
 import MeetingsClient, { MeetingActions, MeetingNotes } from "@/components/admin/MeetingsClient";
-import { CalendarClock, Video } from "lucide-react";
+import { CalendarClock, Video, CheckCircle2, XCircle, Clock } from "lucide-react";
 import { meetingProvider } from "@/lib/meetings";
+import { externalUrl } from "@/lib/utils";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 export const metadata = { title: "Meetings" };
 export const dynamic = "force-dynamic";
 
-/**
- * Meetings, for whoever is looking.
- *
- * Owner/admin see and book everything. **Staff see only the clients they are
- * assigned to and cannot book** — the same rule that governs their client list,
- * enforced here in the query rather than by hiding a button.
- */
 export default async function MeetingsPage() {
   const db = createAdminClient();
   const me = await getCurrentStaff();
   const canManage = me?.role === "owner" || me?.role === "admin";
 
-  // Fails closed: an employee with no assignments sees nothing, never
-  // everything.
   const mine = canManage ? null : await assignedClientIds(me?.employeeId ?? null);
 
   let q = db
@@ -48,36 +39,59 @@ export default async function MeetingsPage() {
     q = q.in("client_id", mine);
   }
 
-  const [{ data: meetings, error }, { data: clients }, { data: projects }] = await Promise.all([
-    q,
-    canManage
-      ? db.from("clients").select("id, name, company").eq("is_active", true).order("name")
-      : Promise.resolve({ data: [] as any[] }),
-    canManage
-      ? db.from("projects").select("id, name, client_id").order("created_at", { ascending: false })
-      : Promise.resolve({ data: [] as any[] }),
-  ]);
+  const [{ data: meetings, error }, { data: clients }, { data: projects }, { data: employees }, { data: assignments }] =
+    await Promise.all([
+      q,
+      canManage
+        ? db.from("clients").select("id, name, company").eq("is_active", true).order("name")
+        : Promise.resolve({ data: [] as any[] }),
+      canManage
+        ? db.from("projects").select("id, name, client_id").order("created_at", { ascending: false })
+        : Promise.resolve({ data: [] as any[] }),
+      canManage
+        ? db.from("employees").select("id, full_name, job_title").ilike("status", "active").order("full_name")
+        : Promise.resolve({ data: [] as any[] }),
+      canManage
+        ? db.from("client_employee_assignments").select("client_id, employee_id")
+        : Promise.resolve({ data: [] as any[] }),
+    ]);
 
   if (error?.code === "42P01") {
     return (
       <>
         <PageHead title="Meetings" sub="Not set up yet." />
         <p className="card p-8 text-center text-sm text-bone-300">
-          Run <code className="text-lime-400">supabase/idempotent_fixes_2027_24.sql</code> to
+          Run <code className="text-lime-400">supabase/idempotent_fixes_2027_37.sql</code> to
           create the meetings table.
         </p>
       </>
     );
   }
 
+  // Format employees with assigned client IDs for priority dropdown sorting
+  const assignmentMap = new Map<string, string[]>();
+  (assignments ?? []).forEach((a: any) => {
+    const prev = assignmentMap.get(a.employee_id) || [];
+    assignmentMap.set(a.employee_id, [...prev, a.client_id]);
+  });
+
+  const formattedEmployees = (employees ?? []).map((e: any) => ({
+    id: e.id,
+    full_name: e.full_name,
+    job_title: e.job_title,
+    assigned_client_ids: assignmentMap.get(e.id) || [],
+  }));
+
   const now = Date.now();
   const rows = meetings ?? [];
+
   const upcoming = rows
     .filter((m: any) => m.status === "scheduled" && +new Date(m.starts_at) >= now)
     .reverse();
-  const past = rows.filter(
-    (m: any) => m.status !== "scheduled" || +new Date(m.starts_at) < now
+  const completed = rows.filter(
+    (m: any) => m.status === "scheduled" && +new Date(m.starts_at) < now
   );
+  const cancelledMeetings = rows.filter((m: any) => m.status === "cancelled");
 
   return (
     <>
@@ -90,12 +104,47 @@ export default async function MeetingsPage() {
         }
       />
 
+      {/* Summary Analytics Bar */}
+      <div className="mb-6 grid gap-3 grid-cols-2 lg:grid-cols-4">
+        <Stat label="Total Meetings" value={String(rows.length)} hint="All time booked calls" />
+        <Stat label="Upcoming / Booked" value={String(upcoming.length)} hint="Scheduled calls" tone="good" />
+        <Stat label="Completed / Done" value={String(completed.length)} hint="Successfully held" />
+        <Stat label="Cancelled" value={String(cancelledMeetings.length)} hint="Removed calls" tone="warn" />
+      </div>
+
       {canManage && (
-        <MeetingsClient clients={clients ?? []} projects={projects ?? []} />
+        <div className="mb-8">
+          <MeetingsClient
+            clients={clients ?? []}
+            projects={projects ?? []}
+            employees={formattedEmployees}
+          />
+        </div>
       )}
 
-      <Section title="Upcoming" items={upcoming} canManage={canManage} empty="Nothing booked." />
-      <Section title="Past & cancelled" items={past} canManage={canManage} empty="Nothing yet." />
+      <Section
+        title="Upcoming & Scheduled Meetings"
+        items={upcoming}
+        canManage={canManage}
+        empty="No upcoming meetings booked."
+        icon={<Clock size={16} className="text-lime-400" />}
+      />
+
+      <Section
+        title="Completed Meetings (Meeting Done)"
+        items={completed}
+        canManage={canManage}
+        empty="No completed meetings yet."
+        icon={<CheckCircle2 size={16} className="text-lime-400" />}
+      />
+
+      <Section
+        title="Cancelled Meetings"
+        items={cancelledMeetings}
+        canManage={canManage}
+        empty="No cancelled meetings."
+        icon={<XCircle size={16} className="text-rose-400" />}
+      />
     </>
   );
 }
@@ -105,15 +154,18 @@ function Section({
   items,
   canManage,
   empty,
+  icon,
 }: {
   title: string;
   items: any[];
   canManage: boolean;
   empty: string;
+  icon?: React.ReactNode;
 }) {
   return (
     <section className="mt-8">
-      <h2 className="mono-tag mb-3">
+      <h2 className="mono-tag mb-3 flex items-center gap-2 text-sm font-semibold">
+        {icon}
         {title} <span className="text-bone-500">({items.length})</span>
       </h2>
 
@@ -123,19 +175,31 @@ function Section({
         <div className="card divide-y divide-ink-600">
           {items.map((m: any) => {
             const cancelled = m.status === "cancelled";
-            const provider = meetingProvider(m.join_url);
             const isPast = +new Date(m.starts_at) < Date.now();
+            const provider = meetingProvider(m.join_url);
+            const safeJoinUrl = m.join_url ? externalUrl(m.join_url) : null;
+
             return (
               <div
                 key={m.id}
                 className="flex flex-wrap items-start justify-between gap-3 p-4 text-sm"
               >
-                <div className="min-w-0">
-                  <p
-                    className={`font-medium ${cancelled ? "text-bone-400 line-through" : "text-bone-100"}`}
-                  >
-                    {m.title}
-                  </p>
+                <div className="min-w-0 flex-1">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <p
+                      className={`font-medium ${cancelled ? "text-bone-400 line-through" : "text-bone-100"}`}
+                    >
+                      {m.title}
+                    </p>
+                    {cancelled ? (
+                      <Badge>cancelled</Badge>
+                    ) : isPast ? (
+                      <Badge>completed</Badge>
+                    ) : (
+                      <Badge>sent</Badge>
+                    )}
+                  </div>
+
                   <p className="mt-1 flex flex-wrap items-center gap-x-2 text-xs text-bone-300">
                     <CalendarClock size={12} className="text-lime-400" aria-hidden />
                     {fmtDateTime(m.starts_at)} · {m.duration_min} min
@@ -146,15 +210,13 @@ function Section({
                     {m.clients?.company ? ` · ${m.clients.company}` : ""}
                     {m.projects?.name ? ` · ${m.projects.name}` : ""}
                   </p>
+
                   {m.agenda && (
                     <p className="mt-1.5 whitespace-pre-line text-xs leading-relaxed text-bone-300">
                       {m.agenda}
                     </p>
                   )}
 
-                  {/* Only on a meeting that has happened. Notes never re-send
-                      an invite or bump the sequence — nobody wants a fresh
-                      calendar prompt because someone typed up minutes. */}
                   {canManage && isPast && !cancelled && (
                     <MeetingNotes
                       meetingId={m.id}
@@ -169,17 +231,18 @@ function Section({
                 </div>
 
                 <div className="flex shrink-0 flex-col items-end gap-2">
-                  <Badge>{m.status}</Badge>
-                  {m.join_url && !cancelled && (
+                  {/* Join button ONLY rendered if meeting is upcoming (not past and not cancelled) */}
+                  {safeJoinUrl && !cancelled && !isPast && (
                     <a
-                      href={m.join_url}
+                      href={safeJoinUrl}
                       target="_blank"
                       rel="noreferrer"
-                      className="mono-tag inline-flex items-center gap-1 text-[11px] text-lime-400 hover:underline"
+                      className="mono-tag inline-flex items-center gap-1.5 rounded-lg border border-lime-400/40 bg-lime-400/10 px-3 py-1 text-xs text-lime-400 hover:bg-lime-400/20 hover:underline"
                     >
-                      <Video size={11} /> Join
+                      <Video size={13} /> Join Call
                     </a>
                   )}
+
                   {canManage && !cancelled && (
                     <MeetingActions meetingId={m.id} title={m.title} />
                   )}

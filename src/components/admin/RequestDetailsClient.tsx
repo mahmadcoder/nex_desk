@@ -3,9 +3,9 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { Send, Copy, Check, FileDown, Loader2, UserPlus, Trash2, CheckCircle2, Eye, ExternalLink } from "lucide-react";
+import { Send, Copy, Check, FileDown, Loader2, UserPlus, Trash2, CheckCircle2, Eye, ExternalLink, Pencil } from "lucide-react";
 import Modal from "@/components/admin/Modal";
-import { createIntakeRequest, approveIntake, revokeIntake, resolveIntake } from "@/lib/actions/intake";
+import { createIntakeRequest, approveIntake, revokeIntake, resolveIntake, updateIntakeRequest, deleteIntakeRequest } from "@/lib/actions/intake";
 import { intakeFieldsFor, intakeMessage } from "@/config/intakeFields";
 import { fmtDate, fmtDateTime } from "@/lib/datetime";
 
@@ -147,19 +147,25 @@ export default function RequestDetailsClient({ kind }: { kind: "client" | "staff
           <div className="space-y-4">
             <div className="grid gap-3 sm:grid-cols-2">
               <div>
-                <label className="mono-tag mb-1.5 block">Recipient Name (Who it is sent to)</label>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="mono-tag block text-[11px] text-bone-200">Recipient Name</label>
+                  <span className="mono-tag text-[9px] text-lime-400 font-semibold">Required</span>
+                </div>
                 <input
-                  className={field}
+                  className={`${field} placeholder:text-bone-500 text-bone-50`}
                   value={recipientName}
                   onChange={(e) => setRecipientName(e.target.value)}
                   placeholder="e.g. Ahmed Sadiq"
                 />
               </div>
               <div>
-                <label className="mono-tag mb-1.5 block">Recipient Email (optional)</label>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="mono-tag block text-[11px] text-bone-200">Recipient Email</label>
+                  <span className="mono-tag text-[9px] text-bone-500">Optional</span>
+                </div>
                 <input
                   type="email"
-                  className={field}
+                  className={`${field} placeholder:text-bone-500 text-bone-50`}
                   value={recipientEmail}
                   onChange={(e) => setRecipientEmail(e.target.value)}
                   placeholder="ahmed@example.com"
@@ -167,21 +173,27 @@ export default function RequestDetailsClient({ kind }: { kind: "client" | "staff
               </div>
             </div>
             <div>
-              <label className="mono-tag mb-1.5 block">Internal Label / Reference</label>
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="mono-tag block text-[11px] text-bone-200">Internal Reference</label>
+                <span className="mono-tag text-[9px] text-bone-500">For dashboard</span>
+              </div>
               <input
-                className={field}
+                className={`${field} placeholder:text-bone-500 text-bone-50`}
                 value={label}
                 onChange={(e) => setLabel(e.target.value)}
-                placeholder="e.g. Zenith E-commerce Onboarding Call"
+                placeholder={kind === "client" ? "e.g. Zenith E-commerce Onboarding" : "e.g. Frontend Developer Onboarding"}
               />
             </div>
             <div>
-              <label className="mono-tag mb-1.5 block">A line for them (optional)</label>
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="mono-tag block text-[11px] text-bone-200">Custom Note / Greeting</label>
+                <span className="mono-tag text-[9px] text-bone-500">Optional</span>
+              </div>
               <textarea
-                className={`${field} min-h-[70px] resize-y`}
+                className={`${field} min-h-[70px] resize-y placeholder:text-bone-500 text-bone-50`}
                 value={note}
                 onChange={(e) => setNote(e.target.value)}
-                placeholder="Replaces the default intro on the form."
+                placeholder="Replaces the default welcome intro on the form."
               />
             </div>
 
@@ -258,10 +270,18 @@ export function IntakeRow({ row, isPrivileged = true }: { row: any; isPrivileged
   const router = useRouter();
   const [pending, start] = useTransition();
   const [open, setOpen] = useState(false);
+  const [openEdit, setOpenEdit] = useState(false);
 
   const p = (row.payload ?? {}) as Record<string, string>;
-  const who = p.name || p.full_name || row.label || "Someone";
+  const who = p.name || p.full_name || row.recipient_name || row.label || "Someone";
   const fields = intakeFieldsFor(row.kind);
+  const isResolvedOrApproved = row.status === "approved" || row.status === "resolved";
+
+  const [editRecipientName, setEditRecipientName] = useState(row.recipient_name || "");
+  const [editRecipientEmail, setEditRecipientEmail] = useState(row.recipient_email || "");
+  const [editLabel, setEditLabel] = useState(row.label || "");
+  const [editNote, setEditNote] = useState(row.note || "");
+  const [editKind, setEditKind] = useState<"client" | "staff">(row.kind || "client");
 
   const approve = () =>
     start(async () => {
@@ -287,14 +307,50 @@ export function IntakeRow({ row, isPrivileged = true }: { row: any; isPrivileged
       router.refresh();
     });
 
-  const recipient = row.recipient_name || row.recipient_email || row.label || "Direct Link";
+  const handleUpdate = () =>
+    start(async () => {
+      const res = await updateIntakeRequest(row.id, {
+        recipientName: editRecipientName,
+        recipientEmail: editRecipientEmail,
+        label: editLabel,
+        note: editNote,
+        kind: editKind,
+      });
+      if (!res.ok) {
+        toast.error(res.error);
+        return;
+      }
+      toast.success("Form request updated successfully.");
+      setOpenEdit(false);
+      router.refresh();
+    });
+
+  const handleDelete = () => {
+    if (!confirm(`Are you sure you want to delete this request for ${who}? The sent link will be permanently revoked.`)) return;
+    start(async () => {
+      const res = await deleteIntakeRequest(row.id);
+      if (!res.ok) {
+        toast.error(res.error);
+        return;
+      }
+      toast.success("Request deleted and link revoked.");
+      router.refresh();
+    });
+  };
 
   return (
     <>
-      <li className="flex flex-wrap items-start justify-between gap-3 p-4">
+      <li className="flex flex-wrap items-start justify-between gap-3 p-4 hover:bg-ink-800/20 transition-colors">
         <div className="min-w-0 space-y-1">
           <div className="flex flex-wrap items-center gap-2">
             <p className="text-sm font-semibold text-bone-100">{who}</p>
+            <span
+              className={`mono-tag text-[10px] px-2 py-0.5 rounded ${
+                row.kind === "client" ? "bg-blue-400/10 text-blue-300 border border-blue-400/30" : "bg-lime-400/10 text-lime-300 border border-lime-400/30"
+              }`}
+            >
+              {row.kind === "client" ? "Client Onboarding" : "Staff Onboarding"}
+            </span>
             {row.recipient_name && row.recipient_name !== who && (
               <span className="mono-tag text-[10px] text-bone-400">
                 To: {row.recipient_name}
@@ -303,13 +359,12 @@ export function IntakeRow({ row, isPrivileged = true }: { row: any; isPrivileged
           </div>
 
           <p className="mono-tag text-[10px]">
-            {row.kind === "client" ? "Client" : "Team member"} ·{" "}
             {row.status === "submitted"
               ? `sent ${fmtDateTime(row.submitted_at)}`
-              : row.status === "approved" || row.status === "resolved"
+              : isResolvedOrApproved
                 ? `resolved ${fmtDate(row.resolved_at || row.approved_at)}`
                 : row.status === "revoked"
-                  ? "revoked"
+                  ? "link revoked"
                   : `waiting · expires ${fmtDate(row.expires_at)}`}
           </p>
 
@@ -325,7 +380,7 @@ export function IntakeRow({ row, isPrivileged = true }: { row: any; isPrivileged
         </div>
 
         <div className="flex shrink-0 flex-wrap items-center gap-2">
-          {row.token && (
+          {row.token && row.status === "pending" && (
             <a
               href={`/intake/${row.token}`}
               target="_blank"
@@ -335,76 +390,91 @@ export function IntakeRow({ row, isPrivileged = true }: { row: any; isPrivileged
               <ExternalLink size={11} /> Open Form
             </a>
           )}
-          {row.status === "submitted" && (
-            <>
-              <button className="btn btn-sm gap-1.5" onClick={() => setOpen(true)}>
-                <Eye size={13} /> View details
-              </button>
-              {isPrivileged && (
-                <button
-                  type="button"
-                  disabled={pending}
-                  onClick={resolve}
-                  className="btn btn-sm border-emerald-400/40 text-emerald-300 hover:bg-emerald-400/10"
-                  title="Mark as resolved / cleared without creating a new record"
-                >
-                  <CheckCircle2 size={13} /> Mark resolved
-                </button>
-              )}
-            </>
+
+          {/* Submitted or Resolved: button to view details */}
+          {(row.status === "submitted" || isResolvedOrApproved) && (
+            <button className="btn btn-sm gap-1.5" onClick={() => setOpen(true)}>
+              <Eye size={13} /> {isResolvedOrApproved ? "View details" : "View details"}
+            </button>
           )}
+
+          {row.status === "submitted" && isPrivileged && (
+            <button
+              type="button"
+              disabled={pending}
+              onClick={resolve}
+              className="btn btn-sm border-emerald-400/40 text-emerald-300 hover:bg-emerald-400/10"
+              title="Mark as resolved / cleared without creating a new record"
+            >
+              <CheckCircle2 size={13} /> Mark resolved
+            </button>
+          )}
+
           {row.status === "pending" && isPrivileged && (
+            <button
+              type="button"
+              disabled={pending}
+              onClick={resolve}
+              className="mono-tag inline-flex items-center gap-1 rounded border border-ink-600 px-2 py-1 text-[11px] text-bone-300 hover:border-emerald-400/40 hover:text-emerald-300"
+              title="Mark as resolved / cleared"
+            >
+              <CheckCircle2 size={11} /> Resolve
+            </button>
+          )}
+
+          {/* Admin Edit & Delete Actions */}
+          {isPrivileged && (
             <>
               <button
                 type="button"
                 disabled={pending}
-                onClick={resolve}
-                className="mono-tag inline-flex items-center gap-1 rounded border border-ink-600 px-2 py-1 text-[11px] text-bone-300 hover:border-emerald-400/40 hover:text-emerald-300"
-                title="Mark as resolved / cleared"
+                onClick={() => setOpenEdit(true)}
+                className="rounded p-1.5 text-bone-400 hover:bg-ink-800 hover:text-lime-400"
+                title="Edit request details form"
               >
-                <CheckCircle2 size={11} /> Resolve
+                <Pencil size={14} />
               </button>
               <button
                 type="button"
                 disabled={pending}
-                title="Revoke this link"
-                onClick={() =>
-                  start(async () => {
-                    const res = await revokeIntake(row.id);
-                    if (!res.ok) toast.error(res.error);
-                    router.refresh();
-                  })
-                }
+                title="Delete this request (revokes link)"
+                onClick={handleDelete}
                 className="rounded p-1.5 text-bone-500 hover:bg-ink-800 hover:text-rose-400"
               >
                 <Trash2 size={14} />
               </button>
             </>
           )}
-          {(row.status === "approved" || row.status === "resolved") && (
-            <span className="mono-tag inline-flex items-center gap-1 text-[11px] text-emerald-400">
-              <CheckCircle2 size={12} /> Resolved
-            </span>
-          )}
         </div>
       </li>
 
+      {/* View Submitted Details Modal */}
       <Modal
         open={open}
         onClose={() => setOpen(false)}
         pending={pending}
         size="lg"
-        title={`Add ${who}?`}
-        description="This is what they sent. Adding them runs the normal create flow — including the welcome email and login."
+        title={isResolvedOrApproved ? `Submitted Details — ${who}` : `Add ${who}?`}
+        description={
+          isResolvedOrApproved
+            ? "Here are the details submitted by the recipient."
+            : "This is what they sent. Adding them runs the normal create flow — including the welcome email and login."
+        }
         footer={
-          <>
-            <button className="btn" onClick={() => setOpen(false)} disabled={pending}>
-              Not yet
+          isResolvedOrApproved ? (
+            <button className="btn btn-primary" onClick={() => setOpen(false)}>
+              Close
             </button>
-            <button className="btn btn-primary" onClick={approve} disabled={pending}>
-              {pending ? "Adding…" : `Add ${row.kind === "client" ? "client" : "employee"}`}
-            </button>
-          </>
+          ) : (
+            <>
+              <button className="btn" onClick={() => setOpen(false)} disabled={pending}>
+                Not yet
+              </button>
+              <button className="btn btn-primary" onClick={approve} disabled={pending}>
+                {pending ? "Adding…" : `Add ${row.kind === "client" ? "client" : "employee"}`}
+              </button>
+            </>
+          )
         }
       >
         <dl className="space-y-3">
@@ -418,12 +488,100 @@ export function IntakeRow({ row, isPrivileged = true }: { row: any; isPrivileged
           ))}
         </dl>
 
-        {row.kind === "staff" && (
+        {row.kind === "staff" && !isResolvedOrApproved && (
           <p className="mt-4 rounded-lg border border-ink-600 bg-ink-800/60 p-3 text-[11px] leading-relaxed text-bone-400">
             Job title, salary and department are not in this form. They are created with
             placeholders — set them on the profile before the first payroll run.
           </p>
         )}
+      </Modal>
+
+      {/* Admin Edit Form Request Modal */}
+      <Modal
+        open={openEdit}
+        onClose={() => setOpenEdit(false)}
+        pending={pending}
+        size="lg"
+        title={`Edit Form Request — ${who}`}
+        description="Modify recipient name, email, target role or internal note for this onboarding request."
+        footer={
+          <>
+            <button className="btn" onClick={() => setOpenEdit(false)} disabled={pending}>
+              Cancel
+            </button>
+            <button className="btn btn-primary" onClick={handleUpdate} disabled={pending}>
+              {pending ? "Saving…" : "Save Changes"}
+            </button>
+          </>
+        }
+      >
+        <div className="space-y-4">
+          <div>
+            <label className="mono-tag mb-1.5 block">Form Type (Client or Staff)</label>
+            <select
+              className={field}
+              value={editKind}
+              onChange={(e) => setEditKind(e.target.value as "client" | "staff")}
+            >
+              <option value="client">Client Onboarding</option>
+              <option value="staff">Staff / Team Onboarding</option>
+            </select>
+          </div>
+
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div>
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="mono-tag block text-[11px] text-bone-200">Recipient Name</label>
+                <span className="mono-tag text-[9px] text-lime-400 font-semibold">Required</span>
+              </div>
+              <input
+                className={`${field} placeholder:text-bone-500 text-bone-50`}
+                value={editRecipientName}
+                onChange={(e) => setEditRecipientName(e.target.value)}
+                placeholder="Recipient full name"
+              />
+            </div>
+            <div>
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="mono-tag block text-[11px] text-bone-200">Recipient Email</label>
+                <span className="mono-tag text-[9px] text-bone-500">Optional</span>
+              </div>
+              <input
+                type="email"
+                className={`${field} placeholder:text-bone-500 text-bone-50`}
+                value={editRecipientEmail}
+                onChange={(e) => setEditRecipientEmail(e.target.value)}
+                placeholder="recipient@example.com"
+              />
+            </div>
+          </div>
+
+          <div>
+            <div className="flex items-center justify-between mb-1.5">
+              <label className="mono-tag block text-[11px] text-bone-200">Internal Reference / Label</label>
+              <span className="mono-tag text-[9px] text-bone-500">For dashboard</span>
+            </div>
+            <input
+              className={`${field} placeholder:text-bone-500 text-bone-50`}
+              value={editLabel}
+              onChange={(e) => setEditLabel(e.target.value)}
+              placeholder="Internal label"
+            />
+          </div>
+
+          <div>
+            <div className="flex items-center justify-between mb-1.5">
+              <label className="mono-tag block text-[11px] text-bone-200">Instructions / Note for Recipient</label>
+              <span className="mono-tag text-[9px] text-bone-500">Optional</span>
+            </div>
+            <textarea
+              className={`${field} min-h-[70px] resize-y placeholder:text-bone-500 text-bone-50`}
+              value={editNote}
+              onChange={(e) => setEditNote(e.target.value)}
+              placeholder="Instructions note shown on public form"
+            />
+          </div>
+        </div>
       </Modal>
     </>
   );

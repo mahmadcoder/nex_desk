@@ -28,13 +28,17 @@ const DURATIONS = ["15", "30", "45", "60", "90"];
 export default function MeetingsClient({
   clients,
   projects,
+  employees = [],
 }: {
   clients: { id: string; name: string; company?: string | null }[];
   projects: { id: string; name: string; client_id: string }[];
+  employees?: { id: string; full_name: string; job_title?: string | null; assigned_client_ids?: string[] }[];
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [pending, start] = useTransition();
+  const [selectedStaffIds, setSelectedStaffIds] = useState<string[]>([]);
+  const [staffSearch, setStaffSearch] = useState("");
   const [f, setF] = useState({
     clientId: "",
     projectId: "",
@@ -45,9 +49,25 @@ export default function MeetingsClient({
     joinUrl: "",
   });
 
-  // Only that client's projects — offering every project in the agency is how
-  // a call gets filed against the wrong one.
+  // Only that client's projects
   const theirProjects = projects.filter((p) => p.client_id === f.clientId);
+
+  // Priority sorting: employees assigned to this client first, then others
+  const filteredEmployees = employees.filter((e) =>
+    e.full_name.toLowerCase().includes(staffSearch.toLowerCase())
+  );
+  const assignedTeam = filteredEmployees.filter(
+    (e) => f.clientId && e.assigned_client_ids?.includes(f.clientId)
+  );
+  const otherTeam = filteredEmployees.filter(
+    (e) => !f.clientId || !e.assigned_client_ids?.includes(f.clientId)
+  );
+
+  const toggleStaff = (id: string) => {
+    setSelectedStaffIds((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+    );
+  };
 
   const save = () =>
     start(async () => {
@@ -59,6 +79,7 @@ export default function MeetingsClient({
         startsAt: f.startsAt,
         durationMin: Number(f.durationMin),
         joinUrl: f.joinUrl,
+        staffIds: selectedStaffIds,
       });
 
       if (!res.ok) {
@@ -159,12 +180,99 @@ export default function MeetingsClient({
               className={field}
               value={f.joinUrl}
               onChange={(e) => setF({ ...f, joinUrl: e.target.value })}
-              placeholder="https://meet.google.com/… or a Zoom link"
+              placeholder="e.g. meet.google.com/abc-def or a Zoom link"
             />
             <p className="mt-1 text-[11px] text-bone-400">
-              Optional. Leave it empty and the invite says the link will follow.
+              Optional. Paste Google Meet, Zoom, or Teams link. It will open as an external link for attendees.
             </p>
           </div>
+
+          {/* Multi-Staff Selection with Priority Sorting */}
+          {employees.length > 0 && (
+            <div className="sm:col-span-2 rounded-lg border border-ink-600 bg-ink-800/40 p-3">
+              <label className="mono-tag mb-1.5 block text-xs">Invite Staff / Team Members (Optional)</label>
+
+              {/* Selected Pills */}
+              {selectedStaffIds.length > 0 && (
+                <div className="mb-2.5 flex flex-wrap gap-1.5">
+                  {selectedStaffIds.map((id) => {
+                    const emp = employees.find((e) => e.id === id);
+                    if (!emp) return null;
+                    return (
+                      <span
+                        key={id}
+                        className="mono-tag inline-flex items-center gap-1 rounded-full border border-lime-400/40 bg-lime-400/10 px-2.5 py-0.5 text-[11px] text-lime-300"
+                      >
+                        {emp.full_name}
+                        <button
+                          type="button"
+                          onClick={() => toggleStaff(id)}
+                          className="ml-1 text-bone-400 hover:text-rose-400"
+                        >
+                          ✕
+                        </button>
+                      </span>
+                    );
+                  })}
+                </div>
+              )}
+
+              <input
+                className={`${field} text-xs py-1.5 mb-2`}
+                placeholder="Type name to search staff..."
+                value={staffSearch}
+                onChange={(e) => setStaffSearch(e.target.value)}
+              />
+
+              <div className="max-h-36 overflow-y-auto space-y-2 pr-1 text-xs">
+                {assignedTeam.length > 0 && (
+                  <div>
+                    <p className="mono-tag mb-1 text-[10px] text-lime-400 font-semibold">
+                      ⭐ Assigned to this Project / Client ({assignedTeam.length})
+                    </p>
+                    <div className="space-y-1">
+                      {assignedTeam.map((e) => (
+                        <label
+                          key={e.id}
+                          className="flex cursor-pointer items-center justify-between rounded p-1.5 hover:bg-ink-700/50"
+                        >
+                          <span className="text-bone-100 font-medium">{e.full_name}</span>
+                          <input
+                            type="checkbox"
+                            checked={selectedStaffIds.includes(e.id)}
+                            onChange={() => toggleStaff(e.id)}
+                            className="accent-lime-400 h-3.5 w-3.5"
+                          />
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                <div>
+                  {assignedTeam.length > 0 && (
+                    <p className="mono-tag mb-1 text-[10px] text-bone-400">Other Agency Staff</p>
+                  )}
+                  <div className="space-y-1">
+                    {otherTeam.map((e) => (
+                      <label
+                        key={e.id}
+                        className="flex cursor-pointer items-center justify-between rounded p-1.5 hover:bg-ink-700/50"
+                      >
+                        <span className="text-bone-200">{e.full_name}</span>
+                        <input
+                          type="checkbox"
+                          checked={selectedStaffIds.includes(e.id)}
+                          onChange={() => toggleStaff(e.id)}
+                          className="accent-lime-400 h-3.5 w-3.5"
+                        />
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
 
           {theirProjects.length > 0 && (
             <div className="sm:col-span-2">

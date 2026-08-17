@@ -14,7 +14,7 @@ import { provisionLockedDeal } from "@/lib/deals/provision";
 import { contractPosition } from "@/lib/billing";
 import { diffFields, changeLines, CLIENT_FIELDS } from "@/lib/diff";
 import { fmtDateTime, fmtDate } from "@/lib/datetime";
-import { notifyClient } from "@/lib/actions/notifyClient";
+import { notifyClient, notifyClientGrouped } from "@/lib/actions/notifyClient";
 import { recordAudit } from "@/lib/actions/audit";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -326,17 +326,37 @@ export async function saveClient(id: string | null, data: Record<string, unknown
 export async function deleteClient(id: string) {
   const me = await requireOwnerAdmin();
   const db = createAdminClient();
-  const { data: client } = await db.from("clients").select("profile_id").eq("id", id).single();
-  if (client?.profile_id) {
-    try {
-      await db.auth.admin.deleteUser(client.profile_id);
-    } catch (e) {
-      console.error("Error deleting auth user:", e);
-    }
-  }
-  await db.from("clients").delete().eq("id", id);
-  await audit(me.userId, "client.delete", "clients", id);
+  
+  // Soft delete: keep record in Supabase database so invoices, deals, projects remain intact
+  await db
+    .from("clients")
+    .update({
+      is_active: false,
+      status: "inactive",
+    })
+    .eq("id", id);
+
+  await audit(me.userId, "client.archive", "clients", id);
   revalidatePath(`/${ADMIN}/clients`);
+  revalidatePath(`/${ADMIN}/archive`);
+  return { success: true };
+}
+
+export async function restoreClient(id: string) {
+  const me = await requireOwnerAdmin();
+  const db = createAdminClient();
+
+  await db
+    .from("clients")
+    .update({
+      is_active: true,
+      status: "active",
+    })
+    .eq("id", id);
+
+  await audit(me.userId, "client.restore", "clients", id);
+  revalidatePath(`/${ADMIN}/clients`);
+  revalidatePath(`/${ADMIN}/archive`);
   return { success: true };
 }
 
@@ -1071,11 +1091,28 @@ export async function recomputeProjectProgress(projectId: string, bump = 0) {
 export async function toggleMilestone(id: string, done: boolean) {
   const me = await requireStaff();
   const db = createAdminClient();
-  const { data: m } = await db.from("milestones")
+  const { data: m } = await db
+    .from("milestones")
     .update({ is_done: done, completed_at: done ? new Date().toISOString() : null })
-    .eq("id", id).select("project_id").single();
+    .eq("id", id)
+    .select("project_id, title, projects(name, client_id)")
+    .single();
 
-  if (m) await recomputeProjectProgress(m.project_id);
+  if (m) {
+    await recomputeProjectProgress(m.project_id);
+
+    // Notify client when milestone is ready for signoff
+    if (done && (m.projects as any)?.client_id) {
+      await notifyClientGrouped({
+        clientId: (m.projects as any).client_id,
+        kind: "milestone.approved",
+        title: () => `Milestone ready for your approval: "${m.title}"`,
+        body: `Project: ${(m.projects as any)?.name || "Your Project"} · Ready for Review & Signoff`,
+        href: `/portal/projects/${m.project_id}?tab=milestones`,
+        entityId: m.project_id,
+      }).catch(() => null);
+    }
+  }
 
   await audit(me.userId, "milestone.toggle", "milestones", id, { done });
   revalidatePath(`/${ADMIN}/projects`, "layout");

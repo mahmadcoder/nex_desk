@@ -149,7 +149,9 @@ export async function middleware(req: NextRequest) {
   }
 
   // ---------- CLIENT PORTAL ----------
-  if (pathname.startsWith("/portal") && pathname !== "/portal/login") {
+  if (pathname === "/portal/login") {
+    if (user) return NextResponse.redirect(new URL("/portal", req.url));
+  } else if (pathname.startsWith("/portal")) {
     if (!user) return NextResponse.redirect(new URL("/portal/login", req.url));
   }
 

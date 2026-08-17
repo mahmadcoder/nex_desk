@@ -49,6 +49,23 @@ function clean(text: string): string {
   return t.trim();
 }
 
+function fallbackTaskBreakdown(context: Record<string, string>): string {
+  const name = context.name || context.project || context.project_title || "the project";
+
+  return [
+    `Review project scope and requirements for ${name}`,
+    `Create design wireframes, component layouts & brand styling`,
+    `Setup development environment, repository, and staging URL`,
+    `Build core UI layouts, navigation, and responsive structures`,
+    `Implement database schemas, server actions, and core workflows`,
+    `Integrate APIs, authentication, and external services`,
+    `Conduct cross-browser QA testing and performance audit`,
+    `Fix reported issues and polish edge cases`,
+    `Deploy to staging and prepare client review pack`,
+    `Final milestone sign-off and project handover`,
+  ].join("\n");
+}
+
 export async function POST(req: Request) {
   const me = await getCurrentStaff();
   if (!me) return NextResponse.json({ error: "Not signed in" }, { status: 401 });
@@ -91,9 +108,15 @@ export async function POST(req: Request) {
   const result = await aiComplete(builder({ text, context, mode }));
 
   if (!result.ok) {
-    // The helper's errors are written for humans — pass them straight through.
+    // If field is task_breakdown, provide a clean heuristic fallback so tasks can always be generated
+    if (body.field === "task_breakdown") {
+      const fallback = fallbackTaskBreakdown(context);
+      return NextResponse.json({ ok: true, text: fallback, suggestion: fallback });
+    }
+
     return NextResponse.json({ error: result.error }, { status: 502 });
   }
 
-  return NextResponse.json({ ok: true, suggestion: clean(result.text) });
+  const cleaned = clean(result.text);
+  return NextResponse.json({ ok: true, text: cleaned, suggestion: cleaned });
 }

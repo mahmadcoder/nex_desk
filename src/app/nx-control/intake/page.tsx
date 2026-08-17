@@ -1,11 +1,10 @@
 import { getCurrentStaff } from "@/lib/auth/staff";
-import { PageHead } from "@/components/admin/ui";
+import { PageHead, Stat } from "@/components/admin/ui";
 import { listIntakeRequests } from "@/lib/actions/intake";
 import RequestDetailsClient, { IntakeRow } from "@/components/admin/RequestDetailsClient";
-import { Inbox, Calendar, FileText } from "lucide-react";
+import { Inbox, User, Users } from "lucide-react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
-import { fmtDate } from "@/lib/datetime";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
@@ -15,7 +14,7 @@ export const dynamic = "force-dynamic";
 export default async function IntakePage({
   searchParams,
 }: {
-  searchParams: Promise<{ tab?: string }>;
+  searchParams: Promise<{ tab?: string; kind?: string }>;
 }) {
   const me = await getCurrentStaff();
   if (!me) return null;
@@ -33,10 +32,22 @@ export default async function IntakePage({
 
   const params = (await searchParams) ?? {};
   const activeTab = params.tab || "all";
+  const activeKind = params.kind || "all";
 
-  const waiting = rows.filter((r: any) => r.status === "submitted");
-  const pending = rows.filter((r: any) => r.status === "pending");
-  const closed = rows.filter((r: any) => ["approved", "resolved", "revoked"].includes(r.status));
+  // Category Filter (Client vs Staff vs All)
+  const categoryRows =
+    activeKind === "client"
+      ? rows.filter((r: any) => r.kind === "client")
+      : activeKind === "staff"
+        ? rows.filter((r: any) => r.kind === "staff")
+        : rows;
+
+  const clientRows = rows.filter((r: any) => r.kind === "client");
+  const staffRows = rows.filter((r: any) => r.kind === "staff");
+
+  const waiting = categoryRows.filter((r: any) => r.status === "submitted");
+  const pending = categoryRows.filter((r: any) => r.status === "pending");
+  const closed = categoryRows.filter((r: any) => ["approved", "resolved", "revoked"].includes(r.status));
 
   const filteredRows =
     activeTab === "submitted"
@@ -45,7 +56,7 @@ export default async function IntakePage({
         ? pending
         : activeTab === "resolved"
           ? closed
-          : rows;
+          : categoryRows;
 
   return (
     <>
@@ -68,11 +79,63 @@ export default async function IntakePage({
         }
       />
 
-      <div className="mt-6 flex flex-wrap gap-2 border-b border-ink-600 pb-3">
-        <TabLink href="/nx-control/intake" label="All Requests" count={rows.length} active={activeTab === "all"} />
-        <TabLink href="/nx-control/intake?tab=submitted" label="Received / Submitted" count={waiting.length} active={activeTab === "submitted"} />
-        <TabLink href="/nx-control/intake?tab=pending" label="Waiting on Them" count={pending.length} active={activeTab === "pending"} />
-        <TabLink href="/nx-control/intake?tab=resolved" label="Resolved / Done" count={closed.length} active={activeTab === "resolved"} />
+      {/* Summary Analytics Cards for Client & Staff Requests */}
+      <div className="mb-6 grid gap-3 grid-cols-2 lg:grid-cols-4">
+        <Stat
+          label="Client Requests"
+          value={String(clientRows.length)}
+          hint={`${clientRows.filter((r: any) => r.status === "submitted").length} submitted · ${clientRows.filter((r: any) => r.status === "pending").length} pending`}
+        />
+        <Stat
+          label="Staff Requests"
+          value={String(staffRows.length)}
+          hint={`${staffRows.filter((r: any) => r.status === "submitted").length} submitted · ${staffRows.filter((r: any) => r.status === "pending").length} pending`}
+        />
+        <Stat
+          label="Action Needed"
+          value={String(waiting.length)}
+          hint="Submissions ready to review"
+          tone={waiting.length > 0 ? "good" : "default"}
+        />
+        <Stat
+          label="Resolved / Done"
+          value={String(closed.length)}
+          hint="Completed onboarding forms"
+        />
+      </div>
+
+      {/* Primary Category Switcher (Client vs Staff) */}
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-ink-600 pb-3">
+        <div className="flex flex-wrap gap-2">
+          <CategoryLink
+            href="/nx-control/intake"
+            label="All Requests"
+            count={rows.length}
+            active={activeKind === "all"}
+          />
+          <CategoryLink
+            href="/nx-control/intake?kind=client"
+            label="Client Onboarding"
+            count={clientRows.length}
+            active={activeKind === "client"}
+            icon={<User size={13} />}
+          />
+          <CategoryLink
+            href="/nx-control/intake?kind=staff"
+            label="Staff / Team Onboarding"
+            count={staffRows.length}
+            active={activeKind === "staff"}
+            icon={<Users size={13} />}
+          />
+        </div>
+
+        {/* Secondary Status Filter Tabs */}
+        <div className="flex flex-wrap gap-1.5">
+          <TabLink href={`/nx-control/intake?kind=${activeKind}`} label="All" count={categoryRows.length} active={activeTab === "all"} />
+          <TabLink href={`/nx-control/intake?kind=${activeKind}&tab=submitted`} label="Received" count={waiting.length} active={activeTab === "submitted"} />
+          <TabLink href={`/nx-control/intake?kind=${activeKind}&tab=pending`} label="Pending" count={pending.length} active={activeTab === "pending"} />
+          <TabLink href={`/nx-control/intake?kind=${activeKind}&tab=resolved`} label="Resolved" count={closed.length} active={activeTab === "resolved"} />
+        </div>
       </div>
 
       {!filteredRows.length ? (
@@ -81,7 +144,7 @@ export default async function IntakePage({
           <p className="mt-4 text-sm text-bone-200">No request details in this view.</p>
           {isPrivileged && (
             <p className="mx-auto mt-2 max-w-md text-sm leading-relaxed text-bone-400">
-              Press Request details to generate a custom WhatsApp message, PDF, and link for any client or team member.
+              Press Request Client / Staff Details above to generate a custom WhatsApp message, PDF, and link.
             </p>
           )}
         </div>
@@ -96,11 +159,40 @@ export default async function IntakePage({
       ) : (
         <div className="mt-6 space-y-8">
           <Group title="Received & Ready to Review" rows={waiting} isPrivileged={isPrivileged} />
-          <Group title="Waiting on Client / Staff" rows={pending} isPrivileged={isPrivileged} />
-          <Group title="Resolved & Done" rows={closed} isPrivileged={isPrivileged} />
+          <Group title="Waiting on Recipient" rows={pending} isPrivileged={isPrivileged} />
+          <Group title="Resolved & Completed" rows={closed} isPrivileged={isPrivileged} />
         </div>
       )}
     </>
+  );
+}
+
+function CategoryLink({
+  href,
+  label,
+  count,
+  active,
+  icon,
+}: {
+  href: string;
+  label: string;
+  count: number;
+  active: boolean;
+  icon?: React.ReactNode;
+}) {
+  return (
+    <Link
+      href={href}
+      className={cn(
+        "mono-tag inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs transition-colors",
+        active
+          ? "bg-lime-400/10 text-lime-400 font-semibold border border-lime-400/30"
+          : "text-bone-400 hover:text-bone-100 hover:bg-ink-800"
+      )}
+    >
+      {icon}
+      {label} <span className="text-[10px] text-bone-500">({count})</span>
+    </Link>
   );
 }
 
@@ -119,10 +211,10 @@ function TabLink({
     <Link
       href={href}
       className={cn(
-        "mono-tag inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs transition-colors",
+        "mono-tag inline-flex items-center gap-1 rounded-md px-2.5 py-1 text-[11px] transition-colors",
         active
-          ? "bg-lime-400/10 text-lime-400 font-semibold border border-lime-400/30"
-          : "text-bone-400 hover:text-bone-100 hover:bg-ink-800"
+          ? "bg-ink-700 text-bone-50 font-medium"
+          : "text-bone-400 hover:text-bone-200"
       )}
     >
       {label} <span className="text-[10px] text-bone-500">({count})</span>
