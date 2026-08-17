@@ -75,14 +75,6 @@ The Nex Desk Team`,
 
 Welcome aboard. We're glad to be working with you.
 
-Your client portal is live. Sign in any time to track progress, review documents and see who is working on your project:
-
-• Portal: {{portal_url}}
-• Email: {{client_email}}
-• Password: {{client_password}}
-
-What happens next:
-
 • We'll send a short intake form to collect your brand files, content and any references. It takes about five minutes.
 • Within two working days of getting it back, you'll receive your project outline with the timeline and milestones.
 • Work starts on the agreed date, and progress appears in your portal as we go.
@@ -113,6 +105,32 @@ Please change your password after your first sign-in.
 
 {{sender_name}}
 Nex Desk`,
+  },
+
+  client_archived: {
+    subject: "Account Update — {{client_company}} (Nex Desk)",
+    body: `Hi {{client_name}},
+
+This is to confirm that your client portal access for {{client_company}} has been archived as our active project engagement concludes.
+
+If you require copies of any past agreements, receipts, or project assets, or if you would like to initiate a new project in the future, please feel free to reply directly to this email.
+
+Thank you for partnering with Nex Desk.
+
+Nex Desk`,
+  },
+
+  employee_deactivated: {
+    subject: "Staff Account Deactivation — {{employee_name}} (Nex Desk)",
+    body: `Hi {{employee_name}},
+
+This email confirms that your Nex Desk staff account and system access have been deactivated.
+
+Thank you for your dedication and contributions to the agency. For any questions regarding your final settlement, experience documentation, or handover procedures, please reach out to agency administration.
+
+We wish you the very best in your future endeavors.
+
+Nex Desk Administration`,
   },
 
   account_email_changed: {

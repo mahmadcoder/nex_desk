@@ -4,9 +4,9 @@ import { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { toast } from "sonner";
-import { Eye, EyeOff, Check } from "lucide-react";
-
-import { getPortalGreeting, recordPortalLogin } from "@/lib/actions";
+import Link from "next/link";
+import { getPortalGreeting, recordPortalLogin, verifyClientCanLogin } from "@/lib/actions";
+import { Eye, EyeOff, Check, ShieldAlert } from "lucide-react";
 
 /**
  * Who signed in here last, remembered on this device only.
@@ -53,14 +53,30 @@ function PortalLoginForm() {
   const [busy, setBusy] = useState(false);
   const [firstName, setFirstName] = useState<string | null>(null);
   const [returning, setReturning] = useState(false);
+  const [deactivatedClientInfo, setDeactivatedClientInfo] = useState<{
+    name?: string;
+    company?: string;
+  } | null>(null);
+  const [isDeactivatedParam, setIsDeactivatedParam] = useState(false);
 
   useEffect(() => {
+    if (searchParams.get("deactivated") === "1") {
+      setIsDeactivatedParam(true);
+    }
+
     const queryKey = searchParams.get("key");
     if (queryKey) {
       // The link came from us, so we already know who we sent it to — greet
       // them by name and fill the address in rather than making them type it.
-      getPortalGreeting(queryKey).then((who) => {
+      getPortalGreeting(queryKey).then((who: any) => {
         if (!who) return;
+        if (who.deactivated) {
+          setDeactivatedClientInfo({
+            name: who.name || who.firstName,
+            company: who.company,
+          });
+          return;
+        }
         setEmail(who.email);
         setFirstName(who.firstName);
         setReturning(!who.isFirstTime);
@@ -78,9 +94,6 @@ function PortalLoginForm() {
     if (searchParams.get("logged_out") === "1") {
       toast.success("Signed out. See you soon.");
     }
-    if (searchParams.get("deactivated") === "1") {
-      toast.error("This portal account is currently inactive or archived. Please contact your account manager.");
-    }
   }, [searchParams]);
 
   async function handleLogin(e: React.FormEvent) {
@@ -90,6 +103,19 @@ function PortalLoginForm() {
 
     setBusy(true);
     try {
+      // 1. Verify client is active in agency records
+      const check = await verifyClientCanLogin(email.trim());
+      if (check.deactivated) {
+        const supabase = createClient();
+        await supabase.auth.signOut();
+        setDeactivatedClientInfo({
+          name: check.clientName || "",
+          company: check.company || "",
+        });
+        return;
+      }
+
+      // 2. Authenticate with Supabase
       const supabase = createClient();
       const { error } = await supabase.auth.signInWithPassword({
         email: email.trim(),
@@ -110,6 +136,52 @@ function PortalLoginForm() {
     } finally {
       setBusy(false);
     }
+  }
+
+  if (deactivatedClientInfo || isDeactivatedParam) {
+    return (
+      <div className="card p-8 border-rose-500/30 bg-rose-500/[0.04] text-center shadow-xl">
+        <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-rose-500/10 text-rose-400 mb-4">
+          <ShieldAlert className="h-6 w-6" />
+        </div>
+        <span className="mono-tag text-xs text-rose-400 font-semibold uppercase tracking-wider">
+          Account Inactive / Archived
+        </span>
+        <h1 className="mt-2 text-2xl font-bold text-bone-50">
+          Client Portal Access Suspended
+        </h1>
+        <p className="mx-auto mt-3 max-w-md text-sm leading-relaxed text-bone-300">
+          The portal account for <strong className="text-bone-100">{deactivatedClientInfo?.company || deactivatedClientInfo?.name || "this client"}</strong> is no longer active or has been archived by the agency.
+        </p>
+
+        <div className="mt-6 rounded-lg border border-ink-600 bg-ink-800/80 p-4 text-left">
+          <p className="mono-tag text-[10px] text-lime-400 font-semibold mb-1">What to do next:</p>
+          <ul className="text-xs text-bone-300 space-y-1.5 list-disc list-inside">
+            <li>If you are an active client and believe this is an error, please contact your Nex Desk account manager.</li>
+            <li>If you require copies of past agreements, receipts, or deliverables, reach out to our team.</li>
+          </ul>
+        </div>
+
+        <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
+          <Link href="/" className="btn btn-secondary text-xs">
+            Return to Homepage
+          </Link>
+          <button
+            type="button"
+            onClick={async () => {
+              const supabase = createClient();
+              await supabase.auth.signOut();
+              setDeactivatedClientInfo(null);
+              setIsDeactivatedParam(false);
+              router.push("/portal/login");
+            }}
+            className="btn btn-primary text-xs cursor-pointer"
+          >
+            Sign in with another account
+          </button>
+        </div>
+      </div>
+    );
   }
 
   return (

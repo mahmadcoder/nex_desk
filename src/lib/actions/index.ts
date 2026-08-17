@@ -323,13 +323,13 @@ export async function saveClient(id: string | null, data: Record<string, unknown
   return { ...res.data, credentialsEmailed, emailError };
 }
 
-export async function deleteClient(id: string) {
+export async function deleteClient(id: string, options?: { sendEmail?: boolean }) {
   const me = await requireOwnerAdmin();
   const db = createAdminClient();
 
   const { data: client } = await db
     .from("clients")
-    .select("profile_id, email")
+    .select("name, company, email, profile_id")
     .eq("id", id)
     .maybeSingle();
 
@@ -357,11 +357,29 @@ export async function deleteClient(id: string) {
     }
   }
 
+  let emailSent = false;
+  if (options?.sendEmail && client?.email) {
+    try {
+      const res = await sendEmail({
+        to: client.email,
+        templateKey: "client_archived",
+        vars: {
+          client_name: client.name || "there",
+          client_company: client.company || client.name || "your account",
+        },
+        actorId: me.userId,
+      });
+      emailSent = res.ok;
+    } catch (e) {
+      console.error("deleteClient: sendEmail failed:", e);
+    }
+  }
+
   await audit(me.userId, "client.archive", "clients", id);
   revalidatePath(`/${ADMIN}/clients`);
   revalidatePath(`/${ADMIN}/archive`);
   revalidatePath("/portal");
-  return { success: true };
+  return { success: true, emailSent };
 }
 
 export async function restoreClient(id: string) {
@@ -443,17 +461,54 @@ export async function getPortalGreeting(token: string) {
     .eq("portal_access_token", token)
     .maybeSingle();
 
-  if (!data || data.lifecycle === "archived" || data.is_active === false) {
-    return null;
+  if (!data) return null;
+
+  if (data.lifecycle === "archived" || data.is_active === false) {
+    return {
+      deactivated: true,
+      firstName: String(data.name || "").trim().split(/\s+/)[0] || null,
+      name: data.name as string,
+      email: data.email as string,
+      company: (data.company as string) || null,
+      isFirstTime: false,
+    };
   }
 
   return {
     firstName: String(data.name || "").trim().split(/\s+/)[0] || null,
+    name: data.name as string,
     email: data.email as string,
     company: (data.company as string) || null,
     // Never signed in → "Welcome". Been here before → "Welcome back".
     isFirstTime: Number(data.portal_login_count ?? 0) === 0,
+    deactivated: false,
   };
+}
+
+export async function verifyClientCanLogin(email: string) {
+  if (!email?.trim()) return { ok: false, error: "Please enter an email address." };
+  const db = createAdminClient();
+  const { data: client } = await db
+    .from("clients")
+    .select("id, name, company, lifecycle, is_active")
+    .ilike("email", email.trim())
+    .maybeSingle();
+
+  if (!client) {
+    return { ok: true };
+  }
+
+  if (client.lifecycle === "archived" || client.is_active === false) {
+    return {
+      ok: false,
+      deactivated: true,
+      clientName: client.name,
+      company: client.company,
+      error: "This client portal account has been deactivated or archived by the agency.",
+    };
+  }
+
+  return { ok: true, client };
 }
 
 /**

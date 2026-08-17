@@ -150,7 +150,10 @@ export async function middleware(req: NextRequest) {
     if (!role || !isActive) {
       if (isLoginPage) return res;
       await supabase.auth.signOut();
-      return NextResponse.redirect(new URL(`/${ADMIN_PATH}/login?deactivated=1`, req.url));
+      const redirectRes = NextResponse.redirect(new URL(`/${ADMIN_PATH}/login?deactivated=1`, req.url));
+      redirectRes.cookies.delete("nx_admin_login_at");
+      redirectRes.cookies.delete("nx_admin_last_activity");
+      return redirectRes;
     }
 
     if (isLoginPage) {

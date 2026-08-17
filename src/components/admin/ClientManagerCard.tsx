@@ -94,11 +94,17 @@ export default function ClientManagerCard({
     });
   };
 
+  const [notifyByEmail, setNotifyByEmail] = useState(false);
+
   const handleDelete = () => {
     start(async () => {
       try {
-        await deleteClient(client.id);
-        toast.success(`Deleted client ${client.name} successfully.`);
+        const res = await deleteClient(client.id, { sendEmail: notifyByEmail });
+        toast.success(
+          res.emailSent
+            ? `Deleted client ${client.name}. Offboarding email sent.`
+            : `Deleted client ${client.name} successfully.`
+        );
         const adminPath = process.env.NEXT_PUBLIC_ADMIN_PATH || "nx-control";
         router.push(`/${adminPath}/clients`);
         router.refresh();
@@ -238,14 +244,29 @@ export default function ClientManagerCard({
       {/* Delete Confirmation Modal */}
       <ConfirmModal
         isOpen={showDeleteModal}
-        title={`Delete ${client.name}?`}
-        description="This removes their profile, portal login and associated records. It cannot be undone."
-        confirmText="Delete client"
+        title={`Archive / Delete ${client.name}?`}
+        description="This removes this client from the active directory and suspends portal credentials. Past invoices and deals remain safely preserved in the database."
+        confirmText="Archive Client"
         isDanger
         pending={pending}
         onConfirm={handleDelete}
         onClose={() => setShowDeleteModal(false)}
-      />
+      >
+        <div className="rounded-lg border border-ink-600 bg-ink-800/80 p-3">
+          <label className="flex items-center gap-2.5 cursor-pointer text-xs text-bone-200">
+            <input
+              type="checkbox"
+              checked={notifyByEmail}
+              onChange={(e) => setNotifyByEmail(e.target.checked)}
+              className="h-4 w-4 rounded border-ink-500 bg-ink-900 text-lime-400 focus:ring-lime-400 cursor-pointer"
+            />
+            <span className="font-medium">Send offboarding email notification to client</span>
+          </label>
+          <p className="mt-1 text-[11px] text-bone-400 pl-6.5">
+            Courteously notifies {client.email} that their portal access has concluded and thanks them for their business.
+          </p>
+        </div>
+      </ConfirmModal>
     </div>
   );
 }

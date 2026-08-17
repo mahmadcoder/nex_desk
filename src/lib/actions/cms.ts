@@ -666,13 +666,13 @@ export async function saveEmployee(
   return { ...res.data, emailed, emailError };
 }
 
-export async function deleteEmployee(id: string) {
-  await requireOwnerAdmin();
+export async function deleteEmployee(id: string, options?: { sendEmail?: boolean }) {
+  const me = await requireOwnerAdmin();
   const db = createAdminClient();
 
   const { data: employee } = await db
     .from("employees")
-    .select("user_id, email")
+    .select("full_name, user_id, email")
     .eq("id", id)
     .maybeSingle();
 
@@ -698,9 +698,26 @@ export async function deleteEmployee(id: string) {
     }
   }
 
+  let emailSent = false;
+  if (options?.sendEmail && employee?.email) {
+    try {
+      const res = await sendEmail({
+        to: employee.email,
+        templateKey: "employee_deactivated",
+        vars: {
+          employee_name: employee.full_name || "Team Member",
+        },
+        actorId: me.userId,
+      });
+      emailSent = res.ok;
+    } catch (e) {
+      console.error("deleteEmployee: sendEmail failed:", e);
+    }
+  }
+
   revalidatePath(`/${ADMIN}/employees`);
   revalidatePath(`/${ADMIN}/archive`);
-  return { success: true };
+  return { success: true, emailSent };
 }
 
 export async function restoreEmployee(id: string) {

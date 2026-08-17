@@ -47,16 +47,15 @@ const DEFAULT_PERMS: PortalPerms = {
  */
 export async function getPortalSession(): Promise<PortalSession | null> {
   const session = await getPortalSessionOptional();
-  // `null` from the optional form means either "not signed in" or "no client
-  // row". Only the first is a redirect; the caller renders a card for the
-  // second, which is why that case is distinguished by `user` below.
   if (!session) {
     const supabase = await createClient();
     const {
       data: { user },
     } = await supabase.auth.getUser();
     if (!user) redirect("/portal/login");
-    return null;
+    // Client is authenticated in Supabase but their account was soft-deleted/archived
+    await supabase.auth.signOut();
+    redirect("/portal/login?deactivated=1");
   }
   return session;
 }

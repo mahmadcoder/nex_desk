@@ -5,7 +5,7 @@ import { useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 import { signIn } from "@/lib/actions";
 import { LogoMark } from "@/components/brand/Logo";
-import { Eye, EyeOff, ShieldCheck } from "lucide-react";
+import { Eye, EyeOff, ShieldCheck, ShieldAlert } from "lucide-react";
 
 const field =
   "w-full rounded-lg border border-ink-500 bg-ink-800 px-4 py-3 text-sm text-bone-50 placeholder:text-bone-600 focus:border-lime-400 focus:outline-none transition-colors";
@@ -24,13 +24,26 @@ function AdminLoginForm() {
     }
   }, [searchParams]);
 
+  const isDeactivated = searchParams.get("deactivated") === "1";
+
   return (
     <form action={action} className="card space-y-4 p-7 shadow-2xl border-ink-600">
+      {isDeactivated && (
+        <div className="rounded-lg border border-rose-500/40 bg-rose-500/10 p-3.5 text-left">
+          <p className="mono-tag text-[10px] text-rose-400 font-semibold mb-1 flex items-center gap-1.5">
+            <ShieldAlert size={13} /> Staff Account Deactivated
+          </p>
+          <p className="text-xs text-bone-200 leading-relaxed">
+            This employee profile has been marked as inactive or terminated. Access to the agency control center is revoked. If you believe this is an error, please reach out to the agency owner.
+          </p>
+        </div>
+      )}
+
       <div>
         <span className="mono-tag text-xs text-lime-400 block mb-1">Agency Owner System</span>
-        <h1 className="text-xl font-semibold text-bone-50">Admin Sign In</h1>
+        <h1 className="text-xl font-semibold text-bone-50">Admin &amp; Staff Sign In</h1>
         <p className="text-xs text-bone-400 mt-1 mb-4">
-          Enter your administrator credentials to access the agency console.
+          Enter your agency credentials to access your workspace.
         </p>
       </div>
 

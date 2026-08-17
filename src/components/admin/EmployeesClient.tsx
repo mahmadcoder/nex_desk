@@ -145,13 +145,18 @@ export default function EmployeesClient({
   };
 
   const [deletingEmployee, setDeletingEmployee] = useState<{ id: string; name: string } | null>(null);
+  const [notifyEmployeeByEmail, setNotifyEmployeeByEmail] = useState(false);
 
   const confirmDeleteEmployee = () => {
     if (!deletingEmployee) return;
     startTransition(async () => {
       try {
-        await deleteEmployee(deletingEmployee.id);
-        toast.success(`${deletingEmployee.name} has been removed.`);
+        const res = await deleteEmployee(deletingEmployee.id, { sendEmail: notifyEmployeeByEmail });
+        toast.success(
+          res.emailSent
+            ? `${deletingEmployee.name} deactivated. Offboarding email sent.`
+            : `${deletingEmployee.name} has been removed from active staff.`
+        );
         setDeletingEmployee(null);
         window.location.reload();
       } catch {
@@ -804,14 +809,29 @@ export default function EmployeesClient({
       {/* Confirm Delete Employee Modal */}
       <ConfirmModal
         isOpen={!!deletingEmployee}
-        title="Remove Team Member"
-        description={`Are you sure you want to remove ${deletingEmployee?.name} from the agency? Their profile and client assignments will be deleted.`}
-        confirmText="Delete Employee"
+        title={`Deactivate / Remove ${deletingEmployee?.name}?`}
+        description={`This removes ${deletingEmployee?.name} from the active staff directory and revokes access to the control center. Attendance and past work records remain safely preserved in the database.`}
+        confirmText="Deactivate Staff"
         isDanger={true}
         pending={pending}
         onConfirm={confirmDeleteEmployee}
         onClose={() => setDeletingEmployee(null)}
-      />
+      >
+        <div className="rounded-lg border border-ink-600 bg-ink-800/80 p-3 text-left">
+          <label className="flex items-center gap-2.5 cursor-pointer text-xs text-bone-200">
+            <input
+              type="checkbox"
+              checked={notifyEmployeeByEmail}
+              onChange={(e) => setNotifyEmployeeByEmail(e.target.checked)}
+              className="h-4 w-4 rounded border-ink-500 bg-ink-900 text-lime-400 focus:ring-lime-400 cursor-pointer"
+            />
+            <span className="font-medium">Send offboarding email notification to employee</span>
+          </label>
+          <p className="mt-1 text-[11px] text-bone-400 pl-6.5">
+            Sends formal deactivation notice and appreciation for their contribution to the agency.
+          </p>
+        </div>
+      </ConfirmModal>
     </div>
   );
 }

@@ -48,3 +48,17 @@ ALTER TABLE IF EXISTS public.intake_requests
   ADD COLUMN IF NOT EXISTS staff_id UUID REFERENCES profiles(id) ON DELETE SET NULL,
   ADD COLUMN IF NOT EXISTS resolved_at TIMESTAMPTZ,
   ADD COLUMN IF NOT EXISTS resolved_by UUID;
+
+-- 7. Offboarding email templates
+INSERT INTO email_templates (key, name, subject, body, attach_doc, description) VALUES
+('client_archived', 'Client archived / offboarding', 'Account Update — {{client_company}} (Nex Desk)',
+E'Hi {{client_name}},\n\nThis is to confirm that your client portal access for {{client_company}} has been archived as our active project engagement concludes.\n\nIf you require copies of any past agreements, receipts, or project assets, or if you would like to initiate a new project in the future, please feel free to reply directly to this email.\n\nThank you for partnering with Nex Desk.\n\nNex Desk', null, 'Sent when a client profile is soft-deleted/archived with the offboarding email toggle checked.'),
+
+('employee_deactivated', 'Staff deactivation / offboarding', 'Staff Account Deactivation — {{employee_name}} (Nex Desk)',
+E'Hi {{employee_name}},\n\nThis email confirms that your Nex Desk team account and system access have been deactivated.\n\nThank you for your dedication and contributions to the agency. For any questions regarding your final settlement, experience documentation, or handover procedures, please reach out to agency administration.\n\nWe wish you the very best in your future endeavors.\n\nNex Desk Administration', null, 'Sent when a team member profile is removed/terminated with the offboarding email toggle checked.')
+ON CONFLICT (key) DO UPDATE SET
+  name        = excluded.name,
+  subject     = excluded.subject,
+  body        = excluded.body,
+  attach_doc  = excluded.attach_doc,
+  description = excluded.description;

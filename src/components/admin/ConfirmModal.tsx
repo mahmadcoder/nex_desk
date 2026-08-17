@@ -13,6 +13,7 @@ interface ConfirmModalProps {
   pending?: boolean;
   onConfirm: () => void;
   onClose: () => void;
+  children?: React.ReactNode;
 }
 
 /**
@@ -29,6 +30,7 @@ export default function ConfirmModal({
   pending = false,
   onConfirm,
   onClose,
+  children,
 }: ConfirmModalProps) {
   return (
     <Modal
@@ -60,17 +62,20 @@ export default function ConfirmModal({
         </>
       }
     >
-      <div className="flex items-start gap-4">
-        <div
-          className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border ${
-            isDanger
-              ? "border-rose-500/30 bg-rose-500/10 text-rose-400"
-              : "border-amber-500/30 bg-amber-500/10 text-amber-400"
-          }`}
-        >
-          <AlertTriangle size={22} />
+      <div className="space-y-4">
+        <div className="flex items-start gap-4">
+          <div
+            className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border ${
+              isDanger
+                ? "border-rose-500/30 bg-rose-500/10 text-rose-400"
+                : "border-amber-500/30 bg-amber-500/10 text-amber-400"
+            }`}
+          >
+            <AlertTriangle size={22} />
+          </div>
+          <p className="pt-1 text-sm leading-relaxed text-bone-200">{description}</p>
         </div>
-        <p className="pt-1 text-sm leading-relaxed text-bone-200">{description}</p>
+        {children}
       </div>
     </Modal>
   );
