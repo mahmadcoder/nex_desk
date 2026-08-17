@@ -11,7 +11,7 @@ import { myAttendanceToday } from "@/lib/actions/attendance";
 import { getLiveExchangeRates, convertCurrency } from "@/lib/currency";
 import { atRiskClients, projectRisk } from "@/lib/insights";
 import { expenseInvoiceIds } from "@/lib/billing";
-import { AlertTriangle } from "lucide-react";
+import { AlertTriangle, Calendar, Users, ArrowUpRight, CheckCircle2, Clock, Zap } from "lucide-react";
 import { fmtDateLong, fmtDate, agencyDay } from "@/lib/datetime";
 import { getUpcomingHolidays } from "@/lib/holidays";
 import HolidayNoticeBanner from "@/components/ui/HolidayNoticeBanner";
@@ -154,7 +154,7 @@ export default async function Dashboard({
   // correct self-limiting behaviour — no row, nothing to record against.
   const myAttendance = await myAttendanceToday();
 
-  const [{ data: offSoon }, { count: pendingLeave }] = await Promise.all([
+  const [{ data: offSoon }, { count: pendingLeave }, { data: upcomingMilestones }, { count: clockedInToday }, { count: totalActiveEmployees }] = await Promise.all([
     db.from("leave_requests")
       .select("start_date, end_date, leave_type, employees(full_name)")
       .eq("status", "approved")
@@ -162,12 +162,27 @@ export default async function Dashboard({
       .gte("end_date", todayStr)
       .order("start_date"),
     db.from("leave_requests").select("id", { count: "exact", head: true }).eq("status", "pending"),
+    db.from("milestones")
+      .select("id, title, due_date, is_done, project_id, projects(name, client_id, clients(name))")
+      .eq("is_done", false)
+      .not("due_date", "is", null)
+      .lte("due_date", weekEnd)
+      .order("due_date", { ascending: true })
+      .limit(4),
+    db.from("attendance")
+      .select("id", { count: "exact", head: true })
+      .eq("work_date", todayStr)
+      .not("checked_in_at", "is", null),
+    db.from("employees")
+      .select("id", { count: "exact", head: true })
+      .ilike("status", "active"),
   ]);
 
   // Accounts that need attention today. Totals hide all three of these.
   const [risks, projectRisks] = await Promise.all([atRiskClients(), projectRisk(6)]);
 
   const overdue = (invoices.data ?? []).filter((i) => i.status === "overdue").length;
+  const dueSoonInvoices = (invoices.data ?? []).filter((i) => i.status !== "overdue" && i.due_date && i.due_date <= weekEnd).length;
   const newLeads = (leads.data ?? []).filter((l) => l.status === "new").length;
 
   return (
@@ -181,6 +196,112 @@ export default async function Dashboard({
       />
 
       <HolidayNoticeBanner holidays={holidays} />
+
+      {/* Agency Executive Pulse & Operational Command Bar */}
+      <section className="mb-6 grid gap-4 md:grid-cols-3">
+        {/* Deliverables Pulse */}
+        <div className="card p-4 border-ink-600 bg-ink-900/60 shadow-lg relative overflow-hidden">
+          <div className="flex items-center justify-between gap-2 mb-2">
+            <span className="mono-tag text-[10px] text-lime-400 font-semibold flex items-center gap-1.5">
+              <Calendar size={12} /> Deadlines This Week
+            </span>
+            <Link
+              href={`${BASE}/calendar`}
+              className="mono-tag text-[10px] text-bone-400 hover:text-lime-300 flex items-center gap-0.5"
+            >
+              Calendar <ArrowUpRight size={10} />
+            </Link>
+          </div>
+          <div className="flex items-baseline gap-2 mb-2.5">
+            <span className="text-2xl font-bold text-bone-50">
+              {(upcomingMilestones ?? []).length}
+            </span>
+            <span className="text-xs text-bone-400">deliverables due by {fmtDate(weekEnd)}</span>
+          </div>
+          {upcomingMilestones && upcomingMilestones.length > 0 ? (
+            <ul className="space-y-1.5 border-t border-ink-700/60 pt-2.5">
+              {upcomingMilestones.slice(0, 2).map((m: any) => (
+                <li key={m.id} className="flex items-center justify-between gap-2 text-xs">
+                  <span className="truncate text-bone-200">{m.title}</span>
+                  <span className="mono-tag text-[9px] text-amber-300 shrink-0">{fmtDate(m.due_date)}</span>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="text-xs text-bone-400 border-t border-ink-700/60 pt-2">No urgent deliverables due this week.</p>
+          )}
+        </div>
+
+        {/* Receivables & Cash Flow Pulse */}
+        <div className="card p-4 border-ink-600 bg-ink-900/60 shadow-lg relative overflow-hidden">
+          <div className="flex items-center justify-between gap-2 mb-2">
+            <span className="mono-tag text-[10px] text-amber-400 font-semibold flex items-center gap-1.5">
+              <Clock size={12} /> Receivables Pulse
+            </span>
+            <Link
+              href={`${BASE}/invoices`}
+              className="mono-tag text-[10px] text-bone-400 hover:text-amber-300 flex items-center gap-0.5"
+            >
+              Invoices <ArrowUpRight size={10} />
+            </Link>
+          </div>
+          <div className="flex items-baseline gap-2 mb-2.5">
+            <span className="text-2xl font-bold text-bone-50">
+              {overdue + dueSoonInvoices}
+            </span>
+            <span className="text-xs text-bone-400">invoices need collection</span>
+          </div>
+          <div className="flex items-center gap-2 border-t border-ink-700/60 pt-2.5 text-xs">
+            {overdue > 0 ? (
+              <span className="mono-tag text-[10px] px-2 py-0.5 rounded bg-rose-500/15 text-rose-300 border border-rose-500/30">
+                {overdue} Overdue
+              </span>
+            ) : (
+              <span className="mono-tag text-[10px] text-emerald-400">0 Overdue</span>
+            )}
+            {dueSoonInvoices > 0 && (
+              <span className="mono-tag text-[10px] px-2 py-0.5 rounded bg-amber-500/15 text-amber-300 border border-amber-500/30">
+                {dueSoonInvoices} Due this week
+              </span>
+            )}
+          </div>
+        </div>
+
+        {/* Team Attendance & Staff Pulse */}
+        <div className="card p-4 border-ink-600 bg-ink-900/60 shadow-lg relative overflow-hidden">
+          <div className="flex items-center justify-between gap-2 mb-2">
+            <span className="mono-tag text-[10px] text-lime-300 font-semibold flex items-center gap-1.5">
+              <Users size={12} /> Team Capacity Today
+            </span>
+            <Link
+              href={`${BASE}/attendance`}
+              className="mono-tag text-[10px] text-bone-400 hover:text-lime-300 flex items-center gap-0.5"
+            >
+              Attendance <ArrowUpRight size={10} />
+            </Link>
+          </div>
+          <div className="flex items-baseline gap-2 mb-2.5">
+            <span className="text-2xl font-bold text-bone-50">
+              {clockedInToday ?? 0} <span className="text-sm font-normal text-bone-400">/ {totalActiveEmployees ?? 0}</span>
+            </span>
+            <span className="text-xs text-bone-400">staff clocked in today</span>
+          </div>
+          <div className="flex items-center gap-2 border-t border-ink-700/60 pt-2.5 text-xs">
+            {(offSoon ?? []).length > 0 ? (
+              <span className="mono-tag text-[10px] text-amber-300">
+                {(offSoon ?? []).length} on approved leave
+              </span>
+            ) : (
+              <span className="mono-tag text-[10px] text-bone-400">Full team available</span>
+            )}
+            {(pendingLeave ?? 0) > 0 && (
+              <span className="mono-tag text-[10px] px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300">
+                {pendingLeave} leave request pending
+              </span>
+            )}
+          </div>
+        </div>
+      </section>
 
       {/* Keyed on having an employee record, not on role.
           `employeeId` is resolved by matching the login email to an `employees`

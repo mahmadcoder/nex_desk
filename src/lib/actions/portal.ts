@@ -118,6 +118,70 @@ export async function approveMilestone(
   return { ok: true };
 }
 
+/**
+ * Client requests revisions or tweaks on a delivered milestone.
+ */
+export async function requestMilestoneRevision(
+  milestoneId: string,
+  feedbackNotes: string
+): Promise<{ ok: boolean; error?: string }> {
+  const db = createAdminClient();
+
+  const id = asUuid(milestoneId);
+  if (!id) return { ok: false, error: "Invalid milestone reference." };
+  if (!feedbackNotes?.trim()) return { ok: false, error: "Please enter your revision feedback notes." };
+
+  const { data: milestone } = await db
+    .from("milestones")
+    .select("id, title, is_done, approved_at, project_id")
+    .eq("id", id)
+    .maybeSingle();
+
+  if (!milestone) return { ok: false, error: "Milestone not found." };
+  if (milestone.approved_at) {
+    return { ok: false, error: "This milestone has already been approved." };
+  }
+
+  const own = await ownProject(milestone.project_id);
+  if ("error" in own) return { ok: false, error: own.error };
+
+  // Set is_done to false so team can address requested changes
+  const updatePayload: Record<string, any> = {
+    is_done: false,
+    revision_notes: feedbackNotes.trim(),
+    revision_requested_at: new Date().toISOString(),
+    revision_requested_by: own.userEmail,
+  };
+
+  const { error } = await db.from("milestones").update(updatePayload).eq("id", id);
+  if (error) {
+    // If extra columns are not in schema yet, fallback to updating is_done
+    await db.from("milestones").update({ is_done: false }).eq("id", id);
+  }
+
+  await recordAudit(null, "milestone.revision_requested", "milestones", id, {
+    title: milestone.title,
+    by: own.userEmail,
+    feedback: feedbackNotes.trim(),
+  });
+
+  await notify({
+    kind: "milestone.revision",
+    title: `${own.client.name} requested changes on “${milestone.title}”`,
+    body: feedbackNotes.trim().slice(0, 140),
+    href: `/${ADMIN}/projects/${milestone.project_id}`,
+    entity: "milestones",
+    entityId: id,
+    actorLabel: own.client.name,
+    actorKind: "client",
+    clientId: own.client.id,
+  });
+
+  revalidatePath("/portal");
+  revalidatePath(`/${ADMIN}/projects/${milestone.project_id}`);
+  return { ok: true };
+}
+
 /* ============================================================
    COMING BACK
    ============================================================ */

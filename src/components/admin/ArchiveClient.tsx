@@ -8,6 +8,8 @@ import { restoreClient } from "@/lib/actions";
 import { restoreEmployee } from "@/lib/actions/cms";
 import { fmtDate } from "@/lib/datetime";
 
+import ConfirmModal from "@/components/admin/ConfirmModal";
+
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 export default function ArchiveClient({
@@ -24,6 +26,12 @@ export default function ArchiveClient({
   const [search, setSearch] = useState("");
   const [pending, start] = useTransition();
 
+  const [restoringClient, setRestoringClient] = useState<{ id: string; name: string; email?: string } | null>(null);
+  const [notifyClientEmail, setNotifyClientEmail] = useState(true);
+
+  const [restoringStaff, setRestoringStaff] = useState<{ id: string; name: string; email?: string } | null>(null);
+  const [notifyStaffEmail, setNotifyStaffEmail] = useState(true);
+
   const filteredClients = clients.filter(
     (c) =>
       c.name?.toLowerCase().includes(search.toLowerCase()) ||
@@ -38,11 +46,17 @@ export default function ArchiveClient({
       e.job_title?.toLowerCase().includes(search.toLowerCase())
   );
 
-  const handleRestoreClient = (id: string, name: string) => {
+  const handleConfirmRestoreClient = () => {
+    if (!restoringClient) return;
     start(async () => {
-      const res = await restoreClient(id);
+      const res = await restoreClient(restoringClient.id, { sendEmail: notifyClientEmail });
       if (res?.success) {
-        toast.success(`Client "${name}" has been restored to active status.`);
+        toast.success(
+          res.emailSent
+            ? `Client "${restoringClient.name}" reactivated. Welcome-back email sent.`
+            : `Client "${restoringClient.name}" has been restored to active status.`
+        );
+        setRestoringClient(null);
         router.refresh();
       } else {
         toast.error("Could not restore client.");
@@ -50,11 +64,17 @@ export default function ArchiveClient({
     });
   };
 
-  const handleRestoreEmployee = (id: string, name: string) => {
+  const handleConfirmRestoreEmployee = () => {
+    if (!restoringStaff) return;
     start(async () => {
-      const res = await restoreEmployee(id);
+      const res = await restoreEmployee(restoringStaff.id, { sendEmail: notifyStaffEmail });
       if (res?.success) {
-        toast.success(`Staff member "${name}" has been restored to active status.`);
+        toast.success(
+          res.emailSent
+            ? `Staff member "${restoringStaff.name}" reactivated. Welcome-back email sent.`
+            : `Staff member "${restoringStaff.name}" has been restored to active status.`
+        );
+        setRestoringStaff(null);
         router.refresh();
       } else {
         toast.error("Could not restore staff member.");
@@ -149,11 +169,14 @@ export default function ArchiveClient({
                   <button
                     type="button"
                     disabled={pending}
-                    onClick={() => handleRestoreClient(c.id, c.name)}
+                    onClick={() => {
+                      setNotifyClientEmail(true);
+                      setRestoringClient({ id: c.id, name: c.name, email: c.email });
+                    }}
                     className="btn btn-sm gap-1.5 border-lime-400/40 text-lime-300 hover:bg-lime-400/10 cursor-pointer"
                     title="Restore client back to active status"
                   >
-                    <RotateCcw size={13} /> Restore Client
+                    <RotateCcw size={13} /> Reactivate Client
                   </button>
                 </div>
               ))}
@@ -204,11 +227,14 @@ export default function ArchiveClient({
                   <button
                     type="button"
                     disabled={pending}
-                    onClick={() => handleRestoreEmployee(e.id, e.full_name)}
+                    onClick={() => {
+                      setNotifyStaffEmail(true);
+                      setRestoringStaff({ id: e.id, name: e.full_name, email: e.email });
+                    }}
                     className="btn btn-sm gap-1.5 border-lime-400/40 text-lime-300 hover:bg-lime-400/10 cursor-pointer"
                     title="Restore staff member back to active status"
                   >
-                    <RotateCcw size={13} /> Restore Staff
+                    <RotateCcw size={13} /> Reactivate Staff
                   </button>
                 </div>
               ))}
@@ -216,6 +242,60 @@ export default function ArchiveClient({
           )}
         </>
       )}
+
+      {/* Restore Client Confirmation Modal */}
+      <ConfirmModal
+        isOpen={!!restoringClient}
+        title={`Reactivate Client — ${restoringClient?.name}`}
+        description={`This will restore ${restoringClient?.name} to active status, reopen their portal login, and make their projects visible in the agency directory.`}
+        confirmText="Reactivate Client"
+        isDanger={false}
+        pending={pending}
+        onConfirm={handleConfirmRestoreClient}
+        onClose={() => setRestoringClient(null)}
+      >
+        <div className="rounded-lg border border-ink-600 bg-ink-800/80 p-3 text-left">
+          <label className="flex items-center gap-2.5 cursor-pointer text-xs text-bone-200">
+            <input
+              type="checkbox"
+              checked={notifyClientEmail}
+              onChange={(e) => setNotifyClientEmail(e.target.checked)}
+              className="h-4 w-4 rounded border-ink-500 bg-ink-900 text-lime-400 focus:ring-lime-400 cursor-pointer"
+            />
+            <span className="font-medium">Send welcome-back email notification to client</span>
+          </label>
+          <p className="mt-1 text-[11px] text-bone-400 pl-6.5">
+            Notifies {restoringClient?.email || "the client"} that their portal is active and their account is restored.
+          </p>
+        </div>
+      </ConfirmModal>
+
+      {/* Restore Staff Confirmation Modal */}
+      <ConfirmModal
+        isOpen={!!restoringStaff}
+        title={`Reactivate Staff Member — ${restoringStaff?.name}`}
+        description={`This will restore ${restoringStaff?.name} to active status and restore their access to the agency control center.`}
+        confirmText="Reactivate Staff"
+        isDanger={false}
+        pending={pending}
+        onConfirm={handleConfirmRestoreEmployee}
+        onClose={() => setRestoringStaff(null)}
+      >
+        <div className="rounded-lg border border-ink-600 bg-ink-800/80 p-3 text-left">
+          <label className="flex items-center gap-2.5 cursor-pointer text-xs text-bone-200">
+            <input
+              type="checkbox"
+              checked={notifyStaffEmail}
+              onChange={(e) => setNotifyStaffEmail(e.target.checked)}
+              className="h-4 w-4 rounded border-ink-500 bg-ink-900 text-lime-400 focus:ring-lime-400 cursor-pointer"
+            />
+            <span className="font-medium">Send welcome-back email notification to employee</span>
+          </label>
+          <p className="mt-1 text-[11px] text-bone-400 pl-6.5">
+            Notifies {restoringStaff?.email || "the staff member"} that their staff account and credentials have been reactivated.
+          </p>
+        </div>
+      </ConfirmModal>
     </div>
   );
 }

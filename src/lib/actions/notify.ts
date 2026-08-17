@@ -22,6 +22,7 @@ export type NotifyKind =
   // client-driven
   | "agreement.accepted"
   | "milestone.approved"
+  | "milestone.revision"
   | "kickoff.item"
   | "kickoff.complete"
   | "change_request.raised"

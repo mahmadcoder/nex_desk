@@ -9,11 +9,13 @@ import { staffPerformance } from "@/lib/insights";
 import { fmtDateLong, fmtDate, agencyDay } from "@/lib/datetime";
 import AttendanceWidget from "@/components/admin/AttendanceWidget";
 import TimerBar from "@/components/admin/TimerBar";
-import { myAttendanceToday } from "@/lib/actions/attendance";
+import { myAttendanceToday, getMyOvertimeSummary } from "@/lib/actions/attendance";
 import { runningTimer, myTrackedToday } from "@/lib/actions/timeTracking";
 import { humanDuration } from "@/lib/workHours";
 import HolidayNoticeBanner, { type HolidayItem } from "@/components/ui/HolidayNoticeBanner";
 import LiveClockGreeting from "@/components/ui/LiveClockGreeting";
+import { Zap, DollarSign, TrendingUp, ShieldCheck } from "lucide-react";
+import { money } from "@/lib/utils";
 
 const BASE = `/${process.env.ADMIN_PATH || "nx-control"}`;
 
@@ -49,12 +51,12 @@ export default async function StaffDashboard({
 
   const todayStr = agencyDay();
 
-  // The two clocks. Both degrade to null/0 when the 2027-26 migration has not
-  // been run, so a dashboard never breaks over a feature that is not on yet.
-  const [attendance, running, trackedTodaySec] = await Promise.all([
+  // The clocks and overtime tracking. Degrade gracefully.
+  const [attendance, running, trackedTodaySec, overtimeSummary] = await Promise.all([
     myAttendanceToday(),
     runningTimer(),
     myTrackedToday(),
+    getMyOvertimeSummary(),
   ]);
 
   // Next three calls, for clients this person is actually on. Degrades to an
@@ -183,6 +185,75 @@ export default async function StaffDashboard({
           />
         </div>
       </div>
+
+      {/* Extra-Time, Deficit Compensation & Overtime Summary Card */}
+      {overtimeSummary && (
+        <section className="card mb-6 p-4 border-ink-600 bg-gradient-to-br from-ink-800/80 to-ink-900/60 shadow-lg">
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-ink-600/70 pb-3 mb-3">
+            <div className="flex items-center gap-2">
+              <div className="flex h-7 w-7 items-center justify-center rounded-md bg-lime-400/10 text-lime-400">
+                <Zap size={15} />
+              </div>
+              <div>
+                <h3 className="text-xs font-semibold text-bone-100 flex items-center gap-1.5">
+                  Extra Hours &amp; Overtime Pulse
+                  <span className="mono-tag text-[9px] text-lime-400 bg-lime-400/10 px-1.5 py-0.5 rounded">
+                    {overtimeSummary.periodMonth}
+                  </span>
+                </h3>
+                <p className="text-[11px] text-bone-400">
+                  Late attendance compensations &amp; net payable extra time
+                </p>
+              </div>
+            </div>
+
+            <Link
+              href={`${BASE}/attendance`}
+              className="mono-tag text-[10px] text-lime-300 hover:text-lime-200 hover:underline flex items-center gap-1"
+            >
+              View Attendance History →
+            </Link>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+            <div className="rounded-lg border border-ink-600/50 bg-ink-900/40 p-2.5">
+              <span className="mono-tag text-[10px] text-bone-400 block mb-0.5">Total Extra Time</span>
+              <p className="text-sm font-semibold text-bone-100">
+                {(overtimeSummary.totalExtraSec / 3600).toFixed(1)} <span className="text-xs font-normal text-bone-400">hrs</span>
+              </p>
+              <span className="text-[10px] text-bone-400">
+                {overtimeSummary.days.filter((d) => d.extraSec > 0).length} day(s) with extra time
+              </span>
+            </div>
+
+            <div className="rounded-lg border border-ink-600/50 bg-ink-900/40 p-2.5">
+              <span className="mono-tag text-[10px] text-amber-400 block mb-0.5">Late Compensated</span>
+              <p className="text-sm font-semibold text-amber-300">
+                {(overtimeSummary.recoveredDeficitSec / 3600).toFixed(1)} <span className="text-xs font-normal text-bone-400">hrs</span>
+              </p>
+              <span className="text-[10px] text-bone-400">
+                {overtimeSummary.days.filter((d) => d.lateMin > 0).length} late arrival(s) offset
+              </span>
+            </div>
+
+            <div className="rounded-lg border border-ink-600/50 bg-ink-900/40 p-2.5">
+              <span className="mono-tag text-[10px] text-lime-400 block mb-0.5">Net Overtime</span>
+              <p className="text-sm font-semibold text-lime-300">
+                {(overtimeSummary.netOvertimeSec / 3600).toFixed(1)} <span className="text-xs font-normal text-bone-400">hrs</span>
+              </p>
+              <span className="text-[10px] text-bone-400">Eligible extra work</span>
+            </div>
+
+            <div className="rounded-lg border border-lime-400/20 bg-lime-400/[0.04] p-2.5">
+              <span className="mono-tag text-[10px] text-lime-300 block mb-0.5">Overtime Earnings</span>
+              <p className="text-sm font-semibold text-lime-400">
+                {money(overtimeSummary.overtimePay, overtimeSummary.currency)}
+              </p>
+              <span className="text-[10px] text-bone-400">Rate: {money(overtimeSummary.hourlyRate, overtimeSummary.currency)}/hr</span>
+            </div>
+          </div>
+        </section>
+      )}
 
       {/* Overdue first, and only when there is something overdue — a heading
           that is usually empty stops being read. */}

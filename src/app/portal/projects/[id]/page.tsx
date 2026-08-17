@@ -413,11 +413,14 @@ export default async function PortalProject({
                       {m.due_date && !m.is_done && (
                         <span className="mono-tag text-xs text-bone-300">{fmtDate(m.due_date)}</span>
                       )}
-                      {/* Sign-off becomes a recorded click, not a WhatsApp
-                          message. Only offered once the team marks it done. */}
-                      {m.is_done && (
-                        <ApproveMilestone milestoneId={m.id} approvedAt={m.approved_at ?? null} />
-                      )}
+                      {/* Sign-off & Revision Feedback Loop */}
+                      <ApproveMilestone
+                        milestoneId={m.id}
+                        milestoneTitle={m.title}
+                        approvedAt={m.approved_at ?? null}
+                        revisionNotes={m.revision_notes ?? null}
+                        revisionRequestedAt={m.revision_requested_at ?? null}
+                      />
                     </span>
                   </li>
                 ))}

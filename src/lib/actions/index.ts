@@ -382,13 +382,13 @@ export async function deleteClient(id: string, options?: { sendEmail?: boolean }
   return { success: true, emailSent };
 }
 
-export async function restoreClient(id: string) {
+export async function restoreClient(id: string, options?: { sendEmail?: boolean }) {
   const me = await requireOwnerAdmin();
   const db = createAdminClient();
 
   const { data: client } = await db
     .from("clients")
-    .select("profile_id, email")
+    .select("id, name, company, email, profile_id, return_count")
     .eq("id", id)
     .maybeSingle();
 
@@ -397,6 +397,8 @@ export async function restoreClient(id: string) {
     .update({
       lifecycle: "active",
       is_active: true,
+      reactivated_at: new Date().toISOString(),
+      return_count: Number(client?.return_count ?? 0) + 1,
     })
     .eq("id", id);
 
@@ -414,11 +416,33 @@ export async function restoreClient(id: string) {
     }
   }
 
+  let emailSent = false;
+  if (options?.sendEmail && client?.email) {
+    try {
+      const res = await sendEmail({
+        templateKey: "client_welcome_back",
+        to: client.email,
+        clientId: id,
+        actorId: me.userId,
+        vars: {
+          client_name: client.name || "there",
+          client_company: client.company || client.name || "your account",
+          client_email: client.email,
+          portal_url: `${getSiteBaseUrl()}/portal`,
+          sender_name: me.fullName ?? "Nex Desk",
+        },
+      });
+      emailSent = res.ok;
+    } catch (e) {
+      console.error("restoreClient: sendEmail failed:", e);
+    }
+  }
+
   await audit(me.userId, "client.restore", "clients", id);
   revalidatePath(`/${ADMIN}/clients`);
   revalidatePath(`/${ADMIN}/archive`);
   revalidatePath("/portal");
-  return { success: true };
+  return { success: true, emailSent };
 }
 
 export async function updateClientPermissions(id: string, permissions: Record<string, boolean>) {

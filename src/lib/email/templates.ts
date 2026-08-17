@@ -807,21 +807,39 @@ Best regards,
   },
 
   client_welcome_back: {
-    subject: "👋 Welcome back, {{client_name}}",
+    subject: "👋 Welcome back, {{client_name}} — your portal is active",
     body: `Hi {{client_name}},
 
-Good to have you back.
+Good to have you back!
 
-Your account is active again, and everything from last time is still exactly where you left it — every document, invoice, milestone and file:
+Your client portal for {{client_company}} has been reactivated. All of your past documents, invoices, milestones, and project records are right where you left them:
 
-{{portal_url}}
+• Sign In: {{portal_url}}
+• Email: {{client_email}}
 
-Your sign-in details have not changed. If you have forgotten them, reply and we'll reset them straight away rather than making you go through a password-reset loop.
-
-Tell us what you're planning and we'll put a scope and a fixed price together.
+Your existing sign-in credentials remain active. If you need any assistance or would like to initiate a new project, we are ready whenever you are.
 
 Best regards,
-{{sender_name}}`,
+{{sender_name}}
+Nex Desk`,
+  },
+
+  employee_reactivated: {
+    subject: "🎉 Welcome Back to Nex Desk, {{employee_name}} — Account Reactivated",
+    body: `Hi {{employee_name}},
+
+We are delighted to welcome you back to the Nex Desk team!
+
+Your staff account and system access have been reactivated. You can sign in using your existing credentials:
+
+• Sign In: {{staff_login_url}}
+• Email: {{staff_email}}
+
+Your assigned clients, active projects, and workspace are ready for you. If you need a password reset or have any questions getting back up to speed, please reach out to administration.
+
+Glad to have you back with us!
+
+Nex Desk Administration`,
   },
 
   project_thank_you: {
