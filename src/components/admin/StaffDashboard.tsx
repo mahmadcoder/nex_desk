@@ -215,41 +215,43 @@ export default async function StaffDashboard({
             </Link>
           </div>
 
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-            <div className="rounded-lg border border-ink-600/50 bg-ink-900/40 p-2.5">
-              <span className="mono-tag text-[10px] text-bone-400 block mb-0.5">Total Extra Time</span>
-              <p className="text-sm font-semibold text-bone-100">
-                {(overtimeSummary.totalExtraSec / 3600).toFixed(1)} <span className="text-xs font-normal text-bone-400">hrs</span>
+          <div className="grid grid-cols-2 gap-2.5 sm:gap-3 sm:grid-cols-4">
+            <div className="rounded-lg border border-ink-600/50 bg-ink-900/40 p-2 sm:p-2.5 min-w-0">
+              <span className="mono-tag text-[9px] sm:text-[10px] text-bone-400 block mb-0.5 truncate">Total Extra Time</span>
+              <p className="text-xs sm:text-sm font-semibold text-bone-100 truncate">
+                {(overtimeSummary.totalExtraSec / 3600).toFixed(1)} <span className="text-[10px] sm:text-xs font-normal text-bone-400">hrs</span>
               </p>
-              <span className="text-[10px] text-bone-400">
-                {overtimeSummary.days.filter((d) => d.extraSec > 0).length} day(s) with extra time
+              <span className="text-[9px] sm:text-[10px] text-bone-400 block truncate">
+                {overtimeSummary.days.filter((d) => d.extraSec > 0).length} day(s) logged
               </span>
             </div>
 
-            <div className="rounded-lg border border-ink-600/50 bg-ink-900/40 p-2.5">
-              <span className="mono-tag text-[10px] text-amber-400 block mb-0.5">Late Compensated</span>
-              <p className="text-sm font-semibold text-amber-300">
-                {(overtimeSummary.recoveredDeficitSec / 3600).toFixed(1)} <span className="text-xs font-normal text-bone-400">hrs</span>
+            <div className="rounded-lg border border-ink-600/50 bg-ink-900/40 p-2 sm:p-2.5 min-w-0">
+              <span className="mono-tag text-[9px] sm:text-[10px] text-amber-400 block mb-0.5 truncate">Late Compensated</span>
+              <p className="text-xs sm:text-sm font-semibold text-amber-300 truncate">
+                {(overtimeSummary.recoveredDeficitSec / 3600).toFixed(1)} <span className="text-[10px] sm:text-xs font-normal text-bone-400">hrs</span>
               </p>
-              <span className="text-[10px] text-bone-400">
-                {overtimeSummary.days.filter((d) => d.lateMin > 0).length} late arrival(s) offset
+              <span className="text-[9px] sm:text-[10px] text-bone-400 block truncate">
+                {overtimeSummary.days.filter((d) => d.lateMin > 0).length} offset
               </span>
             </div>
 
-            <div className="rounded-lg border border-ink-600/50 bg-ink-900/40 p-2.5">
-              <span className="mono-tag text-[10px] text-lime-400 block mb-0.5">Net Overtime</span>
-              <p className="text-sm font-semibold text-lime-300">
-                {(overtimeSummary.netOvertimeSec / 3600).toFixed(1)} <span className="text-xs font-normal text-bone-400">hrs</span>
+            <div className="rounded-lg border border-ink-600/50 bg-ink-900/40 p-2 sm:p-2.5 min-w-0">
+              <span className="mono-tag text-[9px] sm:text-[10px] text-lime-400 block mb-0.5 truncate">Net Overtime</span>
+              <p className="text-xs sm:text-sm font-semibold text-lime-300 truncate">
+                {(overtimeSummary.netOvertimeSec / 3600).toFixed(1)} <span className="text-[10px] sm:text-xs font-normal text-bone-400">hrs</span>
               </p>
-              <span className="text-[10px] text-bone-400">Eligible extra work</span>
+              <span className="text-[9px] sm:text-[10px] text-bone-400 block truncate">Eligible extra</span>
             </div>
 
-            <div className="rounded-lg border border-lime-400/20 bg-lime-400/[0.04] p-2.5">
-              <span className="mono-tag text-[10px] text-lime-300 block mb-0.5">Overtime Earnings</span>
-              <p className="text-sm font-semibold text-lime-400">
+            <div className="rounded-lg border border-lime-400/20 bg-lime-400/[0.04] p-2 sm:p-2.5 min-w-0">
+              <span className="mono-tag text-[9px] sm:text-[10px] text-lime-300 block mb-0.5 truncate">Overtime Earnings</span>
+              <p className="text-xs sm:text-sm font-semibold text-lime-400 truncate">
                 {money(overtimeSummary.overtimePay, overtimeSummary.currency)}
               </p>
-              <span className="text-[10px] text-bone-400">Rate: {money(overtimeSummary.hourlyRate, overtimeSummary.currency)}/hr</span>
+              <span className="text-[9px] sm:text-[10px] text-bone-400 block truncate">
+                {money(overtimeSummary.hourlyRate, overtimeSummary.currency)}/hr
+              </span>
             </div>
           </div>
         </section>

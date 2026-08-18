@@ -138,8 +138,11 @@ export default function LiveClockGreeting({
         </div>
 
         {/* Right: Live Ticking Clock */}
-        <div className="flex shrink-0 items-center gap-3 rounded-xl border border-ink-600/80 bg-ink-950/70 px-4 py-2.5 shadow-inner">
-          <Clock size={18} className="text-lime-400 shrink-0 animate-pulse" />
+        <div className="flex shrink-0 items-center justify-between sm:justify-end gap-3 rounded-xl border border-ink-600/80 bg-ink-950/70 px-3.5 py-2 sm:px-4 sm:py-2.5 shadow-inner w-full sm:w-auto">
+          <div className="flex items-center gap-2">
+            <Clock size={16} className="text-lime-400 shrink-0 animate-pulse" />
+            <span className="mono-tag text-[10px] text-bone-400 sm:hidden">Time:</span>
+          </div>
           <div className="text-right">
             <div
               className="text-base sm:text-lg font-mono font-bold tracking-wider text-bone-50 leading-none"

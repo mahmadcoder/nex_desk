@@ -68,39 +68,39 @@ function CurrencyTabsContent({ currency, mode: modeProp }: TabProps) {
   };
 
   return (
-    <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between mb-6 bg-ink-900/90 p-3.5 rounded-xl border border-ink-600 shadow-md">
+    <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between mb-6 bg-ink-900/90 p-3 sm:p-3.5 rounded-xl border border-ink-600 shadow-md">
       {/* Mode Switcher */}
-      <div className="flex items-center gap-1.5 bg-ink-950 p-1 rounded-lg border border-ink-700 w-full sm:w-auto">
+      <div className="flex items-center gap-1 bg-ink-950 p-1 rounded-lg border border-ink-700 w-full sm:w-auto shrink-0">
         <button
           type="button"
           onClick={() => handleToggleMode("strict")}
-          className={`flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all cursor-pointer ${
+          className={`flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-md text-xs font-medium transition-all cursor-pointer ${
             mode === "strict"
               ? "bg-lime-400 text-lime-950 font-semibold shadow"
               : "text-bone-400 hover:text-bone-100"
           }`}
         >
-          <Layers className="h-3.5 w-3.5" />
-          <span>Strict Contract Currency</span>
+          <Layers className="h-3.5 w-3.5 shrink-0" />
+          <span className="truncate">Strict<span className="hidden sm:inline"> Contract</span></span>
         </button>
 
         <button
           type="button"
           onClick={() => handleToggleMode("converted")}
-          className={`flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all cursor-pointer ${
+          className={`flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-md text-xs font-medium transition-all cursor-pointer ${
             mode === "converted"
               ? "bg-lime-400 text-lime-950 font-semibold shadow"
               : "text-bone-400 hover:text-bone-100"
           }`}
         >
-          <DollarSign className="h-3.5 w-3.5" />
-          <span>Live Converted View</span>
+          <DollarSign className="h-3.5 w-3.5 shrink-0" />
+          <span className="truncate"><span className="hidden sm:inline">Live </span>Converted</span>
         </button>
       </div>
 
       {/* Currency Pills */}
-      <div className="flex flex-wrap items-center gap-1.5">
-        <span className="mono-tag text-[10px] text-bone-400 hidden sm:inline mr-1">Filter Currency:</span>
+      <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-0.5 max-w-full">
+        <span className="mono-tag text-[10px] text-bone-400 hidden md:inline mr-1 shrink-0">Filter:</span>
         {CURRENCIES.map((c) => {
           const active = activeCurrency === c.code;
           return (
@@ -108,14 +108,14 @@ function CurrencyTabsContent({ currency, mode: modeProp }: TabProps) {
               key={c.code}
               type="button"
               onClick={() => handleSelectCurrency(c.code)}
-              className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-mono transition-all cursor-pointer ${
+              className={`flex shrink-0 items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-mono transition-all cursor-pointer ${
                 active
                   ? "bg-ink-700 text-lime-400 font-bold border border-lime-400/40"
                   : "text-bone-300 hover:text-bone-50 hover:bg-ink-800 border border-transparent"
               }`}
             >
               {c.flagUrl && (
-                <img src={c.flagUrl} alt="" className="w-4 h-3 object-cover rounded-xs shrink-0" />
+                <img src={c.flagUrl} alt="" className="w-3.5 h-2.5 object-cover rounded-xs shrink-0" />
               )}
               <span>{c.label}</span>
             </button>

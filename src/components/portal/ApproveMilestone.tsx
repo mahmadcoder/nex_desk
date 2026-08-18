@@ -104,12 +104,12 @@ export default function ApproveMilestone({
 
       {/* Revision Feedback Modal */}
       {showRevisionModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm">
-          <div className="card w-full max-w-lg p-6 border-ink-600 shadow-2xl relative animate-in fade-in zoom-in-95">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-3 sm:p-4 backdrop-blur-sm">
+          <div className="card w-full max-w-lg max-h-[90vh] overflow-y-auto p-4 sm:p-6 border-ink-600 shadow-2xl relative animate-in fade-in zoom-in-95">
             <button
               type="button"
               onClick={() => setShowRevisionModal(false)}
-              className="absolute top-4 right-4 text-bone-400 hover:text-bone-100 transition-colors"
+              className="absolute top-3.5 right-3.5 sm:top-4 sm:right-4 text-bone-400 hover:text-bone-100 transition-colors p-1"
             >
               <X size={18} />
             </button>
