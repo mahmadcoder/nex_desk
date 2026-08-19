@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getCurrentStaff } from "@/lib/auth/staff";
 import { aiComplete } from "@/lib/ai";
 import { AI_PROMPTS, type AIFieldId, type AIMode } from "@/config/aiPrompts";
+import { generateSmartFallback } from "@/lib/aiFallbacks";
 
 export const maxDuration = 30;
 
@@ -108,13 +109,9 @@ export async function POST(req: Request) {
   const result = await aiComplete(builder({ text, context, mode }));
 
   if (!result.ok) {
-    // If field is task_breakdown, provide a clean heuristic fallback so tasks can always be generated
-    if (body.field === "task_breakdown") {
-      const fallback = fallbackTaskBreakdown(context);
-      return NextResponse.json({ ok: true, text: fallback, suggestion: fallback });
-    }
-
-    return NextResponse.json({ error: result.error }, { status: 502 });
+    console.warn("AI service returned error or key unconfigured, using smart heuristic fallback:", result.error);
+    const fallback = generateSmartFallback(body.field as AIFieldId, mode, text, context);
+    return NextResponse.json({ ok: true, text: fallback, suggestion: fallback, isFallback: true });
   }
 
   const cleaned = clean(result.text);

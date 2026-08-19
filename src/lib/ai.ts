@@ -50,9 +50,9 @@ export async function aiComplete(prompt: string): Promise<AIResult> {
  * `GEMINI_MODEL` in the environment overrides the whole list.
  */
 const GEMINI_MODELS = [
-  "gemini-1.5-flash",
   "gemini-2.0-flash",
-  "gemini-1.5-flash-latest",
+  "gemini-1.5-flash",
+  "gemini-2.5-flash",
   "gemini-1.5-pro",
   "gemini-pro",
 ];
