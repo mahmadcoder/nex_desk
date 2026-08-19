@@ -221,11 +221,11 @@ export default function TasksCard({
                         permanently "", so the placeholder always shows. It
                         needs a real width: as a bare "↻" glyph nobody could
                         tell it was a control at all. */}
-                    <div className="w-[112px]">
+                    <div className="w-[124px] sm:w-[130px]">
                       <CustomSelect
                         value=""
                         placeholder="Repeat…"
-                        className="px-2 py-1 text-[11px]"
+                        className="px-2.5 py-1 text-[11px]"
                         onChange={(v) => {
                           if (!v) return;
                           start(async () => {

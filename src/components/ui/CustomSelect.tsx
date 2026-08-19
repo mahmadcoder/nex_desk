@@ -202,7 +202,7 @@ export default function CustomSelect({
           id={listId}
           role="listbox"
           aria-labelledby={`${listId}-trigger`}
-          className="nd-select-menu nd-scroll absolute left-0 right-0 z-50 mt-1.5 max-h-64 w-full overflow-y-auto rounded-lg border border-ink-600 bg-ink-900/95 p-1.5 shadow-2xl backdrop-blur-md"
+          className="nd-select-menu nd-scroll absolute right-0 z-50 mt-1.5 max-h-64 min-w-full w-max max-w-[320px] overflow-y-auto rounded-lg border border-ink-600 bg-ink-900/95 p-1.5 shadow-2xl backdrop-blur-md"
         >
           {options.length === 0 ? (
             <div className="px-3 py-2 text-xs text-bone-300">No options available</div>
@@ -220,7 +220,7 @@ export default function CustomSelect({
                   onClick={() => commit(i)}
                   onMouseEnter={() => setActive(i)}
                   className={cn(
-                    "my-0.5 flex w-full cursor-pointer items-center justify-between rounded-md px-3 py-2 text-left text-sm font-medium transition-colors",
+                    "my-0.5 flex w-full cursor-pointer items-center justify-between gap-3 rounded-md px-3 py-2 text-left text-sm font-medium transition-colors",
                     isSelected
                       ? "bg-lime-400/15 font-semibold text-lime-400"
                       : isActive
@@ -228,8 +228,8 @@ export default function CustomSelect({
                         : "text-bone-200"
                   )}
                 >
-                  <span className="truncate">{opt.label}</span>
-                  <span className="ml-2 flex shrink-0 items-center gap-2">
+                  <span className="whitespace-nowrap">{opt.label}</span>
+                  <span className="ml-auto flex shrink-0 items-center gap-2">
                     {opt.badge && (
                       <span className="mono-tag rounded bg-lime-400/10 px-1.5 py-0.5 text-[10px] text-lime-400">
                         {opt.badge}

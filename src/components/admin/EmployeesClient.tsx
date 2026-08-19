@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { toast } from "sonner";
 import {
@@ -30,8 +31,8 @@ const SENIORITY_OPTIONS = [
 const TYPE_OPTIONS = [
   { value: "Full-Time", label: "Full-Time" },
   { value: "Part-Time", label: "Part-Time" },
-  { value: "Contractor", label: "Contractor" },
-  { value: "Intern", label: "Intern" },
+  { value: "Contract", label: "Contract" },
+  { value: "Internship", label: "Internship" },
 ];
 
 const CURRENCY_OPTIONS = [
@@ -60,6 +61,7 @@ export default function EmployeesClient({
   /** Empty before the 2027-30 migration — the field simply does not render. */
   departments?: { id: string; name: string }[];
 }) {
+  const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [query, setQuery] = useState("");
   const [seniorityFilter, setSeniorityFilter] = useState("all");
@@ -137,7 +139,7 @@ export default function EmployeesClient({
           toast.success("Employee updated successfully.");
         }
         setEditing(null);
-        window.location.reload();
+        router.refresh();
       } catch (e: any) {
         toast.error(e?.message || "Failed to save employee.");
       }
@@ -158,7 +160,7 @@ export default function EmployeesClient({
             : `${deletingEmployee.name} has been removed from active staff.`
         );
         setDeletingEmployee(null);
-        window.location.reload();
+        router.refresh();
       } catch {
         toast.error("Failed to remove employee.");
       }
@@ -172,7 +174,7 @@ export default function EmployeesClient({
         await saveJobTitle(null, { title: newTitle.trim(), category: newCategory });
         toast.success(`Added position "${newTitle.trim()}".`);
         setNewTitle("");
-        window.location.reload();
+        router.refresh();
       } catch {
         toast.error("Failed to add job title.");
       }
@@ -184,7 +186,7 @@ export default function EmployeesClient({
       try {
         await deleteJobTitle(id);
         toast.success("Job title position removed.");
-        window.location.reload();
+        router.refresh();
       } catch {
         toast.error("Failed to delete job title.");
       }
