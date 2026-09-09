@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { createAdminClient } from "@/lib/supabase/server";
 import { getCurrentStaff, assignedClientIds } from "@/lib/auth/staff";
 import { PageHead } from "@/components/admin/ui";
@@ -6,65 +5,73 @@ import TaskBoard from "@/components/admin/TaskBoard";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-export const metadata = { title: "Tasks" };
+export const metadata = { title: "Task Management & Workload Hub" };
 export const dynamic = "force-dynamic";
 
 /**
- * The task board.
+ * The unified Task Management Hub.
  *
- * Staff see only what is assigned to them; admin sees everything with an
- * employee filter. Both enforced in the query — a column that is merely hidden
- * is not scoping, and `setTaskStatus` re-checks on every move anyway.
+ * Provides Status Kanban, Grouping by Project/Client, and Grouping by Staff Member.
+ * Staff see only work on projects for clients they are assigned to; managers see all tasks.
  */
 export default async function TasksPage({
   searchParams,
 }: {
-  searchParams: Promise<{ who?: string }>;
+  searchParams: Promise<{ who?: string; project?: string; view?: string }>;
 }) {
   const me = await getCurrentStaff();
   if (!me) return null;
 
   const db = createAdminClient();
   const canManage = me.isPrivileged;
-  const { who } = await searchParams;
+  const { who, project } = await searchParams;
 
   let q = db
     .from("tasks")
     .select(
-      "id, title, description, status, priority, due_date, project_id, assigned_employee_id, sort_order, projects(id, name, client_id)"
+      "id, title, description, status, priority, due_date, project_id, assigned_employee_id, sort_order, projects(id, name, client_id, clients(id, name, company))"
     )
     // A template is the RULE, not work — it never appears on a board.
     .eq("is_recurring_template", false)
     .order("due_date", { nullsFirst: false })
     .order("sort_order")
-    .limit(400);
+    .limit(500);
 
   if (!canManage) {
     // Their own work only. Fails closed — no employee row means no tasks.
     q = q.eq("assigned_employee_id", me.employeeId ?? "00000000-0000-0000-0000-000000000000");
   } else if (who) {
-    q = q.eq("assigned_employee_id", who);
+    if (who === "unassigned") {
+      q = q.is("assigned_employee_id", null);
+    } else {
+      q = q.eq("assigned_employee_id", who);
+    }
+  }
+
+  if (project) {
+    q = q.eq("project_id", project);
   }
 
   const [{ data: tasks, error }, { data: employees }, { data: projectList }] = await Promise.all([
     q,
     canManage
-      ? db.from("employees").select("id, full_name").neq("status", "Terminated").order("full_name")
+      ? db
+          .from("employees")
+          .select("id, full_name, avatar_url, job_title")
+          .neq("status", "Terminated")
+          .order("full_name")
       : Promise.resolve({ data: [] as any[] }),
-    // Only for the Add dialog, so only fetched for the people who get one.
-    // Cancelled projects are excluded: handing out work on one is a mistake
-    // the picker should not make easy.
     canManage
       ? db
           .from("projects")
-          .select("id, name")
+          .select("id, name, client_id, clients(id, name, company)")
           .neq("status", "cancelled")
           .order("created_at", { ascending: false })
       : Promise.resolve({ data: [] as any[] }),
   ]);
 
   if (error) {
-    console.error("tasks board failed", error);
+    console.error("tasks board fetch failed:", error);
   }
 
   let rows = tasks ?? [];
@@ -76,7 +83,7 @@ export default async function TasksPage({
     rows = rows.filter((t: any) => !t.projects?.client_id || allowed.includes(t.projects.client_id));
   }
 
-  // Attachment counts, in one query rather than one per card.
+  // Attachment counts in one query
   const ids = rows.map((t: any) => t.id);
   const counts = new Map<string, number>();
   if (ids.length) {
@@ -89,69 +96,43 @@ export default async function TasksPage({
     }
   }
 
-  const nameOf = new Map((employees ?? []).map((e: any) => [e.id, e.full_name]));
+  const employeeMap = new Map(
+    (employees ?? []).map((e: any) => [e.id, { name: e.full_name, avatar: e.avatar_url, title: e.job_title }])
+  );
 
-  const cards = rows.map((t: any) => ({
-    ...t,
-    attachmentCount: counts.get(t.id) ?? 0,
-    assignee: canManage ? nameOf.get(t.assigned_employee_id) ?? null : null,
-  }));
+  const cards = rows.map((t: any) => {
+    const emp = t.assigned_employee_id ? employeeMap.get(t.assigned_employee_id) : null;
+    const clientName = (t.projects as any)?.clients?.company || (t.projects as any)?.clients?.name || null;
+    return {
+      ...t,
+      attachmentCount: counts.get(t.id) ?? 0,
+      assignee: emp?.name ?? null,
+      assigneeAvatar: emp?.avatar ?? null,
+      assigneeTitle: emp?.title ?? null,
+      projectName: (t.projects as any)?.name ?? "Untitled Project",
+      clientName: clientName,
+    };
+  });
 
   return (
     <>
       <PageHead
-        title={canManage ? "Task board" : "My tasks"}
+        title={canManage ? "Task Management & Workload Hub" : "My Assigned Tasks"}
         sub={
           canManage
-            ? "Every task across the agency. Add one here, click a card to reassign it, or move it with the arrows — everything saves immediately."
-            : "Work assigned to you. Move a card with the arrows as you go."
+            ? "Unified task control across every project, client, and team member. View by Status, Project, or Staff Assignee with instant filtering."
+            : "Tasks and deliverables assigned to you across all active client projects."
         }
       />
 
-      {canManage && (employees?.length ?? 0) > 0 && (
-        <div className="no-scrollbar mb-5 flex gap-2 overflow-x-auto pb-1">
-          <Filter href="/nx-control/tasks" label="Everyone" active={!who} />
-          {(employees ?? []).map((e: any) => (
-            <Filter
-              key={e.id}
-              href={`/nx-control/tasks?who=${e.id}`}
-              label={e.full_name}
-              active={who === e.id}
-            />
-          ))}
-        </div>
-      )}
-
-      {/* Rendered even when empty for an admin, because the board is now where
-          you add the first task — the old copy sent people to a project page
-          to do something this screen can do. */}
-      {!cards.length && !canManage ? (
-        <p className="card p-8 text-center text-sm text-bone-400">
-          Nothing assigned to you right now.
-        </p>
-      ) : (
-        <TaskBoard
-          tasks={cards}
-          canManage={canManage}
-          projects={projectList ?? []}
-          employees={employees ?? []}
-        />
-      )}
+      <TaskBoard
+        tasks={cards}
+        canManage={canManage}
+        projects={projectList ?? []}
+        employees={employees ?? []}
+        initialWho={who}
+        initialProject={project}
+      />
     </>
-  );
-}
-
-function Filter({ href, label, active }: { href: string; label: string; active: boolean }) {
-  return (
-    <Link
-      href={href}
-      className={`mono-tag shrink-0 rounded-lg border px-3 py-1.5 text-[11px] ${
-        active
-          ? "border-lime-400/40 bg-lime-400/10 text-lime-400"
-          : "border-ink-600 text-bone-400 hover:text-bone-100"
-      }`}
-    >
-      {label}
-    </Link>
   );
 }

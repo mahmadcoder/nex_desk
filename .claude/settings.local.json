@@ -1,0 +1,41 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(node -e ' *)",
+      "Bash(npx tsc *)",
+      "Bash(node -e *)",
+      "Bash(npm run *)",
+      "Bash(node \"C:/Users/KAREEM~1/AppData/Local/Temp/claude/f--persona-docs-Nex-Desk-Agency-nexdesk/4a5d7fc6-9481-42c1-83af-ee0864cb5397/scratchpad/t.mjs\")",
+      "Bash(node --experimental-strip-types \"C:/Users/KAREEM~1/AppData/Local/Temp/claude/f--persona-docs-Nex-Desk-Agency-nexdesk/4a5d7fc6-9481-42c1-83af-ee0864cb5397/scratchpad/d.mjs\")",
+      "Bash(node --experimental-strip-types \"C:/Users/KAREEM~1/AppData/Local/Temp/claude/f--persona-docs-Nex-Desk-Agency-nexdesk/4a5d7fc6-9481-42c1-83af-ee0864cb5397/scratchpad/tz.mjs\")",
+      "Bash(node \"C:/Users/KAREEM~1/AppData/Local/Temp/claude/f--persona-docs-Nex-Desk-Agency-nexdesk/4a5d7fc6-9481-42c1-83af-ee0864cb5397/scratchpad/conv.cjs\")",
+      "Bash(grep -n \"work_date\\\\}\\\\|paid_on\\\\}\\\\|due_date\\\\}\\\\|start_date\\\\}\\\\|end_date\\\\}\\\\|: r.work_date\\\\|: data.workDate\\\\|Date: \\\\${payment.paid_on}\" src/lib/actions/index.ts src/lib/actions/staff.ts src/lib/actions/tasks.ts src/lib/actions/cms.ts src/lib/actions/reports.ts)",
+      "Bash(node --experimental-strip-types \"C:/Users/KAREEM~1/AppData/Local/Temp/claude/f--persona-docs-Nex-Desk-Agency-nexdesk/4a5d7fc6-9481-42c1-83af-ee0864cb5397/scratchpad/w.mjs\")",
+      "Bash(node --experimental-strip-types -e ' *)",
+      "Bash(node --experimental-strip-types \"C:/Users/KAREEM~1/AppData/Local/Temp/claude/f--persona-docs-Nex-Desk-Agency-nexdesk/4a5d7fc6-9481-42c1-83af-ee0864cb5397/scratchpad/est.mjs\")",
+      "Bash(grep -cE '\\\\$[0-9],[0-9]{3}' src/components/site/ExitNudge.tsx src/config/estimator.ts)",
+      "Bash(node --experimental-strip-types \"C:/Users/KAREEM~1/AppData/Local/Temp/claude/f--persona-docs-Nex-Desk-Agency-nexdesk/4a5d7fc6-9481-42c1-83af-ee0864cb5397/scratchpad/ssrf.mjs\")",
+      "Bash(timeout 90 node --experimental-strip-types \"C:/Users/KAREEM~1/AppData/Local/Temp/claude/f--persona-docs-Nex-Desk-Agency-nexdesk/4a5d7fc6-9481-42c1-83af-ee0864cb5397/scratchpad/live.mjs\")",
+      "Bash(cd \"f:/persona docs/Nex_Desk_Agency/nexdesk\" && npm run build 2>&1 > /tmp/b.txt; grep -E \"^[├└] [○●ƒλ]\" /tmp/b.txt | grep -viE \"nx-control|api/|portal\" | sed 's/^/  /' | head -20; echo; echo \"--- render mode tally \\(public site\\) ---\"; grep -E \"^[├└] [○●ƒ] /\" /tmp/b.txt | grep -viE \"nx-control|api/|portal\" | sed -E 's/^[├└] \\([○●ƒ]\\).*/\\\\1/' | sort | uniq -c | sed 's/^/  /')",
+      "Read(//tmp/**)",
+      "Bash(tee /tmp/build.txt)",
+      "Bash(grep -n \"</body>\\\\|</html>\\\\|return \\\\`\" src/lib/email/layout.ts)",
+      "Bash(grep -n \"{/\\\\* \" \"C:/Users/KAREEM~1/AppData/Local/Temp/claude/f--persona-docs-Nex-Desk-Agency-nexdesk/4a5d7fc6-9481-42c1-83af-ee0864cb5397/scratchpad/portal-old.tsx\")",
+      "Bash(npm install *)",
+      "Bash(npx next *)",
+      "Bash(node \"C:/Users/KAREEM~1/AppData/Local/Temp/claude/f--persona-docs-Nex-Desk-Agency-nexdesk/4a5d7fc6-9481-42c1-83af-ee0864cb5397/scratchpad/drift.cjs\" \"f:/persona docs/Nex_Desk_Agency/nexdesk\")",
+      "Bash(awk 'NR>=238 && NR<=330 && \\(/return/ || /redirect\\\\\\(/ || /revalidatePath/\\)' src/lib/actions/index.ts)",
+      "Bash(awk 'NR>=537 && NR<=650 && \\(/return/ || /redirect\\\\\\(/\\)' src/lib/actions/cms.ts)",
+      "Bash(awk 'NR>=537 && NR<=700' src/lib/actions/cms.ts)",
+      "Bash(cd \"f:/persona docs/Nex_Desk_Agency/nexdesk\" && mkdir -p \"src/app/intake/[token]\" src/app/nx-control/intake \"src/app/\\(site\\)/security\")",
+      "Bash(python -)",
+      "Bash(echo \"--- exit $? \\(1 = none found outside\\) ---\")",
+      "Bash(grep -rn \"convertLead\\\\|/clients/\\\\`\" src/app/nx-control/leads/page.tsx src/components/admin/LeadsClient.tsx)",
+      "Bash(xargs -n1 basename)",
+      "Bash(node \"C:/Users/KAREEM~1/AppData/Local/Temp/claude/f--persona-docs-Nex-Desk-Agency-nexdesk/4a5d7fc6-9481-42c1-83af-ee0864cb5397/scratchpad/orphans.js\")"
+    ],
+    "additionalDirectories": [
+      "F:\\persona docs\\Nex_Desk_Agency\\nexdesk\\src\\app\\intake"
+    ]
+  }
+}

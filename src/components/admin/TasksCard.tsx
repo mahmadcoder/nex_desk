@@ -189,7 +189,14 @@ export default function TasksCard({
                   aria-label={`Mark "${t.title}" done`}
                 />
                 <div className="min-w-0 flex-1">
-                  <p className="text-sm text-bone-100">{t.title}</p>
+                  <div className="flex items-center gap-2">
+                    <p className="text-sm text-bone-100">{t.title}</p>
+                    {t.recurrence && (
+                      <span className="mono-tag inline-flex shrink-0 items-center gap-1 rounded bg-lime-400/10 px-1.5 py-0.5 text-[10px] font-semibold text-lime-400">
+                        🔁 {t.recurrence.charAt(0).toUpperCase() + t.recurrence.slice(1)}
+                      </span>
+                    )}
+                  </div>
                   <p className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] text-bone-400">
                     {/* Unassigned is a state worth spotting, not a grey word
                         in a row of grey words — it means nobody has picked
@@ -215,30 +222,27 @@ export default function TasksCard({
                 </div>
                 {canManage && (
                   <div className="mt-0.5 flex shrink-0 items-center gap-2">
-                    {/* Turning a task recurring makes it a template: it leaves
-                        the board and starts producing dated copies instead.
-                        An action menu rather than a value picker — `value` is
-                        permanently "", so the placeholder always shows. It
-                        needs a real width: as a bare "↻" glyph nobody could
-                        tell it was a control at all. */}
-                    <div className="w-[124px] sm:w-[130px]">
+                    <div className="w-[136px] sm:w-[145px]">
                       <CustomSelect
-                        value=""
+                        value={t.recurrence || "none"}
                         placeholder="Repeat…"
                         className="px-2.5 py-1 text-[11px]"
                         onChange={(v) => {
-                          if (!v) return;
                           start(async () => {
-                            const res = await setTaskRecurrence(
-                              t.id,
-                              v as "daily" | "weekly" | "monthly"
-                            );
-                            if (!res.ok) toast.error(res.error ?? "Could not set that.");
-                            else toast.success("Now recurring — a fresh copy appears each period.");
+                            const rec = v === "none" || !v ? null : (v as "daily" | "weekly" | "monthly");
+                            const res = await setTaskRecurrence(t.id, rec);
+                            if (!res.ok) {
+                              toast.error(res.error ?? "Could not update task recurrence.");
+                            } else if (rec) {
+                              toast.success(`Now recurring (${v}) — a fresh copy appears each period.`);
+                            } else {
+                              toast.success("Task set to one-time (no repeat).");
+                            }
                             router.refresh();
                           });
                         }}
                         options={[
+                          { value: "none", label: "One-time (No repeat)" },
                           { value: "daily", label: "Every day" },
                           { value: "weekly", label: "Every week" },
                           { value: "monthly", label: "Every month" },
