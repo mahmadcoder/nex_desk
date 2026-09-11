@@ -252,10 +252,33 @@ export async function saveClient(id: string | null, data: Record<string, unknown
     previous = before ?? null;
   }
 
-  const res = id
+  let res = id
     ? await db.from("clients").update(data).eq("id", id).select().single()
     : await db.from("clients").insert(data).select().single();
+
+  // Graceful fallback if avatar_url column has not been added to clients table yet
+  if (res.error && res.error.code === "42703" && "avatar_url" in data) {
+    const sanitized = { ...data };
+    delete sanitized.avatar_url;
+    res = id
+      ? await db.from("clients").update(sanitized).eq("id", id).select().single()
+      : await db.from("clients").insert(sanitized).select().single();
+  }
+
   if (res.error) throw res.error;
+
+  // Sync avatar to profiles table if client has a linked auth profile
+  if (previous?.profile_id && data.avatar_url !== undefined) {
+    try {
+      await db
+        .from("profiles")
+        .update({ avatar_url: data.avatar_url || null })
+        .eq("id", previous.profile_id);
+    } catch {
+      // non-fatal if profile sync fails
+    }
+  }
+
   const changes = id ? diffFields(previous, data, CLIENT_FIELDS) : [];
   await audit(me.userId, id ? "client.update" : "client.create", "clients", res.data.id, {
     changes: changes.map((c) => ({ field: c.key, from: c.from, to: c.to })),
@@ -320,6 +343,8 @@ export async function saveClient(id: string | null, data: Record<string, unknown
 
   revalidatePath(`/${ADMIN}/clients`);
   if (id) revalidatePath(`/${ADMIN}/clients/${id}`);
+  revalidatePath("/portal");
+  revalidatePath("/portal/account");
   return { ...res.data, credentialsEmailed, emailError };
 }
 

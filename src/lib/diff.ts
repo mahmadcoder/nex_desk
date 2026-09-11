@@ -99,6 +99,7 @@ export const CLIENT_FIELDS: FieldSpec[] = [
   { key: "tax_id", label: "Tax ID", notify: true },
   { key: "preferred_currency", label: "Billing currency", notify: true },
   // Recorded, never emailed.
+  { key: "avatar_url", label: "Profile photo", notify: false },
   { key: "source", label: "Source", notify: false },
   { key: "notes", label: "Internal notes", notify: false },
   { key: "lifecycle", label: "Lifecycle", notify: false },

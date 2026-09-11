@@ -16,7 +16,9 @@ import { contractPosition, extrasPosition, isContractInvoice, splitInvoices } fr
 import ActivityTimeline from "@/components/admin/ActivityTimeline";
 import { clientActivity } from "@/lib/insights";
 import { revealPreview } from "@/lib/crypto";
-import { Calendar, Layers, Clock, CheckCircle2, ShieldCheck, Mail, Globe, Lock, Plus, FileText, Send } from "lucide-react";
+import Avatar from "@/components/Avatar";
+import ClientDialog from "@/components/admin/ClientDialog";
+import { Calendar, Layers, Clock, CheckCircle2, ShieldCheck, Mail, Globe, Lock, Plus, FileText, Send, Edit3 } from "lucide-react";
 
 const BASE = `/${process.env.ADMIN_PATH || "nx-control"}`;
 export const dynamic = "force-dynamic";
@@ -188,88 +190,105 @@ export default async function ClientDetail({ params }: { params: Promise<{ id: s
 
   return (
     <>
-      <div className="flex items-center justify-between">
+      <div className="mb-4">
         <Link href={`${BASE}/clients`} className="mono-tag hover:text-bone-50 transition-colors">
           ← Back to clients list
         </Link>
-        {/* Was hardcoded to "Active Client" for everyone, including clients
-            whose work finished two years ago. */}
-        <span
-          className={`mono-tag inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs ${
-            client.lifecycle === "dormant"
-              ? "border-amber-400/30 bg-amber-400/10 text-amber-300"
-              : client.lifecycle === "archived"
-                ? "border-ink-500 bg-ink-800 text-bone-300"
-                : "border-lime-400/20 bg-lime-400/10 text-lime-400"
-          }`}
-        >
-          <CheckCircle2 size={13} />
-          {client.lifecycle === "dormant"
-            ? "Dormant"
-            : client.lifecycle === "archived"
-              ? "Archived"
-              : "Active client"}
-        </span>
       </div>
 
-      <PageHead
-        title={client.name}
-        sub={
-          canManage
-            ? [
-                client.company ? `Company: ${client.company}` : null,
-                client.email,
-                [client.city, client.country].filter(Boolean).join(", "),
-                client.source
-                  ? `Acquisition: ${client.source.charAt(0).toUpperCase() + client.source.slice(1).replace(/_/g, " ")}`
-                  : null,
-              ]
-                .filter(Boolean)
-                .join(" · ")
-            : client.company
-              ? `Company: ${client.company}`
-              : "Assigned Client"
-        }
-        action={
-          // Selling a second service is normal, so this no longer dead-ends at
-          // "Deal locked" — it offers the next one. Each becomes its own deal,
-          // project and invoice schedule.
-          !canManage ? (
-            lockedProject ? (
-              <Link href={`${BASE}/projects/${lockedProject.id}`} className="btn h-10">
-                Open project
+      {/* Client Profile Header with Avatar and Direct Edit Action */}
+      <div className="mb-6 rounded-xl border border-ink-600 bg-ink-900/60 p-5">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-center gap-4">
+            <Avatar name={client.name} src={client.avatar_url} size="lg" />
+            <div>
+              <div className="flex flex-wrap items-center gap-2.5">
+                <h1 className="text-2xl font-bold tracking-tight text-bone-50">{client.name}</h1>
+                <span
+                  className={`mono-tag inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-semibold ${
+                    client.lifecycle === "dormant"
+                      ? "border-amber-400/30 bg-amber-400/10 text-amber-300"
+                      : client.lifecycle === "archived"
+                        ? "border-ink-500 bg-ink-800 text-bone-300"
+                        : "border-lime-400/20 bg-lime-400/10 text-lime-400"
+                  }`}
+                >
+                  <CheckCircle2 size={12} />
+                  {client.lifecycle === "dormant"
+                    ? "Dormant"
+                    : client.lifecycle === "archived"
+                      ? "Archived"
+                      : "Active client"}
+                </span>
+              </div>
+              <p className="mt-1 text-sm text-bone-300">
+                {canManage
+                  ? [
+                      client.company ? `Company: ${client.company}` : null,
+                      client.email,
+                      [client.city, client.country].filter(Boolean).join(", "),
+                      client.source
+                        ? `Acquisition: ${client.source.charAt(0).toUpperCase() + client.source.slice(1).replace(/_/g, " ")}`
+                        : null,
+                    ]
+                      .filter(Boolean)
+                      .join(" · ")
+                  : client.company
+                    ? `Company: ${client.company}`
+                    : "Assigned Client"}
+              </p>
+            </div>
+          </div>
+
+          {canManage && (
+            <div className="flex items-center gap-2">
+              <ClientDialog
+                clientToEdit={client}
+                trigger={
+                  <button
+                    type="button"
+                    className="btn h-9 text-xs gap-1.5 border-ink-600 bg-ink-800 text-bone-100 hover:border-lime-400/60 transition-colors cursor-pointer"
+                  >
+                    <Edit3 size={13} className="text-lime-400" /> Edit Profile & Photo
+                  </button>
+                }
+              />
+            </div>
+          )}
+        </div>
+      </div>
+
+      <div className="mb-8 flex flex-wrap items-center justify-end gap-2">
+        {!canManage ? (
+          lockedProject ? (
+            <Link href={`${BASE}/projects/${lockedProject.id}`} className="btn h-10">
+              Open project
+            </Link>
+          ) : undefined
+        ) : (
+          <span className="flex flex-wrap items-center gap-2">
+            <DocButton type="nda" id={id} label="NDA" />
+            <DocButton type="dpa" id={id} label="DPA" />
+            <DocButton type="security" id={id} label="Security" />
+            {openQuote ? (
+              <Link href={`${BASE}/deals/${openQuote.id}`} className="btn btn-primary h-10">
+                <Send size={14} /> Deal Quoted ({openQuote.deal_no})
               </Link>
-            ) : undefined
-          ) : (
-            <span className="flex flex-wrap items-center gap-2">
-              {/* All three are asked for during procurement — before there is a
-                  deal to attach them to — so they hang off the client and are
-                  available whether or not anything has been sold yet. Hiding
-                  the NDA until the first deal was backwards: that is precisely
-                  when it is needed. */}
-              <DocButton type="nda" id={id} label="NDA" />
-              <DocButton type="dpa" id={id} label="DPA" />
-              <DocButton type="security" id={id} label="Security" />
-              {openQuote ? (
-                <Link href={`${BASE}/deals/${openQuote.id}`} className="btn btn-primary h-10">
-                  <Send size={14} /> Deal Quoted ({openQuote.deal_no})
-                </Link>
-              ) : services.length ? (
-                <>
-                  <MonthlyReportButton clientId={id} clientName={client.name} />
-                  <Link href={`${BASE}/deals/new?client=${id}`} className="btn btn-primary h-10">
-                    <Plus size={14} /> Add another service
-                  </Link>
-                </>
-              ) : (
+            ) : services.length ? (
+              <>
+                <MonthlyReportButton clientId={id} clientName={client.name} />
                 <Link href={`${BASE}/deals/new?client=${id}`} className="btn btn-primary h-10">
-                  <Lock size={14} /> Lock the first deal
+                  <Plus size={14} /> New Deal
                 </Link>
-              )}
-            </span>
-          )
-        }
-      />
+              </>
+            ) : (
+              <Link href={`${BASE}/deals/new?client=${id}`} className="btn btn-primary h-10">
+                <Plus size={14} /> New Deal
+              </Link>
+            )}
+          </span>
+        )}
+      </div>
 
       {/* 360 Client Key Summary Banner */}
       <div className="card p-5 border-ink-600 bg-ink-900/60 mb-6 grid gap-4 sm:grid-cols-3">
@@ -402,7 +421,11 @@ export default async function ClientDetail({ params }: { params: Promise<{ id: s
           decrypted here, server-side, and only while still fresh. */}
       {canManage && (
         <ClientManagerCard
-          client={{ ...client, portal_password_preview: revealPreview(client) }}
+          client={{
+            ...client,
+            portal_password_preview: revealPreview(client),
+            password_changed_at: client.password_changed_at ?? null,
+          }}
         />
       )}
 

@@ -5,7 +5,8 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { ensureClientPortalAccount, updateClientPermissions, deleteClient } from "@/lib/actions";
 import { getSiteBaseUrl } from "@/lib/utils";
-import { Key, Copy, Eye, EyeOff, Shield, Trash2, CheckSquare, Square, Edit3 } from "lucide-react";
+import { fmtDate } from "@/lib/datetime";
+import { Key, Copy, Eye, EyeOff, Shield, Trash2, CheckSquare, Square, Edit3, KeyRound } from "lucide-react";
 import ClientDialog from "@/components/admin/ClientDialog";
 import ConfirmModal from "@/components/admin/ConfirmModal";
 
@@ -26,6 +27,7 @@ export default function ClientManagerCard({
     email: string;
     portal_password_preview: string | null;
     portal_access_token: string | null;
+    password_changed_at?: string | null;
     client_permissions: ClientPermissions | null;
   };
 }) {
@@ -157,6 +159,20 @@ export default function ClientManagerCard({
         {/* Credentials Column */}
         <div className="rounded-lg border border-ink-600 bg-ink-900/60 p-4">
           <p className="mono-tag text-lime-400 mb-3">Portal Login Credentials</p>
+
+          {/* Alert if client updated password from portal */}
+          {client.password_changed_at && (
+            <div className="mb-3.5 rounded-lg border border-amber-400/40 bg-amber-400/10 p-2.5 flex items-start gap-2.5 text-xs text-amber-300">
+              <KeyRound className="h-4 w-4 shrink-0 text-amber-400 mt-0.5" />
+              <div>
+                <span className="font-semibold block text-amber-200">Password Changed by Client</span>
+                <span className="text-[11px] text-amber-200/90 leading-relaxed block mt-0.5">
+                  Updated from portal on {fmtDate(client.password_changed_at)}. The new password is saved and can be revealed below.
+                </span>
+              </div>
+            </div>
+          )}
+
           <div className="space-y-3 text-sm">
             <div>
               <span className="text-bone-400 block text-xs">Portal Email</span>
@@ -174,13 +190,27 @@ export default function ClientManagerCard({
                     : "Hidden — reset to issue a new one"}
                 </span>
                 {client.portal_password_preview && (
-                  <button
-                    type="button"
-                    className="p-1.5 text-bone-400 hover:text-bone-50"
-                    onClick={() => setShowPassword(!showPassword)}
-                  >
-                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                  </button>
+                  <>
+                    <button
+                      type="button"
+                      className="p-1.5 text-bone-400 hover:text-bone-50 transition-colors"
+                      onClick={() => setShowPassword(!showPassword)}
+                      title={showPassword ? "Hide password" : "Show password"}
+                    >
+                      {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </button>
+                    <button
+                      type="button"
+                      className="p-1.5 text-bone-400 hover:text-lime-400 transition-colors"
+                      onClick={() => {
+                        navigator.clipboard.writeText(client.portal_password_preview || "");
+                        toast.success("Password copied to clipboard.");
+                      }}
+                      title="Copy password to clipboard"
+                    >
+                      <Copy className="h-4 w-4" />
+                    </button>
+                  </>
                 )}
               </div>
             </div>

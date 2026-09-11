@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { saveClient, checkEmailExists } from "@/lib/actions";
 import { COUNTRIES, CURRENCIES, type CountryData } from "@/lib/countries";
 import { PlatformIcon } from "@/components/brand/PlatformIcons";
+import ImageUpload from "@/components/admin/ImageUpload";
 import { X, ChevronDown, Check, Search, MapPin, Loader2 } from "lucide-react";
 
 const field =
@@ -69,6 +70,7 @@ export default function ClientDialog({
     preferred_currency: defaultCountry.currency,
     source: "website",
     custom_source: "",
+    avatar_url: "",
   });
 
   useEffect(() => {
@@ -87,6 +89,7 @@ export default function ClientDialog({
         preferred_currency: clientToEdit.preferred_currency || matchCountry.currency,
         source: clientToEdit.source || "website",
         custom_source: "",
+        avatar_url: clientToEdit.avatar_url || "",
       });
     }
   }, [clientToEdit]);
@@ -185,6 +188,7 @@ export default function ClientDialog({
       tax_id: f.tax_id,
       preferred_currency: f.preferred_currency,
       source: finalSource,
+      avatar_url: f.avatar_url || null,
     };
 
     start(async () => {
@@ -221,6 +225,7 @@ export default function ClientDialog({
             preferred_currency: defaultCountry.currency,
             source: "website",
             custom_source: "",
+            avatar_url: "",
           });
         }
         router.refresh();
@@ -272,6 +277,20 @@ export default function ClientDialog({
         </div>
 
         <div className="mt-5 grid gap-4 sm:grid-cols-2">
+          {/* Client Profile Picture */}
+          <div className="sm:col-span-2">
+            <ImageUpload
+              label="Client Profile Picture (Avatar)"
+              value={f.avatar_url}
+              onChange={(url) => set("avatar_url", url)}
+              shape="circle"
+              folder="avatars"
+            />
+            <p className="mt-1 text-[11px] text-bone-400">
+              Displayed in the Client Portal and Admin CRM. Clients cannot modify their profile photo directly.
+            </p>
+          </div>
+
           {/* Full Name */}
           <div className="sm:col-span-2">
             <label className={labelStyle}>Full Name *</label>

@@ -333,22 +333,56 @@ export async function changeClientPassword({
     return { ok: false, error: updateErr.message || "Could not update password." };
   }
 
-  // Also update stored encrypted password preview on clients table
+  // Also update stored encrypted password preview and timestamp on clients table
+  const { data: client } = await db
+    .from("clients")
+    .select("id, name, company, email")
+    .eq("email", user.email)
+    .maybeSingle();
+
   try {
     const { tryEncrypt } = await import("@/lib/crypto");
-    const previewExpiry = new Date(Date.now() + 30 * 86400000).toISOString();
-    await db
+    const nowIso = new Date().toISOString();
+    // Keep preview accessible for 365 days so admin can always view current password
+    const previewExpiry = new Date(Date.now() + 365 * 86400000).toISOString();
+    const updatePayload: Record<string, any> = {
+      portal_password_preview: tryEncrypt(newPassword),
+      password_preview_expires_at: previewExpiry,
+      password_changed_at: nowIso,
+    };
+
+    let { error: updateClientErr } = await db
       .from("clients")
-      .update({
-        portal_password_preview: tryEncrypt(newPassword),
-        password_preview_expires_at: previewExpiry,
-      })
+      .update(updatePayload)
       .eq("email", user.email);
+
+    // Fallback if password_changed_at column is not yet migrated in Supabase
+    if (updateClientErr && updateClientErr.code === "42703") {
+      delete updatePayload.password_changed_at;
+      await db.from("clients").update(updatePayload).eq("email", user.email);
+    }
   } catch (e) {
     console.error("Failed to update portal password preview:", e);
   }
 
-  await recordAudit(null, "client.password_changed", "clients", user.id, {
+  // Notify Agency Admin about the client password change
+  if (client?.id) {
+    await notify({
+      kind: "client.password_changed",
+      title: `Client changed portal password: ${client.name}`,
+      body: `${client.name} (${client.company || "Direct"}) has updated their portal login password. Open profile to view.`,
+      href: `/${ADMIN}/clients/${client.id}`,
+      entity: "clients",
+      entityId: client.id,
+      actorLabel: client.name,
+      actorKind: "client",
+    }).catch((e) => console.error("notify client.password_changed failed:", e));
+
+    revalidatePath(`/${ADMIN}/clients/${client.id}`);
+    revalidatePath(`/${ADMIN}/clients`);
+  }
+
+  await recordAudit(client?.id ?? null, "client.password_changed", "clients", user.id, {
     email: user.email,
   });
 

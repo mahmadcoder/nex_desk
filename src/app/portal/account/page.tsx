@@ -6,7 +6,8 @@ import AcceptAgreement from "@/components/portal/AcceptAgreement";
 import ReturnRequest from "@/components/portal/ReturnRequest";
 import ClientPasswordForm from "@/components/portal/ClientPasswordForm";
 import SupportWindow from "@/components/SupportWindow";
-import { MessageCircle, User } from "lucide-react";
+import Avatar from "@/components/Avatar";
+import { MessageCircle, ShieldCheck, User } from "lucide-react";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
@@ -53,6 +54,21 @@ export default async function PortalAccount() {
           <span className="mono-tag rounded-full border border-lime-400/30 bg-lime-400/10 px-2.5 py-0.5 text-[11px] font-medium text-lime-300">
             {client.lifecycle ? client.lifecycle.toUpperCase() : "ACTIVE"}
           </span>
+        </div>
+
+        {/* Profile Card Header with Avatar */}
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 py-4 border-b border-ink-700/60">
+          <div className="flex items-center gap-3.5">
+            <Avatar name={client.name ?? "Client"} src={client.avatar_url ?? null} size="lg" />
+            <div>
+              <p className="text-base font-semibold text-bone-50">{client.name || "—"}</p>
+              <p className="text-xs text-bone-400">{client.company || "Direct Client"} · {client.email}</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-1.5 rounded-md border border-ink-700 bg-ink-800/60 px-2.5 py-1.5 text-[11px] text-bone-300">
+            <ShieldCheck className="h-3.5 w-3.5 text-lime-400 shrink-0" />
+            <span>Profile managed by Nex Desk Administrator</span>
+          </div>
         </div>
 
         <div className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">

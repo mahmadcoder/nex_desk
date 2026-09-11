@@ -1,10 +1,16 @@
--- SQL Migration: Add Recipient Tracking & Resolution to intake_requests
--- Run this in your Supabase SQL Editor if columns do not exist yet.
+-- ============================================================
+-- Migration 2027-35: Client Avatars & Password Change Tracking
+-- ============================================================
+-- 1. avatar_url on clients: Allows agency admins to upload and assign
+--    profile photos for clients, displayed in the Client Portal and Admin CRM.
+-- 2. password_changed_at on clients: Records the exact timestamp when a client
+--    updates their portal password, alerting admins in CRM.
 
-ALTER TABLE intake_requests
-ADD COLUMN IF NOT EXISTS recipient_name TEXT,
-ADD COLUMN IF NOT EXISTS recipient_email TEXT,
-ADD COLUMN IF NOT EXISTS client_id UUID REFERENCES clients(id) ON DELETE SET NULL,
-ADD COLUMN IF NOT EXISTS staff_id UUID REFERENCES profiles(id) ON DELETE SET NULL,
-ADD COLUMN IF NOT EXISTS resolved_at TIMESTAMPTZ,
-ADD COLUMN IF NOT EXISTS resolved_by UUID;
+alter table public.clients add column if not exists avatar_url text;
+alter table public.clients add column if not exists password_changed_at timestamptz;
+
+comment on column public.clients.avatar_url is
+  'Admin-managed client profile photo URL in public-assets bucket, rendered in client portal and admin CRM.';
+
+comment on column public.clients.password_changed_at is
+  'Timestamp when client last updated their password from the portal, used to notify admins and display badge in CRM.';
