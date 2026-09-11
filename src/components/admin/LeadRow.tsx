@@ -52,10 +52,16 @@ export default function LeadRow({
 
   const [priority, setPriorityState] = useState<LeadPriority>(lead.priority ?? "normal");
   const [triaging, setTriaging] = useState(false);
-  const [triageSummary, setTriageSummary] = useState<string>(
-    // A saved triage survives a refresh, so the row is not blank next time.
-    lead.notes?.startsWith("AI triage: ") ? lead.notes.slice("AI triage: ".length) : ""
-  );
+
+  const initialTriage = lead.notes?.startsWith("AI triage: ")
+    ? lead.notes.slice("AI triage: ".length)
+    : "";
+  const [initialSummary, initialNext] = initialTriage.includes(" • Next: ")
+    ? initialTriage.split(" • Next: ")
+    : [initialTriage, ""];
+
+  const [triageSummary, setTriageSummary] = useState<string>(initialSummary);
+  const [triageNextStep, setTriageNextStep] = useState<string>(initialNext);
   const [triageReply, setTriageReply] = useState("");
 
   const isSpam = status === "spam";
@@ -78,8 +84,9 @@ export default function LeadRow({
       }
       setPriorityState(res.priority);
       setTriageSummary(res.summary);
+      setTriageNextStep(res.nextStep || "");
       setTriageReply(res.reply);
-      toast.success(`Read it — looks ${res.priority}.`);
+      toast.success(`Enquiry analyzed — priority set to ${res.priority}.`);
     } finally {
       setTriaging(false);
     }
@@ -166,128 +173,226 @@ export default function LeadRow({
       </tr>
 
       {open && (
-        <tr className="bg-ink-800/40">
-          <td colSpan={6} className="px-5 py-5">
-            <div className="grid gap-6 md:grid-cols-[1.5fr_1fr]">
-              <div>
-                <p className="mono-tag">Message</p>
-                <p className="mt-2 whitespace-pre-line text-sm text-bone-200">
-                  {lead.message || "No message included."}
-                </p>
+        <tr className="bg-ink-800/50 border-t border-ink-600/60">
+          <td colSpan={6} className="p-0 whitespace-normal">
+            <div className="p-5 sm:p-6 space-y-6">
+              {/* Top section: Two Column Layout on lg+, single column on smaller screens */}
+              <div className="grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
+                {/* Left Column: Client Message & Metadata */}
+                <div className="space-y-5">
+                  <div className="rounded-xl border border-ink-600 bg-ink-900/80 p-4">
+                    <span className="mono-tag text-[10px] text-lime-400 font-semibold uppercase tracking-wider block mb-1.5">
+                      Client Message
+                    </span>
+                    <p className="whitespace-pre-line text-sm leading-relaxed text-bone-100">
+                      {lead.message || "No message included."}
+                    </p>
+                  </div>
 
-                <div className="mt-5 grid grid-cols-2 gap-4 text-sm sm:grid-cols-4">
-                  {[
-                    ["Phone", lead.phone],
-                    ["Company", lead.company],
-                    ["City", lead.city],
-                    ["Country", lead.country],
-                    ["Timeline", lead.timeline],
-                    ["Source", lead.source],
-                    // Attribution. utm_source is what the LINK claimed;
-                    // referrer is what the browser actually observed, which is
-                    // why both are shown rather than one standing in for the
-                    // other.
-                    ["Campaign", lead.utm_campaign],
-                    ["utm_source", lead.utm_source],
-                    ["Came from", lead.referrer],
-                    ["Landed on", lead.landing_page],
-                  ].map(([k, v]) => (
-                    <div key={k as string}>
-                      <p className="mono-tag">{k}</p>
-                      <p className="mt-0.5">{(v as string) || "—"}</p>
+                  <div>
+                    <span className="mono-tag text-[11px] text-bone-400 block mb-2 font-medium">
+                      Enquiry & Attribution Details
+                    </span>
+                    <div className="grid grid-cols-2 gap-2 text-xs sm:grid-cols-3">
+                      {[
+                        ["Phone", lead.phone],
+                        ["Company", lead.company],
+                        ["City", lead.city],
+                        ["Country", lead.country],
+                        ["Timeline", lead.timeline],
+                        ["Budget", lead.budget_range],
+                        ["Source", lead.source],
+                        ["Campaign", lead.utm_campaign],
+                        ["UTM Source", lead.utm_source],
+                        ["Referrer", lead.referrer],
+                        ["Landing Page", lead.landing_page],
+                      ].map(([k, v]) => (
+                        <div
+                          key={k as string}
+                          className="rounded-lg border border-ink-700 bg-ink-900/50 p-2.5 min-w-0"
+                        >
+                          <span className="mono-tag text-[10px] text-bone-400 block truncate">
+                            {k}
+                          </span>
+                          <p
+                            className="mt-0.5 font-medium text-bone-100 truncate text-xs"
+                            title={String(v || "—")}
+                          >
+                            {(v as string) || "—"}
+                          </p>
+                        </div>
+                      ))}
                     </div>
-                  ))}
+                  </div>
+
+                  {/* Status update pills */}
+                  <div className="pt-1">
+                    <span className="mono-tag text-[11px] text-bone-400 block mb-2">
+                      Pipeline Stage
+                    </span>
+                    <div className="flex flex-wrap gap-1.5">
+                      {LEAD_STATUSES.map((s) => (
+                        <button
+                          key={s}
+                          disabled={pending}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            change(s);
+                          }}
+                          className={`rounded-full border px-3 py-1 text-xs font-medium transition-colors ${
+                            status === s
+                              ? s === "spam"
+                                ? "border-rose-500 bg-rose-600 text-white"
+                                : "border-lime-400 bg-lime-400 text-lime-950 font-semibold"
+                              : "border-ink-600 bg-ink-800/60 text-bone-300 hover:border-ink-500 hover:text-bone-100"
+                          }`}
+                        >
+                          {s}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Right Column: AI Lead Intelligence & Triage */}
+                <div className="space-y-4">
+                  <div className="rounded-xl border border-lime-400/30 bg-gradient-to-b from-lime-400/[0.04] to-ink-800/80 p-4 sm:p-5 space-y-4">
+                    {/* Header: Title + Triage Button */}
+                    <div className="flex items-center justify-between gap-3 border-b border-ink-700 pb-3">
+                      <div className="flex items-center gap-2">
+                        <Sparkles size={15} className="text-lime-400 shrink-0" />
+                        <span className="text-xs font-semibold text-bone-50 uppercase tracking-wider">
+                          AI Lead Triage
+                        </span>
+                      </div>
+
+                      <button
+                        type="button"
+                        className="btn btn-sm btn-primary gap-1.5 text-xs h-8 px-3"
+                        disabled={triaging}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          triage();
+                        }}
+                      >
+                        {triaging ? <Loader2 size={13} className="animate-spin" /> : <Sparkles size={13} />}
+                        {triaging ? "Analyzing…" : triageSummary ? "Re-triage" : "Triage with AI"}
+                      </button>
+                    </div>
+
+                    {/* Priority Selector */}
+                    <div>
+                      <div className="flex items-center justify-between mb-1.5">
+                        <span className="mono-tag text-[10px] text-bone-400">Estimated Priority</span>
+                        <span className="mono-tag text-[10px] text-bone-500">Click to override</span>
+                      </div>
+                      <div className="flex flex-wrap gap-1.5">
+                        {(["low", "normal", "high", "urgent"] as const).map((p) => (
+                          <button
+                            key={p}
+                            disabled={pending}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setPriority(p);
+                            }}
+                            className={`rounded-full border px-2.5 py-0.5 text-[11px] uppercase font-mono tracking-wider transition-colors ${
+                              priority === p
+                                ? PRIORITY_STYLE[p]
+                                : "border-ink-600 bg-ink-900/60 text-bone-400 hover:border-ink-500 hover:text-bone-200"
+                            }`}
+                          >
+                            {p}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* AI Assessment / Summary */}
+                    {triageSummary ? (
+                      <div className="space-y-3 rounded-lg border border-ink-700 bg-ink-900/70 p-3">
+                        <div>
+                          <span className="mono-tag text-[10px] text-lime-400 block mb-1">
+                            Executive Assessment
+                          </span>
+                          <p className="text-xs leading-relaxed text-bone-100">
+                            {triageSummary}
+                          </p>
+                        </div>
+
+                        {triageNextStep && (
+                          <div className="border-t border-ink-700/80 pt-2.5">
+                            <span className="mono-tag text-[10px] text-amber-300 block mb-1">
+                              Recommended Next Step
+                            </span>
+                            <p className="text-xs leading-relaxed text-bone-200">
+                              {triageNextStep}
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <div className="rounded-lg border border-dashed border-ink-600 bg-ink-900/30 p-3 text-center">
+                        <p className="text-xs text-bone-400">
+                          Click <strong className="text-bone-200">Triage with AI</strong> to score priority, summarize requirements, and generate a client-ready reply.
+                        </p>
+                      </div>
+                    )}
+
+                    {/* Draft Reply Preview */}
+                    {triageReply && (
+                      <div className="space-y-2 rounded-lg border border-ink-700 bg-ink-900/90 p-3">
+                        <div className="flex items-center justify-between">
+                          <span className="mono-tag text-[10px] text-bone-300 font-medium">
+                            Drafted Client Reply
+                          </span>
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              navigator.clipboard.writeText(triageReply);
+                              toast.success("Draft reply copied to clipboard.");
+                            }}
+                            className="inline-flex items-center gap-1 text-[11px] text-bone-400 hover:text-lime-400 transition-colors"
+                          >
+                            <Copy size={11} /> Copy
+                          </button>
+                        </div>
+
+                        <div className="max-h-48 overflow-y-auto rounded bg-ink-950/80 p-2.5 text-xs leading-relaxed text-bone-200 whitespace-pre-wrap font-sans border border-ink-800">
+                          {triageReply}
+                        </div>
+
+                        <div className="pt-1">
+                          <button
+                            type="button"
+                            className="btn btn-sm btn-primary w-full justify-center gap-1.5 text-xs h-8"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setMail((m) => ({ ...m, body: `${triageReply}\n\nNex Desk` }));
+                              setComposeOpen(true);
+                            }}
+                          >
+                            <Mail size={12} /> Open & Send in Email Composer
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
 
-              <div className="space-y-4">
-                {/* Triage. `leads.priority` and `leads.notes` have been in the
-                    schema since launch with no UI, so every enquiry looked
-                    exactly as important as every other one. */}
-                <div className="rounded-lg border border-ink-600 bg-ink-800/60 p-3.5">
-                  <div className="flex items-center justify-between gap-2">
-                    <p className="mono-tag">Priority</p>
-                    <button
-                      className="btn btn-sm gap-1.5"
-                      disabled={triaging}
-                      onClick={(e) => { e.stopPropagation(); triage(); }}
-                    >
-                      {triaging ? <Loader2 size={12} className="animate-spin" /> : <Sparkles size={12} />}
-                      {triaging ? "Reading…" : "Triage with AI"}
-                    </button>
-                  </div>
-
-                  <div className="mt-2.5 flex flex-wrap gap-1.5">
-                    {(["low", "normal", "high", "urgent"] as const).map((p) => (
-                      <button
-                        key={p}
-                        disabled={pending}
-                        onClick={(e) => { e.stopPropagation(); setPriority(p); }}
-                        className={`rounded-full border px-2.5 py-1 text-[11px] transition-colors ${
-                          priority === p
-                            ? PRIORITY_STYLE[p]
-                            : "border-ink-500 text-bone-300 hover:border-ink-400"
-                        }`}
-                      >
-                        {p}
-                      </button>
-                    ))}
-                  </div>
-
-                  {triageSummary && (
-                    <p className="mt-2.5 border-t border-ink-700 pt-2.5 text-[11px] leading-relaxed text-bone-300">
-                      {triageSummary}
-                    </p>
-                  )}
-
-                  {triageReply && (
-                    <button
-                      className="btn btn-sm mt-2.5 w-full justify-center"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setMail((m) => ({ ...m, body: `${triageReply}\n\nNex Desk` }));
-                        setComposeOpen(true);
-                      }}
-                    >
-                      Open the drafted reply
-                    </button>
-                  )}
-                </div>
-
-                <div>
-                  <p className="mono-tag mb-2">Move to</p>
-                  <div className="flex flex-wrap gap-1.5">
-                    {LEAD_STATUSES.map((s) => (
-                      <button
-                        key={s}
-                        disabled={pending}
-                        onClick={(e) => { e.stopPropagation(); change(s); }}
-                        className={`rounded-full border px-3 py-1.5 text-xs transition-colors ${
-                          status === s
-                            ? s === "spam"
-                              ? "border-rose-500 bg-rose-600 text-white"
-                              : "border-lime-400 bg-lime-400 text-lime-950"
-                            : "border-ink-500 text-bone-300 hover:border-ink-600"
-                        }`}
-                      >
-                        {s}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="flex flex-wrap gap-2">
-                  {/*
-                    An in-app compose window, not `mailto:`. The old link had no
-                    stopPropagation, so the row's onClick collapsed the panel and
-                    unmounted the anchor mid-navigation — and on a machine with no
-                    default mail client `mailto:` does nothing regardless.
-                  */}
+              {/* Bottom Action Bar: Communication & Conversion */}
+              <div className="flex flex-wrap items-center justify-between gap-3 border-t border-ink-700/80 pt-4">
+                <div className="flex flex-wrap items-center gap-2">
                   <button
-                    className="btn h-9 text-sm"
-                    onClick={(e) => { e.stopPropagation(); setComposeOpen(true); }}
+                    type="button"
+                    className="btn h-9 text-xs gap-1.5 px-3.5"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setComposeOpen(true);
+                    }}
                   >
-                    <Mail className="mr-1.5 h-3.5 w-3.5" /> Email
+                    <Mail size={13} /> Email Lead
                   </button>
 
                   {lead.phone && (
@@ -296,9 +401,9 @@ export default function LeadRow({
                       target="_blank"
                       rel="noreferrer"
                       onClick={(e) => e.stopPropagation()}
-                      className="btn h-9 text-sm"
+                      className="btn h-9 text-xs gap-1.5 px-3.5"
                     >
-                      <MessageCircle className="mr-1.5 h-3.5 w-3.5" /> WhatsApp
+                      <MessageCircle size={13} className="text-lime-400" /> WhatsApp
                     </a>
                   )}
 
@@ -306,29 +411,37 @@ export default function LeadRow({
                     <Link
                       href={adminPath(`/clients/${convertedClientId}`)}
                       onClick={(e) => e.stopPropagation()}
-                      className="inline-flex h-9 items-center gap-1.5 rounded-full border border-lime-400/30 bg-lime-400/10 px-4 text-xs text-lime-400"
+                      className="inline-flex h-9 items-center gap-1.5 rounded-full border border-lime-400/30 bg-lime-400/10 px-4 text-xs font-medium text-lime-300"
                     >
                       ✓ Converted to client
                     </Link>
                   ) : (
                     <button
-                      className="btn btn-primary h-9 text-sm"
+                      type="button"
+                      className="btn btn-primary h-9 text-xs gap-1.5 px-4 font-semibold"
                       disabled={pending || isSpam}
                       title={isSpam ? "Take this out of spam first." : undefined}
-                      onClick={(e) => { e.stopPropagation(); start(() => convertLeadToClient(lead.id) as never); }}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        start(() => convertLeadToClient(lead.id) as never);
+                      }}
                     >
-                      {pending ? "Converting…" : "Convert to client"}
+                      {pending ? "Converting…" : "Convert to Client"}
                     </button>
                   )}
-
-                  <button
-                    className="inline-flex h-9 items-center rounded-full border border-ink-500 px-3 text-xs text-bone-400 transition-colors hover:border-rose-500/50 hover:text-rose-400"
-                    disabled={pending}
-                    onClick={(e) => { e.stopPropagation(); setConfirmDelete(true); }}
-                  >
-                    <Trash2 className="mr-1.5 h-3.5 w-3.5" /> Delete
-                  </button>
                 </div>
+
+                <button
+                  type="button"
+                  className="inline-flex h-9 items-center gap-1 rounded-full border border-ink-600 px-3 text-xs text-bone-400 transition-colors hover:border-rose-500/50 hover:text-rose-400"
+                  disabled={pending}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setConfirmDelete(true);
+                  }}
+                >
+                  <Trash2 size={13} /> Delete
+                </button>
               </div>
             </div>
           </td>

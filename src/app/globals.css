@@ -444,15 +444,21 @@ input[type="date"]::-webkit-calendar-picker-indicator {
    cell: the browser gives it the smallest width that fits its content and
    shares the remainder among the real columns. The phone rules further
    down override both, so this does not fight the card stacking. */
-.nd-actions-last th:last-child,
-.nd-actions-last td:last-child {
+.nd-actions-last th:last-child:not([colspan]),
+.nd-actions-last td:last-child:not([colspan]) {
   width: 1%;
   white-space: nowrap;
 }
 
-.nd-actions-last td:last-child a,
-.nd-actions-last td:last-child button {
+.nd-actions-last td:last-child:not([colspan]) a,
+.nd-actions-last td:last-child:not([colspan]) button {
   white-space: nowrap;
+}
+
+.nd-table td[colspan] {
+  width: 100% !important;
+  white-space: normal !important;
+  text-align: left;
 }
 
 /* ── Tables become cards on a phone ────────────────────────────────

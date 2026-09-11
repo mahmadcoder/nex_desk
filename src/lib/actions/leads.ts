@@ -30,13 +30,13 @@ export type LeadPriority = (typeof PRIORITIES)[number];
 
 /** A plain field label, not JSON: models get key names right far more often than they get brackets right. */
 function parseSection(text: string, label: string): string {
-  const re = new RegExp(`^\\s*${label}\\s*:\\s*([\\s\\S]*?)(?=\\n\\s*(?:PRIORITY|SUMMARY|REPLY)\\s*:|$)`, "im");
+  const re = new RegExp(`^\\s*${label}\\s*:\\s*([\\s\\S]*?)(?=\\n\\s*(?:PRIORITY|SUMMARY|NEXT_STEP|REPLY)\\s*:|$)`, "im");
   return text.match(re)?.[1]?.trim() ?? "";
 }
 
 export async function triageLead(
   leadId: string
-): Promise<Result<{ summary: string; priority: LeadPriority; reply: string }>> {
+): Promise<Result<{ summary: string; priority: LeadPriority; reply: string; nextStep?: string }>> {
   const me = await requireOwnerAdmin();
   const db = createAdminClient();
 
@@ -47,23 +47,25 @@ export async function triageLead(
   if (!lead) return { ok: false, error: "That lead no longer exists." };
 
   const res = await aiComplete(
-    `You are the person who reads incoming enquiries at Nex Desk, a software agency ` +
-      `building websites, web apps and mobile apps.\n\n` +
-      `Read the enquiry below and reply in EXACTLY this shape, with these three labels, ` +
-      `nothing before or after:\n\n` +
+    `You are the Senior Client Solutions and Intake Director at Nex Desk, a premier digital agency building high-performance web applications, mobile apps, and custom software.\n\n` +
+      `Review the incoming client enquiry below with commercial sharpness, professionalism, and constructive sales intelligence. Reply in EXACTLY this shape, with these four labels, nothing before or after:\n\n` +
       `PRIORITY: one of low, normal, high, urgent\n` +
-      `SUMMARY: one sentence, maximum 25 words, saying what they want and whether it looks real\n` +
-      `REPLY: a short first reply to send them\n\n` +
-      `How to judge priority. Be honest rather than optimistic — marking everything ` +
-      `urgent is the same as marking nothing urgent:\n` +
-      `• urgent — a clear budget, a named deadline, and a specific requirement\n` +
-      `• high — a real project with either a budget or a timeline attached\n` +
-      `• normal — a genuine enquiry that is still vague\n` +
-      `• low — window shopping, a job application, an agency pitching to us, or spam\n\n` +
-      `The reply: plain confident English, British spelling, no buzzwords, no exclamation ` +
-      `marks, no emoji. Under 120 words. Answer what they actually asked, and ask at most ` +
-      `two questions that would let us quote properly. Do not invent prices, timelines or ` +
-      `capabilities. End with "Best regards" and no name.\n\n` +
+      `SUMMARY: 1-2 concise, executive sentences summarizing what the client wants to build, their requirements, and estimated project scope. Focus on the business opportunity and be constructive (do not dismiss or criticize client inputs).\n` +
+      `NEXT_STEP: one specific, actionable recommendation for our team (e.g. schedule a 15-min discovery call, send questionnaire, or prepare tailored architecture options).\n` +
+      `REPLY: a warm, professional, high-converting first reply to the client.\n\n` +
+      `How to judge priority:\n` +
+      `• urgent — explicit budget or package mentioned, immediate timeline (e.g. 2–4 weeks), or ready to kick off\n` +
+      `• high — genuine project inquiry with defined scope, package, or timeline\n` +
+      `• normal — general exploration or early discovery inquiry\n` +
+      `• low — non-client solicitation, vendor pitching, recruitment or spam\n\n` +
+      `The reply:\n` +
+      `- Warm, confident, and professional.\n` +
+      `- Specifically acknowledge their requested service, package, and project goals.\n` +
+      `- Express excitement to help them execute it on schedule.\n` +
+      `- Ask 1 or 2 high-impact qualifying questions (e.g. target platforms, design readiness, or must-have features).\n` +
+      `- Offer a quick 15-minute intro call to align on scope and deliver a formal quote.\n` +
+      `- Keep length under 140 words.\n` +
+      `- End with "Best regards,\nNex Desk Team".\n\n` +
       `--- ENQUIRY ---\n` +
       `name: ${lead.name}\n` +
       `email: ${lead.email}\n` +
@@ -84,6 +86,7 @@ export async function triageLead(
     : "normal";
 
   const summary = parseSection(res.text, "SUMMARY");
+  const nextStep = parseSection(res.text, "NEXT_STEP");
   const reply = parseSection(res.text, "REPLY");
 
   // A model that ignored the format would otherwise overwrite a real note with
@@ -94,19 +97,21 @@ export async function triageLead(
 
   // Saved so the assessment survives a refresh and shows on the row. The
   // existing note is kept — a human's note outranks a generated one.
+  const fullNote = summary
+    ? `AI triage: ${summary}${nextStep ? ` • Next: ${nextStep}` : ""}`
+    : lead.notes;
+
   await db.from("leads").update({
     priority,
-    notes: lead.notes?.trim()
+    notes: lead.notes?.trim() && !lead.notes.startsWith("AI triage:")
       ? lead.notes
-      : summary
-        ? `AI triage: ${summary}`
-        : lead.notes,
+      : fullNote,
   }).eq("id", id);
 
   await recordAudit(me.userId, "lead.triage", "leads", id, { priority });
 
   revalidatePath(`/${ADMIN}/leads`);
-  return { ok: true, summary, priority, reply };
+  return { ok: true, summary, priority, reply, nextStep };
 }
 
 /** Set by hand. The AI's guess is a suggestion, never the last word. */
