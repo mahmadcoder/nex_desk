@@ -213,9 +213,7 @@ export async function requestReactivation(
     .maybeSingle();
   if (!client) return { ok: false, error: "No client profile found for this account." };
 
-  if (client.lifecycle === "active") {
-    return { ok: false, error: "Your account is already active." };
-  }
+  const isPaused = client.lifecycle === "paused";
 
   // One at a time. A second press before we have answered the first would only
   // send us the same thing twice.
@@ -244,9 +242,13 @@ export async function requestReactivation(
     };
   }
 
+  const title = isPaused
+    ? `${client.name} wants to work together again`
+    : `${client.name} requested a new project / service`;
+
   await notify({
     kind: "client.return_request",
-    title: `${client.name} wants to work together again`,
+    title,
     body: note || "No message left — worth a call.",
     href: `/${ADMIN}/clients/${client.id}`,
     entity: "clients",
@@ -268,10 +270,89 @@ export async function requestReactivation(
     },
   }).catch((e) => console.error("Return-request notice failed:", e));
 
-  await recordAudit(null, "client.return_request", "clients", client.id, { note });
+  await recordAudit(null, "client.return_request", "clients", client.id, {
+    note,
+    activeRequest: !isPaused,
+  });
 
   revalidatePath("/portal");
+  revalidatePath("/portal/account");
   revalidatePath(`/${ADMIN}/clients/${client.id}`);
+  return { ok: true };
+}
+
+/* ============================================================
+   CLIENT PASSWORD SELF-SERVICE
+   ============================================================ */
+
+/**
+ * Lets an authenticated client change their password from /portal/account.
+ * Validates their current password, sets the new password, and updates
+ * the encrypted preview on their client profile.
+ */
+export async function changeClientPassword({
+  currentPassword,
+  newPassword,
+}: {
+  currentPassword: string;
+  newPassword: string;
+}): Promise<{ ok: boolean; error?: string }> {
+  if (!currentPassword) return { ok: false, error: "Current password is required." };
+  if (!newPassword || newPassword.length < 6) {
+    return { ok: false, error: "New password must be at least 6 characters long." };
+  }
+
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user?.email) return { ok: false, error: "Sign in to your portal first." };
+
+  // Verify current password by attempting sign-in with a clean temporary client
+  const { createClient: createSupabaseClient } = await import("@supabase/supabase-js");
+  const tempClient = createSupabaseClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    { auth: { persistSession: false } }
+  );
+
+  const { error: signInErr } = await tempClient.auth.signInWithPassword({
+    email: user.email,
+    password: currentPassword,
+  });
+
+  if (signInErr) {
+    return { ok: false, error: "Current password is incorrect." };
+  }
+
+  // Update password in Supabase Auth using Admin Client
+  const db = createAdminClient();
+  const { error: updateErr } = await db.auth.admin.updateUserById(user.id, {
+    password: newPassword,
+  });
+
+  if (updateErr) {
+    return { ok: false, error: updateErr.message || "Could not update password." };
+  }
+
+  // Also update stored encrypted password preview on clients table
+  try {
+    const { tryEncrypt } = await import("@/lib/crypto");
+    const previewExpiry = new Date(Date.now() + 30 * 86400000).toISOString();
+    await db
+      .from("clients")
+      .update({
+        portal_password_preview: tryEncrypt(newPassword),
+        password_preview_expires_at: previewExpiry,
+      })
+      .eq("email", user.email);
+  } catch (e) {
+    console.error("Failed to update portal password preview:", e);
+  }
+
+  await recordAudit(null, "client.password_changed", "clients", user.id, {
+    email: user.email,
+  });
+
+  revalidatePath("/portal/account");
   return { ok: true };
 }
 

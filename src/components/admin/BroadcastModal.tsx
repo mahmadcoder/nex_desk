@@ -218,7 +218,7 @@ export default function BroadcastModal({ subscribers, isOpen, onClose }: Broadca
                 rows={6}
                 value={body}
                 onChange={(e) => setBody(e.target.value)}
-                className="w-full rounded-lg border border-ink-500 bg-ink-800 p-3 text-sm text-bone-50 focus:border-lime-400 focus:outline-none font-mono text-xs leading-relaxed"
+                className="w-full resize-none rounded-lg border border-ink-500 bg-ink-800 p-3 text-sm text-bone-50 focus:border-lime-400 focus:outline-none font-mono text-xs leading-relaxed"
               />
             </div>
           </div>

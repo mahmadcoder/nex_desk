@@ -7,7 +7,7 @@ import { ListChecks, Plus, Trash2, CalendarDays } from "lucide-react";
 import SuggestTasks from "@/components/admin/SuggestTasks";
 import CustomSelect from "@/components/ui/CustomSelect";
 import { setTaskRecurrence } from "@/lib/actions/tasks";
-import { saveTask, toggleTask, deleteTask } from "@/lib/actions/tasks";
+import { saveTask, toggleTask, deleteTask, toggleTaskVisibility } from "@/lib/actions/tasks";
 import { fmtDate, agencyDay } from "@/lib/datetime";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -45,6 +45,7 @@ export default function TasksCard({
   const [title, setTitle] = useState("");
   const [who, setWho] = useState("");
   const [due, setDue] = useState("");
+  const [isInternal, setIsInternal] = useState(true);
   const [showDone, setShowDone] = useState(false);
 
   const open = tasks.filter((t) => t.status !== "done");
@@ -64,6 +65,7 @@ export default function TasksCard({
         title,
         assignedEmployeeId: who || null,
         dueDate: due || null,
+        isInternal,
       });
       if (!res.ok) {
         toast.error(res.error);
@@ -73,6 +75,7 @@ export default function TasksCard({
       // the same day is the common case, and re-picking each time is friction
       // for no reason.
       setTitle("");
+      setIsInternal(true);
       setAdding(false);
       router.refresh();
     });
@@ -115,7 +118,9 @@ export default function TasksCard({
         </h2>
         {canManage && !adding && (
           <div className="flex items-center gap-3">
-            {aiContext && <SuggestTasks projectId={projectId} context={aiContext} />}
+            {aiContext && (
+              <SuggestTasks projectId={projectId} context={aiContext} employees={employees} />
+            )}
             <button type="button" onClick={() => setAdding(true)} className="btn btn-sm gap-1.5">
               <Plus size={13} /> Add
             </button>
@@ -157,7 +162,16 @@ export default function TasksCard({
               aria-label="Due date"
             />
           </div>
-          <div className="flex gap-2">
+          <label className="flex items-center gap-2 cursor-pointer text-xs text-bone-300 select-none py-1">
+            <input
+              type="checkbox"
+              checked={!isInternal}
+              onChange={(e) => setIsInternal(!e.target.checked)}
+              className="accent-lime-400 rounded"
+            />
+            <span>Publish to Client Portal (unchecked = internal only)</span>
+          </label>
+          <div className="flex gap-2 pt-1">
             <button type="button" className="btn btn-primary btn-sm" onClick={add} disabled={pending}>
               {pending ? "Adding…" : "Add task"}
             </button>
@@ -218,6 +232,40 @@ export default function TasksCard({
                         {t.due_date}
                       </span>
                     )}
+                    <button
+                      type="button"
+                      disabled={pending || !canManage}
+                      onClick={() => {
+                        start(async () => {
+                          const nextInternal = !t.is_internal;
+                          const res = await toggleTaskVisibility(t.id, nextInternal);
+                          if (!res.ok) {
+                            toast.error(res.error);
+                            return;
+                          }
+                          toast.success(
+                            nextInternal
+                              ? "Task hidden from client (internal only)."
+                              : "Task is now visible to client in portal."
+                          );
+                          router.refresh();
+                        });
+                      }}
+                      className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-medium transition-colors ${
+                        t.is_internal
+                          ? "border-ink-500 bg-ink-700/60 text-bone-400 hover:border-bone-400 hover:text-bone-200"
+                          : "border-sky-400/40 bg-sky-400/10 text-sky-300 hover:bg-sky-400/20"
+                      }`}
+                      title={
+                        canManage
+                          ? t.is_internal
+                            ? "Click to publish to client portal"
+                            : "Click to hide from client portal"
+                          : undefined
+                      }
+                    >
+                      {t.is_internal ? "🔒 Internal only" : "👁️ Visible to client"}
+                    </button>
                   </p>
                 </div>
                 {canManage && (

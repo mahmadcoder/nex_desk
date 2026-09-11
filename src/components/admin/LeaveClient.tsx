@@ -326,7 +326,7 @@ export default function LeaveClient({
           <div>
             <label className="mono-tag mb-1.5 block">Reason</label>
             <textarea
-              className={`${field} min-h-24 resize-y`}
+              className={`${field} min-h-24 resize-none`}
               value={form.reason}
               placeholder="Enough detail that it can be approved without a follow-up question."
               onChange={(e) => setForm({ ...form, reason: e.target.value })}
@@ -375,12 +375,12 @@ export default function LeaveClient({
             {deciding?.decision === "approved" ? "Anything to add" : "Why not"}
           </label>
           <textarea
-            className={`${field} min-h-24 resize-y`}
+            className={`${field} min-h-24 resize-none`}
             value={note}
             placeholder={
               deciding?.decision === "approved"
-                ? "Hand the Zenith staging work to Bilal before you go."
-                : "We have the Zenith launch that week — try the following Monday?"
+                ? "Hand active project tasks over to your teammate before you take off."
+                : "We have an upcoming client launch that week — can you try the following Monday?"
             }
             onChange={(e) => setNote(e.target.value)}
           />

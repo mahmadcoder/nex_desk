@@ -297,7 +297,7 @@ export default function MeetingsClient({
               What will be discussed during this call. Attendees (client & team) will receive this in their calendar invite.
             </p>
             <textarea
-              className={`${field} min-h-[90px] resize-y placeholder:text-bone-500 text-bone-50`}
+              className={`${field} min-h-[90px] resize-none placeholder:text-bone-500 text-bone-50`}
               value={f.agenda}
               onChange={(e) => setF({ ...f, agenda: e.target.value })}
               placeholder={"e.g.\n1. Review sprint deliverables and current progress\n2. Discuss design feedback on UI wireframes\n3. Align on next milestones and deadlines"}
@@ -435,7 +435,7 @@ export function MeetingNotes({
         <span className="mono-tag text-[9px] text-bone-400">Recorded after call</span>
       </div>
       <textarea
-        className={`${field} min-h-24 font-mono text-xs placeholder:text-bone-500 text-bone-50`}
+        className={`${field} min-h-24 resize-none font-mono text-xs placeholder:text-bone-500 text-bone-50`}
         value={value}
         onChange={(e) => setValue(e.target.value)}
         placeholder="What was decided? Next action items? Paste call notes here..."

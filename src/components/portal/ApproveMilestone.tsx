@@ -142,7 +142,7 @@ export default function ApproveMilestone({
                   value={feedback}
                   onChange={(e) => setFeedback(e.target.value)}
                   placeholder="e.g. Please update the hero section button color to blue, and ensure the mobile navigation closes after clicking a link."
-                  className="w-full rounded-lg border border-ink-500 bg-ink-800 p-3 text-sm text-bone-100 placeholder:text-bone-600 focus:border-amber-400 focus:outline-none transition-colors"
+                  className="w-full resize-none rounded-lg border border-ink-500 bg-ink-800 p-3 text-sm text-bone-100 placeholder:text-bone-600 focus:border-amber-400 focus:outline-none transition-colors"
                 />
               </div>
 

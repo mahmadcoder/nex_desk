@@ -406,7 +406,7 @@ export default function SalaryPaymentsCard({
           <div>
             <label className="mono-tag mb-1.5 block text-xs">Note (optional)</label>
             <textarea
-              className={`${field} min-h-[60px] resize-y`}
+              className={`${field} min-h-[60px] resize-none`}
               value={f.note}
               onChange={(e) => setF({ ...f, note: e.target.value })}
               placeholder="Anything they should know — a deduction, an advance, a part payment."

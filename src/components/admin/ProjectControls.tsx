@@ -170,7 +170,7 @@ export default function ProjectControls({
       <div className="sm:col-span-2">
         <label className="mono-tag mb-1.5 block">Notes for the client</label>
         <textarea
-          className={`${field} min-h-[90px] resize-y`}
+          className={`${field} min-h-[90px] resize-none`}
           value={f.client_notes}
           onChange={(e) => setF({ ...f, client_notes: e.target.value })}
           placeholder="Anything they should know outside the day-to-day updates."

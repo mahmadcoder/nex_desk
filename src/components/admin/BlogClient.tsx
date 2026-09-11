@@ -287,7 +287,7 @@ export default function BlogClient({ posts }: { posts: Post[] }) {
               <label className="mono-tag text-xs mb-1 block">Short Excerpt</label>
               <textarea
                 rows={2}
-                className="w-full rounded-lg border border-ink-500 bg-ink-800 p-2.5 text-xs text-bone-50 focus:border-lime-400 focus:outline-none"
+                className="w-full resize-none rounded-lg border border-ink-500 bg-ink-800 p-2.5 text-xs text-bone-50 focus:border-lime-400 focus:outline-none"
                 value={editing.excerpt ?? ""}
                 onChange={(e) => setEditing({ ...editing, excerpt: e.target.value })}
               />
@@ -297,7 +297,7 @@ export default function BlogClient({ posts }: { posts: Post[] }) {
               <label className="mono-tag text-xs mb-1 block">Article Content (Markdown / HTML)</label>
               <textarea
                 rows={7}
-                className="w-full rounded-lg border border-ink-500 bg-ink-800 p-3 text-xs text-bone-50 focus:border-lime-400 focus:outline-none font-mono leading-relaxed"
+                className="w-full resize-none rounded-lg border border-ink-500 bg-ink-800 p-3 text-xs text-bone-50 focus:border-lime-400 focus:outline-none font-mono leading-relaxed"
                 value={editing.content ?? ""}
                 onChange={(e) => setEditing({ ...editing, content: e.target.value })}
               />

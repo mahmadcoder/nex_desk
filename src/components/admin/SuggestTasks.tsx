@@ -21,10 +21,12 @@ import { saveTask } from "@/lib/actions/tasks";
 export default function SuggestTasks({
   projectId,
   context,
+  employees = [],
 }: {
   projectId: string;
   /** Scope, deliverables, services — whatever the deal actually says. */
   context: Record<string, string>;
+  employees?: { id: string; full_name: string }[];
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -32,6 +34,8 @@ export default function SuggestTasks({
   const [pending, start] = useTransition();
   const [lines, setLines] = useState<string[]>([]);
   const [picked, setPicked] = useState<Set<number>>(new Set());
+  const [assignedEmployeeId, setAssignedEmployeeId] = useState<string>("");
+  const [visibleToClient, setVisibleToClient] = useState<boolean>(false);
 
   const generate = async () => {
     setLoading(true);
@@ -88,13 +92,25 @@ export default function SuggestTasks({
       // Sequential on purpose: `sort_order` is derived from the existing count,
       // so firing these in parallel would give several tasks the same position.
       for (const title of chosen) {
-        const res = await saveTask({ projectId, title, assignedEmployeeId: null, dueDate: null });
+        const res = await saveTask({
+          projectId,
+          title,
+          assignedEmployeeId: assignedEmployeeId || null,
+          dueDate: null,
+          isInternal: !visibleToClient,
+        });
         if (res.ok) saved++;
         else failed++;
       }
 
       if (failed) toast.error(`${saved} added, ${failed} failed.`);
-      else toast.success(`${saved} task${saved === 1 ? "" : "s"} added. Assign them when ready.`);
+      else {
+        toast.success(
+          `${saved} task${saved === 1 ? "" : "s"} added (${
+            visibleToClient ? "Visible to client" : "Internal only"
+          }).`
+        );
+      }
 
       setOpen(false);
       setLines([]);
@@ -131,6 +147,44 @@ export default function SuggestTasks({
           </>
         }
       >
+        {/* Assignment and client visibility controls */}
+        <div className="mb-4 rounded-lg border border-ink-600 bg-ink-800/60 p-3 space-y-3">
+          <div>
+            <label className="mono-tag mb-1 block text-[10px] text-bone-300">
+              Assign selected tasks to
+            </label>
+            <select
+              value={assignedEmployeeId}
+              onChange={(e) => setAssignedEmployeeId(e.target.value)}
+              className="w-full rounded-lg border border-ink-500 bg-ink-900 px-3 py-1.5 text-xs text-bone-100 focus:border-lime-400 focus:outline-none"
+            >
+              <option value="">Unassigned (assign later)</option>
+              {employees.map((emp) => (
+                <option key={emp.id} value={emp.id}>
+                  {emp.full_name}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <label className="flex items-start gap-2.5 cursor-pointer select-none">
+            <input
+              type="checkbox"
+              checked={visibleToClient}
+              onChange={(e) => setVisibleToClient(e.target.checked)}
+              className="mt-0.5 accent-lime-400 rounded"
+            />
+            <div className="text-xs">
+              <span className="font-medium text-bone-200">
+                Publish to Client Portal immediately
+              </span>
+              <p className="text-[11px] text-bone-400">
+                Default: unchecked. Tasks stay <strong className="text-bone-300">Internal only</strong> so you can review, schedule, and assign staff before clients see them.
+              </p>
+            </div>
+          </label>
+        </div>
+
         <div className="mb-3 flex items-center justify-between">
           <span className="mono-tag text-[11px]">
             {picked.size} of {lines.length} selected
@@ -146,7 +200,7 @@ export default function SuggestTasks({
           </button>
         </div>
 
-        <ul className="space-y-1.5">
+        <ul className="space-y-1.5 max-h-[280px] overflow-y-auto pr-1">
           {lines.map((l, i) => (
             <li key={i}>
               {/* The whole row is the target — ticking eleven checkboxes with a

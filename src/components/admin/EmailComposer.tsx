@@ -167,7 +167,7 @@ export default function EmailComposer({
           </div>
           <textarea
             dir={language === "ar" ? "rtl" : "ltr"}
-            className={`${field} min-h-72 resize-y leading-relaxed ${language === "ar" ? "text-right font-arabic" : ""}`}
+            className={`${field} min-h-72 resize-none leading-relaxed ${language === "ar" ? "text-right font-arabic" : ""}`}
             value={body}
             onChange={(e) => setBody(e.target.value)}
           />

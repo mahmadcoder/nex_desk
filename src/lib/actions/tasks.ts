@@ -36,6 +36,7 @@ export type TaskInput = {
   dueDate?: string | null;
   priority?: "low" | "normal" | "high" | "urgent";
   status?: "backlog" | "todo" | "doing" | "review" | "done";
+  isInternal?: boolean | null;
 };
 
 /**
@@ -77,7 +78,9 @@ export async function saveTask(input: TaskInput): Promise<Result<{ id: string }>
   const title = input.title?.trim();
   if (!title) return { ok: false, error: "Give the task a title." };
 
-  const row = {
+  const existingId = input.id ? asUuid(input.id) : null;
+
+  const row: Record<string, any> = {
     project_id: projectId,
     title,
     description: input.description?.trim() || null,
@@ -85,9 +88,12 @@ export async function saveTask(input: TaskInput): Promise<Result<{ id: string }>
     due_date: input.dueDate || null,
     priority: input.priority ?? "normal",
     status: input.status ?? "todo",
+    ...(input.isInternal !== undefined && input.isInternal !== null
+      ? { is_internal: input.isInternal }
+      : existingId
+        ? {}
+        : { is_internal: true }),
   };
-
-  const existingId = input.id ? asUuid(input.id) : null;
 
   // Read before writing, so "was this just handed to someone new?" can be
   // answered afterwards.
@@ -148,11 +154,38 @@ export async function saveTask(input: TaskInput): Promise<Result<{ id: string }>
   }
 
   revalidatePath(`/${ADMIN}/projects/${projectId}`);
-  // The board is now a place tasks are created and reassigned, not only a
-  // place they are looked at, so it has to be invalidated like the project page.
   revalidatePath(`/${ADMIN}/tasks`);
   revalidatePath(`/${ADMIN}`);
+  revalidatePath("/portal");
   return { ok: true, id: data.id };
+}
+
+/** Toggle whether a task is visible to the client in the portal. */
+export async function toggleTaskVisibility(
+  taskId: string,
+  isInternal: boolean
+): Promise<Result<{ isInternal: boolean }>> {
+  const me = await requireOwnerAdmin();
+  const db = createAdminClient();
+  const id = asUuid(taskId);
+  if (!id) return { ok: false, error: "Invalid task ID." };
+
+  const { data: task, error: fetchErr } = await db
+    .from("tasks")
+    .select("project_id")
+    .eq("id", id)
+    .single();
+  if (fetchErr || !task) return { ok: false, error: "Task not found." };
+
+  const { error } = await db.from("tasks").update({ is_internal: isInternal }).eq("id", id);
+  if (error) return { ok: false, error: error.message };
+
+  if (task.project_id) {
+    revalidatePath(`/${ADMIN}/projects/${task.project_id}`);
+  }
+  revalidatePath(`/${ADMIN}/tasks`);
+  revalidatePath("/portal");
+  return { ok: true, isInternal };
 }
 
 /**

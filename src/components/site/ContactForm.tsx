@@ -399,7 +399,7 @@ function ContactFormContent() {
             style={{ position: "absolute", left: "-9999px", width: 1, height: 1, opacity: 0 }}
           />
           <textarea
-            className={`${field} mt-4 min-h-32 resize-y`}
+            className={`${field} mt-4 min-h-32 resize-none`}
             placeholder="Tell us about the project. Links to anything you like help."
             value={form.message}
             onChange={(e) => set("message", e.target.value)}

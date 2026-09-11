@@ -281,7 +281,7 @@ export default function QuoteActions({
             </button>
           </div>
           <textarea
-            className={`${field} min-h-[160px] resize-y`}
+            className={`${field} min-h-[160px] resize-none`}
             value={note}
             onChange={(e) => setNote(e.target.value)}
             placeholder="Leave this empty to send the standard follow-up, or write your own."

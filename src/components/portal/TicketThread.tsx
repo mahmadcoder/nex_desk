@@ -102,7 +102,7 @@ export default function TicketThread({
             onChange={(e) => setBody(e.target.value)}
             rows={4}
             placeholder="Add anything else that might help…"
-            className="w-full resize-y rounded-lg border border-ink-500 bg-ink-800 px-3 py-2 text-sm focus:border-lime-400 focus:outline-none"
+            className="w-full resize-none rounded-lg border border-ink-500 bg-ink-800 px-3 py-2 text-sm focus:border-lime-400 focus:outline-none"
           />
           <div className="mt-2 flex justify-end">
             <button

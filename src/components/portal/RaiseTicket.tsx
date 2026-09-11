@@ -91,7 +91,7 @@ export default function RaiseTicket({
           <div>
             <label className="mono-tag mb-1.5 block">What happened</label>
             <textarea
-              className={`${field} min-h-[130px] resize-y`}
+              className={`${field} min-h-[130px] resize-none`}
               value={f.body}
               onChange={(e) => setF({ ...f, body: e.target.value })}
               placeholder="What you were doing, what you expected, and what happened instead. If you saw an error message, paste it here."

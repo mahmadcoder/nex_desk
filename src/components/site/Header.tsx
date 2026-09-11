@@ -36,12 +36,13 @@ export default function Header() {
 
   return (
     <header
+      style={open ? { backgroundColor: "#08080B" } : undefined}
       className={cn(
         // border always present — toggling color avoids the white-flash repaint
         "fixed inset-x-0 top-0 z-50 border-b",
         open ? "" : "transition-all duration-300",
         open
-          ? "border-ink-600 bg-ink-950/95 backdrop-blur-xl"
+          ? "border-ink-600 bg-ink-950"
           : solid
           ? "border-ink-600/60 bg-ink-900/75 backdrop-blur-xl saturate-[1.2]"
           : "border-transparent bg-transparent"
@@ -72,7 +73,7 @@ export default function Header() {
         <div className="flex items-center gap-3">
           {/* Book a call — desktop only */}
           <Link
-            href="#"
+            href="/contact"
             className="btn h-10 px-4 !hidden md:!inline-flex"
           >
             Book a call
@@ -93,17 +94,21 @@ export default function Header() {
       </div>
 
       {open && (
-        <div className="fixed inset-0 top-[72px] z-40 bg-ink-950/98 backdrop-blur-2xl px-[var(--gutter)] pt-10 md:hidden">
-          <nav className="flex flex-col gap-2">
+        <div
+          data-lenis-prevent
+          style={{ backgroundColor: "#08080B" }}
+          className="fixed inset-x-0 bottom-0 top-[72px] z-50 overflow-y-auto bg-ink-950 px-[var(--gutter)] pb-12 pt-6 md:hidden"
+        >
+          <nav className="flex flex-col">
             {NAV.map((n) => (
               <Link
                 key={n.href}
                 href={n.href}
                 onClick={() => setOpen(false)}
                 className={cn(
-                  "border-b border-ink-600 py-5 text-3xl tracking-tight",
+                  "border-b border-ink-600/70 py-4 text-3xl font-medium tracking-tight text-bone-100 transition-colors hover:text-lime-400",
                   isActive(n.href)
-                    ? "border-l-2 border-l-lime-400 pl-4 text-lime-400"
+                    ? "border-l-4 border-l-lime-400 pl-4 text-lime-400 font-semibold"
                     : ""
                 )}
                 style={{ fontFamily: "var(--font-display)" }}
@@ -112,20 +117,22 @@ export default function Header() {
               </Link>
             ))}
           </nav>
-          <Link
-            href="/contact"
-            onClick={() => setOpen(false)}
-            className="btn btn-primary mt-8 w-full justify-center"
-          >
-            Start a project
-          </Link>
-          <Link
-            href="#"
-            onClick={() => setOpen(false)}
-            className="btn mt-3 w-full justify-center"
-          >
-            Book a call
-          </Link>
+          <div className="mt-8 flex flex-col gap-3">
+            <Link
+              href="/contact"
+              onClick={() => setOpen(false)}
+              className="btn btn-primary h-12 w-full justify-center text-sm font-semibold"
+            >
+              Start a project
+            </Link>
+            <Link
+              href="/contact"
+              onClick={() => setOpen(false)}
+              className="btn h-12 w-full justify-center text-sm"
+            >
+              Book a call
+            </Link>
+          </div>
         </div>
       )}
     </header>

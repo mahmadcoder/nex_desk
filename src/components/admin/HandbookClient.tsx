@@ -134,7 +134,7 @@ export default function HandbookClient() {
           <div>
             <label className="mono-tag mb-1.5 block">What is it for</label>
             <textarea
-              className={`${field} min-h-[70px] resize-y`}
+              className={`${field} min-h-[70px] resize-none`}
               value={f.description}
               onChange={(e) => setF({ ...f, description: e.target.value })}
               placeholder="One line so somebody knows whether to open it."

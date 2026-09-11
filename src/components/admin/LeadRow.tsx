@@ -371,7 +371,7 @@ export default function LeadRow({
           <div>
             <label className="mono-tag mb-1.5 block">Message</label>
             <textarea
-              className={`${field} min-h-56 resize-y`}
+              className={`${field} min-h-56 resize-none`}
               value={mail.body}
               onChange={(e) => setMail({ ...mail, body: e.target.value })}
             />

@@ -201,7 +201,7 @@ export async function convertLeadToClient(leadId: string) {
     // lead took the schema default of PKR — and `DealForm` adopts the client's
     // currency, so a US lead ended up with a rupee deal, invoice and agreement.
     preferred_currency: currencyForCountry(lead.country),
-    // Free text from the form, e.g. "Ayesha at Zenith". Kept as a note; an
+    // Free text from the form, e.g. "Sarah at Acme Corp". Kept as a note; an
     // admin links it to the actual client record on the profile, which is what
     // drives the referrer's thank-you and their "referred N clients" count.
     referral_note: lead.referred_by || null,

@@ -78,7 +78,7 @@ export default function IntakeForm({
                 onChange={(e) => set(f.key, e.target.value)}
                 rows={3}
                 maxLength={2000}
-                className="w-full resize-y rounded-lg border border-ink-500 bg-ink-800 px-3.5 py-3 text-base text-bone-50 focus:border-lime-400 focus:outline-none"
+                className="w-full resize-none rounded-lg border border-ink-500 bg-ink-800 px-3.5 py-3 text-base text-bone-50 focus:border-lime-400 focus:outline-none"
               />
             ) : (
               <input

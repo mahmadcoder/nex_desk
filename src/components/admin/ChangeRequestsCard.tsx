@@ -221,7 +221,7 @@ export default function ChangeRequestsCard({
           <div>
             <label className="mono-tag mb-1.5 block">Detail</label>
             <textarea
-              className={`${field} min-h-32 resize-y`}
+              className={`${field} min-h-32 resize-none`}
               value={newReq.description}
               placeholder="Their words, as close to verbatim as you can — it goes on the change order they sign."
               onChange={(e) => setNewReq({ ...newReq, description: e.target.value })}

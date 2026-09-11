@@ -146,7 +146,7 @@ export default function MessageThread({
             rows={3}
             maxLength={4000}
             placeholder="Write a message…  (Enter to send, Shift+Enter for a new line)"
-            className="w-full resize-y rounded-lg border border-ink-500 bg-ink-800 px-3 py-2 text-sm focus:border-lime-400 focus:outline-none"
+            className="w-full resize-none rounded-lg border border-ink-500 bg-ink-800 px-3 py-2 text-sm focus:border-lime-400 focus:outline-none"
           />
           <div className="mt-2 flex items-center justify-between">
             <span className="mono-tag text-[10px] text-bone-500">

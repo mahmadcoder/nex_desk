@@ -1,13 +1,13 @@
 import Link from "next/link";
 import { cn } from "@/lib/utils";
-import { Search } from "lucide-react";
+import LiveSearchInput from "@/components/admin/LiveSearchInput";
 
 /**
  * Status chips and a search box for the admin list pages.
  *
  * Every list in the panel grew to "everything ever, newest first" with no way
  * to narrow it. Ctrl+K finds a thing you can already name; it cannot answer
- * "which invoices are overdue in PKR" or "what did we ship for Zenith".
+ * "which invoices are overdue in PKR" or "what did we ship for Acme".
  *
  * Deliberately a server component with a plain GET form and ordinary links —
  * filtering a server-rendered table needs no JavaScript, and doing it this way
@@ -72,26 +72,8 @@ export default function ListFilters({
         ))}
       </div>
 
-      {/* A plain GET form. Submitting navigates and the server re-renders —
-          no client component, no state to keep in sync with the URL. */}
-      <form action={basePath} method="get" className="relative">
-        {active && <input type="hidden" name={paramName} value={active} />}
-        {carry.map(([k, v]) => (
-          <input key={k} type="hidden" name={k} value={v!} />
-        ))}
-        <Search
-          size={14}
-          aria-hidden
-          className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-bone-500"
-        />
-        <input
-          name="q"
-          defaultValue={query ?? ""}
-          placeholder={placeholder}
-          aria-label={placeholder}
-          className="w-full rounded-lg border border-ink-500 bg-ink-800 py-2 pl-9 pr-3 text-sm text-bone-50 placeholder:text-bone-600 focus:border-lime-400 focus:outline-none sm:w-64"
-        />
-      </form>
+      {/* Live as-you-type search component with debounce and clear button */}
+      <LiveSearchInput placeholder={placeholder} paramName="q" />
     </div>
   );
 }

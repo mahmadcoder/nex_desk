@@ -274,7 +274,7 @@ export default function SettingsForm({ settings, staff }: { settings: any; staff
         <p className="mb-4 text-xs text-bone-400">
           Loaded into every new deal. You can still edit them per deal without changing this.
         </p>
-        <textarea className={`${field} min-h-64 resize-y font-mono text-xs leading-relaxed`}
+        <textarea className={`${field} min-h-64 resize-none font-mono text-xs leading-relaxed`}
           value={f.default_terms} onChange={(e) => set("default_terms", e.target.value)} />
 
         <div className="mt-6 border-t border-ink-600 pt-5">
@@ -306,7 +306,7 @@ export default function SettingsForm({ settings, staff }: { settings: any; staff
             </div>
           </div>
 
-          <textarea className={`${field} min-h-40 resize-y font-mono text-xs leading-relaxed`}
+          <textarea className={`${field} min-h-40 resize-none font-mono text-xs leading-relaxed`}
             value={f.refund_policy} onChange={(e) => set("refund_policy", e.target.value)} />
           <p className="mt-2 text-[11px] leading-relaxed text-bone-400">
             Changing these does not alter agreements already signed — each PDF carries the
@@ -316,7 +316,7 @@ export default function SettingsForm({ settings, staff }: { settings: any; staff
 
         <div className="mt-4">
           <label className={label}>Email signature</label>
-          <textarea className={`${field} min-h-24 resize-y`} value={f.email_signature}
+          <textarea className={`${field} min-h-24 resize-none`} value={f.email_signature}
             onChange={(e) => set("email_signature", e.target.value)} />
         </div>
       </section>

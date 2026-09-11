@@ -180,7 +180,7 @@ export default function TicketWorkspace({
             onChange={(e) => setBody(e.target.value)}
             rows={4}
             placeholder={internal ? "A note for the team only…" : "Reply to the client…"}
-            className={`w-full resize-y rounded-lg border bg-ink-800 px-3 py-2 text-sm focus:outline-none ${
+            className={`w-full resize-none rounded-lg border bg-ink-800 px-3 py-2 text-sm focus:outline-none ${
               internal
                 ? "border-amber-400/40 focus:border-amber-400"
                 : "border-ink-500 focus:border-lime-400"

@@ -319,7 +319,7 @@ export default function RecruitmentClient({
           <div className="sm:col-span-2">
             <label className="mono-tag mb-1.5 block">Notes</label>
             <textarea
-              className={`${field} min-h-[70px] resize-y`}
+              className={`${field} min-h-[70px] resize-none`}
               value={f.notes}
               onChange={(e) => setF({ ...f, notes: e.target.value })}
             />

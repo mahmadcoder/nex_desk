@@ -350,7 +350,7 @@ export default function ServicesClient({ services }: { services: IService[] }) {
                 <label className="mono-tag text-xs mb-1 block">Short Summary Description</label>
                 <textarea
                   rows={2}
-                  className="w-full rounded-lg border border-ink-500 bg-ink-800 p-2.5 text-xs text-bone-50 focus:border-lime-400 focus:outline-none"
+                  className="w-full resize-none rounded-lg border border-ink-500 bg-ink-800 p-2.5 text-xs text-bone-50 focus:border-lime-400 focus:outline-none"
                   value={editing.short_desc ?? ""}
                   onChange={(e) => setEditing({ ...editing, short_desc: e.target.value })}
                 />

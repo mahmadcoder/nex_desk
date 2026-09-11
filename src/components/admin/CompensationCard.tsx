@@ -238,13 +238,13 @@ export default function CompensationCard({
               {kind === "gift" ? "What for (your records)" : "Why"}
             </label>
             <textarea
-              className={`${field} min-h-24 resize-y`}
+              className={`${field} min-h-24 resize-none`}
               value={form.reason}
               placeholder={
                 kind === "salary_revision"
                   ? "Six-month review — consistently shipping ahead of deadline."
                   : kind === "bonus"
-                    ? "Rescued the Zenith launch after the payment gateway broke."
+                    ? "Exceptional performance delivering key sprint milestones ahead of schedule."
                     : "Eid gift."
               }
               onChange={(e) => setForm({ ...form, reason: e.target.value })}

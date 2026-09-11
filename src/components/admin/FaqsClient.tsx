@@ -276,7 +276,7 @@ export default function FaqsClient({ faqs }: { faqs: IFaq[] }) {
                 <label className="mono-tag text-xs mb-1 block">Answer *</label>
                 <textarea
                   rows={4}
-                  className="w-full rounded-lg border border-ink-500 bg-ink-800 p-3 text-sm text-bone-50 focus:border-lime-400 focus:outline-none leading-relaxed"
+                  className="w-full resize-none rounded-lg border border-ink-500 bg-ink-800 p-3 text-sm text-bone-50 focus:border-lime-400 focus:outline-none leading-relaxed"
                   placeholder="Write clear, transparent answer..."
                   value={editing.answer ?? ""}
                   onChange={(e) => setEditing({ ...editing, answer: e.target.value })}

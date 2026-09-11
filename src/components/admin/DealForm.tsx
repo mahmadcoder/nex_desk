@@ -318,7 +318,7 @@ export default function DealForm({
 
           <div className="mt-4">
             <label className={label}>Scope of work</label>
-            <textarea className={`${field} min-h-28 resize-y`} value={d.scope} onChange={(e) => set("scope", e.target.value)}
+            <textarea className={`${field} min-h-28 resize-none`} value={d.scope} onChange={(e) => set("scope", e.target.value)}
               placeholder="Be specific. This is what the client can hold you to, and what protects you from silent scope creep." />
             <AIAssist
               field="deal_scope"
@@ -330,7 +330,7 @@ export default function DealForm({
 
           <div className="mt-4">
             <label className={label}>Explicitly not included</label>
-            <textarea className={`${field} min-h-20 resize-y`} value={d.exclusions} onChange={(e) => set("exclusions", e.target.value)}
+            <textarea className={`${field} min-h-20 resize-none`} value={d.exclusions} onChange={(e) => set("exclusions", e.target.value)}
               placeholder="Content writing, product photography, ad spend, third-party licences." />
             <AIAssist
               field="deal_exclusions"
@@ -497,7 +497,7 @@ export default function DealForm({
 
           <div className="mt-4">
             <label className={label}>Terms and conditions</label>
-            <textarea className={`${field} min-h-56 resize-y font-mono text-xs leading-relaxed`}
+            <textarea className={`${field} min-h-56 resize-none font-mono text-xs leading-relaxed`}
               value={d.terms} onChange={(e) => set("terms", e.target.value)} />
             <p className="mt-1.5 text-xs text-bone-400">
               Pulled from Settings. Edit here for this deal only.

@@ -114,7 +114,7 @@ export default function ClientChangeRequest({
           <div>
             <label className="mono-tag mb-1.5 block">The detail</label>
             <textarea
-              className={`${field} min-h-32 resize-y`}
+              className={`${field} min-h-32 resize-none`}
               value={form.description}
               placeholder="What you want it to do, and anything it needs to connect to. The more specific you are, the more accurate the price."
               onChange={(e) => setForm({ ...form, description: e.target.value })}

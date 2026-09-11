@@ -440,7 +440,7 @@ export default function DocumentTemplatesHub({
                 Customize terms, client details, or prices directly below before downloading:
               </p>
               <textarea
-                className="w-full h-80 rounded-lg border border-ink-600 bg-ink-950 p-4 font-mono text-xs text-bone-100 focus:border-lime-400 focus:outline-none resize-y leading-relaxed"
+                className="w-full h-80 rounded-lg border border-ink-600 bg-ink-950 p-4 font-mono text-xs text-bone-100 focus:border-lime-400 focus:outline-none resize-none leading-relaxed"
                 value={customText}
                 onChange={(e) => setCustomText(e.target.value)}
               />

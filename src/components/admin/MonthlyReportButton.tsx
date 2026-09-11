@@ -130,7 +130,7 @@ export default function MonthlyReportButton({
             <div>
               <label className="mono-tag mb-1.5 block">Report</label>
               <textarea
-                className={`${field} min-h-72 resize-y leading-relaxed`}
+                className={`${field} min-h-72 resize-none leading-relaxed`}
                 value={draft.body}
                 onChange={(e) => setDraft({ ...draft, body: e.target.value })}
               />

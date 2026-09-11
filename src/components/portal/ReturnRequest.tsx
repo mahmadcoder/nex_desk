@@ -18,9 +18,11 @@ import { requestReactivation } from "@/lib/actions/portal";
 export default function ReturnRequest({
   clientName,
   alreadyRequested,
+  buttonLabel,
 }: {
   clientName: string;
   alreadyRequested: boolean;
+  buttonLabel?: string;
 }) {
   const router = useRouter();
   const [pending, start] = useTransition();
@@ -57,14 +59,14 @@ export default function ReturnRequest({
   return (
     <>
       <button className="btn btn-primary gap-2" onClick={() => setOpen(true)}>
-        <Sparkles size={15} /> Work with us again
+        <Sparkles size={15} /> {buttonLabel || "Work with us again"}
       </button>
 
       <Modal
         open={open}
         onClose={() => setOpen(false)}
         pending={pending}
-        title="Let's pick things back up"
+        title={buttonLabel ? "Request a new project or service" : "Let's pick things back up"}
         description="Tell us what you have in mind and we will come back to you. Nothing is committed by sending this."
         footer={
           <>
@@ -82,7 +84,7 @@ export default function ReturnRequest({
             What are you thinking of? (optional)
           </label>
           <textarea
-            className="min-h-[120px] w-full resize-y rounded-lg border border-ink-500 bg-ink-800 px-3 py-2.5 text-sm text-bone-50 placeholder:text-bone-600 focus:border-lime-400 focus:outline-none"
+            className="min-h-[120px] w-full resize-none rounded-lg border border-ink-500 bg-ink-800 px-3 py-2.5 text-sm text-bone-50 placeholder:text-bone-600 focus:border-lime-400 focus:outline-none"
             value={message}
             onChange={(e) => setMessage(e.target.value)}
             placeholder="A new project, a change to something we built before, or just a conversation — whatever it is."

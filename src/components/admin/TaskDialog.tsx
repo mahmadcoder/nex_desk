@@ -21,6 +21,7 @@ export type TaskLite = {
   due_date?: string | null;
   priority?: string | null;
   status?: string | null;
+  is_internal?: boolean | null;
 };
 
 /**
@@ -62,6 +63,7 @@ export default function TaskDialog({
     who: "",
     due: "",
     priority: "normal",
+    isInternal: true,
   });
 
   // Re-seeded whenever the dialog is opened against a different task. Without
@@ -77,6 +79,7 @@ export default function TaskDialog({
       who: task?.assigned_employee_id ?? "",
       due: task?.due_date ?? "",
       priority: task?.priority ?? "normal",
+      isInternal: task?.is_internal ?? true,
     });
   }, [open, task, defaultProjectId, projects]);
 
@@ -92,6 +95,7 @@ export default function TaskDialog({
         assignedEmployeeId: f.who || null,
         dueDate: f.due || null,
         priority: f.priority as any,
+        isInternal: f.isInternal,
         // Not sent when editing: the board owns the column, and posting a
         // status here would silently drag a card back to Todo on every save.
         ...(editing ? {} : { status: "todo" as const }),
@@ -235,12 +239,22 @@ export default function TaskDialog({
           </label>
           <textarea
             id="task-notes"
-            className={`${field} min-h-[80px] resize-y`}
+            className={`${field} min-h-[80px] resize-none`}
             value={f.description}
             onChange={(e) => setF({ ...f, description: e.target.value })}
             placeholder="Anything the person picking this up would otherwise have to ask for."
           />
         </div>
+
+        <label className="flex items-center gap-2 cursor-pointer text-xs text-bone-300 select-none pt-1">
+          <input
+            type="checkbox"
+            checked={!f.isInternal}
+            onChange={(e) => setF({ ...f, isInternal: !e.target.checked })}
+            className="accent-lime-400 rounded"
+          />
+          <span>Visible to client in Client Portal (unchecked = internal only)</span>
+        </label>
       </div>
     </Modal>
   );

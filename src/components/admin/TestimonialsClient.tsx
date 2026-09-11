@@ -291,7 +291,7 @@ export default function TestimonialsClient({
                 <label className="mono-tag text-xs mb-1 block">Quote / Review *</label>
                 <textarea
                   rows={4}
-                  className="w-full rounded-lg border border-ink-500 bg-ink-800 p-3 text-sm text-bone-50 focus:border-lime-400 focus:outline-none"
+                  className="w-full resize-none rounded-lg border border-ink-500 bg-ink-800 p-3 text-sm text-bone-50 focus:border-lime-400 focus:outline-none"
                   value={editing.quote ?? ""}
                   onChange={(e) => setEditing({ ...editing, quote: e.target.value })}
                 />

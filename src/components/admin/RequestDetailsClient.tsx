@@ -181,7 +181,7 @@ export default function RequestDetailsClient({ kind }: { kind: "client" | "staff
                 className={`${field} placeholder:text-bone-500 text-bone-50`}
                 value={label}
                 onChange={(e) => setLabel(e.target.value)}
-                placeholder={kind === "client" ? "e.g. Zenith E-commerce Onboarding" : "e.g. Frontend Developer Onboarding"}
+                placeholder={kind === "client" ? "e.g. Enterprise Client Onboarding" : "e.g. Frontend Developer Onboarding"}
               />
             </div>
             <div>
@@ -190,7 +190,7 @@ export default function RequestDetailsClient({ kind }: { kind: "client" | "staff
                 <span className="mono-tag text-[9px] text-bone-500">Optional</span>
               </div>
               <textarea
-                className={`${field} min-h-[70px] resize-y placeholder:text-bone-500 text-bone-50`}
+                className={`${field} min-h-[70px] resize-none placeholder:text-bone-500 text-bone-50`}
                 value={note}
                 onChange={(e) => setNote(e.target.value)}
                 placeholder="Replaces the default welcome intro on the form."
@@ -236,7 +236,7 @@ export default function RequestDetailsClient({ kind }: { kind: "client" | "staff
                 value={message}
                 rows={10}
                 onFocus={(e) => e.currentTarget.select()}
-                className={`${field} resize-y font-mono text-xs leading-relaxed`}
+                className={`${field} resize-none font-mono text-xs leading-relaxed`}
               />
             </div>
 
@@ -575,7 +575,7 @@ export function IntakeRow({ row, isPrivileged = true }: { row: any; isPrivileged
               <span className="mono-tag text-[9px] text-bone-500">Optional</span>
             </div>
             <textarea
-              className={`${field} min-h-[70px] resize-y placeholder:text-bone-500 text-bone-50`}
+              className={`${field} min-h-[70px] resize-none placeholder:text-bone-500 text-bone-50`}
               value={editNote}
               onChange={(e) => setEditNote(e.target.value)}
               placeholder="Instructions note shown on public form"

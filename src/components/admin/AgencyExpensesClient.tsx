@@ -474,7 +474,7 @@ export default function AgencyExpensesClient({ expenses }: { expenses: any[] }) 
           <div>
             <label className="mono-tag mb-1.5 block text-xs">Notes (optional)</label>
             <textarea
-              className={`${field} min-h-[60px] resize-y`}
+              className={`${field} min-h-[60px] resize-none`}
               value={f.notes}
               onChange={(e) => setF({ ...f, notes: e.target.value })}
               placeholder="Which account it sits under, who uses it, whether it can be cancelled."

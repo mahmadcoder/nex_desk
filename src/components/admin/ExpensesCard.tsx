@@ -436,7 +436,7 @@ export default function ExpensesCard({
               onChange={(e) => setForm({ ...form, label: e.target.value })}
               placeholder={
                 form.category === "domain"
-                  ? "physicianmeds.com — 1 year"
+                  ? "e.g. clientdomain.com — 1 year registration"
                   : form.category === "other"
                     ? "Describe it in your own words"
                     : "Name of the tool, licence or service"
@@ -532,7 +532,7 @@ export default function ExpensesCard({
           <div>
             <label className="mono-tag mb-1.5 block text-xs">Notes (optional)</label>
             <textarea
-              className={`${field} min-h-[70px] resize-y`}
+              className={`${field} min-h-[70px] resize-none`}
               value={form.details}
               onChange={(e) => setForm({ ...form, details: e.target.value })}
               placeholder="Anything the client should know — which account it sits under, what it covers."

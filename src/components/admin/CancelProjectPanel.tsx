@@ -421,7 +421,7 @@ export default function CancelProjectPanel({ project }: { project: any }) {
             <div>
               <label className="mono-tag mb-1.5 block text-xs">Note to the client (optional)</label>
               <textarea
-                className={`${field} min-h-[70px] resize-y`}
+                className={`${field} min-h-[70px] resize-none`}
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
                 placeholder="Anything that explains the figure, or what happens to the work produced so far."
