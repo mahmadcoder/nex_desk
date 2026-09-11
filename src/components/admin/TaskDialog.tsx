@@ -117,7 +117,7 @@ export default function TaskDialog({
         toast.error(res.error);
         return;
       }
-      toast.success("Deleted.");
+      toast.success("Task deleted.");
       onClose();
       router.refresh();
     });
@@ -139,7 +139,7 @@ export default function TaskDialog({
           {editing &&
             (confirmDelete ? (
               <span className="mr-auto flex items-center gap-2">
-                <span className="text-xs text-bone-300">Delete it?</span>
+                <span className="text-xs text-bone-300">Delete task?</span>
                 <button
                   className="btn btn-sm text-rose-300 hover:text-rose-200"
                   onClick={remove}
@@ -148,7 +148,7 @@ export default function TaskDialog({
                   Yes, delete
                 </button>
                 <button className="btn btn-sm" onClick={() => setConfirmDelete(false)}>
-                  No
+                  Keep task
                 </button>
               </span>
             ) : (

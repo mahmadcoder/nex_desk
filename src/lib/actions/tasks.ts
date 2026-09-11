@@ -188,6 +188,72 @@ export async function toggleTaskVisibility(
   return { ok: true, isInternal };
 }
 
+/** Assign or reassign a task to an employee, or unassign it. */
+export async function assignTask(
+  taskId: string,
+  employeeId: string | null
+): Promise<Result<{ assignedEmployeeId: string | null }>> {
+  const me = await requireOwnerAdmin();
+  const db = createAdminClient();
+  const id = asUuid(taskId);
+  if (!id) return { ok: false, error: "Invalid task reference." };
+
+  const targetEmpId = employeeId ? asUuid(employeeId) : null;
+
+  const { data: task, error: fetchErr } = await db
+    .from("tasks")
+    .select("id, title, project_id, assigned_employee_id")
+    .eq("id", id)
+    .single();
+
+  if (fetchErr || !task) return { ok: false, error: "Task not found." };
+
+  const prevAssignee = task.assigned_employee_id;
+
+  const { error } = await db
+    .from("tasks")
+    .update({ assigned_employee_id: targetEmpId })
+    .eq("id", id);
+
+  if (error) return { ok: false, error: error.message };
+
+  await recordAudit(me.userId, "task.assign", "tasks", id, {
+    title: task.title,
+    assigned: targetEmpId,
+    previous: prevAssignee,
+  });
+
+  // Notify if newly assigned to an employee
+  if (targetEmpId && targetEmpId !== prevAssignee) {
+    const { data: project } = await db
+      .from("projects")
+      .select("name")
+      .eq("id", task.project_id)
+      .maybeSingle();
+
+    await notify({
+      kind: "task.assigned",
+      title: `Assigned task: ${task.title}`,
+      body: project?.name ? `Project: ${project.name}` : undefined,
+      href: `/${ADMIN}/projects/${task.project_id}`,
+      entity: "tasks",
+      entityId: id,
+      actorLabel: me.fullName ?? null,
+      actorKind: "staff",
+      employeeId: targetEmpId,
+    }).catch(() => null);
+  }
+
+  if (task.project_id) {
+    revalidatePath(`/${ADMIN}/projects/${task.project_id}`);
+  }
+  revalidatePath(`/${ADMIN}/tasks`);
+  revalidatePath(`/${ADMIN}/staff-activity`);
+  revalidatePath(`/${ADMIN}`);
+  return { ok: true, assignedEmployeeId: targetEmpId };
+}
+
+
 /**
  * Tick it off, or put it back.
  *

@@ -112,6 +112,11 @@ export default async function ProjectDetail({ params }: { params: Promise<{ id: 
       db.from("employees").select("id, full_name").ilike("status", "active").order("full_name"),
     ]);
 
+  const activeEmployees = [...(teamList ?? [])];
+  if (me.employeeId && !activeEmployees.some((e) => e.id === me.employeeId)) {
+    activeEmployees.unshift({ id: me.employeeId, full_name: me.fullName || "Myself" });
+  }
+
   // Before the 2027-06 migration this select errors and returns null, which
   // would render as an empty card rather than as the broken thing it is.
   if (expensesError) {
@@ -265,7 +270,7 @@ export default async function ProjectDetail({ params }: { params: Promise<{ id: 
           <TasksCard
             projectId={project.id}
             tasks={tasks ?? []}
-            employees={teamList ?? []}
+            employees={activeEmployees}
             canManage={canManage}
             myEmployeeId={me.employeeId}
             aiContext={{
