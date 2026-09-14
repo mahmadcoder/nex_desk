@@ -228,18 +228,19 @@ export default function Sidebar({
       </div>
 
       {/* ── Mobile drawer backdrop ── */}
-      {open && (
-        <div
-          className="fixed inset-0 z-40 bg-ink-950/80 backdrop-blur-sm lg:hidden"
-          onClick={() => setOpen(false)}
-          aria-hidden
-        />
-      )}
+      <div
+        className={cn(
+          "fixed inset-0 z-40 bg-ink-950/80 backdrop-blur-sm transition-opacity duration-300 lg:hidden",
+          open ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"
+        )}
+        onClick={() => setOpen(false)}
+        aria-hidden
+      />
 
       {/* ── Mobile drawer ── */}
       <aside
         className={cn(
-          "fixed inset-y-0 left-0 z-50 flex w-64 flex-col border-r border-ink-600 bg-ink-950 p-4 transition-transform duration-300 lg:hidden",
+          "fixed inset-y-0 left-0 z-50 flex w-64 flex-col border-r border-ink-600 bg-ink-950 p-4 transition-transform duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] lg:hidden",
           open ? "translate-x-0" : "-translate-x-full"
         )}
       >
