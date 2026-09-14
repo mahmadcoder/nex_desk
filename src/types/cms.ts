@@ -17,6 +17,8 @@ export interface ICaseStudy {
   tech_stack: string[] | null;
   services: string[] | null;
   live_url: string | null;
+  github_url?: string | null;
+  year?: string | null;
   is_featured: boolean;
   is_published: boolean;
   sort_order: number;

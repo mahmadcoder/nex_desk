@@ -100,7 +100,7 @@ export default function Header() {
           {/* Animated Hamburger / Close Button — mobile only */}
           <button
             type="button"
-            className="btn h-10 px-3.5 gap-2.5 !inline-flex md:!hidden select-none border-ink-600 bg-ink-900/80 hover:bg-ink-800 text-bone-100 active:scale-95 transition-transform"
+            className="btn h-10 px-3.5 gap-2.5 !inline-flex md:!hidden select-none border-ink-600 bg-ink-900/80 hover:bg-ink-800 text-bone-100 active:scale-95 transition-all duration-300"
             onClick={() => setOpen((v) => !v)}
             aria-expanded={open}
             aria-label={open ? "Close navigation menu" : "Open navigation menu"}
@@ -108,101 +108,115 @@ export default function Header() {
             <span className="relative flex h-4 w-4.5 flex-col justify-center items-center" aria-hidden>
               <span
                 className={cn(
-                  "block h-[2px] w-4.5 rounded-full bg-current transition-all duration-300 ease-out",
+                  "block h-[2px] w-4.5 rounded-full bg-current transition-transform duration-400 ease-[cubic-bezier(0.22,1,0.36,1)]",
                   open ? "translate-y-[4px] rotate-45" : "-translate-y-[3px]"
                 )}
               />
               <span
                 className={cn(
-                  "block h-[2px] w-4.5 rounded-full bg-current transition-all duration-300 ease-out",
+                  "block h-[2px] w-4.5 rounded-full bg-current transition-transform duration-400 ease-[cubic-bezier(0.22,1,0.36,1)]",
                   open ? "-translate-y-[4px] -rotate-45" : "translate-y-[3px]"
                 )}
               />
             </span>
-            <span className="text-xs font-mono uppercase tracking-wider min-w-[36px] text-left">
+            <span className="text-xs font-mono uppercase tracking-wider min-w-[38px] text-left transition-opacity duration-300">
               {open ? "Close" : "Menu"}
             </span>
           </button>
         </div>
       </div>
 
-      {/* Animated Mobile Menu Overlay Drawer */}
+      {/* Animated Mobile Menu Overlay Drawer — Smooth Curtain Slide Open & Close */}
       <div
         data-lenis-prevent
         style={{
-          backgroundColor: "#08080B",
-          transition:
-            "opacity 320ms cubic-bezier(0.16, 1, 0.3, 1), transform 320ms cubic-bezier(0.16, 1, 0.3, 1), visibility 320ms",
+          transition: open
+            ? "visibility 0s linear 0s"
+            : "visibility 0s linear 550ms",
         }}
         className={cn(
-          "fixed inset-x-0 bottom-0 top-[72px] z-50 flex flex-col justify-between overflow-y-auto bg-ink-950 px-[var(--gutter)] pb-10 pt-4 md:hidden border-t border-ink-800/60",
+          "fixed inset-x-0 bottom-0 top-[72px] z-40 overflow-hidden md:hidden",
           open
-            ? "pointer-events-auto opacity-100 translate-y-0 visible"
-            : "pointer-events-none opacity-0 -translate-y-4 invisible"
+            ? "pointer-events-auto visible"
+            : "pointer-events-none invisible"
         )}
         aria-hidden={!open}
       >
-        <nav className="flex flex-col divide-y divide-ink-800/60">
-          {NAV.map((n, idx) => (
-            <Link
-              key={n.href}
-              href={n.href}
-              onClick={() => setOpen(false)}
-              style={{
-                fontFamily: "var(--font-display)",
-                transition:
-                  "opacity 320ms cubic-bezier(0.16, 1, 0.3, 1), transform 320ms cubic-bezier(0.16, 1, 0.3, 1), color 200ms ease, border-color 200ms ease",
-                transitionDelay: open ? `${50 + idx * 40}ms` : "0ms",
-              }}
-              className={cn(
-                "group flex items-center justify-between py-4 text-2xl sm:text-3xl font-medium tracking-tight text-bone-100 transition-all",
-                open ? "translate-y-0 opacity-100" : "-translate-y-3 opacity-0",
-                isActive(n.href)
-                  ? "border-l-4 border-l-lime-400 pl-4 text-lime-400 font-semibold"
-                  : "hover:text-lime-400"
-              )}
-            >
-              <span>{n.label}</span>
-              <span
-                className={cn(
-                  "text-xs font-mono transition-transform duration-200 group-hover:translate-x-1",
-                  isActive(n.href) ? "text-lime-400" : "text-bone-500 group-hover:text-lime-400"
-                )}
-              >
-                0{idx + 1} →
-              </span>
-            </Link>
-          ))}
-        </nav>
-
         <div
           style={{
+            backgroundColor: "#08080B",
             transition:
-              "opacity 320ms cubic-bezier(0.16, 1, 0.3, 1), transform 320ms cubic-bezier(0.16, 1, 0.3, 1)",
-            transitionDelay: open ? `${50 + NAV.length * 40}ms` : "0ms",
+              "transform 550ms cubic-bezier(0.22, 1, 0.36, 1), opacity 500ms cubic-bezier(0.22, 1, 0.36, 1)",
           }}
           className={cn(
-            "mt-8 flex flex-col gap-3 pt-6 border-t border-ink-800/80 transition-all",
-            open ? "translate-y-0 opacity-100" : "translate-y-3 opacity-0"
+            "flex h-full w-full flex-col justify-between overflow-y-auto px-[var(--gutter)] pb-10 pt-4 border-t border-ink-800/80 bg-ink-950",
+            open
+              ? "translate-y-0 opacity-100"
+              : "-translate-y-full opacity-90"
           )}
         >
-          <Link
-            href="/contact"
-            onClick={() => setOpen(false)}
-            className="btn btn-primary h-12 w-full justify-center text-sm font-semibold shadow-lg shadow-lime-400/10"
+          <nav className="flex flex-col divide-y divide-ink-800/60">
+            {NAV.map((n, idx) => (
+              <Link
+                key={n.href}
+                href={n.href}
+                onClick={() => setOpen(false)}
+                style={{
+                  fontFamily: "var(--font-display)",
+                  transition:
+                    "opacity 500ms cubic-bezier(0.22, 1, 0.36, 1), transform 500ms cubic-bezier(0.22, 1, 0.36, 1), color 200ms ease, border-color 200ms ease",
+                  transitionDelay: open ? `${120 + idx * 55}ms` : "0ms",
+                }}
+                className={cn(
+                  "group flex items-center justify-between py-4 text-2xl sm:text-3xl font-medium tracking-tight text-bone-100",
+                  open ? "translate-y-0 opacity-100" : "-translate-y-4 opacity-0",
+                  isActive(n.href)
+                    ? "border-l-4 border-l-lime-400 pl-4 text-lime-400 font-semibold"
+                    : "hover:text-lime-400"
+                )}
+              >
+                <span>{n.label}</span>
+                <span
+                  className={cn(
+                    "text-xs font-mono transition-transform duration-300 group-hover:translate-x-1.5",
+                    isActive(n.href) ? "text-lime-400" : "text-bone-500 group-hover:text-lime-400"
+                  )}
+                >
+                  0{idx + 1} →
+                </span>
+              </Link>
+            ))}
+          </nav>
+
+          <div
+            style={{
+              transition:
+                "opacity 500ms cubic-bezier(0.22, 1, 0.36, 1), transform 500ms cubic-bezier(0.22, 1, 0.36, 1)",
+              transitionDelay: open ? `${120 + NAV.length * 55}ms` : "0ms",
+            }}
+            className={cn(
+              "mt-8 flex flex-col gap-3 pt-6 border-t border-ink-800/80",
+              open ? "translate-y-0 opacity-100" : "translate-y-4 opacity-0"
+            )}
           >
-            Start a project
-          </Link>
-          <Link
-            href="/contact"
-            onClick={() => setOpen(false)}
-            className="btn h-12 w-full justify-center text-sm border-ink-600 bg-ink-900/80 hover:bg-ink-800"
-          >
-            Book a call
-          </Link>
-          <div className="mt-2 flex items-center justify-between text-[11px] text-bone-400">
-            <span>© Nex Desk Agency</span>
-            <span className="text-lime-400 font-mono">Available worldwide</span>
+            <Link
+              href="/contact"
+              onClick={() => setOpen(false)}
+              className="btn btn-primary h-12 w-full justify-center text-sm font-semibold shadow-lg shadow-lime-400/10"
+            >
+              Start a project
+            </Link>
+            <Link
+              href="/contact"
+              onClick={() => setOpen(false)}
+              className="btn h-12 w-full justify-center text-sm border-ink-600 bg-ink-900/80 hover:bg-ink-800"
+            >
+              Book a call
+            </Link>
+            <div className="mt-2 flex items-center justify-between text-[11px] text-bone-400">
+              <span>© Nex Desk Agency</span>
+              <span className="text-lime-400 font-mono">Available worldwide</span>
+            </div>
           </div>
         </div>
       </div>

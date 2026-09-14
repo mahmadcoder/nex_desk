@@ -14,6 +14,7 @@ export type WorkCase = {
   title: string;
   client_name?: string | null;
   industry?: string | null;
+  year?: string | null;
   cover_url?: string | null;
   outcome?: string | null;
   metrics?: { label: string; value: string }[] | null;
@@ -138,6 +139,7 @@ export default function WorkClient({ cases }: WorkClientProps) {
                 <div className="flex flex-1 flex-col p-7">
                   <div className="flex items-center gap-2">
                     <span className="mono-tag text-bone-300 font-semibold">{c.client_name}</span>
+                    {c.year && <span className="mono-tag text-bone-400">· {c.year}</span>}
                   </div>
 
                   <h2 className="mt-2.5 text-2xl font-semibold text-bone-50">

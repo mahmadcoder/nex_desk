@@ -70,6 +70,8 @@ export default function WorkClient({ caseStudies }: { caseStudies: ICaseStudy[] 
           tech_stack: editing.tech_stack ?? [],
           services: editing.services ?? [],
           live_url: editing.live_url ?? null,
+          github_url: editing.github_url ?? null,
+          year: editing.year ?? null,
           is_featured: editing.is_featured ?? false,
           is_published: editing.is_published ?? true,
           sort_order: editing.sort_order ?? 0,
@@ -241,7 +243,10 @@ export default function WorkClient({ caseStudies }: { caseStudies: ICaseStudy[] 
               )}
 
               <h3 className="mt-3 text-base font-semibold text-bone-50">{c.title}</h3>
-              {c.client_name && <p className="text-xs text-bone-400 mt-0.5">Client: {c.client_name}</p>}
+              <div className="flex items-center gap-2 mt-0.5 text-xs text-bone-400">
+                {c.client_name && <span>Client: {c.client_name}</span>}
+                {c.year && <span>· {c.year}</span>}
+              </div>
               {c.outcome && <p className="mt-2 text-xs text-bone-300 line-clamp-2 leading-relaxed">{c.outcome}</p>}
 
               {!!(c.tech_stack ?? []).length && (
@@ -337,14 +342,23 @@ export default function WorkClient({ caseStudies }: { caseStudies: ICaseStudy[] 
               </div>
             </div>
 
-            <div className="grid sm:grid-cols-2 gap-3">
+            <div className="grid sm:grid-cols-3 gap-3">
               <div>
                 <label className="mono-tag text-xs mb-1 block">Industry</label>
                 <input
                   className="w-full rounded-lg border border-ink-500 bg-ink-800 px-3 py-2 text-sm text-bone-50 focus:border-lime-400 focus:outline-none"
-                  placeholder="e.g. Fintech, SaaS, E-Commerce"
+                  placeholder="e.g. Fintech, SaaS"
                   value={editing.industry ?? ""}
                   onChange={(e) => setEditing({ ...editing, industry: e.target.value })}
+                />
+              </div>
+              <div>
+                <label className="mono-tag text-xs mb-1 block">Project Year</label>
+                <input
+                  className="w-full rounded-lg border border-ink-500 bg-ink-800 px-3 py-2 text-sm text-bone-50 focus:border-lime-400 focus:outline-none font-mono text-xs"
+                  placeholder="2026"
+                  value={editing.year ?? ""}
+                  onChange={(e) => setEditing({ ...editing, year: e.target.value })}
                 />
               </div>
               <div>
@@ -356,6 +370,16 @@ export default function WorkClient({ caseStudies }: { caseStudies: ICaseStudy[] 
                   onChange={(e) => setEditing({ ...editing, live_url: e.target.value })}
                 />
               </div>
+            </div>
+
+            <div>
+              <label className="mono-tag text-xs mb-1 block">GitHub Repository URL (Optional)</label>
+              <input
+                className="w-full rounded-lg border border-ink-500 bg-ink-800 px-3 py-2 text-sm text-bone-50 focus:border-lime-400 focus:outline-none font-mono text-xs"
+                placeholder="https://github.com/..."
+                value={editing.github_url ?? ""}
+                onChange={(e) => setEditing({ ...editing, github_url: e.target.value })}
+              />
             </div>
 
             <div>

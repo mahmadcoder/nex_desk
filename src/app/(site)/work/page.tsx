@@ -14,7 +14,7 @@ export default async function WorkPage() {
   const supabase = createPublicClient();
   const { data: dbCases } = await supabase
     .from("case_studies")
-    .select("slug,title,client_name,industry,cover_url,outcome,metrics,tech_stack")
+    .select("slug,title,client_name,industry,year,cover_url,outcome,metrics,tech_stack")
     .eq("is_published", true)
     .order("sort_order");
 

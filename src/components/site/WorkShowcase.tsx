@@ -13,6 +13,7 @@ type Case = {
   title: string;
   client_name?: string | null;
   industry?: string | null;
+  year?: string | null;
   cover_url?: string | null;
   outcome?: string | null;
   metrics?: { label: string; value: string }[] | null;
@@ -46,6 +47,12 @@ export default function WorkShowcase({ cases }: { cases: Case[] }) {
                 <span className="mono-tag">{c.industry ?? "Project"}</span>
                 <span className="mono-tag">·</span>
                 <span className="mono-tag">{c.client_name}</span>
+                {c.year && (
+                  <>
+                    <span className="mono-tag">·</span>
+                    <span className="mono-tag text-bone-300">{c.year}</span>
+                  </>
+                )}
               </div>
               <h3 className="mt-4 text-3xl group-hover:text-lime-300 transition-colors">{c.title}</h3>
               <p className="mt-4 text-bone-400">{c.outcome}</p>

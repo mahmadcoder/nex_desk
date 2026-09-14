@@ -11,6 +11,11 @@ export type DemoCase = {
   tech_stack: string[];
   metrics: { label: string; value: string }[];
   live_url?: string;
+  github_url?: string;
+  cover_url?: string;
+  is_published?: boolean;
+  is_featured?: boolean;
+  sort_order?: number;
 };
 
 export type DemoPost = {

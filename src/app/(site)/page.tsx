@@ -1,5 +1,5 @@
 import { createPublicClient } from "@/lib/supabase/public";
-import { demoServices, demoQuotes } from "@/lib/agencyData";
+import { demoCases, demoServices, demoQuotes } from "@/lib/agencyData";
 
 import Hero from "@/components/site/Hero";
 import Marquee from "@/components/site/Marquee";
@@ -25,7 +25,7 @@ export default async function Home() {
     // it that lookup silently fell through to "USD".
     supabase.from("services").select("slug,title,category,short_desc,starting_at,currency")
       .eq("is_active", true).order("sort_order"),
-    supabase.from("case_studies").select("slug,title,client_name,industry,cover_url,outcome,metrics")
+    supabase.from("case_studies").select("slug,title,client_name,industry,year,cover_url,outcome,metrics")
       .eq("is_published", true).order("sort_order").limit(3),
     supabase.from("testimonials").select("client_name,role,company,quote,rating")
       .eq("is_published", true).order("sort_order").limit(9),
@@ -35,6 +35,9 @@ export default async function Home() {
     ? dbServices
     : (demoServices.filter((s) => s.is_active !== false) as any[]);
   const wallQuotes = quotes?.length ? quotes : demoQuotes;
+  const showcaseCases = (cases && cases.length > 0)
+    ? cases
+    : (demoCases.filter((c) => (c as any).is_published !== false).slice(0, 3) as any[]);
 
   return (
     <>
@@ -42,7 +45,7 @@ export default async function Home() {
       <Marquee />
       <BuildTicker />
       <Studio />
-      <WorkShowcase cases={cases ?? []} />
+      <WorkShowcase cases={showcaseCases} />
       <ServicesScroll services={services} />
       {/* What we do, then what it costs, then why us — the money question
           answered where it forms, not after two more sections of persuasion. */}

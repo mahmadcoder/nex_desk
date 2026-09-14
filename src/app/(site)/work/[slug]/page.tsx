@@ -7,7 +7,7 @@ import TexturePanel from "@/components/site/mockups/TexturePanel";
 import { BrowserFrame, DashboardMockup } from "@/components/site/mockups";
 import { textureFor } from "@/lib/images";
 import { demoCases } from "@/lib/agencyData";
-import { Calendar, Building2, Tag, Globe, ArrowUpRight } from "lucide-react";
+import { Calendar, Building2, Tag, Globe, ArrowUpRight, Code2 } from "lucide-react";
 
 export const revalidate = 300;
 
@@ -46,7 +46,36 @@ async function getCase(slug: string) {
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
   const { slug } = await params;
   const found = await getCase(slug);
-  return { title: found ? `${found.data.title} · Work` : "Case study" };
+  if (!found) return { title: "Case study · Nex Desk" };
+
+  const c = found.data;
+  const title = `${c.title} | Nex Desk Case Study`;
+  const description = c.outcome || "Case study by Nex Desk Digital Agency.";
+  const cover = c.cover_url || "/projects/physician-meds.png";
+
+  return {
+    title,
+    description,
+    openGraph: {
+      title,
+      description,
+      type: "article",
+      images: [
+        {
+          url: cover,
+          width: 1200,
+          height: 630,
+          alt: c.title,
+        },
+      ],
+    },
+    twitter: {
+      card: "summary_large_image",
+      title,
+      description,
+      images: [cover],
+    },
+  };
 }
 
 export default async function CaseDetail({ params }: { params: Promise<{ slug: string }> }) {
@@ -91,7 +120,16 @@ export default async function CaseDetail({ params }: { params: Promise<{ slug: s
               <Globe size={18} strokeWidth={1.5} className="text-lime-400" />
               <div>
                 <p className="mono-tag">Live site</p>
-                <p className="mt-0.5 inline-flex items-center gap-1 text-sm">Visit <ArrowUpRight size={13} /></p>
+                <p className="mt-0.5 inline-flex items-center gap-1 text-sm font-medium">Visit live <ArrowUpRight size={13} /></p>
+              </div>
+            </a>
+          )}
+          {c.github_url && (
+            <a href={c.github_url} target="_blank" rel="noreferrer" className="flex items-center gap-3 hover:text-lime-400">
+              <Code2 size={18} strokeWidth={1.5} className="text-lime-400" />
+              <div>
+                <p className="mono-tag">Source code</p>
+                <p className="mt-0.5 inline-flex items-center gap-1 text-sm font-medium">View repository <ArrowUpRight size={13} /></p>
               </div>
             </a>
           )}

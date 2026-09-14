@@ -172,7 +172,7 @@ export default function PortalSidebar({
       {/* Smooth mobile drawer backdrop */}
       <div
         className={cn(
-          "fixed inset-0 z-40 bg-ink-950/80 backdrop-blur-sm transition-opacity duration-300 lg:hidden",
+          "fixed inset-0 z-40 bg-ink-950/80 backdrop-blur-sm transition-opacity duration-500 lg:hidden",
           open ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"
         )}
         onClick={() => setOpen(false)}
@@ -181,7 +181,7 @@ export default function PortalSidebar({
 
       <aside
         className={cn(
-          "fixed inset-y-0 left-0 z-50 flex w-64 flex-col border-r border-ink-600 bg-ink-950 p-4 transition-transform duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] lg:hidden",
+          "fixed inset-y-0 left-0 z-50 flex w-64 flex-col border-r border-ink-600 bg-ink-950 p-4 transition-transform duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] lg:hidden",
           open ? "translate-x-0" : "-translate-x-full"
         )}
       >
