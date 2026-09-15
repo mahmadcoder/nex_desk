@@ -16,7 +16,9 @@ export default async function ServicesPage() {
   const { data: dbServices } = await supabase
     .from("services").select("*").eq("is_active", true).order("sort_order");
 
-  const services = (dbServices && dbServices.length > 0) ? dbServices : (demoServices as any[]);
+  const services = (dbServices && dbServices.length > 0)
+    ? dbServices
+    : (demoServices.filter((s) => (s as any).is_active !== false) as any[]);
 
   const grouped = (services ?? []).reduce<Record<string, typeof services>>((acc, s) => {
     (acc[s.category] ||= []).push(s);

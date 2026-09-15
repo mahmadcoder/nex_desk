@@ -296,7 +296,7 @@ export async function seedDefaultServices() {
     starting_at: s.starting_at,
     currency: s.currency || "USD",
     is_featured: (s as any).is_featured ?? true,
-    is_active: true,
+    is_active: (s as any).is_active !== false,
     sort_order: idx + 1,
     pricing_tiers: [
       {
