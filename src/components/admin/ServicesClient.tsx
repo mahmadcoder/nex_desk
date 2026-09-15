@@ -157,7 +157,7 @@ export default function ServicesClient({ services }: { services: IService[] }) {
               disabled={pending}
               className="btn bg-ink-800 text-bone-200 hover:text-bone-50 border-ink-600 min-h-[36px] h-auto py-2 px-3 text-xs flex items-center gap-1.5 cursor-pointer whitespace-nowrap shrink-0"
             >
-              <RefreshCw size={13} className={pending ? "animate-spin" : ""} /> Seed 16 Services to DB
+              <RefreshCw size={13} className={pending ? "animate-spin" : ""} /> Seed Default Services to DB
             </button>
             <button
               onClick={() =>
@@ -425,8 +425,8 @@ export default function ServicesClient({ services }: { services: IService[] }) {
       <ConfirmModal
         isOpen={showSeedModal}
         title="Seed Default Agency Services"
-        description="Are you sure you want to seed all 16 default agency services into the database?"
-        confirmText="Seed 16 Services"
+        description="Are you sure you want to seed default agency services into the database?"
+        confirmText="Seed Services"
         isDanger={false}
         pending={pending}
         onConfirm={confirmSeed}

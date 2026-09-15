@@ -109,7 +109,7 @@ export default function ServicesScroll({ services }: { services: Service[] }) {
           <div className="shell pt-16 pb-8">
             <p className="drawer-label">What we do</p>
             <h2 className="mt-6 max-w-3xl text-[var(--text-h2)]">
-              Sixteen services. Most clients need three of them.
+              {services.length} core services. Most clients need two or three.
             </h2>
           </div>
           <div
@@ -130,7 +130,7 @@ export default function ServicesScroll({ services }: { services: Service[] }) {
       <div className="shell" suppressHydrationWarning>
         <p className="drawer-label">What we do</p>
         <h2 className="mt-6 max-w-3xl text-[var(--text-h2)]">
-          Sixteen services. Most clients need three of them.
+          {services.length} core services. Most clients need two or three.
         </h2>
       </div>
 

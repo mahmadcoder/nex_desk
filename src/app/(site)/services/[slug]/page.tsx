@@ -62,16 +62,26 @@ export default async function ServiceDetail({ params }: { params: Promise<{ slug
   const service = dbService || (demoServices.find((s) => s.slug === slug) as any);
   if (!service || service.is_active === false) notFound();
 
-  const { data: others } = await supabase
-    .from("services")
-    .select("slug,title,short_desc,category")
-    .eq("is_active", true)
-    .neq("slug", slug)
-    .limit(3);
+  const [{ data: others }, { count: dbActiveCount }] = await Promise.all([
+    supabase
+      .from("services")
+      .select("slug,title,short_desc,category")
+      .eq("is_active", true)
+      .neq("slug", slug)
+      .limit(3),
+    supabase
+      .from("services")
+      .select("*", { count: "exact", head: true })
+      .eq("is_active", true),
+  ]);
 
   const fallbackOthers = others?.length
     ? others
     : demoServices.filter((s) => s.slug !== slug && s.is_active !== false).slice(0, 3);
+
+  const totalActiveCount = (typeof dbActiveCount === "number" && dbActiveCount > 0)
+    ? dbActiveCount
+    : demoServices.filter((s) => s.is_active !== false).length;
 
   return (
     <>
@@ -269,7 +279,7 @@ export default async function ServiceDetail({ params }: { params: Promise<{ slug
               <h2 className="text-xl sm:text-2xl font-semibold text-bone-50 mt-1">Frequently paired services</h2>
             </div>
             <Link href="/services" className="mono-tag text-xs text-bone-400 hover:text-lime-400 transition-colors flex items-center gap-1 cursor-pointer">
-              View all 16 services →
+              View all {totalActiveCount} services →
             </Link>
           </div>
 
