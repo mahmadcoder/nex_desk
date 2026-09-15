@@ -21,6 +21,12 @@ export const ARTICLE_COVERS: Record<string, string> = {
     "https://images.unsplash.com/photo-1507238691740-187a5b1d37b8?auto=format&fit=crop&w=1200&q=80",
   "seo-engineering-for-saas":
     "https://images.unsplash.com/photo-1432888498266-38ffec3eaf0a?auto=format&fit=crop&w=1200&q=80",
+  "healthtech-architecture-nextjs-supabase":
+    "https://images.unsplash.com/photo-1576091160399-112ba8d25d1d?auto=format&fit=crop&w=1200&q=80",
+  "interactive-motion-gsap-performance":
+    "https://images.unsplash.com/photo-1550745165-9bc0b252726f?auto=format&fit=crop&w=1200&q=80",
+  "voice-ai-saas-streaming-pipelines":
+    "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=1200&q=80",
 };
 
 /** High-resolution fallback photography list for articles */
@@ -86,5 +92,5 @@ export function gradientFor(seed: string) {
 }
 
 export const photos: Record<string, string | null> = {
-  founder: null,
+  founder: "/ahmad-sadiq.png",
 };

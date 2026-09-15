@@ -1,27 +1,26 @@
-import Link from "next/link";
 import type { Metadata } from "next";
 import { createPublicClient } from "@/lib/supabase/public";
-import Reveal from "@/components/site/Reveal";
 import CTA from "@/components/site/CTA";
-import TexturePanel from "@/components/site/mockups/TexturePanel";
-import { getPostCover } from "@/lib/images";
+import JsonLd from "@/components/JsonLd";
+import { breadcrumbLd } from "@/lib/jsonLd";
 import { demoPosts } from "@/lib/agencyData";
-import { Clock } from "lucide-react";
+import BlogFeed from "@/components/site/BlogFeed";
+import type { DemoPost } from "@/types/agency";
+import { Sparkles } from "lucide-react";
 
-export const metadata: Metadata = { title: "Blog" };
+export const metadata: Metadata = {
+  title: "Engineering Journal & Insights — Nex Desk Agency",
+  description:
+    "Technical strategies, architecture patterns, and candid agency lessons on shipping sub-second web applications, SaaS MVPs, and fluid interactive experiences by Ahmad Sadiq.",
+  openGraph: {
+    title: "Engineering Journal & Insights — Nex Desk Agency",
+    description:
+      "Technical strategies, architecture patterns, and candid agency lessons on shipping sub-second web applications and modern SaaS products.",
+    url: "https://nexdesk.agency/blog",
+  },
+};
+
 export const revalidate = 300;
-
-/* eslint-disable @typescript-eslint/no-explicit-any */
-
-/**
- * Category tags. Rendered as outlined pills so two of them side by side read
- * as two labels rather than one run-on phrase.
- */
-const tagPill =
-  "mono-tag rounded-full border border-ink-500 bg-ink-800/70 px-2.5 py-1 text-[11px] leading-none text-bone-200";
-
-const fmtDate = (d?: string | null) =>
-  d ? new Date(d).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" }) : "";
 
 export default async function BlogPage() {
   const supabase = createPublicClient();
@@ -31,109 +30,69 @@ export default async function BlogPage() {
     .eq("is_published", true)
     .order("published_at", { ascending: false });
 
-  const posts: any[] = dbPosts?.length ? dbPosts : demoPosts;
-  const [featured, ...rest] = posts;
+  const posts: DemoPost[] = dbPosts?.length ? (dbPosts as DemoPost[]) : demoPosts;
 
   return (
     <>
-      <section className="shell py-24">
-        <div className="flex items-center justify-between gap-8">
-          <div className="min-w-0">
-            <p className="drawer-label">Blog</p>
-            <h1 className="mt-8 text-[clamp(3.5rem,10vw,7rem)] font-semibold leading-[1] tracking-[-0.04em]">Insights &amp; Ideas</h1>
-            <p className="mt-6 max-w-xl text-lg text-bone-200">
-              Strategy, craft, and lessons from building digital products that
-              actually ship.
-            </p>
-          </div>
+      <JsonLd
+        data={breadcrumbLd([
+          { name: "Home", path: "/" },
+          { name: "Blog", path: "/blog" },
+        ])}
+      />
 
-          {/* Lime Grid Mosaic */}
-          <div className="hidden lg:block shrink-0 select-none" aria-hidden="true">
-            <div className="grid grid-cols-5 gap-2.5" style={{ width: 260 }}>
-              {[
-                0,    0,    0,    0.10, 0.18,
-                0,    0,    0.14, 0.32, 0.50,
-                0,    0.10, 0.28, 0.65, 1.00,
-                0.08, 0.22, 0.55, 1.00, 0.60,
-                0,    0.14, 0.38, 0.70, 0,
-              ].map((op, i) => (
-                <div
-                  key={i}
-                  className={`aspect-square rounded-[5px]${op > 0.25 ? " mosaic-pulse" : ""}`}
-                  style={{
-                    background: op ? `rgba(208,255,78,${op})` : "transparent",
-                    animationDelay: op > 0.25 ? `${(i % 7) * 0.4}s` : undefined,
-                  }}
-                />
-              ))}
+      {/* ── Editorial Hero Banner ── */}
+      <section className="relative overflow-hidden py-16 lg:py-24 bg-ink-950 border-b border-ink-800">
+        <div className="pointer-events-none absolute left-1/2 top-0 -translate-x-1/2 h-80 w-full max-w-6xl bg-radial-glow opacity-25 blur-3xl" />
+
+        <div className="shell relative z-10">
+          <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-8">
+            <div className="max-w-3xl">
+              <div className="flex items-center gap-2 mb-4">
+                <span className="mono-tag text-xs bg-lime-400/10 text-lime-400 px-3 py-1 rounded-full border border-lime-400/20 font-medium flex items-center gap-1.5">
+                  <Sparkles size={12} /> The Nex Desk Journal
+                </span>
+                <span className="mono-tag text-xs text-bone-400 border border-ink-700 px-2.5 py-1 rounded-full">
+                  Engineering &amp; Craft
+                </span>
+              </div>
+
+              <h1 className="text-3xl sm:text-5xl lg:text-6xl font-bold tracking-tight text-bone-50 leading-[1.12]">
+                Insights, Architectures &amp;{" "}
+                <span className="text-lime-400">Lessons from the Desk.</span>
+              </h1>
+
+              <p className="mt-5 text-base sm:text-lg text-bone-200 leading-relaxed max-w-2xl">
+                Candid technical breakdowns, Next.js 15 architecture patterns, design system
+                guidelines, and agency lessons from shipping software that actually works.
+              </p>
+            </div>
+
+            {/* Quick Stats Pill */}
+            <div className="hidden lg:flex flex-col gap-2 p-5 rounded-2xl border border-ink-700 bg-ink-900/60 shrink-0 text-xs font-mono">
+              <div className="flex items-center justify-between gap-6 text-bone-300">
+                <span>Published Articles</span>
+                <span className="text-lime-400 font-bold">{posts.length} Guides</span>
+              </div>
+              <div className="flex items-center justify-between gap-6 text-bone-300">
+                <span>Primary Focus</span>
+                <span className="text-bone-100">Next.js &amp; Architecture</span>
+              </div>
+              <div className="flex items-center justify-between gap-6 text-bone-300">
+                <span>Editorial Author</span>
+                <span className="text-bone-100">Ahmad Sadiq</span>
+              </div>
             </div>
           </div>
         </div>
       </section>
 
-      {/* featured */}
-      <section className="shell">
-        <Reveal>
-          <Link
-            href={`/blog/${featured.slug}`}
-            className="card group grid overflow-hidden transition-colors hover:border-lime-400/40 lg:grid-cols-2"
-          >
-            <TexturePanel src={getPostCover(featured.slug, featured.cover_url)} className="blog-img-hover min-h-[280px]" overlay={0.3}>
-              <div className="flex h-full items-end p-8">
-                <span className="mono-tag relative z-10 rounded-full bg-lime-400 px-3.5 py-1.5 text-xs leading-none font-semibold text-lime-950">
-                  featured
-                </span>
-              </div>
-            </TexturePanel>
-            <div className="flex flex-col justify-center p-8 lg:p-12">
-              {/* Pills, not bare text: two adjacent tags used to run together
-                  and read as one sentence ("Process Working with us"). */}
-              <div className="flex flex-wrap gap-2">
-                {(featured.tags ?? []).slice(0, 2).map((t: string) => (
-                  <span key={t} className={tagPill}>{t}</span>
-                ))}
-              </div>
-              {/* The site-wide heading rule sets line-height 0.92, so a wrapped
-                  title collided with the tags above and its own second line. */}
-              <h2 className="mt-5 text-3xl leading-tight transition-colors group-hover:text-lime-400">{featured.title}</h2>
-              <p className="mt-4 text-bone-300">{featured.excerpt}</p>
-              <div className="mono-tag mt-6 flex flex-wrap items-center gap-x-4 gap-y-2">
-                <span>{fmtDate(featured.published_at)}</span>
-                <span className="flex items-center gap-1.5"><Clock size={12} /> {featured.read_minutes ?? 5} min</span>
-              </div>
-            </div>
-          </Link>
-        </Reveal>
-      </section>
+      {/* ── Interactive Blog Feed (Category tabs, Search, Featured, Grid, Newsletter) ── */}
+      <div className="py-12">
+        <BlogFeed posts={posts} />
+      </div>
 
-      {/* grid */}
-      <section className="shell py-16">
-        <Reveal className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-          {rest.map((p) => (
-            <Link
-              key={p.slug}
-              href={`/blog/${p.slug}`}
-              className="card group flex flex-col overflow-hidden transition-colors hover:border-lime-400/40"
-            >
-              <TexturePanel src={getPostCover(p.slug, p.cover_url)} className="blog-img-hover h-48" overlay={0.3} />
-              <div className="flex flex-1 flex-col p-6">
-                <div className="flex flex-wrap gap-2">
-                  {(p.tags ?? []).slice(0, 2).map((t: string) => (
-                    <span key={t} className={tagPill}>{t}</span>
-                  ))}
-                </div>
-                <h3 className="mt-4 text-xl leading-tight transition-colors group-hover:text-lime-400">{p.title}</h3>
-                <p className="mt-3 flex-1 text-sm leading-relaxed text-bone-300">{p.excerpt}</p>
-                <div className="mono-tag mt-5 flex flex-wrap items-center gap-x-3 gap-y-1.5 border-t border-ink-600 pt-4">
-                  <span>{fmtDate(p.published_at)}</span>
-                  <span className="flex items-center gap-1.5"><Clock size={11} /> {p.read_minutes ?? 5} min</span>
-                </div>
-              </div>
-            </Link>
-          ))}
-        </Reveal>
-      </section>
-
+      {/* ── Bottom Conversion CTA ── */}
       <CTA />
     </>
   );

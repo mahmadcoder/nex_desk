@@ -27,6 +27,9 @@ export type DemoPost = {
   published_at: string;
   content: string;
   cover_url?: string;
+  author_name?: string;
+  author_role?: string;
+  author_avatar?: string;
 };
 
 export type DemoService = {

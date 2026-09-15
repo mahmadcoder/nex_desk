@@ -143,3 +143,26 @@ export function breadcrumbLd(trail: Array<{ name: string; path: string }>) {
     })),
   };
 }
+
+export function aboutPageLd() {
+  return clean({
+    "@context": "https://schema.org",
+    "@type": "AboutPage",
+    name: "About Nex Desk Agency",
+    description:
+      "Nex Desk is an engineering-first digital agency founded by Ahmad Sadiq, architecting high-performance web applications, bespoke SaaS platforms, and fluid interactive experiences.",
+    url: abs("/about"),
+    mainEntity: {
+      "@type": "Person",
+      name: "Ahmad Sadiq",
+      jobTitle: "Founder & Lead Solutions Architect",
+      url: "https://ahmad-sadiq-pf.vercel.app/",
+      sameAs: [
+        "https://github.com/mahmadcoder",
+        "https://ahmad-sadiq-pf.vercel.app/",
+      ],
+      worksFor: { "@id": abs("/#organization") },
+    },
+  });
+}
+

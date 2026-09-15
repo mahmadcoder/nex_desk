@@ -2,6 +2,7 @@
 
 import { useEffect, useRef } from "react";
 import { usePathname } from "next/navigation";
+import { getLenis } from "@/components/site/SmoothScroll";
 
 export default function ScrollRestoration() {
   const pathname = usePathname();
@@ -32,18 +33,29 @@ export default function ScrollRestoration() {
       if (savedPosition !== null) {
         const targetY = parseInt(savedPosition, 10);
         setTimeout(() => {
-          window.scrollTo({ top: targetY, behavior: "instant" });
+          const lenis = getLenis();
+          if (lenis) {
+            lenis.scrollTo(targetY, { immediate: true, force: true });
+          } else {
+            window.scrollTo({ top: targetY, behavior: "instant" });
+          }
         }, 50);
       }
       isPopState.current = false;
     } else {
       // User navigated via a new link click - scroll to top
+      const lenis = getLenis();
+      if (lenis) {
+        lenis.scrollTo(0, { immediate: true, force: true });
+      }
       window.scrollTo({ top: 0, behavior: "instant" });
     }
 
     // Continuously save scroll position as user scrolls
     const handleScroll = () => {
-      sessionStorage.setItem(storageKey, window.scrollY.toString());
+      const lenis = getLenis();
+      const currentY = lenis ? Math.round(lenis.scroll) : window.scrollY;
+      sessionStorage.setItem(storageKey, currentY.toString());
     };
 
     let timeoutId: NodeJS.Timeout;
