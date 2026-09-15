@@ -8,16 +8,6 @@ import { getPostCover } from "@/lib/images";
 import type { DemoPost } from "@/types/agency";
 import { toast } from "sonner";
 
-const CATEGORIES = [
-  "All",
-  "Engineering",
-  "Architecture",
-  "Performance",
-  "Design",
-  "AI",
-  "Process",
-];
-
 const fmtDate = (d?: string | null) =>
   d
     ? new Date(d).toLocaleDateString("en-GB", {
@@ -35,6 +25,49 @@ export default function BlogFeed({ posts }: { posts: DemoPost[] }) {
   const [email, setEmail] = useState("");
   const [subscribing, setSubscribing] = useState(false);
   const [subscribed, setSubscribed] = useState(false);
+
+  // Dynamically calculate category counts matching Work tab design
+  const categoriesWithCounts = useMemo(() => {
+    const baseCategories = [
+      "All",
+      "Engineering",
+      "Architecture",
+      "Performance",
+      "Design",
+      "AI",
+      "Process",
+      "SEO",
+    ];
+
+    // Also detect any unique tags from posts that aren't already included in baseCategories
+    const extraTags: string[] = [];
+    posts.forEach((p) => {
+      (p.tags ?? []).forEach((tag) => {
+        const trimmed = tag.trim();
+        if (!trimmed) return;
+        const alreadyCovered = baseCategories.some(
+          (b) => b.toLowerCase() === trimmed.toLowerCase() || trimmed.toLowerCase().includes(b.toLowerCase())
+        );
+        if (!alreadyCovered && !extraTags.includes(trimmed)) {
+          extraTags.push(trimmed);
+        }
+      });
+    });
+
+    const fullList = [...baseCategories, ...extraTags];
+
+    return fullList
+      .map((cat) => {
+        const count =
+          cat === "All"
+            ? posts.length
+            : posts.filter((p) =>
+                (p.tags ?? []).some((t) => t.toLowerCase().includes(cat.toLowerCase()))
+              ).length;
+        return { name: cat, count };
+      })
+      .filter((c) => c.count > 0);
+  }, [posts]);
 
   // Filtered posts
   const filteredPosts = useMemo(() => {
@@ -93,31 +126,41 @@ export default function BlogFeed({ posts }: { posts: DemoPost[] }) {
 
   return (
     <div className="space-y-12">
-      {/* ── Search & Filter Controls ── */}
+      {/* ── Search & Filter Controls (Matching Work page tabs) ── */}
       <div className="shell">
-        <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between pt-4 pb-2 border-b border-ink-800">
-          {/* Category Filter Pills */}
-          <div className="flex flex-wrap items-center gap-2">
-            {CATEGORIES.map((cat) => {
-              const isActive = activeCategory === cat;
+        <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between pt-4 pb-6 border-b border-ink-700/80">
+          {/* Category Filter Tabs with Item Counts */}
+          <div className="flex flex-wrap items-center gap-2.5">
+            {categoriesWithCounts.map((cat) => {
+              const isActive = activeCategory === cat.name;
               return (
                 <button
-                  key={cat}
-                  onClick={() => setActiveCategory(cat)}
-                  className={`mono-tag text-xs px-3.5 py-1.5 rounded-full border transition-all cursor-pointer ${
+                  key={cat.name}
+                  type="button"
+                  onClick={() => setActiveCategory(cat.name)}
+                  className={`px-4 py-2 text-xs font-semibold rounded-full border transition-all duration-200 flex items-center gap-2 cursor-pointer ${
                     isActive
-                      ? "bg-lime-400 text-lime-950 border-lime-400 font-semibold shadow-[0_0_12px_rgba(208,255,78,0.2)]"
-                      : "bg-ink-900/80 text-bone-300 border-ink-700 hover:border-lime-400/40 hover:text-bone-100"
+                      ? "bg-lime-400 text-ink-950 border-lime-400 font-bold shadow-[0_0_15px_rgba(208,255,78,0.2)]"
+                      : "bg-ink-900/80 text-bone-300 border-ink-600 hover:border-bone-400 hover:text-bone-50 hover:bg-ink-800"
                   }`}
                 >
-                  {cat}
+                  <span>{cat.name}</span>
+                  <span
+                    className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold ${
+                      isActive
+                        ? "bg-ink-950/20 text-ink-950"
+                        : "bg-ink-800 text-bone-400"
+                    }`}
+                  >
+                    {cat.count}
+                  </span>
                 </button>
               );
             })}
           </div>
 
           {/* Quick Search Input */}
-          <div className="relative w-full sm:w-72">
+          <div className="relative w-full lg:w-72 shrink-0">
             <Search
               size={15}
               className="absolute left-3.5 top-1/2 -translate-y-1/2 text-bone-400 pointer-events-none"

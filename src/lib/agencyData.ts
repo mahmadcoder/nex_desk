@@ -219,7 +219,7 @@ export const demoPosts: DemoPost[] = [
     title: "You should own your code. All of it.",
     excerpt:
       "Lock-in is a business model for agencies and a trap for clients. Here's why we hand over everything, every time.",
-    tags: ["Working with us", "Ownership"],
+    tags: ["Process", "Ownership", "Working with us"],
     read_minutes: 5,
     published_at: "2025-12-20",
     cover_url: "https://images.unsplash.com/photo-1522071820081-009f0129c71c?auto=format&fit=crop&w=1200&q=80",

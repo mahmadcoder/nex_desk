@@ -64,12 +64,12 @@ export default function WorkClient({ cases }: WorkClientProps) {
                   onClick={() => setSelectedCategory(cat)}
                   className={`px-4 py-2 text-xs font-semibold rounded-full border transition-all duration-200 flex items-center gap-2 cursor-pointer ${
                     isActive
-                      ? "bg-lime-400 text-ink-950 border-lime-400 font-bold"
+                      ? "bg-lime-400 text-ink-950 border-lime-400 font-bold shadow-[0_0_15px_rgba(208,255,78,0.2)]"
                       : "bg-ink-900/80 text-bone-300 border-ink-600 hover:border-bone-400 hover:text-bone-50 hover:bg-ink-800"
                   }`}
                 >
                   <span>{cat}</span>
-                  <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${
+                  <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold ${
                     isActive ? "bg-ink-950/20 text-ink-950 font-bold" : "bg-ink-800 text-bone-400"
                   }`}>
                     {count}

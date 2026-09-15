@@ -247,7 +247,7 @@ When your project is completed, you receive full administrative access to every 
 Building on open standard frameworks (React, Next.js, Node, Supabase, Tailwind) ensures your company is never tied to a single agency or developer. Any competent engineer in the world can inspect your repository and start committing code on day one.
 
 It isn''t just about generosity — it''s the only ethical way to build software. If the only reason a client stays with an agency is that they physically can''t leave, the agency hasn''t earned the relationship.',
-  ARRAY['Working with us', 'Ownership'],
+  ARRAY['Process', 'Working with us', 'Ownership'],
   5,
   '2025-12-20 00:00:00+00',
   'https://images.unsplash.com/photo-1522071820081-009f0129c71c?auto=format&fit=crop&w=1200&q=80',
