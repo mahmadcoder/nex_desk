@@ -12,6 +12,7 @@ export const dynamic = "force-dynamic";
 /** Groups that answer a real question, rather than one chip per enum value. */
 const GROUPS: Record<string, string[]> = {
   owed: ["sent", "partial", "overdue"],
+  verification: ["sent", "partial", "overdue"],
   overdue: ["overdue"],
   draft: ["draft"],
   paid: ["paid"],
@@ -24,11 +25,28 @@ export default async function InvoicesPage({
 }) {
   const { status, q } = await searchParams;
   const db = createAdminClient();
-  const { data: invoices } = await db.from("invoices")
-    .select("*, clients(id, name, email)").order("issue_date", { ascending: false });
+
+  const [{ data: invoices }, { data: clientProofs }] = await Promise.all([
+    db.from("invoices").select("*, clients(id, name, email)").order("issue_date", { ascending: false }),
+    db.from("documents")
+      .select("id, invoice_id, storage_path, snapshot, created_at")
+      .eq("uploaded_by_client", true)
+      .not("invoice_id", "is", null)
+      .order("created_at", { ascending: false }),
+  ]);
+
+  const proofByInvoiceId = new Map<string, any>();
+  for (const doc of clientProofs ?? []) {
+    if (doc.invoice_id && !proofByInvoiceId.has(doc.invoice_id)) {
+      proofByInvoiceId.set(doc.invoice_id, doc);
+    }
+  }
 
   // Grouped per currency — a USD invoice and a PKR invoice cannot be added up.
-  const rows = invoices ?? [];
+  const rows = (invoices ?? []).map((i) => ({
+    ...i,
+    client_proof: proofByInvoiceId.get(i.id) ?? null,
+  }));
 
   // Drafts are future payment stages the client has not been billed for yet, so
   // they belong in their own "scheduled" bucket — counting them as invoiced
@@ -47,6 +65,7 @@ export default async function InvoicesPage({
 
   const counts = {
     owed: rows.filter((i) => GROUPS.owed.includes(i.status)).length,
+    verification: rows.filter((i) => !!i.client_proof && i.status !== "paid").length,
     overdue: rows.filter((i) => i.status === "overdue").length,
     draft: drafts.length,
     paid: rows.filter((i) => i.status === "paid").length,
@@ -54,12 +73,17 @@ export default async function InvoicesPage({
   };
 
   // Default to what is actually owed — the reason anyone opens this page.
-  const known = ["owed", "overdue", "draft", "paid", "all"];
+  const known = ["owed", "verification", "overdue", "draft", "paid", "all"];
   const active = status && known.includes(status) ? status : counts.owed ? "owed" : "all";
 
   const filtered = rows.filter((i: any) => {
-    const inGroup = active === "all" || (GROUPS[active] ?? []).includes(i.status);
-    return inGroup && matches(q, i.invoice_no, i.clients?.name, i.clients?.email, i.notes);
+    if (active === "verification") {
+      if (!i.client_proof || i.status === "paid") return false;
+    } else {
+      const inGroup = active === "all" || (GROUPS[active] ?? []).includes(i.status);
+      if (!inGroup) return false;
+    }
+    return matches(q, i.invoice_no, i.clients?.name, i.clients?.email, i.notes);
   });
 
   return (
@@ -86,6 +110,9 @@ export default async function InvoicesPage({
             placeholder="Search client or invoice no…"
             chips={[
               { key: "owed", label: "Owed to us", count: counts.owed },
+              ...(counts.verification > 0
+                ? [{ key: "verification", label: "Proof Uploaded", count: counts.verification }]
+                : []),
               { key: "overdue", label: "Overdue", count: counts.overdue },
               { key: "draft", label: "Scheduled", count: counts.draft },
               { key: "paid", label: "Settled", count: counts.paid },

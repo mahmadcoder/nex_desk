@@ -4,6 +4,7 @@ import { sendEmail, adminNotifyAddress } from "@/lib/email/send";
 import { getSiteBaseUrl } from "@/lib/utils";
 import { decryptSecret } from "@/lib/crypto";
 import { recordAudit } from "@/lib/actions/audit";
+import { generateDocument } from "@/lib/pdf/generate";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
@@ -110,6 +111,13 @@ export async function provisionLockedDeal(
         }))
       );
     }
+
+    // Auto-generate agreement PDF upon locking so it immediately lands in client documents
+    try {
+      await generateDocument("agreement", deal.id, actor.userId);
+    } catch (pdfErr) {
+      console.error("Could not auto-generate agreement PDF for deal:", deal.id, pdfErr);
+    }
   }
 
   /* ---------- Invoices: one per payment stage ----------------------------
@@ -172,6 +180,14 @@ export async function provisionLockedDeal(
   }
 
   const invoice = createdInvoices.find((v) => v.stage_index === 0) ?? createdInvoices[0] ?? null;
+
+  if (invoice?.id) {
+    try {
+      await generateDocument("invoice", invoice.id, actor.userId);
+    } catch (pdfErr) {
+      console.error("Could not auto-generate advance invoice PDF:", invoice.id, pdfErr);
+    }
+  }
 
   // Is this their first deal, or are they buying another service? A returning
   // client should not be welcomed as though nothing had happened before.

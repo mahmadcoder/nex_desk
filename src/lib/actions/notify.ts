@@ -27,6 +27,7 @@ export type NotifyKind =
   | "kickoff.complete"
   | "change_request.raised"
   | "document.uploaded"
+  | "payment.proof_uploaded"
   | "client.password_changed"
   // staff-driven
   | "worklog.submitted"

@@ -29,6 +29,16 @@ export default async function DailyLogsPage() {
     .from("employees").select("id, full_name").ilike("status", "active").order("full_name");
   if (!canManage) employeesQuery = employeesQuery.eq("id", me.employeeId ?? "");
 
+  let taskProjectIds: string[] = [];
+  if (!canManage && me.employeeId) {
+    const { data: myTasks } = await db
+      .from("tasks")
+      .select("project_id")
+      .eq("assigned_employee_id", me.employeeId)
+      .not("project_id", "is", null);
+    taskProjectIds = Array.from(new Set((myTasks ?? []).map((t) => t.project_id).filter(Boolean)));
+  }
+
   // The column is `name`, not `title` — selecting/ordering by `title` errored
   // out, left the list empty, and pushed the form onto its free-text fallback.
   // `deals.service_slugs` is what tells us what KIND of work a project is, which
@@ -38,8 +48,18 @@ export default async function DailyLogsPage() {
     .select("id, name, progress, deals(service_slugs)")
     .order("name");
   if (!canManage) {
-    if (!assignedIds?.length) projectsQuery = projectsQuery.eq("id", "00000000-0000-0000-0000-000000000000");
-    else projectsQuery = projectsQuery.in("client_id", assignedIds);
+    const clientIds = assignedIds ?? [];
+    if (clientIds.length && taskProjectIds.length) {
+      projectsQuery = projectsQuery.or(
+        `client_id.in.(${clientIds.join(",")}),id.in.(${taskProjectIds.join(",")})`
+      );
+    } else if (clientIds.length) {
+      projectsQuery = projectsQuery.in("client_id", clientIds);
+    } else if (taskProjectIds.length) {
+      projectsQuery = projectsQuery.in("id", taskProjectIds);
+    } else {
+      projectsQuery = projectsQuery.eq("id", "00000000-0000-0000-0000-000000000000");
+    }
   }
 
   const [{ data: logs }, { data: employees }, { data: projects, error: projectsError }] =

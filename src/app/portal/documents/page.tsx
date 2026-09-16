@@ -1,9 +1,11 @@
 import { redirect } from "next/navigation";
 import { requirePortalPerm } from "@/lib/portal/session";
-import { loadDocuments } from "@/lib/portal/data";
+import { loadDocuments, loadBilling } from "@/lib/portal/data";
 import { fmtDate } from "@/lib/datetime";
+import { money } from "@/lib/utils";
 import ClientDocumentUploader from "@/components/portal/ClientDocumentUploader";
-import { FileText, Download } from "lucide-react";
+import AcceptAgreement from "@/components/portal/AcceptAgreement";
+import { FileText, Download, FileSignature } from "lucide-react";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
@@ -15,7 +17,10 @@ export default async function PortalDocuments() {
   if (!session) redirect("/portal");
 
   const { client, isPaused } = session;
-  const docs = await loadDocuments(client.id);
+  const [docs, billing] = await Promise.all([
+    loadDocuments(client.id),
+    loadBilling(client.id),
+  ]);
 
   return (
     <>
@@ -29,6 +34,41 @@ export default async function PortalDocuments() {
           long after the work is finished.
         </p>
       </header>
+
+      {/* ── Agreements & Service Contracts ── */}
+      {!!billing.deals.length && (
+        <section className="card mt-8 p-5 sm:p-6 border-lime-400/25 bg-lime-400/[0.02]">
+          <div className="border-b border-ink-600 pb-4 flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h2 className="flex items-center gap-2 text-lg font-medium leading-tight text-bone-50">
+                <FileSignature className="h-4 w-4 text-lime-400" /> Agreements &amp; Service Contracts
+              </h2>
+              <p className="mt-1 text-xs text-bone-400">
+                Official statements of work, scopes, and digital agreements for your projects.
+              </p>
+            </div>
+            <span className="mono-tag text-xs text-lime-400">
+              {billing.deals.length} Contract{billing.deals.length === 1 ? "" : "s"}
+            </span>
+          </div>
+
+          <div className="mt-4 space-y-3">
+            {billing.deals.map((d: any) => (
+              <AcceptAgreement
+                key={d.id}
+                deal={{
+                  id: d.id,
+                  deal_no: d.deal_no,
+                  title: d.title,
+                  amount: money(Number(d.total), d.currency),
+                  accepted_at: d.accepted_at ?? null,
+                  accepted_name: d.accepted_name ?? null,
+                }}
+              />
+            ))}
+          </div>
+        </section>
+      )}
 
       {/* A paused account keeps everything readable but cannot upload. The same
           rule is enforced server-side — hiding a form is not a control. */}

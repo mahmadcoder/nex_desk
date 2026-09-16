@@ -4,6 +4,7 @@ import { money, moneyMulti, sumByCurrency, adminPath } from "@/lib/utils";
 import DocButton from "@/components/admin/DocButton";
 import PaymentDialog from "@/components/admin/PaymentDialog";
 import SendInvoiceButton from "@/components/admin/SendInvoiceButton";
+import { FileCheck2, ExternalLink } from "lucide-react";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
@@ -124,6 +125,17 @@ export default function InvoicesByClient({ invoices }: { invoices: any[] }) {
                   </span>
 
                   <span className="flex shrink-0 items-center gap-2">
+                    {i.client_proof && i.status !== "paid" && (
+                      <a
+                        href={i.client_proof.storage_path}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-flex items-center gap-1 rounded border border-amber-400/40 bg-amber-400/10 px-2 py-0.5 text-[10px] font-medium text-amber-300 hover:bg-amber-400/20"
+                        title="Client uploaded a payment receipt"
+                      >
+                        <FileCheck2 size={11} /> Proof Attached <ExternalLink size={9} />
+                      </a>
+                    )}
                     <Badge>{i.status}</Badge>
                     {i.status === "draft" ? (
                       <SendInvoiceButton
@@ -139,9 +151,13 @@ export default function InvoicesByClient({ invoices }: { invoices: any[] }) {
                         {i.status !== "paid" && (
                           <PaymentDialog
                             invoice={{
-                              id: i.id, invoice_no: i.invoice_no, currency: i.currency,
+                              id: i.id,
+                              invoice_no: i.invoice_no,
+                              currency: i.currency,
                               balance: Number(i.total) - Number(i.amount_paid),
                               client_id: g.client.id,
+                              initialProofUrl: i.client_proof?.storage_path,
+                              initialReference: i.client_proof?.snapshot?.reference,
                             }}
                           />
                         )}

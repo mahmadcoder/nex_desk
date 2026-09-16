@@ -7,6 +7,8 @@ import { expenseCategoryLabel } from "@/config/expenseCategories";
 import { Badge } from "@/components/admin/ui";
 import { DollarSign, Receipt, FileText } from "lucide-react";
 import { redirect } from "next/navigation";
+import { createAdminClient } from "@/lib/supabase/server";
+import ClientInvoiceRow from "@/components/portal/ClientInvoiceRow";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
@@ -20,10 +22,37 @@ export default async function PortalInvoices() {
   if (!session) redirect("/portal");
 
   const { perms } = session;
-  const [billing, expenses] = await Promise.all([
+  const db = createAdminClient();
+
+  const [billing, expenses, { data: settings }, { data: clientProofs }] = await Promise.all([
     loadBilling(session.client.id),
     loadVisibleExpenses(session.client.id),
+    db.from("settings").select("company_name, bank_details").eq("id", 1).maybeSingle(),
+    db
+      .from("documents")
+      .select("id, invoice_id, storage_path, snapshot, created_at")
+      .eq("client_id", session.client.id)
+      .eq("uploaded_by_client", true)
+      .not("invoice_id", "is", null)
+      .order("created_at", { ascending: false }),
   ]);
+
+  const proofByInvoiceId = new Map<string, any>();
+  for (const doc of clientProofs ?? []) {
+    if (doc.invoice_id && !proofByInvoiceId.has(doc.invoice_id)) {
+      proofByInvoiceId.set(doc.invoice_id, doc);
+    }
+  }
+
+  const invoicesWithProof = billing.invoices.map((i: any) => {
+    const proof = proofByInvoiceId.get(i.id);
+    return {
+      ...i,
+      origin_label: invoiceOriginLabel(i),
+      has_proof: !!proof,
+      proof_submitted_at: proof?.created_at ?? null,
+    };
+  });
 
   return (
     <>
@@ -99,38 +128,19 @@ export default async function PortalInvoices() {
         {/* min-w-0 + shrink-0: without them a long multi-currency
             "Paid … / Total …" refuses to shrink and pushes the badge off the
             edge of the card. */}
-        <ul className="mt-4 divide-y divide-ink-600">
-          {billing.invoices.map((i: any) => (
-            <li
+        <div className="mt-4 space-y-3">
+          {invoicesWithProof.map((i: any) => (
+            <ClientInvoiceRow
               key={i.id}
-              className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1.5 py-3.5 text-sm"
-            >
-              <div className="min-w-0">
-                <p className="flex flex-wrap items-center gap-2 font-mono text-bone-100">
-                  {i.invoice_no}
-                  {/* So a client can tell a payment stage from a domain re-bill
-                      without having to ask us. */}
-                  {invoiceOriginLabel(i) && (
-                    <span className="mono-tag rounded-full border border-ink-500 px-1.5 py-0.5 text-[9px] leading-none text-bone-300">
-                      {invoiceOriginLabel(i)}
-                    </span>
-                  )}
-                </p>
-                <p className="text-xs text-bone-300">
-                  Paid: {money(Number(i.amount_paid), i.currency)} / Total:{" "}
-                  {money(Number(i.total), i.currency)}
-                  {i.due_date ? ` · due ${fmtDate(i.due_date)}` : ""}
-                </p>
-              </div>
-              <span className="shrink-0">
-                <Badge>{i.status}</Badge>
-              </span>
-            </li>
+              invoice={i}
+              bankDetails={settings?.bank_details as any}
+              companyName={settings?.company_name || "Nex Desk"}
+            />
           ))}
-          {!billing.invoices.length && (
-            <li className="py-6 text-center text-sm text-bone-300">No invoices issued yet.</li>
+          {!invoicesWithProof.length && (
+            <p className="py-6 text-center text-sm text-bone-300">No invoices issued yet.</p>
           )}
-        </ul>
+        </div>
       </section>
 
       {/* What we bought on their behalf, with the receipt for each, so a charge
@@ -216,16 +226,14 @@ function Card({
   return (
     <div className={`card p-5 ${border ? "border-lime-500/30" : ""}`}>
       <span
-        className={`mono-tag mb-1 block text-xs ${
-          tone === "good" ? "text-lime-400" : "text-bone-300"
-        }`}
+        className={`mono-tag mb-1 block text-xs ${tone === "good" ? "text-lime-400" : "text-bone-300"
+          }`}
       >
         {label}
       </span>
       <p
-        className={`font-mono text-2xl ${
-          tone === "good" ? "text-lime-400" : tone === "warn" ? "text-amber-400" : "text-bone-50"
-        }`}
+        className={`font-mono text-2xl ${tone === "good" ? "text-lime-400" : tone === "warn" ? "text-amber-400" : "text-bone-50"
+          }`}
       >
         {value}
       </p>

@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { FileSignature, CheckCircle2 } from "lucide-react";
+import { FileSignature, CheckCircle2, FileText, Download, ExternalLink } from "lucide-react";
 import { acceptAgreement } from "@/lib/actions/agreements";
 import Modal from "@/components/admin/Modal";
 import { fmtDate } from "@/lib/datetime";
@@ -33,12 +33,22 @@ export default function AcceptAgreement({
 
   if (deal.accepted_at) {
     return (
-      <div className="flex flex-wrap items-center gap-2.5 rounded-lg border border-emerald-400/30 bg-emerald-400/10 px-3.5 py-2.5">
-        <CheckCircle2 size={15} className="shrink-0 text-emerald-300" />
-        <p className="text-xs text-emerald-200">
-          Accepted by <strong>{deal.accepted_name}</strong> on{" "}
-          {fmtDate(deal.accepted_at)}
-        </p>
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-emerald-400/30 bg-emerald-400/10 px-3.5 py-2.5">
+        <div className="flex items-center gap-2.5">
+          <CheckCircle2 size={15} className="shrink-0 text-emerald-300" />
+          <p className="text-xs text-emerald-200">
+            Accepted by <strong>{deal.accepted_name}</strong> on{" "}
+            {fmtDate(deal.accepted_at)}
+          </p>
+        </div>
+        <a
+          href={`/api/portal/agreements/${deal.id}/pdf`}
+          target="_blank"
+          rel="noreferrer"
+          className="mono-tag inline-flex items-center gap-1.5 rounded border border-emerald-400/40 bg-emerald-400/15 px-2.5 py-1 text-xs text-emerald-300 hover:bg-emerald-400/25"
+        >
+          <Download size={12} /> Download signed PDF
+        </a>
       </div>
     );
   }
@@ -95,10 +105,24 @@ export default function AcceptAgreement({
       >
         <div className="space-y-4">
           <p className="text-sm leading-relaxed text-bone-200">
-            Please read the agreement PDF in your documents before accepting. It sets out the
-            full scope, the fixed price, what is <em>not</em> included, the payment schedule
-            and the delivery date.
+            Please read the agreement PDF before accepting. It sets out the full scope, the
+            fixed price, what is <em>not</em> included, the payment schedule and the delivery date.
           </p>
+
+          <div className="flex flex-wrap items-center justify-between gap-2.5 rounded-lg border border-ink-600 bg-ink-900/60 p-3">
+            <div className="flex items-center gap-2">
+              <FileText className="h-4 w-4 text-lime-400 shrink-0" />
+              <span className="text-xs font-medium text-bone-100">Official Agreement Document</span>
+            </div>
+            <a
+              href={`/api/portal/agreements/${deal.id}/pdf`}
+              target="_blank"
+              rel="noreferrer"
+              className="mono-tag inline-flex items-center gap-1.5 text-xs text-lime-400 hover:underline"
+            >
+              <ExternalLink size={12} /> Preview &amp; Download PDF
+            </a>
+          </div>
 
           <div>
             <label className="mono-tag mb-1.5 block">Type your full name</label>

@@ -20,21 +20,28 @@ const METHODS = [
 
 export default function PaymentDialog({
   invoice,
-}: { invoice: { id: string; invoice_no: string; currency: string; balance: number; client_id: string } }) {
+}: {
+  invoice: {
+    id: string;
+    invoice_no: string;
+    currency: string;
+    balance: number;
+    client_id: string;
+    initialProofUrl?: string;
+    initialReference?: string;
+  };
+}) {
   const [open, setOpen] = useState(false);
   const [pending, start] = useTransition();
   const router = useRouter();
 
   const [f, setF] = useState({
     amount: invoice.balance,
-    // What the bank kept on the way in. Recorded separately because the
-    // client DID pay the full amount — this must never reduce what the
-    // invoice counts as settled, only what a refund can draw on.
     fee: 0,
     method: "bank_transfer",
-    reference: "",
+    reference: invoice.initialReference ?? "",
     paid_on: new Date().toISOString().slice(0, 10),
-    proof_url: "",
+    proof_url: invoice.initialProofUrl ?? "",
     note: "",
   });
   const [notify, setNotify] = useState(true);

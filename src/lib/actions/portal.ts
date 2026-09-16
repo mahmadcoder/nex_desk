@@ -481,3 +481,90 @@ export async function toggleKickoffItem(
   revalidatePath(`/${ADMIN}/projects/${project.id}`);
   return { ok: true, allDone };
 }
+
+/* ============================================================
+   PAYMENT PROOF SUBMISSION
+   ============================================================ */
+
+export async function submitInvoicePaymentProof(params: {
+  invoiceId: string;
+  proofUrl: string;
+  reference?: string;
+  notes?: string;
+}): Promise<{ ok: boolean; error?: string }> {
+  const db = createAdminClient();
+  const id = asUuid(params.invoiceId);
+  if (!id) return { ok: false, error: "Invalid invoice reference." };
+  if (!params.proofUrl) return { ok: false, error: "Please upload a proof file first." };
+
+  const { data: invoice } = await db
+    .from("invoices")
+    .select("*, clients(id, name, email, profile_id)")
+    .eq("id", id)
+    .maybeSingle();
+
+  if (!invoice) return { ok: false, error: "Invoice not found." };
+  if (invoice.status === "paid") return { ok: false, error: "Invoice is already settled." };
+
+  const client = (invoice.clients as any) ?? null;
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+
+  const owns =
+    !!user &&
+    (client?.profile_id === user.id ||
+      client?.email?.toLowerCase() === user.email?.toLowerCase());
+
+  if (!owns) return { ok: false, error: "Sign in to your portal first." };
+
+  // Store in documents table with payment proof metadata
+  const { error: docErr } = await db.from("documents").insert({
+    type: "receipt",
+    document_type: "payment_proof",
+    title: `Payment Receipt — ${invoice.invoice_no}`,
+    client_id: client.id,
+    invoice_id: invoice.id,
+    project_id: invoice.project_id,
+    storage_path: params.proofUrl,
+    uploaded_by_client: true,
+    snapshot: {
+      invoice_no: invoice.invoice_no,
+      amount: invoice.total,
+      currency: invoice.currency,
+      reference: params.reference?.trim() || null,
+      notes: params.notes?.trim() || null,
+      submitted_at: new Date().toISOString(),
+      submitted_by: user.email,
+      status: "pending_verification",
+    },
+  });
+
+  if (docErr) {
+    console.error("Failed to insert payment proof document:", docErr);
+    return { ok: false, error: "Failed to record payment receipt." };
+  }
+
+  await notify({
+    kind: "payment.proof_uploaded",
+    title: `${client.name} sent payment receipt for ${invoice.invoice_no}`,
+    body: params.reference ? `Ref: ${params.reference}` : "Awaiting admin verification.",
+    href: `/${ADMIN}/invoices`,
+    entity: "invoices",
+    entityId: invoice.id,
+    actorLabel: client.name,
+    actorKind: "client",
+    clientId: client.id,
+    meta: { invoice_no: invoice.invoice_no, proof_url: params.proofUrl },
+  });
+
+  await recordAudit(null, "invoice.proof_uploaded", "invoices", invoice.id, {
+    invoice_no: invoice.invoice_no,
+    reference: params.reference,
+    by: user.email,
+  });
+
+  revalidatePath("/portal/invoices");
+  revalidatePath(`/${ADMIN}/invoices`);
+  return { ok: true };
+}
+

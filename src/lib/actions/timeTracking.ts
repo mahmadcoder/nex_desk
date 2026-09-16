@@ -189,6 +189,48 @@ export async function myTrackedToday() {
 }
 
 /**
+ * Returns today's tracked work details for the signed-in employee:
+ * task titles, project IDs, and duration. Used to 1-click prefill daily work logs.
+ */
+export async function myTrackedTasksToday() {
+  const staff = await getCurrentStaff();
+  if (!staff?.employeeId) return { hours: 0, tasks: [] as string[], projectId: null as string | null };
+
+  const db = createAdminClient();
+  const day = agencyDay();
+
+  const { data: entries, error } = await db
+    .from("time_entries")
+    .select("duration_sec, task_id, project_id, note, tasks(id, title), projects(id, name)")
+    .eq("employee_id", staff.employeeId)
+    .gte("started_at", `${day}T00:00:00`)
+    .order("started_at", { ascending: true });
+
+  if (error || !entries?.length) {
+    return { hours: 0, tasks: [] as string[], projectId: null as string | null };
+  }
+
+  const totalSec = entries.reduce((s, r: any) => s + Number(r.duration_sec ?? 0), 0);
+  const hours = Math.round((totalSec / 3600) * 100) / 100;
+
+  const taskTitles = Array.from(
+    new Set(
+      entries
+        .map((e: any) => e.tasks?.title || e.note)
+        .filter(Boolean)
+    )
+  ) as string[];
+
+  const primaryProjectId = (entries.find((e: any) => e.project_id)?.project_id as string | undefined) ?? null;
+
+  return {
+    hours,
+    tasks: taskTitles,
+    projectId: primaryProjectId,
+  };
+}
+
+/**
  * Close timers nobody stopped.
  *
  * Called by the daily cron. An entry still running after `maxHours` is almost

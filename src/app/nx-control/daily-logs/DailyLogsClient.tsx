@@ -12,6 +12,7 @@ import ConfirmModal from "@/components/admin/ConfirmModal";
 import CustomSelect, { SelectOption } from "@/components/ui/CustomSelect";
 import { IDailyWorkLog } from "@/types/cms";
 import { fmtDate, agencyDay } from "@/lib/datetime";
+import { myTrackedTasksToday } from "@/lib/actions/timeTracking";
 import {
   Plus,
   Trash2,
@@ -25,6 +26,7 @@ import {
   Folder,
   X,
   Search as SearchIcon,
+  Sparkles,
 } from "lucide-react";
 
 interface DailyLogsClientProps {
@@ -80,6 +82,43 @@ export default function DailyLogsClient({
     { id: string; title: string; project_id: string; due_date: string | null }[]
   >([]);
   const [closingTasks, setClosingTasks] = useState<string[]>([]);
+  const [isPrefilling, setIsPrefilling] = useState(false);
+
+  const handlePrefillFromTimer = async () => {
+    setIsPrefilling(true);
+    try {
+      const result = await myTrackedTasksToday();
+      if (!result.tasks.length && result.hours <= 0) {
+        toast.info("No active or completed timer entries found for today yet.");
+        return;
+      }
+
+      if (result.hours > 0) {
+        setHoursSpent(String(result.hours));
+      }
+
+      if (result.projectId && projectsList.some((p) => p.id === result.projectId)) {
+        setSelectedProjectId(result.projectId);
+      }
+
+      if (result.tasks.length > 0) {
+        const bulletList = result.tasks.map((t) => `• ${t}`).join("\n");
+        setTasksCompleted((prev) =>
+          prev.trim() ? `${prev.trim()}\n\nTracked today:\n${bulletList}` : bulletList
+        );
+        toast.success(
+          `Pre-filled ${result.tasks.length} task(s) and ${result.hours}h from today's tracked work!`
+        );
+      } else {
+        toast.success(`Pre-filled ${result.hours}h from today's timer.`);
+      }
+    } catch (e) {
+      console.error("Failed to load tracked tasks for pre-fill:", e);
+      toast.error("Could not load tracked time entries.");
+    } finally {
+      setIsPrefilling(false);
+    }
+  };
 
   useEffect(() => {
     if (!showAddModal) return;
@@ -528,7 +567,19 @@ export default function DailyLogsClient({
               </div>
 
               <div>
-                <label className="mono-tag text-xs mb-1 block">Tasks & Deliverables Completed *</label>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="mono-tag text-xs block">Tasks &amp; Deliverables Completed *</label>
+                  <button
+                    type="button"
+                    onClick={handlePrefillFromTimer}
+                    disabled={isPrefilling}
+                    className="mono-tag inline-flex items-center gap-1 rounded bg-lime-400/10 border border-lime-400/30 px-2 py-0.5 text-[11px] text-lime-400 hover:bg-lime-400/20 transition-colors disabled:opacity-50 cursor-pointer"
+                    title="Import tasks and hours tracked with your timer today"
+                  >
+                    <Sparkles size={11} className={isPrefilling ? "animate-spin" : ""} />
+                    {isPrefilling ? "Importing…" : "Pre-fill from today's timer"}
+                  </button>
+                </div>
                 <textarea
                   rows={4}
                   className="w-full resize-none rounded-lg border border-ink-500 bg-ink-800 p-3 text-sm text-bone-50 focus:border-lime-400 focus:outline-none leading-relaxed"

@@ -66,6 +66,7 @@ const ACTIONS: Record<string, string> = {
 
   "email.resend": "Re-sent a failed email",
   "document.uploaded": "Uploaded a document",
+  "invoice.proof_uploaded": "Client submitted payment proof",
   "message.post": "Posted a message",
   "meeting.create": "Booked a meeting",
   "meeting.update": "Changed a meeting",

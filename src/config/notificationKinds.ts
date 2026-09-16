@@ -31,6 +31,7 @@ const KINDS: Record<string, KindStyle> = {
   "kickoff.complete":      { icon: PartyPopper,       tone: "good",    label: "Kickoff" },
   "change_request.raised": { icon: MessageSquarePlus, tone: "warn",    label: "Change request" },
   "document.uploaded":     { icon: FileUp,            tone: "default", label: "Document" },
+  "payment.proof_uploaded": { icon: Wallet,           tone: "warn",    label: "Payment proof" },
   "client.password_changed": { icon: KeyRound,        tone: "warn",    label: "Security" },
   "worklog.submitted":     { icon: ClipboardList,     tone: "default", label: "Work log" },
   "leave.requested":       { icon: CalendarClock,     tone: "warn",    label: "Leave" },
