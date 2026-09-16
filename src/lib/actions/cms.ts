@@ -848,6 +848,106 @@ export async function restoreEmployee(id: string, options?: { sendEmail?: boolea
   return { success: true, emailSent };
 }
 
+export async function convertInternToPermanent(
+  employeeId: string,
+  payload: {
+    job_title: string;
+    seniority: string;
+    employment_type: string;
+    salary_amount: number;
+    salary_currency: string;
+    effective_date?: string;
+    issue_new_offer?: boolean;
+  }
+) {
+  const staff = await requireOwnerAdmin();
+  const db = createAdminClient();
+
+  const { data: employee } = await db
+    .from("employees")
+    .select("id, full_name, email, job_title, seniority, employment_type, notes, salary_amount, salary_currency")
+    .eq("id", employeeId)
+    .single();
+
+  if (!employee) throw new Error("Employee not found.");
+
+  let notesObj: Record<string, any> = {};
+  if (typeof employee.notes === "object" && employee.notes !== null) {
+    notesObj = employee.notes;
+  } else if (typeof employee.notes === "string" && employee.notes.trim().startsWith("{")) {
+    try {
+      notesObj = JSON.parse(employee.notes.trim());
+    } catch {
+      notesObj = {};
+    }
+  }
+
+  const convertedAt = payload.effective_date || new Date().toISOString();
+  const updatedNotes = {
+    ...notesObj,
+    internship: {
+      status: "converted",
+      converted_at: convertedAt,
+      previous_job_title: employee.job_title,
+      previous_seniority: employee.seniority,
+      previous_employment_type: employee.employment_type,
+    },
+    // If issue_new_offer is true, reset offer_letter acceptance so the promoted employee can review and sign!
+    ...(payload.issue_new_offer
+      ? {
+          offer_letter: {
+            is_reset: true,
+            reset_reason: "Promoted to permanent role",
+            reset_at: new Date().toISOString(),
+          },
+        }
+      : {}),
+  };
+
+  const updateData: Record<string, any> = {
+    job_title: payload.job_title,
+    seniority: payload.seniority,
+    employment_type: payload.employment_type,
+    salary_amount: Number(payload.salary_amount),
+    salary_currency: payload.salary_currency,
+    notes: JSON.stringify(updatedNotes),
+  };
+
+  const { error } = await db
+    .from("employees")
+    .update(updateData)
+    .eq("id", employeeId);
+
+  if (error) throw error;
+
+  await recordAudit(
+    staff.userId,
+    "employee.converted_from_internship",
+    "employees",
+    employeeId,
+    {
+      employee_name: employee.full_name,
+      from_role: `${employee.job_title} (${employee.seniority})`,
+      to_role: `${payload.job_title} (${payload.seniority})`,
+      new_salary: `${payload.salary_currency} ${payload.salary_amount}`,
+    }
+  );
+
+  await notify({
+    kind: "staff.promoted",
+    title: `${employee.full_name} promoted to permanent role`,
+    body: `Promoted from Intern to ${payload.job_title} (${payload.seniority}) with a ${payload.employment_type} contract.`,
+    href: `/nx-control/employees/${employeeId}`,
+    audience: "admins",
+  });
+
+  revalidatePath(`/${ADMIN}/employees`);
+  revalidatePath(`/${ADMIN}/employees/${employeeId}`);
+  revalidatePath(`/${ADMIN}/profile`);
+  revalidatePath(`/${ADMIN}`);
+  return { ok: true };
+}
+
 export async function saveJobTitle(id: string | null, data: Record<string, unknown>) {
   await requireOwnerAdmin();
   const db = createAdminClient();

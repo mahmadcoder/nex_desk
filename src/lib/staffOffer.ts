@@ -37,7 +37,7 @@ export function parseOfferAcceptance(rawNotes: unknown): StaffOfferAcceptance {
     }
   }
 
-  if (data?.offer_letter?.accepted_at) {
+  if (data?.offer_letter?.accepted_at && !data?.offer_letter?.is_reset) {
     return {
       isAccepted: true,
       acceptedAt: data.offer_letter.accepted_at,

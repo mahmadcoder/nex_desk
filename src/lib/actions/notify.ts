@@ -34,6 +34,7 @@ export type NotifyKind =
   | "leave.requested"
   | "staff.late"
   | "offer.accepted"
+  | "staff.promoted"
   // addressed to one employee
   | "task.assigned"
   | "leave.decided"

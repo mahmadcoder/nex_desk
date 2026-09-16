@@ -4,7 +4,8 @@ import { notFound } from "next/navigation";
 import { createAdminClient } from "@/lib/supabase/server";
 import {
   Users, MapPin, GraduationCap, DollarSign, Calendar,
-  Briefcase, Mail, Phone, ExternalLink, ShieldCheck, Award, ArrowLeft, CalendarDays
+  Briefcase, Mail, Phone, ExternalLink, ShieldCheck, Award, ArrowLeft, CalendarDays,
+  Sparkles, Clock, CheckCircle2
 } from "lucide-react";
 import EmployeeClientAssignments from "@/components/admin/EmployeeClientAssignments";
 import EmployeeAccessCard from "@/components/admin/EmployeeAccessCard";
@@ -14,6 +15,8 @@ import PerformanceCard from "@/components/admin/PerformanceCard";
 import PhotoHistory from "@/components/admin/PhotoHistory";
 import EmployeePhoto from "@/components/admin/EmployeePhoto";
 import StatusControl from "@/components/admin/StatusControl";
+import ConvertInternDialog from "@/components/admin/ConvertInternDialog";
+import { parseInternship } from "@/lib/internship";
 import { staffPerformance } from "@/lib/insights";
 import { revealPreview } from "@/lib/crypto";
 import { fmtDate } from "@/lib/datetime";
@@ -175,6 +178,91 @@ export default async function EmployeeDetailPage({
           </div>
         </div>
       </div>
+
+      {/* Active Internship Track & Promotion Action Banner */}
+      {(() => {
+        const internInfo = parseInternship(employee);
+        if (internInfo.isIntern) {
+          return (
+            <div className={`card p-5 border flex flex-col md:flex-row md:items-center justify-between gap-4 animate-in fade-in duration-200 ${
+              internInfo.isEnded
+                ? "border-rose-400/40 bg-gradient-to-r from-rose-950/40 via-ink-900 to-ink-900"
+                : internInfo.daysUntilEnd !== null && internInfo.daysUntilEnd <= 14
+                ? "border-amber-400/40 bg-gradient-to-r from-amber-950/40 via-ink-900 to-ink-900"
+                : "border-lime-400/40 bg-gradient-to-r from-lime-950/30 via-ink-900 to-ink-900"
+            }`}>
+              <div className="flex items-start gap-3.5">
+                <div className={`p-2.5 rounded-xl border shrink-0 ${
+                  internInfo.isEnded
+                    ? "border-rose-400/30 bg-rose-400/10 text-rose-300"
+                    : "border-lime-400/30 bg-lime-400/10 text-lime-400"
+                }`}>
+                  <Sparkles size={20} />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="mono-tag text-xs text-lime-400 font-semibold">Active Internship Track</span>
+                    <span className={`mono-tag text-[10px] px-2.5 py-0.5 rounded-full border font-medium ${
+                      internInfo.isEnded
+                        ? "border-rose-400/40 bg-rose-400/10 text-rose-300"
+                        : "border-amber-400/40 bg-amber-400/10 text-amber-300"
+                    }`}>
+                      {internInfo.isEnded
+                        ? "Completed — Ready for Conversion"
+                        : internInfo.daysUntilEnd !== null
+                        ? `${internInfo.daysUntilEnd} days remaining`
+                        : "Active Track"}
+                    </span>
+                  </div>
+                  <p className="text-sm font-semibold text-bone-100 mt-1">
+                    {internInfo.isEnded
+                      ? `Internship scheduled period concluded on ${internInfo.endDate || "schedule"}.`
+                      : internInfo.endDate
+                      ? `Scheduled to conclude on ${fmtDate(internInfo.endDate)}.`
+                      : "Active internship without an explicit end date."}
+                  </p>
+                  <p className="text-xs text-bone-400 mt-0.5 max-w-2xl leading-relaxed">
+                    Convert {employee.full_name} from an intern into a permanent staff member. This updates their seniority, employment type, compensation, and issues a fresh permanent offer letter for digital signature.
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-3 shrink-0">
+                <ConvertInternDialog
+                  employee={employee}
+                  triggerLabel="Promote to Permanent Staff →"
+                  buttonSize="md"
+                />
+              </div>
+            </div>
+          );
+        }
+
+        if (internInfo.status === "converted") {
+          return (
+            <div className="card p-4 border border-emerald-400/30 bg-emerald-950/20 flex items-center justify-between gap-4">
+              <div className="flex items-center gap-3">
+                <div className="p-2 rounded-lg border border-emerald-400/30 bg-emerald-400/10 text-emerald-400">
+                  <CheckCircle2 size={16} />
+                </div>
+                <div>
+                  <p className="text-xs font-semibold text-emerald-300">
+                    Promoted from Internship to Permanent Staff
+                  </p>
+                  <p className="text-[11px] text-bone-400">
+                    Converted {internInfo.convertedAt ? `on ${fmtDate(internInfo.convertedAt)}` : "successfully"}. Previous level: {internInfo.previousSeniority}.
+                  </p>
+                </div>
+              </div>
+              <span className="mono-tag text-[10px] text-emerald-400 border border-emerald-400/30 bg-emerald-400/10 px-2 py-0.5 rounded">
+                Permanent Staff
+              </span>
+            </div>
+          );
+        }
+
+        return null;
+      })()}
 
       {/* Main Grid — Left Details, Right Client Assignments */}
       <div className="grid gap-6 lg:grid-cols-[1fr_1.3fr]">

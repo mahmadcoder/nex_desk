@@ -43,6 +43,10 @@ export async function acceptStaffOfferLetter(
       return { ok: false, error: "Please type your full legal name to accept." };
     }
 
+    if (!signatureDataUrl || !signatureDataUrl.trim()) {
+      return { ok: false, error: "Please draw your digital signature on the pad." };
+    }
+
     const db = createAdminClient();
     const { data: employee } = await db
       .from("employees")

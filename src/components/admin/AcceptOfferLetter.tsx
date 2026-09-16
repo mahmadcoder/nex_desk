@@ -55,6 +55,10 @@ export default function AcceptOfferLetter({
   const currency = employee.salary_currency || "USD";
   const location = [employee.city, employee.country].filter(Boolean).join(", ") || "Remote";
 
+  const hasSignature = Boolean(signatureData && signatureData.trim().length > 0);
+  const hasTypedName = Boolean(typedName && typedName.trim().length >= 3);
+  const isReadyToSign = Boolean(!pending && hasSignature && hasTypedName && agreed);
+
   const downloadPdf = async () => {
     setDownloading(true);
     try {
@@ -85,6 +89,9 @@ export default function AcceptOfferLetter({
   };
 
   const handleAccept = () => {
+    if (!signatureData) {
+      return toast.error("Please draw your digital signature on the pad.");
+    }
     if (!typedName.trim() || typedName.trim().length < 3) {
       return toast.error("Please type your full legal name to sign.");
     }
@@ -267,9 +274,13 @@ export default function AcceptOfferLetter({
             </button>
             <button
               type="button"
-              className="btn btn-primary h-10 gap-1.5"
+              className={`btn h-10 gap-1.5 transition-all duration-200 ${
+                isReadyToSign
+                  ? "btn-primary shadow-lg shadow-lime-400/25 hover:scale-[1.01] active:scale-[0.99] cursor-pointer"
+                  : "opacity-40 cursor-not-allowed bg-ink-800 text-bone-400 border border-ink-600 shadow-none pointer-events-none"
+              }`}
               onClick={handleAccept}
-              disabled={pending || !typedName.trim() || !agreed}
+              disabled={!isReadyToSign || pending}
             >
               {pending ? (
                 <>
@@ -343,7 +354,7 @@ export default function AcceptOfferLetter({
           {/* Signature Canvas */}
           <div>
             <label className="mono-tag mb-1.5 block text-xs text-bone-200">
-              Draw Your Digital Signature (Optional):
+              Draw Your Digital Signature <span className="text-rose-400">*</span>:
             </label>
             <SignaturePad onChange={(dataUrl) => setSignatureData(dataUrl)} />
           </div>
@@ -377,6 +388,57 @@ export default function AcceptOfferLetter({
               I confirm that I have read, understood, and accept all the terms, compensation, and conditions of employment outlined in this offer letter.
             </span>
           </label>
+
+          {/* Live Signing Readiness Checklist */}
+          <div className="rounded-lg border border-ink-700/80 bg-ink-950/70 p-3 text-xs space-y-2">
+            <p className="mono-tag text-[10px] text-bone-400">Signing Requirements Checklist:</p>
+            <div className="grid gap-1.5 sm:grid-cols-3">
+              <div
+                className={`flex items-center gap-1.5 rounded p-1.5 text-[11px] transition-all ${
+                  hasSignature
+                    ? "bg-emerald-500/10 text-emerald-300 font-medium border border-emerald-500/20"
+                    : "bg-ink-900/50 text-bone-400 border border-ink-800"
+                }`}
+              >
+                {hasSignature ? (
+                  <CheckCircle2 size={13} className="shrink-0 text-emerald-400" />
+                ) : (
+                  <div className="h-2.5 w-2.5 rounded-full border border-bone-500 shrink-0" />
+                )}
+                <span className="truncate">1. Signature Drawn</span>
+              </div>
+
+              <div
+                className={`flex items-center gap-1.5 rounded p-1.5 text-[11px] transition-all ${
+                  hasTypedName
+                    ? "bg-emerald-500/10 text-emerald-300 font-medium border border-emerald-500/20"
+                    : "bg-ink-900/50 text-bone-400 border border-ink-800"
+                }`}
+              >
+                {hasTypedName ? (
+                  <CheckCircle2 size={13} className="shrink-0 text-emerald-400" />
+                ) : (
+                  <div className="h-2.5 w-2.5 rounded-full border border-bone-500 shrink-0" />
+                )}
+                <span className="truncate">2. Full Name Typed</span>
+              </div>
+
+              <div
+                className={`flex items-center gap-1.5 rounded p-1.5 text-[11px] transition-all ${
+                  agreed
+                    ? "bg-emerald-500/10 text-emerald-300 font-medium border border-emerald-500/20"
+                    : "bg-ink-900/50 text-bone-400 border border-ink-800"
+                }`}
+              >
+                {agreed ? (
+                  <CheckCircle2 size={13} className="shrink-0 text-emerald-400" />
+                ) : (
+                  <div className="h-2.5 w-2.5 rounded-full border border-bone-500 shrink-0" />
+                )}
+                <span className="truncate">3. Terms Checked</span>
+              </div>
+            </div>
+          </div>
         </div>
       </Modal>
     </>

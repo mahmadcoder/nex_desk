@@ -7,20 +7,23 @@ import { toast } from "sonner";
 import {
   Users, UserPlus, Search, MapPin, GraduationCap, DollarSign,
   Briefcase, Award, Trash2, Edit3, Plus, ChevronRight, Layers,
-  ExternalLink, Mail, Phone, Calendar, X
+  ExternalLink, Mail, Phone, Calendar, X, Sparkles, Clock
 } from "lucide-react";
 import ImageUpload from "@/components/admin/ImageUpload";
 import StatusControl, { STATUS_UI } from "@/components/admin/StatusControl";
 import CustomSelect from "@/components/ui/CustomSelect";
 import ConfirmModal from "@/components/admin/ConfirmModal";
 import RequestDetailsClient from "@/components/admin/RequestDetailsClient";
+import ConvertInternDialog from "@/components/admin/ConvertInternDialog";
 import { saveEmployee, deleteEmployee, saveJobTitle, deleteJobTitle } from "@/lib/actions/cms";
 import { checkEmailExists } from "@/lib/actions";
+import { parseInternship } from "@/lib/internship";
 
 import type { Employee, JobTitle } from "@/types/admin";
 export type { Employee, JobTitle };
 
 const SENIORITY_OPTIONS = [
+  { value: "Intern", label: "Intern" },
   { value: "Junior", label: "Junior" },
   { value: "Mid-Level", label: "Mid-Level" },
   { value: "Senior", label: "Senior" },
@@ -67,6 +70,7 @@ export default function EmployeesClient({
   const [seniorityFilter, setSeniorityFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
   const [editing, setEditing] = useState<Partial<Employee> | null>(null);
+  const [internshipEndDate, setInternshipEndDate] = useState<string>("");
   const [welcomeLang, setWelcomeLang] = useState<"en" | "ar" | "fr" | "de" | "es">("en");
   const [showJobTitlesModal, setShowJobTitlesModal] = useState(false);
   const [newTitle, setNewTitle] = useState("");
@@ -101,6 +105,35 @@ export default function EmployeesClient({
 
     startTransition(async () => {
       try {
+        let notesObj: Record<string, any> = {};
+        if (typeof editing.notes === "object" && editing.notes !== null) {
+          notesObj = { ...(editing.notes as Record<string, any>) };
+        } else if (typeof editing.notes === "string" && editing.notes.trim().startsWith("{")) {
+          try {
+            notesObj = JSON.parse(editing.notes.trim());
+          } catch {
+            notesObj = { admin_notes: editing.notes };
+          }
+        } else if (editing.notes) {
+          notesObj = { admin_notes: editing.notes };
+        }
+
+        const isIntern =
+          editing.seniority === "Intern" || editing.employment_type === "Internship";
+        if (isIntern) {
+          notesObj = {
+            ...notesObj,
+            internship: {
+              ...(notesObj.internship || {}),
+              end_date: internshipEndDate || null,
+              status: notesObj.internship?.status || "active",
+            },
+          };
+        }
+
+        const finalNotes =
+          Object.keys(notesObj).length > 0 ? JSON.stringify(notesObj) : editing.notes ?? null;
+
         const saved = await saveEmployee(
           editing.id ?? null,
           {
@@ -121,7 +154,7 @@ export default function EmployeesClient({
             leaving_date: editing.leaving_date || null,
             status: editing.status ?? "Active",
             skills: editing.skills ?? [],
-            notes: editing.notes ?? null,
+            notes: finalNotes,
           },
           welcomeLang
         );
@@ -232,7 +265,8 @@ export default function EmployeesClient({
             <Layers size={14} className="text-lime-400" /> Manage Job Titles
           </button>
           <button
-            onClick={() =>
+            onClick={() => {
+              setInternshipEndDate("");
               setEditing({
                 full_name: "",
                 email: "",
@@ -249,8 +283,8 @@ export default function EmployeesClient({
                 joining_date: new Date().toISOString().slice(0, 10),
                 status: "Active",
                 skills: ["React", "TypeScript", "Next.js"],
-              })
-            }
+              });
+            }}
             className="btn btn-primary h-9 px-4 text-sm flex items-center gap-2"
           >
             <UserPlus size={14} /> Add Employee
@@ -320,7 +354,7 @@ export default function EmployeesClient({
 
         <div className="flex items-center gap-2">
           <span className="mono-tag text-[11px]">Seniority:</span>
-          {["all", "Junior", "Mid-Level", "Senior", "Lead / Head"].map((lvl) => (
+          {["all", "Intern", "Junior", "Mid-Level", "Senior", "Lead / Head"].map((lvl) => (
             <button
               key={lvl}
               onClick={() => setSeniorityFilter(lvl)}
@@ -362,120 +396,160 @@ export default function EmployeesClient({
 
       {/* Employee Cards Grid */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {filtered.map((e) => (
-          <div
-            key={e.id}
-            /* Dimmed when they cannot sign in — the grid used to render a
-               terminated employee identically to an active one. */
-            className={`card p-5 hover:border-lime-400/40 transition-all flex flex-col justify-between space-y-4 group ${
-              e.status === "Terminated"
-                ? "border-ink-700/50 bg-ink-950/60 opacity-65"
-                : "border-ink-600"
-            }`}
-          >
-            <div>
-              <div className="flex items-start justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="h-12 w-12 rounded-full overflow-hidden border border-ink-600 bg-ink-800 shrink-0">
-                    {e.avatar_url ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img src={e.avatar_url} alt={e.full_name} className="h-full w-full object-cover" />
-                    ) : (
-                      <div className="grid h-full w-full place-items-center text-sm font-semibold text-lime-400 bg-lime-400/10">
-                        {e.full_name.slice(0, 2).toUpperCase()}
-                      </div>
-                    )}
+        {filtered.map((e) => {
+          const internInfo = parseInternship(e);
+          return (
+            <div
+              key={e.id}
+              className={`card p-5 hover:border-lime-400/40 transition-all flex flex-col justify-between space-y-4 group ${
+                e.status === "Terminated"
+                  ? "border-ink-700/50 bg-ink-950/60 opacity-65"
+                  : internInfo.isIntern
+                  ? "border-lime-400/30 bg-ink-900/90"
+                  : "border-ink-600"
+              }`}
+            >
+              <div>
+                <div className="flex items-start justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="h-12 w-12 rounded-full overflow-hidden border border-ink-600 bg-ink-800 shrink-0">
+                      {e.avatar_url ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={e.avatar_url} alt={e.full_name} className="h-full w-full object-cover" />
+                      ) : (
+                        <div className="grid h-full w-full place-items-center text-sm font-semibold text-lime-400 bg-lime-400/10">
+                          {e.full_name.slice(0, 2).toUpperCase()}
+                        </div>
+                      )}
+                    </div>
+                    <div>
+                      <Link
+                        href={`/nx-control/employees/${e.id}`}
+                        className="text-base font-semibold text-bone-50 hover:text-lime-400 transition-colors flex items-center gap-1 group-hover:translate-x-0.5 duration-200"
+                      >
+                        {e.full_name}
+                        <ChevronRight size={14} className="opacity-0 group-hover:opacity-100 text-lime-400" />
+                      </Link>
+                      <p className="text-xs text-bone-300 font-medium mt-0.5">{e.job_title}</p>
+                    </div>
                   </div>
-                  <div>
-                    <Link
-                      href={`/nx-control/employees/${e.id}`}
-                      className="text-base font-semibold text-bone-50 hover:text-lime-400 transition-colors flex items-center gap-1 group-hover:translate-x-0.5 duration-200"
-                    >
-                      {e.full_name}
-                      <ChevronRight size={14} className="opacity-0 group-hover:opacity-100 text-lime-400" />
-                    </Link>
-                    <p className="text-xs text-bone-300 font-medium mt-0.5">{e.job_title}</p>
+
+                  <div className="flex shrink-0 flex-col items-end gap-1.5">
+                    <StatusControl
+                      employeeId={e.id}
+                      name={e.full_name}
+                      status={e.status ?? "Active"}
+                    />
+                    <span className={`mono-tag text-[10px] px-2 py-0.5 rounded border ${
+                      internInfo.isIntern
+                        ? "bg-amber-400/10 text-amber-400 border-amber-400/30 font-medium"
+                        : internInfo.status === "converted"
+                        ? "bg-emerald-400/10 text-emerald-400 border-emerald-400/30 font-medium"
+                        : "bg-lime-400/10 text-lime-400 border-lime-400/20"
+                    }`}>
+                      {internInfo.status === "converted" ? `${e.seniority} (Promoted)` : e.seniority}
+                    </span>
                   </div>
                 </div>
 
-                <div className="flex shrink-0 flex-col items-end gap-1.5">
-                  <StatusControl
-                    employeeId={e.id}
-                    name={e.full_name}
-                    status={e.status ?? "Active"}
-                  />
-                  <span className="mono-tag text-[10px] bg-lime-400/10 text-lime-400 px-2 py-0.5 rounded border border-lime-400/20">
-                    {e.seniority}
-                  </span>
-                </div>
-              </div>
-
-              <div className="mt-4 space-y-1.5 border-t border-ink-700/60 pt-3 text-xs text-bone-300">
-                <div className="flex items-center gap-2">
-                  <Mail size={13} className="text-bone-500 shrink-0" />
-                  <span className="truncate">{e.email}</span>
-                </div>
-                {(e.city || e.country) && (
-                  <div className="flex items-center gap-2">
-                    <MapPin size={13} className="text-bone-500 shrink-0" />
-                    <span>{[e.city, e.country].filter(Boolean).join(", ")}</span>
+                {/* Internship Status & Quick Convert Bar */}
+                {internInfo.isIntern && (
+                  <div className={`mt-3 rounded-lg border px-2.5 py-1.5 text-xs flex items-center justify-between gap-2 ${
+                    internInfo.isEnded
+                      ? "border-rose-400/40 bg-rose-400/10 text-rose-300"
+                      : internInfo.daysUntilEnd !== null && internInfo.daysUntilEnd <= 14
+                      ? "border-amber-400/40 bg-amber-400/10 text-amber-300"
+                      : "border-lime-400/30 bg-lime-400/10 text-lime-300"
+                  }`}>
+                    <div className="flex items-center gap-1.5 min-w-0 truncate">
+                      <Clock size={12} className="shrink-0" />
+                      <span className="truncate text-[11px] font-medium">
+                        {internInfo.isEnded
+                          ? `Internship ended (${internInfo.endDate || "Date passed"})`
+                          : internInfo.daysUntilEnd !== null
+                          ? `Internship ends in ${internInfo.daysUntilEnd}d`
+                          : "Active Internship Track"}
+                      </span>
+                    </div>
+                    <ConvertInternDialog
+                      employee={e}
+                      triggerLabel="Promote"
+                      buttonSize="xs"
+                    />
                   </div>
                 )}
-                {e.education && (
-                  <div className="flex items-center gap-2">
-                    <GraduationCap size={13} className="text-bone-500 shrink-0" />
-                    <span className="truncate">{e.education}</span>
-                  </div>
-                )}
-              </div>
 
-              {/* Skills Tags */}
-              {!!e.skills?.length && (
-                <div className="mt-3 flex flex-wrap gap-1">
-                  {e.skills.slice(0, 4).map((s) => (
-                    <span key={s} className="rounded bg-ink-800 px-2 py-0.5 text-[10px] text-bone-400">
-                      {s}
-                    </span>
-                  ))}
-                  {e.skills.length > 4 && (
-                    <span className="rounded bg-ink-800 px-1.5 py-0.5 text-[10px] text-bone-500">
-                      +{e.skills.length - 4}
-                    </span>
+                <div className="mt-4 space-y-1.5 border-t border-ink-700/60 pt-3 text-xs text-bone-300">
+                  <div className="flex items-center gap-2">
+                    <Mail size={13} className="text-bone-500 shrink-0" />
+                    <span className="truncate">{e.email}</span>
+                  </div>
+                  {(e.city || e.country) && (
+                    <div className="flex items-center gap-2">
+                      <MapPin size={13} className="text-bone-500 shrink-0" />
+                      <span>{[e.city, e.country].filter(Boolean).join(", ")}</span>
+                    </div>
+                  )}
+                  {e.education && (
+                    <div className="flex items-center gap-2">
+                      <GraduationCap size={13} className="text-bone-500 shrink-0" />
+                      <span className="truncate">{e.education}</span>
+                    </div>
                   )}
                 </div>
-              )}
-            </div>
 
-            <div className="border-t border-ink-700/60 pt-3 flex items-center justify-between">
-              <div className="text-[11px] font-mono text-lime-400 font-medium">
-                {e.salary_currency} {Number(e.salary_amount).toLocaleString()}/mo
+                {/* Skills Tags */}
+                {!!e.skills?.length && (
+                  <div className="mt-3 flex flex-wrap gap-1">
+                    {e.skills.slice(0, 4).map((s) => (
+                      <span key={s} className="rounded bg-ink-800 px-2 py-0.5 text-[10px] text-bone-400">
+                        {s}
+                      </span>
+                    ))}
+                    {e.skills.length > 4 && (
+                      <span className="rounded bg-ink-800 px-1.5 py-0.5 text-[10px] text-bone-500">
+                        +{e.skills.length - 4}
+                      </span>
+                    )}
+                  </div>
+                )}
               </div>
 
-              <div className="flex items-center gap-1">
-                <Link
-                  href={`/nx-control/employees/${e.id}`}
-                  className="px-2.5 py-1 rounded bg-ink-800 text-[11px] text-bone-200 hover:text-lime-400 hover:bg-ink-700 transition-colors flex items-center gap-1"
-                >
-                  Profile <ExternalLink size={11} />
-                </Link>
-                <button
-                  onClick={() => setEditing(e)}
-                  className="p-1.5 rounded text-bone-400 hover:text-lime-400 hover:bg-ink-800"
-                  title="Edit employee"
-                >
-                  <Edit3 size={14} />
-                </button>
-                <button
-                  onClick={() => setDeletingEmployee({ id: e.id, name: e.full_name })}
-                  className="p-1.5 rounded text-bone-400 hover:text-rose-400 hover:bg-ink-800"
-                  title="Delete employee"
-                >
-                  <Trash2 size={14} />
-                </button>
+              <div className="border-t border-ink-700/60 pt-3 flex items-center justify-between">
+                <div className="text-[11px] font-mono text-lime-400 font-medium">
+                  {e.salary_currency} {Number(e.salary_amount).toLocaleString()}/mo
+                </div>
+
+                <div className="flex items-center gap-1">
+                  <Link
+                    href={`/nx-control/employees/${e.id}`}
+                    className="px-2.5 py-1 rounded bg-ink-800 text-[11px] text-bone-200 hover:text-lime-400 hover:bg-ink-700 transition-colors flex items-center gap-1"
+                  >
+                    Profile <ExternalLink size={11} />
+                  </Link>
+                  <button
+                    onClick={() => {
+                      const intern = parseInternship(e);
+                      setInternshipEndDate(intern.endDate || "");
+                      setEditing(e);
+                    }}
+                    className="p-1.5 rounded text-bone-400 hover:text-lime-400 hover:bg-ink-800"
+                    title="Edit employee"
+                  >
+                    <Edit3 size={14} />
+                  </button>
+                  <button
+                    onClick={() => setDeletingEmployee({ id: e.id, name: e.full_name })}
+                    className="p-1.5 rounded text-bone-400 hover:text-rose-400 hover:bg-ink-800"
+                    title="Delete employee"
+                  >
+                    <Trash2 size={14} />
+                  </button>
+                </div>
               </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
 
       {!filtered.length && (
@@ -596,6 +670,35 @@ export default function EmployeesClient({
                   />
                 </div>
               </div>
+
+              {/* Internship Track & End Date Picker */}
+              {(editing.seniority === "Intern" || editing.employment_type === "Internship") && (
+                <div className="rounded-xl border border-lime-400/30 bg-lime-400/5 p-3.5 space-y-2 animate-in fade-in duration-200">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Sparkles size={14} className="text-lime-400" />
+                      <label className="mono-tag text-xs text-lime-400 font-semibold block">
+                        Internship Track & End Date
+                      </label>
+                    </div>
+                    <span className="mono-tag text-[10px] text-bone-400">
+                      Auto-Conversion Eligible
+                    </span>
+                  </div>
+                  <p className="text-[11px] leading-relaxed text-bone-400">
+                    Set the target completion date for this internship. Nex Desk tracks the countdown and allows 1-click promotion to a regular role with permanent contract signing.
+                  </p>
+                  <div>
+                    <input
+                      type="date"
+                      min={editing.joining_date || undefined}
+                      className="w-full rounded-lg border border-ink-500 bg-ink-800 px-3 py-2 text-xs text-bone-50 focus:border-lime-400 focus:outline-none font-mono"
+                      value={internshipEndDate}
+                      onChange={(e) => setInternshipEndDate(e.target.value)}
+                    />
+                  </div>
+                </div>
+              )}
 
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div>
