@@ -7,6 +7,8 @@ import { LogIn, LogOut, Loader2 } from "lucide-react";
 import { checkIn, checkOut } from "@/lib/actions/attendance";
 import { humanDuration, type AttendanceVerdict, type WorkHours } from "@/lib/workHours";
 import { fmtTime, TZ_LABEL } from "@/lib/datetime";
+import AcceptOfferLetter from "@/components/admin/AcceptOfferLetter";
+import type { StaffOfferAcceptance } from "@/lib/staffOffer";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
@@ -30,10 +32,14 @@ export default function AttendanceWidget({
   row,
   verdict,
   hours,
+  offerStatus,
+  employeeRow,
 }: {
   row: any | null;
   verdict: AttendanceVerdict;
   hours: WorkHours;
+  offerStatus?: StaffOfferAcceptance | null;
+  employeeRow?: any | null;
 }) {
   const router = useRouter();
   const [pending, start] = useTransition();
@@ -48,8 +54,12 @@ export default function AttendanceWidget({
 
   const inAt = row?.checked_in_at;
   const outAt = row?.checked_out_at;
+  const hasUnsignedOffer = Boolean(offerStatus && !offerStatus.isAccepted && employeeRow);
 
   const line = (() => {
+    if (hasUnsignedOffer && !inAt) {
+      return "Offer letter pending digital signature. Sign your offer to unlock daily check-in.";
+    }
     switch (verdict.status) {
       case "on_leave":
         return "You are on approved leave today.";
@@ -113,15 +123,29 @@ export default function AttendanceWidget({
           verdict.status !== "holiday" && (
           <div className="shrink-0">
             {!inAt ? (
-              <button
-                type="button"
-                disabled={pending}
-                onClick={() => run(checkIn, "Checked in.")}
-                className="btn btn-primary h-9 gap-1.5 px-4 text-sm"
-              >
-                {pending ? <Loader2 size={14} className="animate-spin" /> : <LogIn size={14} />}
-                Check in
-              </button>
+              hasUnsignedOffer ? (
+                <div className="flex flex-col items-end gap-1">
+                  <AcceptOfferLetter
+                    employee={employeeRow}
+                    offerStatus={offerStatus!}
+                    variant="button"
+                    triggerLabel="Sign Offer to Check In"
+                  />
+                  <span className="mono-tag text-[10px] text-amber-300">
+                    * Signature required to check in
+                  </span>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  disabled={pending}
+                  onClick={() => run(checkIn, "Checked in.")}
+                  className="btn btn-primary h-9 gap-1.5 px-4 text-sm"
+                >
+                  {pending ? <Loader2 size={14} className="animate-spin" /> : <LogIn size={14} />}
+                  Check in
+                </button>
+              )
             ) : !outAt ? (
               <button
                 type="button"

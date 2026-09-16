@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
+import Link from "next/link";
 import { MessageSquarePlus } from "lucide-react";
 import { raiseChangeRequest } from "@/lib/actions/delivery";
 import Modal from "@/components/admin/Modal";
@@ -21,10 +22,12 @@ export default function ClientChangeRequest({
   projectId,
   projectName,
   openRequests,
+  pendingAgreement,
 }: {
   projectId: string;
   projectName: string;
   openRequests: { id: string; title: string; status: string }[];
+  pendingAgreement?: { id: string; deal_no: string } | null;
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -56,9 +59,26 @@ export default function ClientChangeRequest({
             anything outside the original scope before starting — never after.
           </p>
         </div>
-        <button className="btn h-10 gap-2 px-4 text-sm" onClick={() => setOpen(true)}>
-          <MessageSquarePlus className="h-4 w-4 text-lime-400" /> Request a change
-        </button>
+        {pendingAgreement ? (
+          <div className="rounded-xl border border-amber-400/40 bg-amber-400/10 p-3 text-xs text-amber-200 flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <p className="font-semibold text-bone-100">Agreement Acceptance Required</p>
+              <p className="mt-0.5 text-[11px] text-amber-300">
+                Service Agreement ({pendingAgreement.deal_no}) is awaiting your digital signature. Project change requests unlock once accepted.
+              </p>
+            </div>
+            <Link
+              href="/portal/account"
+              className="btn btn-primary h-8 px-3 text-xs font-semibold shrink-0"
+            >
+              Sign Agreement ({pendingAgreement.deal_no}) →
+            </Link>
+          </div>
+        ) : (
+          <button className="btn h-10 gap-2 px-4 text-sm" onClick={() => setOpen(true)}>
+            <MessageSquarePlus className="h-4 w-4 text-lime-400" /> Request a change
+          </button>
+        )}
       </div>
 
       {!!openRequests.length && (

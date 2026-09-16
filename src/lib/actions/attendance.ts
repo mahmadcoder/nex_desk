@@ -8,6 +8,7 @@ import { recordAudit } from "@/lib/actions/audit";
 import { agencyDay, AGENCY_TZ } from "@/lib/datetime";
 import { workHoursFrom, judgeAttendance, type WorkHours } from "@/lib/workHours";
 import { holidayMap } from "@/lib/actions/hr";
+import { parseOfferAcceptance } from "@/lib/staffOffer";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
@@ -67,6 +68,22 @@ export async function checkIn(note?: string) {
   }
 
   const db = createAdminClient();
+
+  // Enforce mandatory offer letter digital signature before first check-in
+  const { data: employeeRow } = await db
+    .from("employees")
+    .select("notes")
+    .eq("id", staff.employeeId)
+    .single();
+
+  const offer = parseOfferAcceptance(employeeRow?.notes);
+  if (!offer.isAccepted) {
+    return {
+      ok: false as const,
+      error: "Please review and digitally sign your official employment offer letter before checking in.",
+    };
+  }
+
   const day = agencyDay();
 
   const { error } = await db

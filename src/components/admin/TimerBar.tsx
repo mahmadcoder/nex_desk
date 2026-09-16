@@ -24,10 +24,12 @@ import CustomSelect from "@/components/ui/CustomSelect";
 export default function TimerBar({
   running,
   tasks,
+  offerAccepted = true,
 }: {
   running: any | null;
   /** The staff member's open tasks, to start against. */
   tasks: { id: string; title: string; project_id: string }[];
+  offerAccepted?: boolean;
 }) {
   const router = useRouter();
   const [pending, start] = useTransition();
@@ -95,14 +97,25 @@ export default function TimerBar({
 
         <button
           type="button"
-          disabled={pending}
-          onClick={() => begin({ taskId: taskId || null })}
-          className="btn btn-primary h-8 shrink-0 gap-1.5 px-3 text-xs"
+          disabled={pending || !offerAccepted}
+          title={!offerAccepted ? "Sign your offer letter to unlock time tracking" : undefined}
+          onClick={() => {
+            if (!offerAccepted) {
+              toast.error("Please review and digitally sign your offer letter to start time tracking.");
+              return;
+            }
+            begin({ taskId: taskId || null });
+          }}
+          className={`btn h-8 shrink-0 gap-1.5 px-3 text-xs ${
+            !offerAccepted
+              ? "opacity-50 cursor-not-allowed bg-ink-800 text-bone-400 border border-ink-600"
+              : "btn-primary"
+          }`}
         >
           <Play size={13} /> Start
         </button>
 
-        {canResume && (
+        {canResume && offerAccepted && (
           <button
             type="button"
             disabled={pending}
@@ -111,6 +124,12 @@ export default function TimerBar({
           >
             Resume last
           </button>
+        )}
+
+        {!offerAccepted && (
+          <p className="w-full mt-1 text-[10px] text-amber-300 font-medium">
+            * Sign your offer letter to unlock time tracking
+          </p>
         )}
       </div>
     );

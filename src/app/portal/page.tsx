@@ -6,6 +6,7 @@ import { moneyMulti, money } from "@/lib/utils";
 import { fmtDate, fmtDateTime, daysUntil } from "@/lib/datetime";
 import ProjectCard from "@/components/portal/ProjectCard";
 import ReturnRequest from "@/components/portal/ReturnRequest";
+import AcceptAgreement from "@/components/portal/AcceptAgreement";
 import {
   FolderKanban,
   PackageCheck,
@@ -14,6 +15,7 @@ import {
   CalendarClock,
   ArrowRight,
   CircleDot,
+  FileSignature,
 } from "lucide-react";
 import { getUpcomingHolidays } from "@/lib/holidays";
 import HolidayNoticeBanner from "@/components/ui/HolidayNoticeBanner";
@@ -129,20 +131,64 @@ export default async function PortalDashboard() {
         </section>
       )}
 
-      {/* ── Needs you ── rendered only when something does. */}
-      {(unsigned.length > 0 || overdue.length > 0) && (
+      {/* ── Action Required: Unsigned Service Agreement ── */}
+      {unsigned.length > 0 && (
+        <section className="card mt-8 border-lime-400/40 bg-gradient-to-br from-lime-400/[0.08] via-ink-900 to-ink-900 p-5 sm:p-6 shadow-xl animate-in fade-in duration-200">
+          <div className="flex flex-wrap items-start justify-between gap-4 border-b border-ink-700/80 pb-4">
+            <div className="flex items-start gap-3.5">
+              <div className="rounded-xl border border-lime-400/30 bg-lime-400/15 p-2.5 text-lime-400 shrink-0">
+                <FileSignature size={22} />
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="mono-tag text-xs text-lime-400 font-semibold">Action Required · Step 1</span>
+                  <span className="mono-tag rounded-full border border-amber-400/40 bg-amber-400/15 px-2.5 py-0.5 text-[10px] text-amber-300 font-medium">
+                    Awaiting Digital Signature
+                  </span>
+                </div>
+                <h2 className="mt-1 text-lg font-semibold text-bone-50">
+                  Service Agreement &amp; Terms of Engagement
+                </h2>
+                <p className="mt-1 text-xs text-bone-300 max-w-2xl leading-relaxed">
+                  Please review and digitally sign your project agreement. Executing this contract commits the project timeline, milestones, and deliverables, and unlocks project change requests.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div className="mt-4 space-y-3">
+            {unsigned.map((d: any) => (
+              <div
+                key={d.id}
+                className="flex flex-wrap items-center justify-between gap-4 rounded-xl border border-ink-700 bg-ink-800/80 p-4"
+              >
+                <div>
+                  <p className="text-sm font-semibold text-bone-100">{d.title || `Project Agreement (${d.deal_no})`}</p>
+                  <p className="mono-tag text-xs text-lime-400 mt-0.5">
+                    Contract Value: {money(Number(d.total), d.currency)}
+                  </p>
+                </div>
+                <AcceptAgreement
+                  deal={{
+                    id: d.id,
+                    deal_no: d.deal_no,
+                    title: d.title,
+                    amount: money(Number(d.total), d.currency),
+                    accepted_at: d.accepted_at,
+                    accepted_name: d.accepted_name,
+                  }}
+                />
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {/* ── Needs you: Invoices ── rendered only when something is overdue */}
+      {overdue.length > 0 && (
         <section className="card mt-8 border-amber-400/30 bg-amber-400/[0.04] p-5 sm:p-6">
           <p className="mono-tag text-amber-300">Waiting on you</p>
           <ul className="mt-3 space-y-2 text-sm">
-            {unsigned.map((d: any) => (
-              <li key={d.id} className="flex flex-wrap items-center gap-2 text-bone-200">
-                <CircleDot size={13} className="shrink-0 text-amber-300" aria-hidden />
-                Agreement {d.deal_no} for {money(Number(d.total), d.currency)} is ready to sign.
-                <Link href="/portal/account" className="text-lime-400 hover:underline">
-                  Review it →
-                </Link>
-              </li>
-            ))}
             {overdue.map((i: any) => (
               <li key={i.id} className="flex flex-wrap items-center gap-2 text-bone-200">
                 <CircleDot size={13} className="shrink-0 text-amber-300" aria-hidden />

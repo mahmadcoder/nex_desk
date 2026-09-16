@@ -197,6 +197,8 @@ export default async function StaffDashboard({
             row={attendance.row}
             verdict={attendance.verdict}
             hours={attendance.hours}
+            offerStatus={offerStatus}
+            employeeRow={employeeRow}
           />
         )}
         <div className="card p-4">
@@ -210,6 +212,7 @@ export default async function StaffDashboard({
               title: t.title,
               project_id: t.project_id,
             }))}
+            offerAccepted={offerStatus.isAccepted}
           />
         </div>
       </div>

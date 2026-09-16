@@ -89,6 +89,14 @@ export default async function PortalProject({
     .eq("is_recurring_template", false)
     .order("sort_order");
 
+  const { data: unsignedDeals } = await createAdminClient()
+    .from("deals")
+    .select("id, deal_no")
+    .eq("client_id", client.id)
+    .eq("status", "locked")
+    .is("accepted_at", null);
+  const pendingAgreement = unsignedDeals?.[0] ?? null;
+
   // Only for the tab actually being rendered — a client on Overview should not
   // pay for signing every file URL.
   const fileGroups = tab === "files" ? await loadProjectFileGroups(project.id, { clientView: true }) : [];
@@ -282,6 +290,7 @@ export default async function PortalProject({
                 projectId={project.id}
                 projectName={project.name}
                 openRequests={openRequests}
+                pendingAgreement={pendingAgreement}
               />
             )}
           </div>

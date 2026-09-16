@@ -5,6 +5,7 @@ import { createAdminClient } from "@/lib/supabase/server";
 import { requireStaff } from "@/lib/auth/guards";
 import { getCurrentStaff } from "@/lib/auth/staff";
 import { agencyDay } from "@/lib/datetime";
+import { parseOfferAcceptance } from "@/lib/staffOffer";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
@@ -52,6 +53,21 @@ export async function startTimer(input: {
   if (!employeeId) return { ok: false as const, error: who! };
 
   const db = createAdminClient();
+
+  // Enforce mandatory offer letter acceptance before time tracking
+  const { data: employeeRow } = await db
+    .from("employees")
+    .select("notes")
+    .eq("id", employeeId)
+    .single();
+
+  const offer = parseOfferAcceptance(employeeRow?.notes);
+  if (!offer.isAccepted) {
+    return {
+      ok: false as const,
+      error: "Please review and digitally accept your official employment offer letter before tracking time.",
+    };
+  }
 
   // Resolve the project from the task when only a task was given, so a report
   // grouped by project never drops task time.

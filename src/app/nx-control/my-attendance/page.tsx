@@ -6,6 +6,8 @@ import AttendanceWidget from "@/components/admin/AttendanceWidget";
 import OvertimeWidget from "@/components/admin/OvertimeWidget";
 import { getWorkHours, myAttendanceToday, getMyOvertimeSummary } from "@/lib/actions/attendance";
 import { holidayMap } from "@/lib/actions/hr";
+import { parseOfferAcceptance } from "@/lib/staffOffer";
+import AcceptOfferLetter from "@/components/admin/AcceptOfferLetter";
 import { judgeAttendance, humanDuration, isWorkingDay } from "@/lib/workHours";
 import { agencyDay, fmtMonth, fmtDate, fmtTime, TZ_LABEL } from "@/lib/datetime";
 
@@ -75,26 +77,40 @@ export default async function MyAttendancePage({
   const to = `${year}-${pad(mon + 1)}-${pad(last.getDate())}`;
   const today = agencyDay();
 
-  const [{ data: rows, error }, { data: leaves }, hours, holidays, todayState, overtimeSummary] =
-    await Promise.all([
-      db
-        .from("attendance")
-        .select("*")
-        .eq("employee_id", me.employeeId)
-        .gte("work_date", from)
-        .lte("work_date", to),
-      db
-        .from("leave_requests")
-        .select("start_date, end_date")
-        .eq("employee_id", me.employeeId)
-        .eq("status", "approved")
-        .lte("start_date", to)
-        .gte("end_date", from),
-      getWorkHours(),
-      holidayMap(from, to),
-      myAttendanceToday(),
-      getMyOvertimeSummary(from.slice(0, 7)),
-    ]);
+  const [
+    { data: rows, error },
+    { data: leaves },
+    hours,
+    holidays,
+    todayState,
+    overtimeSummary,
+    { data: employeeRow },
+  ] = await Promise.all([
+    db
+      .from("attendance")
+      .select("*")
+      .eq("employee_id", me.employeeId)
+      .gte("work_date", from)
+      .lte("work_date", to),
+    db
+      .from("leave_requests")
+      .select("start_date, end_date")
+      .eq("employee_id", me.employeeId)
+      .eq("status", "approved")
+      .lte("start_date", to)
+      .gte("end_date", from),
+    getWorkHours(),
+    holidayMap(from, to),
+    myAttendanceToday(),
+    getMyOvertimeSummary(from.slice(0, 7)),
+    db
+      .from("employees")
+      .select("id, full_name, job_title, seniority, employment_type, salary_amount, salary_currency, joining_date, city, country, notes")
+      .eq("id", me.employeeId)
+      .maybeSingle(),
+  ]);
+
+  const offerStatus = parseOfferAcceptance(employeeRow?.notes);
 
   if (error?.code === "42P01") {
     return (
@@ -150,6 +166,16 @@ export default async function MyAttendancePage({
         sub={`Your own record. Working hours are ${hours.start}–${hours.end} ${TZ_LABEL}, with ${hours.graceMin} minutes' grace.`}
       />
 
+      {employeeRow && !offerStatus.isAccepted && (
+        <div className="mb-6">
+          <AcceptOfferLetter
+            employee={employeeRow}
+            offerStatus={offerStatus}
+            variant="banner"
+          />
+        </div>
+      )}
+
       {/* Today's clock first — it is the only thing here you can still act on. */}
       {isThisMonth && todayState && (
         <div className="mb-6 max-w-md">
@@ -157,6 +183,8 @@ export default async function MyAttendancePage({
             row={todayState.row}
             verdict={todayState.verdict}
             hours={todayState.hours}
+            offerStatus={offerStatus}
+            employeeRow={employeeRow}
           />
         </div>
       )}

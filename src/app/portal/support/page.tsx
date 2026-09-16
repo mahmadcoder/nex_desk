@@ -27,18 +27,25 @@ export default async function PortalSupport() {
   if (!session) redirect("/portal");
 
   const db = createAdminClient();
-  const [{ data: tickets, error }, { data: projects }] = await Promise.all([
-    db
-      .from("tickets")
-      .select("id, subject, status, priority, created_at, first_response_at, projects(name)")
-      .eq("client_id", session.client.id)
-      .order("created_at", { ascending: false }),
-    db
-      .from("projects")
-      .select("id, name")
-      .eq("client_id", session.client.id)
-      .order("created_at", { ascending: false }),
-  ]);
+  const [{ data: tickets, error }, { data: projects }, { data: unsignedDeals }] =
+    await Promise.all([
+      db
+        .from("tickets")
+        .select("id, subject, status, priority, created_at, first_response_at, projects(name)")
+        .eq("client_id", session.client.id)
+        .order("created_at", { ascending: false }),
+      db
+        .from("projects")
+        .select("id, name")
+        .eq("client_id", session.client.id)
+        .order("created_at", { ascending: false }),
+      db
+        .from("deals")
+        .select("id, deal_no, title")
+        .eq("client_id", session.client.id)
+        .eq("status", "locked")
+        .is("accepted_at", null),
+    ]);
 
   if (error?.code === "42P01") {
     return (
@@ -76,6 +83,25 @@ export default async function PortalSupport() {
         {/* A paused account is read-only everywhere else; it is here too. */}
         {!session.isPaused && <RaiseTicket projects={projects ?? []} />}
       </header>
+
+      {unsignedDeals && unsignedDeals.length > 0 && (
+        <div className="card mt-6 border-amber-400/40 bg-amber-400/[0.06] p-4 flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-2.5">
+            <span className="mono-tag text-[10px] text-amber-300 border border-amber-400/40 bg-amber-400/10 px-2 py-0.5 rounded">
+              Contract Awaiting Signature
+            </span>
+            <p className="text-xs text-bone-200">
+              Service Agreement ({unsignedDeals[0].deal_no}) is awaiting your digital signature. General inquiries are handled here, while project delivery kicks off once signed.
+            </p>
+          </div>
+          <Link
+            href="/portal/account"
+            className="mono-tag text-xs text-lime-400 hover:underline"
+          >
+            Review &amp; Sign Agreement →
+          </Link>
+        </div>
+      )}
 
       {!rows.length ? (
         <section className="card mt-8 p-10 text-center">

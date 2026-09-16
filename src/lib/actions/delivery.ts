@@ -290,6 +290,22 @@ export async function raiseChangeRequest(data: {
     );
   }
 
+  // An unsigned agreement cannot have new work or change requests raised against it.
+  if (ownsRecord) {
+    const { data: unsignedDeals } = await db
+      .from("deals")
+      .select("id, deal_no")
+      .eq("client_id", project.client_id)
+      .eq("status", "locked")
+      .is("accepted_at", null);
+
+    if (unsignedDeals && unsignedDeals.length > 0) {
+      throw new Error(
+        `Please review and digitally accept your service agreement (${unsignedDeals[0].deal_no}) before requesting changes or new work.`
+      );
+    }
+  }
+
   const { data: row, error } = await db.from("change_requests").insert({
     project_id: projectId,
     client_id: project.client_id,

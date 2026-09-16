@@ -35,13 +35,17 @@ interface AcceptOfferLetterProps {
     country?: string | null;
   };
   offerStatus: StaffOfferAcceptance;
-  variant?: "banner" | "card";
+  variant?: "banner" | "card" | "button";
+  triggerLabel?: string;
+  triggerClassName?: string;
 }
 
 export default function AcceptOfferLetter({
   employee,
   offerStatus,
   variant = "card",
+  triggerLabel,
+  triggerClassName,
 }: AcceptOfferLetterProps) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -188,7 +192,19 @@ export default function AcceptOfferLetter({
   // 2. PENDING ACCEPTANCE STATE
   return (
     <>
-      {variant === "banner" ? (
+      {variant === "button" ? (
+        <button
+          type="button"
+          onClick={() => setOpen(true)}
+          className={
+            triggerClassName ||
+            "btn btn-primary h-9 gap-1.5 px-4 text-xs font-semibold shadow-md shadow-lime-400/20"
+          }
+        >
+          <FileSignature size={14} className="shrink-0 text-ink-950" />
+          <span>{triggerLabel || "Sign Offer to Check In"}</span>
+        </button>
+      ) : variant === "banner" ? (
         <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-lime-400/40 bg-lime-400/[0.08] p-4 shadow-sm">
           <div className="flex items-center gap-3">
             <div className="p-2 rounded-lg bg-lime-400/15 text-lime-400 border border-lime-400/30">
