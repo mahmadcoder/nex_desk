@@ -563,6 +563,7 @@ export default function EmployeesClient({
                     value={editing.job_title ?? ""}
                     onChange={(val) => setEditing({ ...editing, job_title: val })}
                     placeholder="Select Position…"
+                    align="left"
                   />
                 </div>
                 <div>

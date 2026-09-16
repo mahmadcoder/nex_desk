@@ -6,9 +6,10 @@ import { toast } from "sonner";
 import { ensureClientPortalAccount, updateClientPermissions, deleteClient } from "@/lib/actions";
 import { getSiteBaseUrl } from "@/lib/utils";
 import { fmtDate } from "@/lib/datetime";
-import { Key, Copy, Eye, EyeOff, Shield, Trash2, CheckSquare, Square, Edit3, KeyRound } from "lucide-react";
+import { Key, Copy, Eye, EyeOff, Shield, Trash2, CheckSquare, Square, Edit3, KeyRound, Landmark } from "lucide-react";
 import ClientDialog from "@/components/admin/ClientDialog";
 import ConfirmModal from "@/components/admin/ConfirmModal";
+import { AgencyBankAccount } from "@/types/bank";
 
 type ClientPermissions = {
   show_financials?: boolean;
@@ -16,10 +17,12 @@ type ClientPermissions = {
   show_milestones?: boolean;
   show_files?: boolean;
   show_staging?: boolean;
+  allowed_bank_ids?: string[];
 };
 
 export default function ClientManagerCard({
   client,
+  bankAccounts = [],
 }: {
   client: {
     id: string;
@@ -30,6 +33,7 @@ export default function ClientManagerCard({
     password_changed_at?: string | null;
     client_permissions: ClientPermissions | null;
   };
+  bankAccounts?: AgencyBankAccount[];
 }) {
   const router = useRouter();
   const [pending, start] = useTransition();
@@ -268,6 +272,119 @@ export default function ClientManagerCard({
               );
             })}
           </div>
+
+          {/* Permitted Bank Accounts & Payment Methods */}
+          {bankAccounts.length > 0 && (
+            <div className="mt-4 pt-4 border-t border-ink-700">
+              <div className="flex items-center justify-between gap-2 mb-1.5">
+                <span className="mono-tag text-xs text-lime-400 flex items-center gap-1.5 font-medium">
+                  <Landmark className="h-3.5 w-3.5" /> Permitted Payment Methods
+                </span>
+                <span className="mono-tag text-[10px] text-bone-400">
+                  {perms.allowed_bank_ids && perms.allowed_bank_ids.length > 0
+                    ? `${perms.allowed_bank_ids.length} selected`
+                    : "All active"}
+                </span>
+              </div>
+              <p className="text-[11px] text-bone-400 leading-relaxed mb-2.5">
+                Control which agency bank accounts this client sees when paying invoices. Choose &ldquo;All active&rdquo; or restrict to specific accounts.
+              </p>
+
+              <div className="flex items-center gap-2 mb-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    const updated = { ...perms, allowed_bank_ids: [] };
+                    setPerms(updated);
+                    start(async () => {
+                      try {
+                        await updateClientPermissions(client.id, updated);
+                        toast.success("Client can now view all active agency payment methods.");
+                        router.refresh();
+                      } catch {
+                        toast.error("Failed to update payment methods.");
+                      }
+                    });
+                  }}
+                  className={`mono-tag px-2 py-0.5 rounded text-[11px] transition-colors cursor-pointer ${
+                    !perms.allowed_bank_ids || perms.allowed_bank_ids.length === 0
+                      ? "border border-lime-400/40 bg-lime-400/15 text-lime-300 font-medium"
+                      : "border border-ink-600 bg-ink-800 text-bone-400 hover:text-bone-200"
+                  }`}
+                >
+                  All Active Accounts
+                </button>
+                <span className="text-[11px] text-bone-500">or pick specific:</span>
+              </div>
+
+              <div className="space-y-1.5 max-h-48 overflow-y-auto pr-0.5 custom-admin-scrollbar">
+                {bankAccounts
+                  .filter((a) => a.is_active !== false)
+                  .map((acc) => {
+                    const isScoped =
+                      Array.isArray(perms.allowed_bank_ids) && perms.allowed_bank_ids.length > 0;
+                    const isChecked = isScoped ? perms.allowed_bank_ids!.includes(acc.id) : false;
+
+                    return (
+                      <button
+                        key={acc.id}
+                        type="button"
+                        onClick={() => {
+                          const current = perms.allowed_bank_ids || [];
+                          let next: string[];
+                          if (current.includes(acc.id)) {
+                            next = current.filter((id) => id !== acc.id);
+                          } else {
+                            next = [...current, acc.id];
+                          }
+                          const updated = { ...perms, allowed_bank_ids: next };
+                          setPerms(updated);
+                          start(async () => {
+                            try {
+                              await updateClientPermissions(client.id, updated);
+                              toast.success(
+                                next.length
+                                  ? `Restricted client to ${next.length} payment account(s).`
+                                  : "Client can now view all active agency payment accounts."
+                              );
+                              router.refresh();
+                            } catch {
+                              toast.error("Failed to update payment accounts.");
+                            }
+                          });
+                        }}
+                        className={`flex items-center justify-between w-full p-2 rounded text-left transition-colors border cursor-pointer ${
+                          isChecked
+                            ? "border-lime-400/40 bg-lime-400/10 text-bone-50"
+                            : "border-ink-700/60 bg-ink-800/40 hover:bg-ink-800 text-bone-300"
+                        }`}
+                      >
+                        <div className="min-w-0 pr-2">
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-xs font-medium text-bone-100 truncate">
+                              {acc.name}
+                            </span>
+                            <span className="mono-tag rounded bg-ink-700 px-1 py-0.2 text-[9px] text-lime-400">
+                              {acc.currency}
+                            </span>
+                          </div>
+                          <p className="text-[11px] text-bone-400 truncate mt-0.5">
+                            {acc.bank_name}
+                          </p>
+                        </div>
+                        <div className="shrink-0">
+                          {isChecked ? (
+                            <CheckSquare className="h-4 w-4 text-lime-400" />
+                          ) : (
+                            <Square className="h-4 w-4 text-ink-400" />
+                          )}
+                        </div>
+                      </button>
+                    );
+                  })}
+              </div>
+            </div>
+          )}
         </div>
       </div>
 

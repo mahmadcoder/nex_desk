@@ -470,12 +470,14 @@ export async function restoreClient(id: string, options?: { sendEmail?: boolean 
   return { success: true, emailSent };
 }
 
-export async function updateClientPermissions(id: string, permissions: Record<string, boolean>) {
+export async function updateClientPermissions(id: string, permissions: Record<string, any>) {
   const me = await requireOwnerAdmin();
   const db = createAdminClient();
   await db.from("clients").update({ client_permissions: permissions }).eq("id", id);
   await audit(me.userId, "client.permissions", "clients", id, permissions);
   revalidatePath(`/${ADMIN}/clients/${id}`);
+  revalidatePath("/portal");
+  revalidatePath("/portal/invoices");
 }
 
 export async function getClientEmailByToken(token: string) {
@@ -1374,6 +1376,7 @@ export async function saveSettings(patch: Record<string, unknown>) {
     .update({ ...patch, updated_at: new Date().toISOString() }).eq("id", 1);
   await audit(me.userId, "settings.update", "settings", undefined, patch);
   revalidatePath(`/${ADMIN}/settings`);
+  revalidatePath("/portal/invoices");
 }
 
 /**

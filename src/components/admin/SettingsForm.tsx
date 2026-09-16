@@ -8,7 +8,23 @@ import CustomSelect from "@/components/ui/CustomSelect";
 import { Badge } from "./ui";
 import ImageUpload from "@/components/admin/ImageUpload";
 import SignaturePad from "@/components/ui/SignaturePad";
-import { AlertCircle, Trash2, PenTool } from "lucide-react";
+import Modal from "@/components/admin/Modal";
+import {
+  AlertCircle,
+  Trash2,
+  PenTool,
+  Plus,
+  Eye,
+  EyeOff,
+  Star,
+  Landmark,
+  Edit2,
+  Check,
+  Building2,
+  X,
+} from "lucide-react";
+import { AgencyBankAccount } from "@/types/bank";
+import { normalizeBankDetails } from "@/lib/bank";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
@@ -37,8 +53,6 @@ export default function SettingsForm({ settings, staff }: { settings: any; staff
     refund_policy: settings?.refund_policy ?? "",
     booking_fee_pct: settings?.booking_fee_pct ?? 25,
     refund_grace_hours: settings?.refund_grace_hours ?? 48,
-    // Attendance is judged against these every time it is displayed, never
-    // stored — so changing the grace period re-judges history too.
     work_start: String(settings?.work_start ?? "09:00").slice(0, 5),
     work_end: String(settings?.work_end ?? "18:00").slice(0, 5),
     work_grace_min: settings?.work_grace_min ?? 15,
@@ -48,17 +62,145 @@ export default function SettingsForm({ settings, staff }: { settings: any; staff
       ? settings.work_days.map(Number)
       : [1, 2, 3, 4, 5]
   );
-  const [bank, setBank] = useState<Record<string, string>>(settings?.bank_details ?? {
-    "Account title": "", "Bank": "", "Account number": "", "IBAN": "", "Branch code": "",
-  });
+
+  const [bankAccounts, setBankAccounts] = useState<AgencyBankAccount[]>(() =>
+    normalizeBankDetails(settings?.bank_details, settings?.company_name || "Nex Desk")
+  );
 
   const [isEditingSignature, setIsEditingSignature] = useState(false);
 
-  const [initialState, setInitialState] = useState(() => JSON.stringify({ f, workDays, bank }));
-  const currentState = JSON.stringify({ f, workDays, bank });
+  // Bank Modal State
+  const [bankModalOpen, setBankModalOpen] = useState(false);
+  const [editingBankIndex, setEditingBankIndex] = useState<number | null>(null);
+  const [bankForm, setBankForm] = useState<AgencyBankAccount>({
+    id: "",
+    name: "",
+    currency: "USD",
+    beneficiary: settings?.company_name || "Nex Desk",
+    bank_name: "",
+    account_number: "",
+    iban: "",
+    swift: "",
+    routing_number: "",
+    branch: "",
+    instructions: "",
+    is_active: true,
+    is_default: false,
+  });
+
+  const [initialState, setInitialState] = useState(() =>
+    JSON.stringify({ f, workDays, bankAccounts })
+  );
+  const currentState = JSON.stringify({ f, workDays, bankAccounts });
   const isDirty = currentState !== initialState;
 
   const set = (k: string, v: unknown) => setF((p) => ({ ...p, [k]: v }));
+
+  const openAddBankModal = () => {
+    setEditingBankIndex(null);
+    setBankForm({
+      id: `acc_${Date.now()}`,
+      name: "",
+      currency: f.default_currency || "USD",
+      beneficiary: f.company_name || "Nex Desk",
+      bank_name: "",
+      account_number: "",
+      iban: "",
+      swift: "",
+      routing_number: "",
+      branch: "",
+      instructions: "Please include the invoice number in your wire transfer reference memo.",
+      is_active: true,
+      is_default: bankAccounts.length === 0,
+    });
+    setBankModalOpen(true);
+  };
+
+  const openEditBankModal = (index: number) => {
+    setEditingBankIndex(index);
+    setBankForm({ ...bankAccounts[index] });
+    setBankModalOpen(true);
+  };
+
+  const handleSaveBankForm = () => {
+    if (!bankForm.name.trim()) {
+      toast.error("Account label / name is required.");
+      return;
+    }
+    if (!bankForm.bank_name.trim()) {
+      toast.error("Bank name is required.");
+      return;
+    }
+    if (!bankForm.account_number.trim() && !bankForm.iban?.trim()) {
+      toast.error("Account number or IBAN is required.");
+      return;
+    }
+
+    setBankAccounts((prev) => {
+      let updated = [...prev];
+      if (editingBankIndex !== null) {
+        updated[editingBankIndex] = { ...bankForm };
+      } else {
+        updated.push({ ...bankForm, id: bankForm.id || `acc_${Date.now()}` });
+      }
+
+      // If marked default, unset default on others
+      if (bankForm.is_default) {
+        updated = updated.map((acc, idx) => ({
+          ...acc,
+          is_default: editingBankIndex !== null ? idx === editingBankIndex : idx === updated.length - 1,
+        }));
+      }
+
+      return updated;
+    });
+
+    setBankModalOpen(false);
+    toast.success(editingBankIndex !== null ? "Bank account updated." : "Bank account added.");
+  };
+
+  const toggleBankActive = (index: number) => {
+    setBankAccounts((prev) =>
+      prev.map((acc, idx) => {
+        if (idx !== index) return acc;
+        const nextActive = !acc.is_active;
+        toast.info(
+          nextActive
+            ? `“${acc.name}” is now visible on client invoices.`
+            : `“${acc.name}” is now hidden from client invoices.`
+        );
+        return { ...acc, is_active: nextActive };
+      })
+    );
+  };
+
+  const setBankDefault = (index: number) => {
+    setBankAccounts((prev) =>
+      prev.map((acc, idx) => ({
+        ...acc,
+        is_default: idx === index,
+        // Default accounts should always be active
+        is_active: idx === index ? true : acc.is_active,
+      }))
+    );
+    toast.success(`“${bankAccounts[index].name}” set as primary default account.`);
+  };
+
+  const deleteBankAccount = (index: number) => {
+    if (bankAccounts.length <= 1) {
+      toast.error("At least one bank account must be maintained.");
+      return;
+    }
+    const accToDelete = bankAccounts[index];
+    setBankAccounts((prev) => {
+      const filtered = prev.filter((_, idx) => idx !== index);
+      if (accToDelete.is_default && filtered.length > 0) {
+        filtered[0].is_default = true;
+      }
+      return filtered;
+    });
+    toast.success(`Removed “${accToDelete.name}”.`);
+  };
 
   const save = () =>
     start(async () => {
@@ -68,10 +210,10 @@ export default function SettingsForm({ settings, staff }: { settings: any; staff
           tax_percent: Number(f.tax_percent),
           work_grace_min: Number(f.work_grace_min),
           work_days: workDays.sort((a, b) => a - b),
-          bank_details: bank,
+          bank_details: bankAccounts,
         });
-        setInitialState(JSON.stringify({ f, workDays, bank }));
-        toast.success("Settings saved.");
+        setInitialState(JSON.stringify({ f, workDays, bankAccounts }));
+        toast.success("Settings saved successfully.");
       } catch (e: any) {
         toast.error(e?.message || "Could not save settings.");
       }
@@ -210,17 +352,6 @@ export default function SettingsForm({ settings, staff }: { settings: any; staff
             <input className={field} value={f.invoice_prefix} onChange={(e) => set("invoice_prefix", e.target.value)} />
           </div>
         </div>
-
-        <h3 className="mb-3 mt-6 text-sm">Bank details</h3>
-        <p className="mb-3 text-xs text-bone-400">These print on every invoice under &ldquo;How to pay&rdquo;.</p>
-        <div className="space-y-3">
-          {Object.keys(bank).map((k) => (
-            <div key={k} className="flex flex-col gap-1 sm:grid sm:grid-cols-[130px_1fr] sm:items-center sm:gap-2">
-              <span className="mono-tag">{k}</span>
-              <input className={field} value={bank[k]} onChange={(e) => setBank({ ...bank, [k]: e.target.value })} />
-            </div>
-          ))}
-        </div>
       </section>
 
       <section className="card p-6">
@@ -268,6 +399,330 @@ export default function SettingsForm({ settings, staff }: { settings: any; staff
           A non-working day is never marked absent.
         </p>
       </section>
+
+      {/* ── Bank Details & Payment Channels (Multi-Bank Registry) ── */}
+      <section className="card p-6 xl:col-span-2">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-ink-600 pb-4">
+          <div>
+            <div className="flex items-center gap-2">
+              <Landmark className="h-5 w-5 text-lime-400" />
+              <h2 className="text-base font-semibold text-bone-50">
+                Bank Details &amp; Payment Methods
+              </h2>
+            </div>
+            <p className="mt-1 text-xs text-bone-400 max-w-2xl leading-relaxed">
+              Configure your agency wire details, local accounts, and international channels. Clients use these to settle invoices. You can add multiple accounts (USD, PKR, EUR, GBP, etc.), toggle visibility (Hide/Unhide), edit, or mark a primary default.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={openAddBankModal}
+            className="btn btn-primary h-9 px-3.5 text-xs inline-flex items-center gap-1.5 shrink-0 self-start sm:self-center cursor-pointer"
+          >
+            <Plus size={14} /> Add Bank Account
+          </button>
+        </div>
+
+        <div className="mt-5">
+          {!bankAccounts.length ? (
+            <div className="rounded-xl border border-dashed border-ink-600 p-8 text-center">
+              <Building2 className="mx-auto h-8 w-8 text-bone-500 mb-2" />
+              <p className="text-sm text-bone-300">No bank accounts configured yet.</p>
+              <button
+                type="button"
+                onClick={openAddBankModal}
+                className="btn btn-primary mt-3 h-8 text-xs cursor-pointer"
+              >
+                Add first bank account
+              </button>
+            </div>
+          ) : (
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {bankAccounts.map((acc, idx) => (
+                <div
+                  key={acc.id || idx}
+                  className={`rounded-xl border p-4 transition-all flex flex-col justify-between ${
+                    acc.is_active
+                      ? "border-ink-600 bg-ink-800/40 hover:border-ink-500"
+                      : "border-ink-700 bg-ink-900/40 opacity-70"
+                  }`}
+                >
+                  <div>
+                    <div className="flex items-start justify-between gap-2 mb-2.5">
+                      <div className="min-w-0">
+                        <h4 className="text-sm font-semibold text-bone-50 truncate" title={acc.name}>
+                          {acc.name}
+                        </h4>
+                        <p className="text-xs text-bone-400 truncate">{acc.bank_name}</p>
+                      </div>
+                      <div className="flex items-center gap-1 shrink-0 flex-wrap justify-end">
+                        <span className="mono-tag rounded bg-lime-400/10 border border-lime-400/30 px-1.5 py-0.5 text-[10px] text-lime-400 font-semibold">
+                          {acc.currency}
+                        </span>
+                        {acc.is_default && (
+                          <span className="mono-tag rounded bg-amber-400/10 border border-amber-400/30 px-1.5 py-0.5 text-[10px] text-amber-300 flex items-center gap-1">
+                            <Star size={9} className="fill-amber-300 text-amber-300" /> Default
+                          </span>
+                        )}
+                        {!acc.is_active && (
+                          <span className="mono-tag rounded bg-ink-700 px-1.5 py-0.5 text-[10px] text-bone-400 flex items-center gap-1">
+                            <EyeOff size={9} /> Hidden
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="space-y-1.5 text-xs text-bone-300 border-t border-ink-700/60 pt-2.5">
+                      <div className="flex justify-between gap-2">
+                        <span className="text-bone-400 text-[11px] shrink-0">Title:</span>
+                        <span className="font-mono text-bone-100 font-medium text-right truncate" title={acc.beneficiary}>
+                          {acc.beneficiary}
+                        </span>
+                      </div>
+                      <div className="flex justify-between gap-2">
+                        <span className="text-bone-400 text-[11px] shrink-0">Account / IBAN:</span>
+                        <span className="font-mono text-bone-100 font-medium text-right truncate" title={acc.iban || acc.account_number}>
+                          {acc.iban || acc.account_number}
+                        </span>
+                      </div>
+                      {acc.swift && (
+                        <div className="flex justify-between gap-2">
+                          <span className="text-bone-400 text-[11px] shrink-0">SWIFT / BIC:</span>
+                          <span className="font-mono text-bone-100 text-right">{acc.swift}</span>
+                        </div>
+                      )}
+                      {acc.routing_number && (
+                        <div className="flex justify-between gap-2">
+                          <span className="text-bone-400 text-[11px] shrink-0">Routing / Sort:</span>
+                          <span className="font-mono text-bone-100 text-right">{acc.routing_number}</span>
+                        </div>
+                      )}
+                      {acc.instructions && (
+                        <p className="text-[11px] text-bone-400 italic pt-1 border-t border-ink-700/40 line-clamp-2" title={acc.instructions}>
+                          &ldquo;{acc.instructions}&rdquo;
+                        </p>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="mt-4 pt-3 border-t border-ink-700/60 flex items-center justify-between gap-2 text-xs">
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => toggleBankActive(idx)}
+                        className={`mono-tag inline-flex items-center gap-1 px-2 py-1 rounded text-[11px] transition-colors cursor-pointer ${
+                          acc.is_active
+                            ? "text-bone-300 hover:text-amber-300 bg-ink-700/40 hover:bg-ink-700"
+                            : "text-lime-400 hover:text-lime-300 bg-lime-400/10 hover:bg-lime-400/20"
+                        }`}
+                        title={acc.is_active ? "Hide from clients" : "Make visible to clients"}
+                      >
+                        {acc.is_active ? (
+                          <>
+                            <EyeOff size={11} /> Hide
+                          </>
+                        ) : (
+                          <>
+                            <Eye size={11} /> Unhide
+                          </>
+                        )}
+                      </button>
+
+                      {!acc.is_default && acc.is_active && (
+                        <button
+                          type="button"
+                          onClick={() => setBankDefault(idx)}
+                          className="mono-tag text-[11px] text-bone-400 hover:text-amber-300 transition-colors cursor-pointer"
+                          title="Set as primary default account"
+                        >
+                          Make default
+                        </button>
+                      )}
+                    </div>
+
+                    <div className="flex items-center gap-1">
+                      <button
+                        type="button"
+                        onClick={() => openEditBankModal(idx)}
+                        className="p-1 rounded text-bone-300 hover:text-lime-400 hover:bg-ink-700 transition-colors cursor-pointer"
+                        title="Edit account details"
+                      >
+                        <Edit2 size={13} />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => deleteBankAccount(idx)}
+                        className="p-1 rounded text-bone-400 hover:text-rose-400 hover:bg-rose-500/10 transition-colors cursor-pointer"
+                        title="Delete account"
+                      >
+                        <Trash2 size={13} />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </section>
+
+      {/* Add / Edit Bank Account Modal */}
+      <Modal
+        open={bankModalOpen}
+        onClose={() => setBankModalOpen(false)}
+        title={editingBankIndex !== null ? "Edit Bank Account" : "Add Bank Account"}
+        eyebrow="Payment Channel"
+        description="Enter the bank wire or electronic payment details clients will see on invoices."
+        size="xl"
+        footer={
+          <div className="flex items-center justify-end gap-3">
+            <button
+              type="button"
+              className="mono-tag rounded-lg border border-ink-600 px-3 py-1.5 text-xs text-bone-300 hover:text-bone-100 cursor-pointer"
+              onClick={() => setBankModalOpen(false)}
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              className="btn btn-primary h-8 px-4 text-xs cursor-pointer"
+              onClick={handleSaveBankForm}
+            >
+              {editingBankIndex !== null ? "Update Account" : "Add Account"}
+            </button>
+          </div>
+        }
+      >
+        <div className="space-y-4 py-1">
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div>
+              <label className={label}>Account Display Name *</label>
+              <input
+                className={field}
+                placeholder="e.g. USD International Wire (Wise)"
+                value={bankForm.name}
+                onChange={(e) => setBankForm({ ...bankForm, name: e.target.value })}
+              />
+            </div>
+            <div>
+              <label className={label}>Currency</label>
+              <CustomSelect
+                value={bankForm.currency}
+                onChange={(val) => setBankForm({ ...bankForm, currency: val })}
+                options={[
+                  ...CURRENCIES.map((c) => ({ value: c, label: c })),
+                  { value: "ALL", label: "ALL (Multi-currency)" },
+                ]}
+              />
+            </div>
+          </div>
+
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div>
+              <label className={label}>Beneficiary / Account Title *</label>
+              <input
+                className={field}
+                placeholder="e.g. Nex Desk LLC"
+                value={bankForm.beneficiary}
+                onChange={(e) => setBankForm({ ...bankForm, beneficiary: e.target.value })}
+              />
+            </div>
+            <div>
+              <label className={label}>Bank Name *</label>
+              <input
+                className={field}
+                placeholder="e.g. Wise / Community Federal Savings Bank"
+                value={bankForm.bank_name}
+                onChange={(e) => setBankForm({ ...bankForm, bank_name: e.target.value })}
+              />
+            </div>
+          </div>
+
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div>
+              <label className={label}>Account Number *</label>
+              <input
+                className={field}
+                placeholder="e.g. 9876543210"
+                value={bankForm.account_number}
+                onChange={(e) => setBankForm({ ...bankForm, account_number: e.target.value })}
+              />
+            </div>
+            <div>
+              <label className={label}>IBAN (if applicable)</label>
+              <input
+                className={field}
+                placeholder="e.g. GB00WISE00000012345678"
+                value={bankForm.iban ?? ""}
+                onChange={(e) => setBankForm({ ...bankForm, iban: e.target.value })}
+              />
+            </div>
+          </div>
+
+          <div className="grid gap-3 sm:grid-cols-3">
+            <div>
+              <label className={label}>SWIFT / BIC Code</label>
+              <input
+                className={field}
+                placeholder="e.g. CMFGUS33"
+                value={bankForm.swift ?? ""}
+                onChange={(e) => setBankForm({ ...bankForm, swift: e.target.value })}
+              />
+            </div>
+            <div>
+              <label className={label}>Routing # / Sort Code</label>
+              <input
+                className={field}
+                placeholder="e.g. 026073150"
+                value={bankForm.routing_number ?? ""}
+                onChange={(e) => setBankForm({ ...bankForm, routing_number: e.target.value })}
+              />
+            </div>
+            <div>
+              <label className={label}>Branch / Country</label>
+              <input
+                className={field}
+                placeholder="e.g. New York, USA"
+                value={bankForm.branch ?? ""}
+                onChange={(e) => setBankForm({ ...bankForm, branch: e.target.value })}
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className={label}>Payment Instructions / Reference Notes</label>
+            <textarea
+              rows={2}
+              className={`${field} resize-none`}
+              placeholder="e.g. Wire transfer in USD. Please include invoice number in the payment memo."
+              value={bankForm.instructions ?? ""}
+              onChange={(e) => setBankForm({ ...bankForm, instructions: e.target.value })}
+            />
+          </div>
+
+          <div className="flex flex-wrap items-center gap-5 pt-2 border-t border-ink-700">
+            <label className="flex items-center gap-2 cursor-pointer text-xs text-bone-200">
+              <input
+                type="checkbox"
+                checked={bankForm.is_active}
+                onChange={(e) => setBankForm({ ...bankForm, is_active: e.target.checked })}
+                className="h-4 w-4 rounded border-ink-500 bg-ink-800 text-lime-400 focus:ring-lime-400"
+              />
+              <span>Visible to clients on invoices (Active)</span>
+            </label>
+
+            <label className="flex items-center gap-2 cursor-pointer text-xs text-bone-200">
+              <input
+                type="checkbox"
+                checked={bankForm.is_default}
+                onChange={(e) => setBankForm({ ...bankForm, is_default: e.target.checked })}
+                className="h-4 w-4 rounded border-ink-500 bg-ink-800 text-lime-400 focus:ring-lime-400"
+              />
+              <span>Set as primary default account</span>
+            </label>
+          </div>
+        </div>
+      </Modal>
 
       <section className="card p-6 xl:col-span-2">
         <h2 className="mb-2 text-base">Default terms and conditions</h2>
@@ -364,7 +819,7 @@ export default function SettingsForm({ settings, staff }: { settings: any; staff
                 const init = JSON.parse(initialState);
                 setF(init.f);
                 setWorkDays(init.workDays);
-                setBank(init.bank);
+                setBankAccounts(init.bankAccounts);
               }}
             >
               Discard

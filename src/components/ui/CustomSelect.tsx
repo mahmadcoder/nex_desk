@@ -17,6 +17,8 @@ interface CustomSelectProps {
   /** Rendered above the trigger and wired to it for screen readers. */
   label?: string;
   name?: string;
+  align?: "left" | "right" | "auto";
+  menuClassName?: string;
 }
 
 /**
@@ -44,9 +46,12 @@ export default function CustomSelect({
   disabled = false,
   label,
   name,
+  align = "auto",
+  menuClassName,
 }: CustomSelectProps) {
   const [open, setOpen] = useState(false);
   const [active, setActive] = useState(-1);
+  const [placement, setPlacement] = useState<"left" | "right">("left");
 
   const containerRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
@@ -56,6 +61,37 @@ export default function CustomSelect({
   const listId = useId();
   const selectedIndex = useMemo(() => options.findIndex((o) => o.value === value), [options, value]);
   const selectedOption = selectedIndex >= 0 ? options[selectedIndex] : undefined;
+
+  useEffect(() => {
+    if (!open || !containerRef.current) return;
+    if (align === "right") {
+      setPlacement("right");
+      return;
+    }
+    if (align === "left") {
+      setPlacement("left");
+      return;
+    }
+    try {
+      const rect = containerRef.current.getBoundingClientRect();
+      const scrollParent =
+        containerRef.current.closest(".overflow-y-auto, .overflow-auto, .card") || document.body;
+      const parentRect = scrollParent.getBoundingClientRect();
+
+      const spaceToRight = Math.min(parentRect.right, window.innerWidth) - rect.left;
+      const spaceToLeft = rect.right - Math.max(parentRect.left, 0);
+
+      // If there is less than 300px to the right, but more room to the left, align right.
+      // Otherwise default to left alignment.
+      if (spaceToRight < 300 && spaceToLeft > spaceToRight) {
+        setPlacement("right");
+      } else {
+        setPlacement("left");
+      }
+    } catch {
+      setPlacement("left");
+    }
+  }, [open, align]);
 
   const close = useCallback((focusTrigger = true) => {
     setOpen(false);
@@ -202,7 +238,11 @@ export default function CustomSelect({
           id={listId}
           role="listbox"
           aria-labelledby={`${listId}-trigger`}
-          className="nd-select-menu nd-scroll absolute right-0 z-50 mt-1.5 max-h-64 min-w-full w-max max-w-[320px] overflow-y-auto rounded-lg border border-ink-600 bg-ink-900/95 p-1.5 shadow-2xl backdrop-blur-md"
+          className={cn(
+            "nd-select-menu nd-scroll absolute z-50 mt-1.5 max-h-64 min-w-full w-max max-w-[380px] overflow-y-auto rounded-lg border border-ink-600 bg-ink-900/95 p-1.5 shadow-2xl backdrop-blur-md",
+            placement === "right" ? "right-0" : "left-0",
+            menuClassName
+          )}
         >
           {options.length === 0 ? (
             <div className="px-3 py-2 text-xs text-bone-300">No options available</div>
@@ -228,7 +268,7 @@ export default function CustomSelect({
                         : "text-bone-200"
                   )}
                 >
-                  <span className="whitespace-nowrap">{opt.label}</span>
+                  <span className="truncate" title={opt.label}>{opt.label}</span>
                   <span className="ml-auto flex shrink-0 items-center gap-2">
                     {opt.badge && (
                       <span className="mono-tag rounded bg-lime-400/10 px-1.5 py-0.5 text-[10px] text-lime-400">

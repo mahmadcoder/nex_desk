@@ -2,13 +2,13 @@ import { requirePortalPerm } from "@/lib/portal/session";
 import { loadBilling, loadVisibleExpenses } from "@/lib/portal/data";
 import { money, moneyMulti, daysUntil } from "@/lib/utils";
 import { fmtDate } from "@/lib/datetime";
-import { invoiceOriginLabel } from "@/lib/billing";
 import { expenseCategoryLabel } from "@/config/expenseCategories";
-import { Badge } from "@/components/admin/ui";
 import { DollarSign, Receipt, FileText } from "lucide-react";
 import { redirect } from "next/navigation";
 import { createAdminClient } from "@/lib/supabase/server";
 import ClientInvoiceRow from "@/components/portal/ClientInvoiceRow";
+import { normalizeBankDetails, filterAllowedBankAccounts } from "@/lib/bank";
+import { invoiceOriginLabel } from "@/lib/billing";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
@@ -36,6 +36,13 @@ export default async function PortalInvoices() {
       .not("invoice_id", "is", null)
       .order("created_at", { ascending: false }),
   ]);
+
+  const allBankAccounts = normalizeBankDetails(
+    settings?.bank_details,
+    settings?.company_name || "Nex Desk"
+  );
+  const clientAllowedIds = session.client?.client_permissions?.allowed_bank_ids || null;
+  const filteredBankAccounts = filterAllowedBankAccounts(allBankAccounts, clientAllowedIds);
 
   const proofByInvoiceId = new Map<string, any>();
   for (const doc of clientProofs ?? []) {
@@ -133,7 +140,7 @@ export default async function PortalInvoices() {
             <ClientInvoiceRow
               key={i.id}
               invoice={i}
-              bankDetails={settings?.bank_details as any}
+              bankAccounts={filteredBankAccounts}
               companyName={settings?.company_name || "Nex Desk"}
             />
           ))}

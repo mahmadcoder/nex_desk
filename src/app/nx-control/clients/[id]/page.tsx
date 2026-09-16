@@ -48,6 +48,7 @@ function getClientTenure(createdAt: string) {
 import ClientTeamAssignments from "@/components/admin/ClientTeamAssignments";
 import { getCurrentStaff, assignedClientIds } from "@/lib/auth/staff";
 import { fmtDate } from "@/lib/datetime";
+import { normalizeBankDetails } from "@/lib/bank";
 
 export default async function ClientDetail({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -78,6 +79,7 @@ export default async function ClientDetail({ params }: { params: Promise<{ id: s
     { data: allEmployees },
     { data: expenses, error: expensesError },
     { data: changeRequests },
+    { data: settings },
   ] = await Promise.all([
     db.from("projects").select("*").eq("client_id", id).order("created_at", { ascending: false }),
     db.from("invoices").select("*").eq("client_id", id).order("issue_date", { ascending: false }),
@@ -92,6 +94,7 @@ export default async function ClientDetail({ params }: { params: Promise<{ id: s
     db.from("change_requests")
       .select("id, status, quoted_amount, currency, invoice_id, title")
       .eq("client_id", id),
+    db.from("settings").select("bank_details, company_name").eq("id", 1).maybeSingle(),
   ]);
 
   // Loud on purpose: before the 2027-06 migration this select returns an error
@@ -426,6 +429,7 @@ export default async function ClientDetail({ params }: { params: Promise<{ id: s
             portal_password_preview: revealPreview(client),
             password_changed_at: client.password_changed_at ?? null,
           }}
+          bankAccounts={normalizeBankDetails(settings?.bank_details, settings?.company_name || "Nex Desk")}
         />
       )}
 

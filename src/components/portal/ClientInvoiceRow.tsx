@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useTransition, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import {
@@ -14,6 +14,7 @@ import {
   Upload,
   Loader2,
   ExternalLink,
+  Landmark,
 } from "lucide-react";
 import { money } from "@/lib/utils";
 import { fmtDate } from "@/lib/datetime";
@@ -21,6 +22,8 @@ import { Badge } from "@/components/admin/ui";
 import Modal from "@/components/admin/Modal";
 import PaymentProofUpload from "@/components/admin/PaymentProofUpload";
 import { submitInvoicePaymentProof } from "@/lib/actions/portal";
+import { AgencyBankAccount } from "@/types/bank";
+import { normalizeBankDetails } from "@/lib/bank";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
@@ -37,12 +40,14 @@ interface ClientInvoiceRowProps {
     has_proof?: boolean;
     proof_submitted_at?: string | null;
   };
+  bankAccounts?: AgencyBankAccount[];
   bankDetails?: Record<string, string> | null;
   companyName?: string;
 }
 
 export default function ClientInvoiceRow({
   invoice,
+  bankAccounts,
   bankDetails,
   companyName = "Nex Desk",
 }: ClientInvoiceRowProps) {
@@ -54,6 +59,22 @@ export default function ClientInvoiceRow({
   const [proofUrl, setProofUrl] = useState("");
   const [reference, setReference] = useState("");
   const [notes, setNotes] = useState("");
+
+  const accounts: AgencyBankAccount[] = useMemo(() => {
+    if (bankAccounts && bankAccounts.length > 0) return bankAccounts;
+    return normalizeBankDetails(bankDetails, companyName);
+  }, [bankAccounts, bankDetails, companyName]);
+
+  const [selectedAccountId, setSelectedAccountId] = useState<string>(() => {
+    const matching = accounts.find(
+      (a) => a.currency === invoice.currency.toUpperCase() && a.is_active !== false
+    );
+    if (matching) return matching.id;
+    const def = accounts.find((a) => a.is_default && a.is_active !== false);
+    return def ? def.id : accounts[0]?.id || "";
+  });
+
+  const currentAccount = accounts.find((a) => a.id === selectedAccountId) || accounts[0];
 
   const balance = Math.max(0, Number(invoice.total) - Number(invoice.amount_paid));
   const isPaid = invoice.status === "paid" || balance <= 0;
@@ -73,11 +94,18 @@ export default function ClientInvoiceRow({
     }
 
     startTransition(async () => {
+      const fullNotes = [
+        notes.trim(),
+        currentAccount ? `Payment sent via: ${currentAccount.name} (${currentAccount.currency})` : null,
+      ]
+        .filter(Boolean)
+        .join("\n");
+
       const res = await submitInvoicePaymentProof({
         invoiceId: invoice.id,
         proofUrl,
         reference,
-        notes,
+        notes: fullNotes,
       });
 
       if (!res.ok) {
@@ -90,18 +118,6 @@ export default function ClientInvoiceRow({
       router.refresh();
     });
   };
-
-  const defaultBank = {
-    "Beneficiary / Account Title": companyName || "Nex Desk",
-    "Bank Name": "Standard Chartered / Agency Wire",
-    "IBAN / Account Number": "PK00SCBL0000001234567801",
-    "SWIFT / BIC Code": "SCBLPKKXXXX",
-    "Branch / Country": "Multan, Pakistan",
-  };
-
-  const bankEntries = Object.entries(
-    bankDetails && Object.keys(bankDetails).length > 0 ? bankDetails : defaultBank
-  ).filter(([_, v]) => Boolean(v && String(v).trim()));
 
   return (
     <>
@@ -240,26 +256,60 @@ export default function ClientInvoiceRow({
 
           {/* Bank Transfer Details Cards */}
           <div>
-            <h3 className="mono-tag mb-2 flex items-center gap-1.5 text-xs text-bone-200">
-              <Building2 size={14} className="text-lime-400" /> Official Bank Transfer Details
-            </h3>
+            <div className="flex items-center justify-between mb-2">
+              <h3 className="mono-tag flex items-center gap-1.5 text-xs text-bone-200">
+                <Building2 size={14} className="text-lime-400" /> Official Bank Transfer Details
+              </h3>
+              {currentAccount && (
+                <span className="mono-tag rounded border border-lime-400/30 bg-lime-400/10 px-2 py-0.5 text-[10px] text-lime-400 font-semibold">
+                  {currentAccount.currency}
+                </span>
+              )}
+            </div>
 
-            <div className="space-y-2 rounded-lg border border-ink-600 bg-ink-900/50 p-3.5">
-              {bankEntries.map(([k, v]) => (
-                <div
-                  key={k}
-                  className="flex flex-wrap items-center justify-between gap-2 border-b border-ink-800/80 pb-2 last:border-0 last:pb-0 text-xs"
-                >
-                  <span className="text-bone-400 font-mono">{k}</span>
+            {/* Account Switcher Tabs (if multiple accounts available for this client) */}
+            {accounts.length > 1 && (
+              <div className="mb-3">
+                <p className="mono-tag text-[10px] text-bone-400 mb-1.5">Choose Payment Account:</p>
+                <div className="flex items-center gap-2 overflow-x-auto pb-1 custom-admin-scrollbar">
+                  {accounts.map((acc) => {
+                    const isSelected = acc.id === currentAccount?.id;
+                    return (
+                      <button
+                        key={acc.id}
+                        type="button"
+                        onClick={() => setSelectedAccountId(acc.id)}
+                        className={`mono-tag inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs transition-all cursor-pointer shrink-0 ${
+                          isSelected
+                            ? "border-lime-400 bg-lime-400/15 text-lime-300 font-semibold shadow-xs"
+                            : "border-ink-600 bg-ink-900/80 text-bone-300 hover:border-ink-500 hover:text-bone-100"
+                        }`}
+                      >
+                        <Building2 size={12} className={isSelected ? "text-lime-400" : "text-bone-400"} />
+                        <span>{acc.name}</span>
+                        <span className="rounded bg-ink-800 px-1 py-0.2 text-[9px] text-lime-400 font-mono">
+                          {acc.currency}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {currentAccount ? (
+              <div className="space-y-2 rounded-lg border border-ink-600 bg-ink-900/50 p-3.5">
+                <div className="flex flex-wrap items-center justify-between gap-2 border-b border-ink-800/80 pb-2 text-xs">
+                  <span className="text-bone-400 font-mono">Beneficiary / Title</span>
                   <div className="flex items-center gap-2 font-mono font-medium text-bone-100">
-                    <span className="select-all">{String(v)}</span>
+                    <span className="select-all">{currentAccount.beneficiary}</span>
                     <button
                       type="button"
-                      onClick={() => copyToClipboard(k, String(v))}
-                      className="text-bone-500 hover:text-lime-400 transition-colors p-1"
-                      title={`Copy ${k}`}
+                      onClick={() => copyToClipboard("Account Title", currentAccount.beneficiary)}
+                      className="text-bone-500 hover:text-lime-400 transition-colors p-1 cursor-pointer"
+                      title="Copy Account Title"
                     >
-                      {copiedKey === k ? (
+                      {copiedKey === "Account Title" ? (
                         <Check size={12} className="text-emerald-400" />
                       ) : (
                         <Copy size={12} />
@@ -267,8 +317,117 @@ export default function ClientInvoiceRow({
                     </button>
                   </div>
                 </div>
-              ))}
-            </div>
+
+                <div className="flex flex-wrap items-center justify-between gap-2 border-b border-ink-800/80 pb-2 text-xs">
+                  <span className="text-bone-400 font-mono">Bank Name</span>
+                  <div className="flex items-center gap-2 font-mono font-medium text-bone-100">
+                    <span className="select-all">{currentAccount.bank_name}</span>
+                    <button
+                      type="button"
+                      onClick={() => copyToClipboard("Bank Name", currentAccount.bank_name)}
+                      className="text-bone-500 hover:text-lime-400 transition-colors p-1 cursor-pointer"
+                      title="Copy Bank Name"
+                    >
+                      {copiedKey === "Bank Name" ? (
+                        <Check size={12} className="text-emerald-400" />
+                      ) : (
+                        <Copy size={12} />
+                      )}
+                    </button>
+                  </div>
+                </div>
+
+                <div className="flex flex-wrap items-center justify-between gap-2 border-b border-ink-800/80 pb-2 text-xs">
+                  <span className="text-bone-400 font-mono">Account Number / IBAN</span>
+                  <div className="flex items-center gap-2 font-mono font-medium text-bone-100">
+                    <span className="select-all">
+                      {currentAccount.iban || currentAccount.account_number}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        copyToClipboard(
+                          "Account Number",
+                          currentAccount.iban || currentAccount.account_number
+                        )
+                      }
+                      className="text-bone-500 hover:text-lime-400 transition-colors p-1 cursor-pointer"
+                      title="Copy Account Number"
+                    >
+                      {copiedKey === "Account Number" ? (
+                        <Check size={12} className="text-emerald-400" />
+                      ) : (
+                        <Copy size={12} />
+                      )}
+                    </button>
+                  </div>
+                </div>
+
+                {currentAccount.swift && (
+                  <div className="flex flex-wrap items-center justify-between gap-2 border-b border-ink-800/80 pb-2 text-xs">
+                    <span className="text-bone-400 font-mono">SWIFT / BIC</span>
+                    <div className="flex items-center gap-2 font-mono font-medium text-bone-100">
+                      <span className="select-all">{currentAccount.swift}</span>
+                      <button
+                        type="button"
+                        onClick={() => copyToClipboard("SWIFT Code", currentAccount.swift!)}
+                        className="text-bone-500 hover:text-lime-400 transition-colors p-1 cursor-pointer"
+                        title="Copy SWIFT Code"
+                      >
+                        {copiedKey === "SWIFT Code" ? (
+                          <Check size={12} className="text-emerald-400" />
+                        ) : (
+                          <Copy size={12} />
+                        )}
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {currentAccount.routing_number && (
+                  <div className="flex flex-wrap items-center justify-between gap-2 border-b border-ink-800/80 pb-2 text-xs">
+                    <span className="text-bone-400 font-mono">Routing # / Sort Code</span>
+                    <div className="flex items-center gap-2 font-mono font-medium text-bone-100">
+                      <span className="select-all">{currentAccount.routing_number}</span>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          copyToClipboard("Routing Number", currentAccount.routing_number!)
+                        }
+                        className="text-bone-500 hover:text-lime-400 transition-colors p-1 cursor-pointer"
+                        title="Copy Routing Number"
+                      >
+                        {copiedKey === "Routing Number" ? (
+                          <Check size={12} className="text-emerald-400" />
+                        ) : (
+                          <Copy size={12} />
+                        )}
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {currentAccount.branch && (
+                  <div className="flex flex-wrap items-center justify-between gap-2 border-b border-ink-800/80 pb-2 text-xs">
+                    <span className="text-bone-400 font-mono">Branch / Country</span>
+                    <span className="font-mono text-bone-100 font-medium">
+                      {currentAccount.branch}
+                    </span>
+                  </div>
+                )}
+
+                {currentAccount.instructions && (
+                  <div className="pt-2 text-[11px] text-bone-400 leading-relaxed border-t border-ink-800/80">
+                    <span className="font-medium text-bone-300">Payment Memo Note: </span>
+                    {currentAccount.instructions}
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="p-3 text-xs text-bone-400 border border-ink-700 rounded bg-ink-900/40">
+                Please contact Nex Desk support for payment transfer details.
+              </div>
+            )}
           </div>
 
           {/* Upload Transfer Receipt */}

@@ -7,6 +7,7 @@ import { agencyDay } from "@/lib/datetime";
 import { SUB_PROCESSORS } from "@/config/subprocessors";
 import { SECURITY_SECTIONS, SECURITY_PREAMBLE } from "@/config/security";
 import { intakeFieldsFor, intakeTitleFor } from "@/config/intakeFields";
+import { normalizeBankDetails, filterAllowedBankAccounts } from "@/lib/bank";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
@@ -327,6 +328,17 @@ export function QuotationDoc({ deal, client }: { deal: any; client: Party }) {
    ============================================================ */
 export function InvoiceDoc({ invoice, client, bank }: { invoice: any; client: Party; bank?: any }) {
   const balance = Number(invoice.total) - Number(invoice.amount_paid);
+
+  const allAccounts = normalizeBankDetails(bank);
+  const clientAllowed = (client as any)?.client_permissions?.allowed_bank_ids || null;
+  const permittedAccounts = filterAllowedBankAccounts(allAccounts, clientAllowed);
+
+  // Match invoice currency if possible, or fallback to permitted accounts
+  const matchingAccounts = permittedAccounts.filter(
+    (a) => !a.currency || a.currency.toUpperCase() === (invoice.currency || "").toUpperCase()
+  );
+  const displayAccounts = matchingAccounts.length > 0 ? matchingAccounts : permittedAccounts;
+
   return (
     <Document title={`Invoice ${invoice.invoice_no}`} author="Nex Desk">
       <Page size="A4" style={s.page}>
@@ -366,11 +378,42 @@ export function InvoiceDoc({ invoice, client, bank }: { invoice: any; client: Pa
 
         <Text style={s.h2}>How to pay</Text>
         <View style={s.callout}>
-          {bank ? (
-            Object.entries(bank).map(([k, v]) => (
-              <Text key={k}>
-                <Text style={s.muted}>{k}: </Text>{String(v)}
-              </Text>
+          {displayAccounts.length > 0 ? (
+            displayAccounts.map((acc, idx) => (
+              <View
+                key={acc.id}
+                style={idx > 0 ? { marginTop: 8, paddingTop: 8, borderTopWidth: 0.5, borderTopColor: C.line } : {}}
+              >
+                <Text style={{ fontWeight: 600, color: C.ink, marginBottom: 2 }}>
+                  {acc.name} {acc.currency ? `(${acc.currency})` : ""}
+                </Text>
+                {acc.beneficiary && (
+                  <Text><Text style={s.muted}>Beneficiary: </Text>{acc.beneficiary}</Text>
+                )}
+                {acc.bank_name && (
+                  <Text><Text style={s.muted}>Bank Name: </Text>{acc.bank_name}</Text>
+                )}
+                {acc.account_number && (
+                  <Text><Text style={s.muted}>Account No: </Text>{acc.account_number}</Text>
+                )}
+                {acc.iban && (
+                  <Text><Text style={s.muted}>IBAN: </Text>{acc.iban}</Text>
+                )}
+                {acc.swift && (
+                  <Text><Text style={s.muted}>SWIFT / BIC: </Text>{acc.swift}</Text>
+                )}
+                {acc.routing_number && (
+                  <Text><Text style={s.muted}>Routing / Sort Code: </Text>{acc.routing_number}</Text>
+                )}
+                {acc.branch && (
+                  <Text><Text style={s.muted}>Branch: </Text>{acc.branch}</Text>
+                )}
+                {acc.instructions && (
+                  <Text style={{ marginTop: 2, fontSize: 8.5, color: C.muted }}>
+                    Note: {acc.instructions}
+                  </Text>
+                )}
+              </View>
             ))
           ) : (
             <Text style={s.muted}>Bank details are set in admin under Settings.</Text>
