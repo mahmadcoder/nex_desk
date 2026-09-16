@@ -8,6 +8,7 @@ import { SUB_PROCESSORS } from "@/config/subprocessors";
 import { SECURITY_SECTIONS, SECURITY_PREAMBLE } from "@/config/security";
 import { intakeFieldsFor, intakeTitleFor } from "@/config/intakeFields";
 import { normalizeBankDetails, filterAllowedBankAccounts } from "@/lib/bank";
+import { parseOfferAcceptance } from "@/lib/staffOffer";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
@@ -780,6 +781,7 @@ export function StaffOfferLetterDoc({ employee }: { employee: any }) {
   const employmentType = String(employee.employment_type || "Full-Time");
   const location = [employee.city, employee.country].filter(Boolean).join(", ") || "Remote";
   const skills: string[] = Array.isArray(employee.skills) ? employee.skills : [];
+  const offerStatus = parseOfferAcceptance(employee.notes);
 
   return (
     <Document title={`Offer letter — ${employee.full_name}`} author="Nex Desk">
@@ -914,15 +916,27 @@ export function StaffOfferLetterDoc({ employee }: { employee: any }) {
         <View style={s.signRow}>
           <View style={s.signBox}>
             <Text style={s.label}>Accepted by</Text>
-            <Text style={{ marginTop: 12, fontWeight: 500 }}>{employee.full_name}</Text>
+            {offerStatus.signatureData && (
+              <Image
+                src={offerStatus.signatureData}
+                style={{ height: 32, width: 120, objectFit: "contain", marginTop: 4, marginBottom: 2 }}
+              />
+            )}
+            <Text style={{ marginTop: offerStatus.signatureData ? 2 : 12, fontWeight: 500 }}>
+              {offerStatus.signedName || employee.full_name}
+            </Text>
             <Text style={s.muted}>{employee.email}</Text>
-            <Text style={[s.muted, { marginTop: 6 }]}>Date: ____________________</Text>
+            <Text style={[s.muted, { marginTop: 6 }]}>
+              {offerStatus.isAccepted && offerStatus.acceptedAt
+                ? `Digitally Accepted: ${date(offerStatus.acceptedAt)}`
+                : "Date: ____________________"}
+            </Text>
           </View>
           <View style={s.signBox}>
             <Text style={s.label}>For {docAgency().name}</Text>
             <Text style={{ marginTop: 12, fontWeight: 500 }}>{docAgency().name}</Text>
             <Text style={s.muted}>{CONTACT_EMAIL}</Text>
-            <Text style={[s.muted, { marginTop: 6 }]}>Date: {date(new Date().toISOString())}</Text>
+            <Text style={[s.muted, { marginTop: 6 }]}>Date: {date(employee.created_at || new Date().toISOString())}</Text>
           </View>
         </View>
 

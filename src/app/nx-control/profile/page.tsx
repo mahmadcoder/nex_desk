@@ -5,6 +5,8 @@ import { PageHead, Empty } from "@/components/admin/ui";
 import { Wallet, CalendarDays, Clock, Users } from "lucide-react";
 import MyPhoto from "@/components/admin/MyPhoto";
 import MyName from "@/components/admin/MyName";
+import AcceptOfferLetter from "@/components/admin/AcceptOfferLetter";
+import { parseOfferAcceptance } from "@/lib/staffOffer";
 import { fmtDate } from "@/lib/datetime";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -41,7 +43,7 @@ export default async function MyProfilePage() {
     ? await Promise.all([
         db
           .from("employees")
-          .select("id, full_name, email, job_title, seniority, employment_type, joining_date, skills, avatar_url, status, avatar_removal_requested_at")
+          .select("id, full_name, email, job_title, seniority, employment_type, joining_date, skills, avatar_url, status, avatar_removal_requested_at, notes, salary_amount, salary_currency, city, country")
           .eq("id", me.employeeId!)
           .maybeSingle(),
         db
@@ -50,6 +52,8 @@ export default async function MyProfilePage() {
           .eq("employee_id", me.employeeId!),
       ])
     : [{ data: null as any }, { data: [] as any[] }];
+
+  const offerStatus = parseOfferAcceptance(employee?.notes);
 
   const { data: profile } = isEmployee
     ? { data: null as any }
@@ -105,6 +109,14 @@ export default async function MyProfilePage() {
                 photo is yours to set and appears wherever you do in the panel.
               </p>
             </section>
+          )}
+
+          {isEmployee && employee && (
+            <AcceptOfferLetter
+              employee={employee}
+              offerStatus={offerStatus}
+              variant="card"
+            />
           )}
 
           {isEmployee && (

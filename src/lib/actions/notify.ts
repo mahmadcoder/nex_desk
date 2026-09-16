@@ -33,6 +33,7 @@ export type NotifyKind =
   | "worklog.submitted"
   | "leave.requested"
   | "staff.late"
+  | "offer.accepted"
   // addressed to one employee
   | "task.assigned"
   | "leave.decided"

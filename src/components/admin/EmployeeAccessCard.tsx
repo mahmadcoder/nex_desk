@@ -4,9 +4,11 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import StatusControl from "@/components/admin/StatusControl";
-import { KeyRound, Copy, Send, Eye, EyeOff, FileDown } from "lucide-react";
+import { KeyRound, Copy, Send, Eye, EyeOff, FileDown, CheckCircle2, Clock } from "lucide-react";
 import { sendEmployeeCredentials } from "@/lib/actions/cms";
 import { getSiteBaseUrl, adminPath } from "@/lib/utils";
+import { parseOfferAcceptance } from "@/lib/staffOffer";
+import { fmtDate } from "@/lib/datetime";
 
 /**
  * Staff panel access for one employee: shows the current credentials and
@@ -24,6 +26,7 @@ export default function EmployeeAccessCard({
     /** Active | On Leave | Terminated — whether they may sign in at all. */
     status?: string | null;
     portal_password_preview: string | null;
+    notes?: any;
   };
 }) {
   const router = useRouter();
@@ -33,6 +36,7 @@ export default function EmployeeAccessCard({
 
   const loginUrl = `${getSiteBaseUrl()}${adminPath("/login")}`;
   const hasAccount = !!employee.user_id;
+  const offerStatus = parseOfferAcceptance(employee.notes);
 
   const copyCredentials = () => {
     navigator.clipboard.writeText(
@@ -156,15 +160,32 @@ export default function EmployeeAccessCard({
             )}
           </div>
         </div>
+
+        <div className="rounded-lg border border-ink-700 bg-ink-900/60 p-2.5">
+          <span className="mono-tag mb-1 block text-[10px]">Offer Letter Status</span>
+          {offerStatus.isAccepted ? (
+            <div className="flex items-center gap-1.5 text-xs text-emerald-300 font-medium">
+              <CheckCircle2 size={14} className="text-emerald-400 shrink-0" />
+              <span>
+                Signed on {fmtDate(offerStatus.acceptedAt)} by {offerStatus.signedName || employee.full_name}
+              </span>
+            </div>
+          ) : (
+            <div className="flex items-center gap-1.5 text-xs text-amber-300 font-medium">
+              <Clock size={14} className="text-amber-400 shrink-0" />
+              <span>Pending digital acceptance by employee</span>
+            </div>
+          )}
+        </div>
       </div>
 
       <div className="flex flex-wrap gap-2 border-t border-ink-700 pt-3">
         <button onClick={copyCredentials} className="btn h-8 px-3 text-xs">
           <Copy className="mr-1.5 h-3.5 w-3.5" /> Copy
         </button>
-        <button onClick={downloadOffer} disabled={downloading} className="btn h-8 px-3 text-xs">
-          <FileDown className="mr-1.5 h-3.5 w-3.5" />
-          {downloading ? "Building…" : "Offer letter"}
+        <button onClick={downloadOffer} disabled={downloading} className="btn h-8 px-3 text-xs gap-1.5">
+          <FileDown className="h-3.5 w-3.5" />
+          {downloading ? "Building…" : offerStatus.isAccepted ? "Signed offer letter" : "Offer letter"}
         </button>
         <button onClick={resend} disabled={pending} className="btn btn-primary h-8 px-3 text-xs">
           <Send className="mr-1.5 h-3.5 w-3.5" />

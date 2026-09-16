@@ -281,6 +281,7 @@ export default async function EmployeeDetailPage({
               email: employee.email,
               user_id: employee.user_id ?? null,
               portal_password_preview: revealPreview(employee),
+              notes: employee.notes,
             }}
           />
 

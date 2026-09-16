@@ -27,9 +27,9 @@ export async function POST(req: Request) {
     if (!id) return NextResponse.json({ error: "Missing id." }, { status: 400 });
 
     if (type === "offer_letter") {
-      if (!me.isPrivileged) {
+      if (!me.isPrivileged && me.employeeId !== id) {
         return NextResponse.json(
-          { error: "Only an owner or admin can generate staff documents." },
+          { error: "You can only generate your own offer letter." },
           { status: 403 }
         );
       }

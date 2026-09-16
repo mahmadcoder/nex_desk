@@ -84,20 +84,21 @@ const STAFF_NAV = [
     items: [
       { href: "", label: "Dashboard", icon: LayoutDashboard },
       { href: "/notifications", label: "Notifications", icon: Bell },
-      { href: "/intake", label: "Request Details", icon: ClipboardList },
-      { href: "/clients", label: "My Clients", icon: Users },
-      { href: "/projects", label: "My Projects", icon: FolderKanban },
       { href: "/tasks", label: "My Tasks", icon: ListChecks },
-      { href: "/calendar", label: "Calendar", icon: CalendarDays },
+      { href: "/projects", label: "My Projects", icon: FolderKanban },
       { href: "/daily-logs", label: "Daily Work Logs", icon: Clock },
+      { href: "/calendar", label: "Calendar", icon: CalendarDays },
       // Scoped to their assigned clients only — enforced on the page itself.
       { href: "/meetings", label: "My Meetings", icon: CalendarClock },
-      { href: "/tickets", label: "Tickets", icon: LifeBuoy },
-      { href: "/leave", label: "My Leave", icon: CalendarDays },
-      // Their own record only. Everyone else's lives at /attendance, which
-      // staff cannot reach.
+      { href: "/clients", label: "My Clients", icon: Users },
+    ],
+  },
+  {
+    title: "MY EMPLOYMENT",
+    items: [
+      // Their own record only. Everyone else's lives at /attendance, which staff cannot reach.
       { href: "/my-attendance", label: "My Attendance", icon: UserCheck },
-      { href: "/handbook", label: "Handbook", icon: BookOpen },
+      { href: "/leave", label: "My Leave", icon: CalendarDays },
       { href: "/my-pay", label: "My Pay", icon: Wallet },
       { href: "/profile", label: "My Profile", icon: UserCircle },
     ],

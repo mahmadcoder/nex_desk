@@ -16,6 +16,8 @@ import HolidayNoticeBanner, { type HolidayItem } from "@/components/ui/HolidayNo
 import LiveClockGreeting from "@/components/ui/LiveClockGreeting";
 import { Zap, DollarSign, TrendingUp, ShieldCheck } from "lucide-react";
 import { money } from "@/lib/utils";
+import AcceptOfferLetter from "@/components/admin/AcceptOfferLetter";
+import { parseOfferAcceptance } from "@/lib/staffOffer";
 
 const BASE = `/${process.env.ADMIN_PATH || "nx-control"}`;
 
@@ -72,7 +74,13 @@ export default async function StaffDashboard({
         .limit(3)
     : { data: [] as any[] };
 
-  const [{ data: projects }, { data: myLogs }, { data: openBlockers }, { data: openTasks, error: tasksError }] = await Promise.all([
+  const [
+    { data: projects },
+    { data: myLogs },
+    { data: openBlockers },
+    { data: openTasks, error: tasksError },
+    { data: employeeRow },
+  ] = await Promise.all([
     clientIds.length
       ? db.from("projects")
           .select("id, name, status, progress, deadline, clients(name)")
@@ -108,7 +116,17 @@ export default async function StaffDashboard({
           .order("due_date", { nullsFirst: false })
           .limit(12)
       : Promise.resolve({ data: [] as any[], error: null }),
+
+    me.employeeId
+      ? db
+          .from("employees")
+          .select("id, full_name, email, job_title, seniority, employment_type, salary_amount, salary_currency, joining_date, city, country, notes")
+          .eq("id", me.employeeId)
+          .maybeSingle()
+      : Promise.resolve({ data: null as any }),
   ]);
+
+  const offerStatus = parseOfferAcceptance(employeeRow?.notes);
 
   // Before the 2027-09 migration this errors and returns null. The dashboard
   // must still render — a missing task list is not a reason to lose the whole
@@ -160,6 +178,16 @@ export default async function StaffDashboard({
       </div>
 
       <HolidayNoticeBanner holidays={holidays} />
+
+      {employeeRow && !offerStatus.isAccepted && (
+        <div className="mb-6">
+          <AcceptOfferLetter
+            employee={employeeRow}
+            offerStatus={offerStatus}
+            variant="banner"
+          />
+        </div>
+      )}
 
       {/* The clock comes first: it is the thing with a deadline attached to it,
           and everything below is a summary that can wait. */}

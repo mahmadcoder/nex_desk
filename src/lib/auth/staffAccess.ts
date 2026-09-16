@@ -26,14 +26,8 @@ const STAFF_ALLOWED_SEGMENTS = [
   // `avatar_url` matched on the caller's user_id, never an id from the client.
   "profile",
   "login",
-  "intake",
 
-  // ---- Added alongside the screens themselves ----------------------------
-  //
-  // Each of these is in STAFF_NAV and each scopes itself server-side. They
-  // were missing from this list, so a staff member clicking their own sidebar
-  // was silently bounced back to the dashboard.
-
+  // ---- Work & Collaboration Screens ----------------------------------------
   // The Kanban. Scoped twice in the query: `assigned_employee_id = me`, then
   // filtered again against `assignedClientIds`.
   "tasks",
@@ -42,15 +36,9 @@ const STAFF_ALLOWED_SEGMENTS = [
   "calendar",
   // Only meetings for clients they are assigned to, and they cannot book.
   "meetings",
-  // Tickets for their assigned clients. `visibleTickets` fails closed.
-  "tickets",
-  // The handbook is FOR staff. Every employee reads; owner/admin write.
-  "handbook",
 
   // Their OWN attendance. `/attendance` — everybody's — stays closed; this
   // page never accepts an employee id and reads only the signed-in one.
-  // Without it a staff member could see whether they had clocked in today and
-  // nothing else, which is a poor deal when pay is worked out from hours.
   "my-attendance",
 ];
 
