@@ -4,7 +4,7 @@ import { gsap } from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 
 const STATS = [
-  ["60", "+", "Projects shipped"],
+  ["30", "+", "Projects shipped"],
   ["4", "wk", "Average delivery"],
   ["82", "%", "Client retention"],
   ["12", "", "Countries served"],

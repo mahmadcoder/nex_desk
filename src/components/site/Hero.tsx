@@ -7,7 +7,7 @@ import SplitHeading from "./SplitHeading";
 import Magnetic from "./Magnetic";
 
 const STATS = [
-  { label: "Projects shipped", target: 60, suffix: "+" },
+  { label: "Projects shipped", target: 30, suffix: "+" },
   { label: "Avg. delivery", target: 4, suffix: " weeks" },
   { label: "Client retention", target: 82, suffix: "%" },
   { label: "Time to reply", prefix: "< ", target: 1, suffix: " day" },

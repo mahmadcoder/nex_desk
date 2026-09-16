@@ -77,7 +77,7 @@ const TEAM = [
 const ARCHITECTURAL_PILLARS = [
   {
     title: "Sub-Second Performance",
-    desc: "Every site and web app is engineered for sub-second page loads (<1s) and 95+ Google Lighthouse scores. Speed directly impacts SEO, bounce rates, and revenue.",
+    desc: "Every site and web app is engineered for sub-second page loads (<1s) with a guaranteed 90+ Google Lighthouse score (averaging 95+). Speed directly impacts SEO, bounce rates, and revenue.",
     tag: "Speed First",
     metric: "<1s Latency",
     icon: Zap,
@@ -98,9 +98,9 @@ const ARCHITECTURAL_PILLARS = [
   },
   {
     title: "Post-Launch Warranty & Staging",
-    desc: "Transparent staging links from week one. Every project includes a complimentary 30-day post-launch warranty for bug fixes and peace of mind.",
+    desc: "Transparent staging links from week one. Every project includes a complimentary 14-day post-launch warranty for bug fixes and peace of mind.",
     tag: "Guaranteed",
-    metric: "30-Day Warranty",
+    metric: "14-Day Warranty",
     icon: Sparkles,
   },
 ];
@@ -168,7 +168,7 @@ const PRINCIPLES = [
   },
   {
     title: "Support is real",
-    desc: "One month of complimentary bug-fix coverage after launch, followed by optional flexible monthly retainers.",
+    desc: "Two weeks of complimentary bug-fix coverage after launch, followed by optional flexible monthly retainers.",
     icon: LifeBuoy,
   },
 ];

@@ -49,7 +49,7 @@ export default function CTA() {
           {/* stat pills */}
           <div className="relative mt-10 flex flex-wrap items-center justify-center gap-3">
             {[
-              "60+ Projects shipped",
+              "30+ Projects shipped",
               "~4 wk avg. delivery",
               "< 1 day reply",
             ].map((stat) => (

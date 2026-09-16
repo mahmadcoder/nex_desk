@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import ContactForm from "@/components/site/ContactForm";
-import { CONTACT_EMAIL } from "@/lib/utils";
+import { CONTACT_EMAIL, CONTACT_WHATSAPP, whatsappLink } from "@/lib/utils";
 
 export const metadata: Metadata = {
   title: "Contact",
@@ -19,17 +19,42 @@ export default function ContactPage() {
         </p>
 
         <dl className="mt-8 space-y-6 border-t border-ink-600 pt-8">
-          {[
-            ["Email", CONTACT_EMAIL],
-            ["WhatsApp", "+92 300 0000000"],
-            ["Based in", "Multan, Pakistan — working across timezones"],
-            ["Hours", "Mon–Sat, 10am–7pm PKT"],
-          ].map(([k, v]) => (
-            <div key={k}>
-              <dt className="mono-tag">{k}</dt>
-              <dd className="mt-1">{v}</dd>
-            </div>
-          ))}
+          <div>
+            <dt className="mono-tag">Email</dt>
+            <dd className="mt-1">
+              <a
+                href={`mailto:${CONTACT_EMAIL}`}
+                className="text-bone-100 transition-colors hover:text-lime-400 inline-flex items-center gap-1.5"
+              >
+                {CONTACT_EMAIL}
+              </a>
+            </dd>
+          </div>
+
+          <div>
+            <dt className="mono-tag">WhatsApp</dt>
+            <dd className="mt-1">
+              <a
+                href={whatsappLink(CONTACT_WHATSAPP, "Hi Nex Desk — I would like to enquire about a project.")}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-bone-100 transition-colors hover:text-lime-400 inline-flex items-center gap-2"
+              >
+                <span>{CONTACT_WHATSAPP}</span>
+                <span className="text-xs text-lime-400 font-mono">Chat on WhatsApp →</span>
+              </a>
+            </dd>
+          </div>
+
+          <div>
+            <dt className="mono-tag">Based in</dt>
+            <dd className="mt-1 text-bone-200">Multan, Pakistan — working across timezones</dd>
+          </div>
+
+          <div>
+            <dt className="mono-tag">Hours</dt>
+            <dd className="mt-1 text-bone-200">Mon–Sat, 10am–7pm PKT</dd>
+          </div>
         </dl>
       </div>
 

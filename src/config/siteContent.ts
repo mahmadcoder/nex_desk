@@ -1,6 +1,21 @@
 import type { ProcessStep, PricingTier, ServiceFaq } from "@/types/site";
 
 /**
+ * Central canonical agency performance stats & operational guarantees.
+ * Single source of truth across all marketing pages and trust components.
+ */
+export const AGENCY_STATS = {
+  projectsShipped: 30,
+  projectsShippedLabel: "30+",
+  avgDeliveryWeeks: 4,
+  clientRetentionPct: 82,
+  countriesServed: 12,
+  timeToReply: "< 1 day",
+  warrantyDays: 14,
+  lighthouseGuarantee: 90,
+} as const;
+
+/**
  * Six-step agency delivery sequence for Process.tsx
  */
 export const HOMEPAGE_PROCESS_STEPS: [string, string][] = [

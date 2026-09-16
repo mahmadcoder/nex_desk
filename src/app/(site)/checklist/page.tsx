@@ -1,9 +1,9 @@
 import Link from "next/link";
 import type { Metadata } from "next";
-import { Printer } from "lucide-react";
 import CTA from "@/components/site/CTA";
 import Reveal from "@/components/site/Reveal";
 import ChecklistSubscribe from "@/components/site/ChecklistSubscribe";
+import PrintButton from "@/components/site/PrintButton";
 import { LAUNCH_CHECKLIST, CHECKLIST_COUNT } from "@/config/launchChecklist";
 
 export const metadata: Metadata = {
@@ -45,10 +45,7 @@ export default function ChecklistPage() {
           <Link href="/contact" className="btn btn-primary">
             Have us do it instead
           </Link>
-          {/* No JS: the browser's own print dialogue, with a stylesheet behind it. */}
-          <a href="#print" className="btn gap-2">
-            <Printer size={15} /> Print or save as PDF
-          </a>
+          <PrintButton />
         </div>
 
         <nav className="no-print card mt-12 p-5 sm:p-6">

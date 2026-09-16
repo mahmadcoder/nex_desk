@@ -7,6 +7,6 @@ export default async function Image() {
   return ogCard({
     title: "Websites, apps and growth systems that ship.",
     eyebrow: "Nex Desk",
-    footnote: "nexdesk",
+    footnote: "nexdesk.agency",
   });
 }

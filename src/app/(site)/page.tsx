@@ -25,7 +25,7 @@ export default async function Home() {
     // it that lookup silently fell through to "USD".
     supabase.from("services").select("slug,title,category,short_desc,starting_at,currency")
       .eq("is_active", true).order("sort_order"),
-    supabase.from("case_studies").select("slug,title,client_name,industry,year,cover_url,outcome,metrics")
+    supabase.from("case_studies").select("slug,title,client_name,industry,year,cover_url,outcome,metrics,live_url")
       .eq("is_published", true).order("sort_order").limit(3),
     supabase.from("testimonials").select("client_name,role,company,quote,rating")
       .eq("is_published", true).order("sort_order").limit(9),

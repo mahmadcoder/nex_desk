@@ -19,7 +19,13 @@ const SERVICES = [
   ["other", "Something else"],
 ];
 
-const BUDGETS = ["Under Rs 100k", "Rs 100k – 300k", "Rs 300k – 700k", "Rs 700k+", "Not sure yet"];
+const BUDGETS = [
+  "Under $1,500",
+  "$1,500 – $4,000",
+  "$4,000 – $8,000",
+  "$8,000+",
+  "Not sure yet",
+];
 const TIMELINES = ["ASAP", "2–4 weeks", "1–3 months", "Just exploring"];
 
 const field =

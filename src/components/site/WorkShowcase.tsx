@@ -17,6 +17,7 @@ type Case = {
   cover_url?: string | null;
   outcome?: string | null;
   metrics?: { label: string; value: string }[] | null;
+  live_url?: string | null;
 };
 
 export default function WorkShowcase({ cases }: { cases: Case[] }) {
@@ -76,7 +77,7 @@ export default function WorkShowcase({ cases }: { cases: Case[] }) {
 
             {/* visual frame with hover scale */}
             <div className={`transition-transform duration-500 ease-out group-hover:scale-[1.02] ${i % 2 === 1 ? "lg:order-1" : ""}`}>
-              <BrowserFrame url={`${c.slug}.com`}>
+              <BrowserFrame url={c.live_url ? new URL(c.live_url).hostname : `${c.slug}.com`}>
                 {c.cover_url ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img src={c.cover_url} alt="" className="aspect-[16/10] w-full object-cover" />
