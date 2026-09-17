@@ -21,11 +21,27 @@ export async function POST(req: Request) {
   try {
     const { type, id } = (await req.json()) as { type: DocType; id: string };
 
-    if (!me.isPrivileged && !STAFF_ALLOWED_DOCS.includes(type)) {
-      return NextResponse.json(
-        { error: "Only an owner or admin can generate that document." },
-        { status: 403 }
-      );
+    if (!me.isPrivileged) {
+      if (!STAFF_ALLOWED_DOCS.includes(type)) {
+        return NextResponse.json(
+          { error: "Only an owner or admin can generate that document." },
+          { status: 403 }
+        );
+      }
+
+      if (type === "progress_report") {
+        const { createAdminClient } = await import("@/lib/supabase/server");
+        const { assignedClientIds } = await import("@/lib/auth/staff");
+        const db = createAdminClient();
+        const { data: p } = await db.from("projects").select("client_id").eq("id", id).maybeSingle();
+        const allowed = await assignedClientIds(me.employeeId);
+        if (!p?.client_id || !allowed.includes(p.client_id)) {
+          return NextResponse.json(
+            { error: "You are not assigned to this project's client." },
+            { status: 403 }
+          );
+        }
+      }
     }
 
     const doc = await generateDocument(type, id, me.userId);

@@ -5,7 +5,8 @@ import { createClient, createAdminClient } from "@/lib/supabase/server";
 import { requireStaff } from "@/lib/auth/guards";
 import { recordAudit } from "@/lib/actions/audit";
 import { notify } from "@/lib/actions/notify";
-import { getCurrentStaff } from "@/lib/auth/staff";
+import { getCurrentStaff, assignedClientIds } from "@/lib/auth/staff";
+import { notifyClientGrouped } from "@/lib/actions/notifyClient";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
@@ -25,13 +26,45 @@ const ADMIN = process.env.ADMIN_PATH || "nx-control";
 
 const MAX = 4000;
 
-import { notifyClientGrouped } from "@/lib/actions/notifyClient";
+async function canAccessProjectMessages(projectId: string): Promise<{ allowed: boolean; isStaff: boolean }> {
+  const db = createAdminClient();
+  const staff = await getCurrentStaff();
+  if (staff) {
+    if (staff.isPrivileged) return { allowed: true, isStaff: true };
+    const { data: p } = await db.from("projects").select("client_id").eq("id", projectId).maybeSingle();
+    if (!p?.client_id) return { allowed: false, isStaff: true };
+    const allowedIds = await assignedClientIds(staff.employeeId);
+    return { allowed: allowedIds.includes(p.client_id), isStaff: true };
+  }
+
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user?.email) return { allowed: false, isStaff: false };
+
+  const { data: client } = await db
+    .from("clients")
+    .select("id, profile_id, email")
+    .eq("email", user.email)
+    .maybeSingle();
+
+  if (!client) return { allowed: false, isStaff: false };
+
+  const { data: p } = await db.from("projects").select("client_id").eq("id", projectId).maybeSingle();
+  if (p && p.client_id === client.id) return { allowed: true, isStaff: false };
+
+  return { allowed: false, isStaff: false };
+}
 
 export async function postStaffMessage(projectId: string, body: string) {
   const me = await requireStaff();
   const text = body.trim();
   if (!text) return { ok: false as const, error: "Write something first." };
   if (text.length > MAX) return { ok: false as const, error: "That is too long to send." };
+
+  const { allowed } = await canAccessProjectMessages(projectId);
+  if (!allowed) {
+    return { ok: false as const, error: "You are not assigned to this project's client." };
+  }
 
   const db = createAdminClient();
   const staff = await getCurrentStaff();
@@ -147,6 +180,9 @@ export async function postClientMessage(projectId: string, body: string) {
 /** Marks the client's unread messages as seen. Staff-side only. */
 export async function markProjectMessagesRead(projectId: string) {
   await requireStaff();
+  const { allowed, isStaff } = await canAccessProjectMessages(projectId);
+  if (!allowed || !isStaff) return { ok: false as const, error: "Not authorized" };
+
   await createAdminClient()
     .from("messages")
     .update({ read_at: new Date().toISOString() })
@@ -158,6 +194,9 @@ export async function markProjectMessagesRead(projectId: string) {
 
 /** Marks staff messages as read when the client opens the messages tab in the portal. */
 export async function markClientMessagesRead(projectId: string) {
+  const { allowed } = await canAccessProjectMessages(projectId);
+  if (!allowed) return { ok: false as const, error: "Not authorized" };
+
   await createAdminClient()
     .from("messages")
     .update({ read_at: new Date().toISOString() })
@@ -168,6 +207,9 @@ export async function markClientMessagesRead(projectId: string) {
 }
 
 export async function listMessages(projectId: string) {
+  const { allowed } = await canAccessProjectMessages(projectId);
+  if (!allowed) return [];
+
   const { data, error } = await createAdminClient()
     .from("messages")
     .select("id, body, sender_kind, sender_name, created_at, read_at")

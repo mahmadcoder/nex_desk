@@ -1260,13 +1260,20 @@ export async function submitDailyWorkLog(data: {
   hours_tracked?: number | null;
 }) {
   // Staff-accessible: logging your own work is the whole point of this screen.
-  await requireStaff();
+  const me = await requireStaff();
   const db = createAdminClient();
 
   // These columns are uuid. Anything that isn't a uuid must become NULL rather
   // than reaching Postgres, which would raise 22P02 and 500 the whole action.
-  const employeeId = asUuid(data.employee_id);
+  let employeeId = asUuid(data.employee_id);
   const projectId = asUuid(data.project_id);
+
+  if (!me.isPrivileged) {
+    if (!me.employeeId) {
+      throw new Error("Your account is not linked to an employee record.");
+    }
+    employeeId = me.employeeId;
+  }
 
   if (!employeeId) {
     throw new Error("Select a valid employee before submitting a work log.");
@@ -1409,14 +1416,22 @@ export async function submitDailyWorkLog(data: {
 }
 
 export async function deleteDailyWorkLog(id: string) {
-  await requireStaff();
+  const me = await requireStaff();
   const db = createAdminClient();
 
   // Take the entry's contribution back out of the project, otherwise deleting a
   // log that claimed +20% leaves the client looking at progress that was never
   // made.
   const { data: log } = await db
-    .from("daily_work_logs").select("project_id, progress_delta").eq("id", id).maybeSingle();
+    .from("daily_work_logs").select("employee_id, project_id, progress_delta").eq("id", id).maybeSingle();
+
+  if (!log) return;
+
+  if (!me.isPrivileged) {
+    if (!me.employeeId || log.employee_id !== me.employeeId) {
+      throw new Error("You can only delete your own daily work logs.");
+    }
+  }
 
   const { error } = await db.from("daily_work_logs").delete().eq("id", id);
   if (error) throw error;

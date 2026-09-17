@@ -342,7 +342,7 @@ export async function revokeIntake(id: string) {
 }
 
 export async function listIntakeRequests() {
-  await requireStaff();
+  await requireOwnerAdmin();
 
   const { data, error } = await createAdminClient()
     .from("intake_requests")

@@ -3,6 +3,8 @@
 import { revalidatePath } from "next/cache";
 import { createAdminClient } from "@/lib/supabase/server";
 import { requireStaff, requireOwnerAdmin } from "@/lib/auth/guards";
+import { getCurrentStaff, assignedClientIds } from "@/lib/auth/staff";
+import { getPortalSession } from "@/lib/portal/session";
 import { recordAudit } from "@/lib/actions/audit";
 import { notifyClientGrouped } from "@/lib/actions/notifyClient";
 import { notify } from "@/lib/actions/notify";
@@ -40,6 +42,21 @@ export async function recordProjectFile(input: {
   const me = await requireStaff();
   const db = createAdminClient();
 
+  const { data: project } = await db
+    .from("projects")
+    .select("name, client_id")
+    .eq("id", input.projectId)
+    .maybeSingle();
+
+  if (!project) return { ok: false as const, error: "Project not found." };
+
+  if (!me.isPrivileged) {
+    const allowed = await assignedClientIds(me.employeeId);
+    if (!project.client_id || !allowed.includes(project.client_id)) {
+      return { ok: false as const, error: "You are not assigned to this project's client." };
+    }
+  }
+
   const { data, error } = await db
     .from("project_files")
     .insert({
@@ -74,12 +91,6 @@ export async function recordProjectFile(input: {
     visible_to_client: input.visibleToClient,
     visible_to_staff: input.visibleToStaff ?? true,
   });
-
-  const { data: project } = await db
-    .from("projects")
-    .select("name, client_id")
-    .eq("id", input.projectId)
-    .maybeSingle();
 
   // Notify Client if visible to client
   if (input.visibleToClient && project?.client_id) {
@@ -146,8 +157,6 @@ export async function setProjectFileVisibility(id: string, visible: boolean) {
   revalidatePath(`/portal/projects/${data.project_id}`);
   return { ok: true as const };
 }
-
-import { getPortalSession } from "@/lib/portal/session";
 
 /**
  * Client uploading assets, PDFs, or design files to their project.
@@ -306,14 +315,46 @@ export async function listProjectFiles(
 ) {
   const db = createAdminClient();
 
+  // 1. Check if caller is Staff / Admin
+  const staff = await getCurrentStaff();
+  let enforceClientView = false;
+  let enforceStaffView = false;
+
+  if (staff) {
+    if (!staff.isPrivileged) {
+      const { data: p } = await db
+        .from("projects")
+        .select("client_id")
+        .eq("id", projectId)
+        .maybeSingle();
+      if (!p?.client_id) return [];
+      const allowed = await assignedClientIds(staff.employeeId);
+      if (!allowed.includes(p.client_id)) return [];
+      enforceStaffView = true;
+    }
+  } else {
+    // 2. Check if caller is Client Portal session
+    const portal = await getPortalSession();
+    if (!portal) return [];
+
+    const { data: p } = await db
+      .from("projects")
+      .select("client_id")
+      .eq("id", projectId)
+      .maybeSingle();
+
+    if (!p || p.client_id !== portal.client.id) return [];
+    enforceClientView = true;
+  }
+
   let q = db
     .from("project_files")
     .select("*")
     .eq("project_id", projectId)
     .order("created_at", { ascending: false });
 
-  if (clientView) q = q.eq("visible_to_client", true);
-  if (staffView) q = q.eq("visible_to_staff", true);
+  if (enforceClientView || clientView) q = q.eq("visible_to_client", true);
+  if (enforceStaffView || staffView) q = q.eq("visible_to_staff", true);
   if (taskId) q = q.eq("task_id", taskId);
 
   const { data, error } = await q;

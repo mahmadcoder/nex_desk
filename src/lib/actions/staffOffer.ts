@@ -15,11 +15,17 @@ export { parseOfferAcceptance };
  * Gets the offer letter acceptance status for an employee.
  */
 export async function getStaffOfferStatus(employeeId: string): Promise<StaffOfferAcceptance> {
+  const me = await getCurrentStaff();
+  let targetId = employeeId;
+  if (me && !me.isPrivileged) {
+    targetId = me.employeeId || employeeId;
+  }
+
   const db = createAdminClient();
   const { data: employee } = await db
     .from("employees")
     .select("notes")
-    .eq("id", employeeId)
+    .eq("id", targetId)
     .maybeSingle();
 
   return parseOfferAcceptance(employee?.notes);

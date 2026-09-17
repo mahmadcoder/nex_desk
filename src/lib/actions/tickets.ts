@@ -134,6 +134,13 @@ export async function raiseTicketForClient(input: {
   if (!input.subject?.trim()) return { ok: false as const, error: "Give it a subject." };
   if (!input.body?.trim()) return { ok: false as const, error: "Describe the problem." };
 
+  if (!me.isPrivileged) {
+    const allowed = await assignedClientIds(me.employeeId);
+    if (!allowed.includes(input.clientId)) {
+      return { ok: false as const, error: "You are not assigned to this client." };
+    }
+  }
+
   const { data: ticket, error } = await createAdminClient()
     .from("tickets")
     .insert({
@@ -176,6 +183,13 @@ export async function replyToTicket(
     .eq("id", ticketId)
     .maybeSingle();
   if (!ticket) return { ok: false as const, error: "That ticket no longer exists." };
+
+  if (!me.isPrivileged) {
+    const allowed = await assignedClientIds(me.employeeId);
+    if (!allowed.includes(ticket.client_id)) {
+      return { ok: false as const, error: "You are not assigned to this client." };
+    }
+  }
 
   const { error } = await db.from("ticket_messages").insert({
     ticket_id: ticketId,
@@ -291,6 +305,13 @@ export async function setTicketStatus(ticketId: string, status: string) {
     .maybeSingle();
   if (!before) return { ok: false as const, error: "That ticket no longer exists." };
 
+  if (!me.isPrivileged) {
+    const allowed = await assignedClientIds(me.employeeId);
+    if (!allowed.includes(before.client_id)) {
+      return { ok: false as const, error: "You are not assigned to this client." };
+    }
+  }
+
   const patch: Record<string, any> = { status, updated_at: new Date().toISOString() };
 
   // Stamped on the FIRST time each happens. Re-resolving a reopened ticket
@@ -355,7 +376,17 @@ export async function setTicketPriority(ticketId: string, priority: string) {
     return { ok: false as const, error: "Unknown priority." };
   }
 
-  const { error } = await createAdminClient()
+  const db = createAdminClient();
+  if (!me.isPrivileged) {
+    const { data: t } = await db.from("tickets").select("client_id").eq("id", ticketId).maybeSingle();
+    if (!t) return { ok: false as const, error: "Ticket not found." };
+    const allowed = await assignedClientIds(me.employeeId);
+    if (!allowed.includes(t.client_id)) {
+      return { ok: false as const, error: "You are not assigned to this client." };
+    }
+  }
+
+  const { error } = await db
     .from("tickets")
     .update({ priority, updated_at: new Date().toISOString() })
     .eq("id", ticketId);
@@ -373,13 +404,34 @@ export async function setTicketPriority(ticketId: string, priority: string) {
 
 /** The thread. `clientView` strips internal notes. */
 export async function ticketMessages(ticketId: string, { clientView = false } = {}) {
-  let q = createAdminClient()
+  const db = createAdminClient();
+
+  // Determine caller identity
+  const staff = await getCurrentStaff();
+  let enforceClientView = false;
+
+  if (staff) {
+    if (!staff.isPrivileged) {
+      const { data: t } = await db.from("tickets").select("client_id").eq("id", ticketId).maybeSingle();
+      if (!t?.client_id) return [];
+      const allowed = await assignedClientIds(staff.employeeId);
+      if (!allowed.includes(t.client_id)) return [];
+    }
+  } else {
+    const client = await currentClient();
+    if (!client) return [];
+    const { data: t } = await db.from("tickets").select("client_id").eq("id", ticketId).maybeSingle();
+    if (!t || t.client_id !== client.id) return [];
+    enforceClientView = true;
+  }
+
+  let q = db
     .from("ticket_messages")
     .select("*")
     .eq("ticket_id", ticketId)
     .order("created_at");
 
-  if (clientView) q = q.eq("is_internal", false);
+  if (enforceClientView || clientView) q = q.eq("is_internal", false);
 
   const { data, error } = await q;
   if (error) {
