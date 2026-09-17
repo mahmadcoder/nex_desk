@@ -55,13 +55,47 @@ export async function markNotificationRead(
   return { ok: true };
 }
 
-/** Clears everything currently visible to this person. */
-export async function markAllNotificationsRead(): Promise<Result> {
+import { getNotificationCategory } from "@/lib/notifications";
+
+/** Clears everything currently visible to this person, optionally scoped to a source category. */
+export async function markAllNotificationsRead(
+  category?: "all" | "client" | "staff" | "system"
+): Promise<Result> {
   const me = await getCurrentStaff();
   if (!me) return { ok: false, error: "Sign in first." };
 
   const db = createAdminClient();
   const stamp = { read_at: new Date().toISOString(), read_by: me.userId };
+
+  // If a category filter is applied, clear only unread notifications of that category
+  if (category && category !== "all") {
+    let q = db.from("notifications").select("id, kind, actor_kind").is("read_at", null);
+    if (me.isPrivileged) {
+      q = me.employeeId
+        ? q.or(`audience.eq.admins,employee_id.eq.${me.employeeId}`)
+        : q.eq("audience", "admins");
+    } else {
+      q = q.eq("employee_id", me.employeeId ?? "00000000-0000-0000-0000-000000000000");
+    }
+
+    const { data: rows, error: fetchErr } = await q;
+    if (fetchErr) return { ok: false, error: fetchErr.message };
+
+    const matchingIds = (rows ?? [])
+      .filter((r) => getNotificationCategory(r) === category)
+      .map((r) => r.id);
+
+    if (!matchingIds.length) return { ok: true };
+
+    const { error: updateErr } = await db
+      .from("notifications")
+      .update(stamp)
+      .in("id", matchingIds);
+
+    if (updateErr) return { ok: false, error: updateErr.message };
+    refresh();
+    return { ok: true };
+  }
 
   // Two narrow updates rather than one `.or()`: an admin who is also an
   // employee has two distinct sets, and each is filtered explicitly so

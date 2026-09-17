@@ -61,9 +61,65 @@ export async function unreadNotificationCount(me: CurrentStaff | null): Promise<
   }
 }
 
+export type NotificationCategory = "client" | "staff" | "system";
+
+export const CLIENT_NOTIFICATION_KINDS = new Set([
+  "agreement.accepted",
+  "milestone.approved",
+  "milestone.revision",
+  "kickoff.item",
+  "kickoff.complete",
+  "change_request.raised",
+  "document.uploaded",
+  "payment.proof_uploaded",
+  "client.password_changed",
+  "client.return_request",
+  "invoice.paid",
+  "ticket.raised",
+  "ticket.replied",
+  "ticket.resolved",
+  "message.received",
+]);
+
+export const STAFF_NOTIFICATION_KINDS = new Set([
+  "worklog.submitted",
+  "leave.requested",
+  "leave.decided",
+  "staff.late",
+  "offer.accepted",
+  "staff.promoted",
+  "task.assigned",
+  "salary.paid",
+  "meeting.scheduled",
+  "profile.photo",
+]);
+
+export function getNotificationCategory(n: {
+  actor_kind?: string | null;
+  kind?: string | null;
+}): NotificationCategory {
+  if (n.actor_kind === "client") return "client";
+  if (n.actor_kind === "staff") return "staff";
+  if (n.kind && CLIENT_NOTIFICATION_KINDS.has(n.kind)) return "client";
+  if (n.kind && STAFF_NOTIFICATION_KINDS.has(n.kind)) return "staff";
+  return "system";
+}
+
+export type SourceCounts = {
+  all: number;
+  client: number;
+  staff: number;
+  system: number;
+};
+
+export type NotificationCounts = {
+  unread: SourceCounts;
+  read: SourceCounts;
+};
+
 export async function listNotifications(
   me: CurrentStaff,
-  opts: { read?: boolean; limit?: number } = {}
+  opts: { read?: boolean; limit?: number; category?: "all" | "client" | "staff" | "system" } = {}
 ) {
   try {
     const db = createAdminClient();
@@ -71,7 +127,7 @@ export async function listNotifications(
       .from("notifications")
       .select("*")
       .order("created_at", { ascending: false })
-      .limit(opts.limit ?? 100);
+      .limit(opts.limit ?? 200);
 
     q = opts.read ? q.not("read_at", "is", null) : q.is("read_at", null);
 
@@ -80,25 +136,66 @@ export async function listNotifications(
       console.error("notifications: list failed", error);
       return [];
     }
-    return data ?? [];
+
+    let rows = ((data as any[]) ?? []).map((n: any) => ({
+      ...n,
+      category: getNotificationCategory(n),
+    }));
+
+    if (opts.category && opts.category !== "all") {
+      rows = rows.filter((r) => r.category === opts.category);
+    }
+
+    return rows;
   } catch (e) {
     console.error("notifications: list threw", e);
     return [];
   }
 }
 
-/** Counts for the two tabs, in one pass each. */
-export async function notificationCounts(me: CurrentStaff) {
+/** Counts for unread & read across all categories. */
+export async function notificationCategoryCounts(me: CurrentStaff): Promise<NotificationCounts> {
+  const defaultCounts: NotificationCounts = {
+    unread: { all: 0, client: 0, staff: 0, system: 0 },
+    read: { all: 0, client: 0, staff: 0, system: 0 },
+  };
+
   try {
     const db = createAdminClient();
-    const [unread, read] = await Promise.all([
-      scope(db.from("notifications").select("id", { count: "exact", head: true }).is("read_at", null), me),
-      scope(db.from("notifications").select("id", { count: "exact", head: true }).not("read_at", "is", null), me),
-    ]);
-    return { unread: unread.count ?? 0, read: read.count ?? 0 };
-  } catch {
-    return { unread: 0, read: 0 };
+    const { data: rows, error } = await scope(
+      db.from("notifications").select("id, kind, actor_kind, read_at"),
+      me
+    );
+
+    if (error || !rows) return defaultCounts;
+
+    const res: NotificationCounts = {
+      unread: { all: 0, client: 0, staff: 0, system: 0 },
+      read: { all: 0, client: 0, staff: 0, system: 0 },
+    };
+
+    for (const r of rows as any[]) {
+      const state = r.read_at ? "read" : "unread";
+      const cat = getNotificationCategory(r);
+      res[state].all++;
+      res[state][cat]++;
+    }
+
+    return res;
+  } catch (e) {
+    console.error("notificationCategoryCounts threw", e);
+    return defaultCounts;
   }
+}
+
+/** Backward-compatible counts for tabs and sidebar. */
+export async function notificationCounts(me: CurrentStaff) {
+  const counts = await notificationCategoryCounts(me);
+  return {
+    unread: counts.unread.all,
+    read: counts.read.all,
+    detailed: counts,
+  };
 }
 
 /**
