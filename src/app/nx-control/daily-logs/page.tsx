@@ -3,7 +3,12 @@ import { getCurrentStaff, assignedClientIds } from "@/lib/auth/staff";
 import DailyLogsClient from "./DailyLogsClient";
 import { myTrackedToday } from "@/lib/actions/timeTracking";
 
-export const metadata = { title: "Daily Work Logs" };
+export async function generateMetadata() {
+  const me = await getCurrentStaff();
+  return {
+    title: me?.isPrivileged ? "Staff Daily Work Logs" : "My Daily Work Logs",
+  };
+}
 export const dynamic = "force-dynamic";
 
 export default async function DailyLogsPage() {

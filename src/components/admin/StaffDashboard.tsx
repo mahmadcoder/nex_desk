@@ -239,7 +239,7 @@ export default async function StaffDashboard({
             </div>
 
             <Link
-              href={`${BASE}/attendance`}
+              href={`${BASE}/my-attendance`}
               className="mono-tag text-[10px] text-lime-300 hover:text-lime-200 hover:underline flex items-center gap-1"
             >
               View Attendance History →

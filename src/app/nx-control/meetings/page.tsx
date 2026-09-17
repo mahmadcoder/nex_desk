@@ -9,7 +9,12 @@ import { externalUrl } from "@/lib/utils";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-export const metadata = { title: "Meetings" };
+export async function generateMetadata() {
+  const me = await getCurrentStaff();
+  return {
+    title: me?.isPrivileged ? "Meetings" : "My Meetings",
+  };
+}
 export const dynamic = "force-dynamic";
 
 export default async function MeetingsPage() {

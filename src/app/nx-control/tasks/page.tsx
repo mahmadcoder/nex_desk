@@ -5,14 +5,21 @@ import TaskBoard from "@/components/admin/TaskBoard";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-export const metadata = { title: "Task Management & Workload Hub" };
+export async function generateMetadata() {
+  const me = await getCurrentStaff();
+  return {
+    title: me?.isPrivileged ? "Task Management & Workload Hub" : "My Assigned Tasks",
+  };
+}
+
 export const dynamic = "force-dynamic";
 
 /**
  * The unified Task Management Hub.
  *
- * Provides Status Kanban, Grouping by Project/Client, and Grouping by Staff Member.
- * Staff see only work on projects for clients they are assigned to; managers see all tasks.
+ * Provides Status Kanban and Grouping by Project/Client.
+ * Managers additionally get Staff Assignee view and cross-team filtering.
+ * Staff see only work on projects for clients they are assigned to.
  */
 export default async function TasksPage({
   searchParams,
@@ -25,6 +32,8 @@ export default async function TasksPage({
   const db = createAdminClient();
   const canManage = me.isPrivileged;
   const { who, project } = await searchParams;
+
+  const allowedClients = !canManage ? await assignedClientIds(me.employeeId) : [];
 
   let q = db
     .from("tasks")
@@ -67,7 +76,14 @@ export default async function TasksPage({
           .select("id, name, client_id, clients(id, name, company)")
           .neq("status", "cancelled")
           .order("created_at", { ascending: false })
-      : Promise.resolve({ data: [] as any[] }),
+      : allowedClients.length > 0
+        ? db
+            .from("projects")
+            .select("id, name, client_id, clients(id, name, company)")
+            .neq("status", "cancelled")
+            .in("client_id", allowedClients)
+            .order("name", { ascending: true })
+        : Promise.resolve({ data: [] as any[] }),
   ]);
 
   if (error) {
@@ -79,8 +95,7 @@ export default async function TasksPage({
   // Staff must not see a task on a client they were unassigned from, even if
   // the task still names them. The same rule `taskIfAllowed` applies on write.
   if (!canManage) {
-    const allowed = await assignedClientIds(me.employeeId);
-    rows = rows.filter((t: any) => !t.projects?.client_id || allowed.includes(t.projects.client_id));
+    rows = rows.filter((t: any) => !t.projects?.client_id || allowedClients.includes(t.projects.client_id));
   }
 
   // Attachment counts in one query

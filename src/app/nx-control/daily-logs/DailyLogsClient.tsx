@@ -289,8 +289,12 @@ export default function DailyLogsClient({
   return (
     <div className="space-y-6">
       <PageHead
-        title={`Staff Daily Work Logs (${logs.length})`}
-        sub="Employee daily task reports, hours logged, assigned project updates, and blockers."
+        title={lockedToEmployee ? `My Daily Work Logs (${logs.length})` : `Staff Daily Work Logs (${logs.length})`}
+        sub={
+          lockedToEmployee
+            ? "Your daily task reports, hours logged, and blockers."
+            : "Employee daily task reports, hours logged, assigned project updates, and blockers."
+        }
         action={
           <button
             onClick={() => setShowAddModal(true)}
@@ -469,7 +473,9 @@ export default function DailyLogsClient({
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between border-b border-ink-700/80 pb-3">
-              <h2 className="text-lg font-semibold text-bone-50">Submit Staff Daily Work Log</h2>
+              <h2 className="text-lg font-semibold text-bone-50">
+                {lockedToEmployee ? "Submit Daily Work Log" : "Submit Staff Daily Work Log"}
+              </h2>
               <button
                 type="button"
                 onClick={() => setShowAddModal(false)}
@@ -780,7 +786,7 @@ export default function DailyLogsClient({
       {/* Delete Confirmation Modal */}
       <ConfirmModal
         isOpen={Boolean(deletingId)}
-        title="Delete Staff Daily Work Log?"
+        title={lockedToEmployee ? "Delete Daily Work Log?" : "Delete Staff Daily Work Log?"}
         description="Are you sure you want to delete this daily work log report?"
         confirmText="Delete Log"
         pending={pending}

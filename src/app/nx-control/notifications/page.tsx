@@ -84,7 +84,9 @@ export default async function NotificationsPage({
           body={
             showRead
               ? "Notifications you have dealt with appear here."
-              : "When a client accepts an agreement, ticks a kickoff item, approves a milestone or asks for a change, it lands here."
+              : me.isPrivileged
+                ? "When a client accepts an agreement, ticks a kickoff item, approves a milestone or asks for a change, it lands here."
+                : "When tasks are assigned to you or leave requests are updated, they land here."
           }
         />
       ) : (

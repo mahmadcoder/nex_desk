@@ -3,7 +3,12 @@ import { getCurrentStaff } from "@/lib/auth/staff";
 import { leaveBalances } from "@/lib/actions/staff";
 import LeaveClient from "@/components/admin/LeaveClient";
 
-export const metadata = { title: "Leave" };
+export async function generateMetadata() {
+  const me = await getCurrentStaff();
+  return {
+    title: me?.isPrivileged ? "Leave" : "My Leave",
+  };
+}
 export const dynamic = "force-dynamic";
 
 export default async function LeavePage() {

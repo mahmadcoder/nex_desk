@@ -262,7 +262,7 @@ export default function TaskBoard({
   return (
     <div className="space-y-6">
       {/* ── Executive Metric Pulse Bar ──────────────────────────── */}
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+      <div className={`grid grid-cols-2 gap-3 sm:grid-cols-3 ${canManage ? "lg:grid-cols-6" : "lg:grid-cols-5"}`}>
         <button
           type="button"
           onClick={() => {
@@ -322,20 +322,22 @@ export default function TaskBoard({
           <span className="mt-1.5 font-mono text-2xl font-bold text-rose-300">{metrics.overdue}</span>
         </button>
 
-        <button
-          type="button"
-          onClick={() => {
-            setSelectedAssignee(selectedAssignee === "unassigned" ? "all" : "unassigned");
-          }}
-          className={`card flex flex-col items-start p-3.5 text-left transition-all ${
-            selectedAssignee === "unassigned" ? "border-amber-400 bg-amber-400/10" : "hover:border-amber-400/50"
-          }`}
-        >
-          <span className="mono-tag flex items-center gap-1.5 text-[11px] text-amber-400">
-            <UserPlus size={12} /> Unassigned
-          </span>
-          <span className="mt-1.5 font-mono text-2xl font-bold text-amber-300">{metrics.unassigned}</span>
-        </button>
+        {canManage && (
+          <button
+            type="button"
+            onClick={() => {
+              setSelectedAssignee(selectedAssignee === "unassigned" ? "all" : "unassigned");
+            }}
+            className={`card flex flex-col items-start p-3.5 text-left transition-all ${
+              selectedAssignee === "unassigned" ? "border-amber-400 bg-amber-400/10" : "hover:border-amber-400/50"
+            }`}
+          >
+            <span className="mono-tag flex items-center gap-1.5 text-[11px] text-amber-400">
+              <UserPlus size={12} /> Unassigned
+            </span>
+            <span className="mt-1.5 font-mono text-2xl font-bold text-amber-300">{metrics.unassigned}</span>
+          </button>
+        )}
 
         <div className="card flex flex-col items-start p-3.5">
           <span className="mono-tag flex items-center gap-1.5 text-[11px] text-lime-400">
@@ -376,18 +378,20 @@ export default function TaskBoard({
               <span>By Project & Client</span>
             </button>
 
-            <button
-              type="button"
-              onClick={() => setViewMode("assignee")}
-              className={`flex items-center gap-2 rounded-lg px-3 py-1.5 text-xs font-semibold transition-all ${
-                viewMode === "assignee"
-                  ? "bg-lime-400 text-lime-950 shadow-sm"
-                  : "text-bone-400 hover:text-bone-100"
-              }`}
-            >
-              <Users2 size={13} />
-              <span>By Staff Assignee</span>
-            </button>
+            {canManage && (
+              <button
+                type="button"
+                onClick={() => setViewMode("assignee")}
+                className={`flex items-center gap-2 rounded-lg px-3 py-1.5 text-xs font-semibold transition-all ${
+                  viewMode === "assignee"
+                    ? "bg-lime-400 text-lime-950 shadow-sm"
+                    : "text-bone-400 hover:text-bone-100"
+                }`}
+              >
+                <Users2 size={13} />
+                <span>By Staff Assignee</span>
+              </button>
+            )}
           </div>
 
           {/* Add Task Button */}
@@ -405,7 +409,7 @@ export default function TaskBoard({
         {/* Filters Bar */}
         <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-12">
           {/* Search Box */}
-          <div className="relative lg:col-span-4">
+          <div className={`relative ${canManage ? "lg:col-span-4" : "lg:col-span-6"}`}>
             <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-bone-500" />
             <input
               type="text"
@@ -445,26 +449,28 @@ export default function TaskBoard({
             />
           </div>
 
-          {/* Assignee Filter */}
-          <div className="lg:col-span-3">
-            <CustomSelect
-              value={selectedAssignee}
-              placeholder="All Assignees"
-              className="py-1.5 text-xs"
-              onChange={(v) => setSelectedAssignee(v || "all")}
-              options={[
-                { value: "all", label: "All Team Members" },
-                { value: "unassigned", label: "⚠️ Unassigned Only" },
-                ...employees.map((e) => ({
-                  value: e.id,
-                  label: e.full_name,
-                })),
-              ]}
-            />
-          </div>
+          {/* Assignee Filter (Admin/Manager Only) */}
+          {canManage && (
+            <div className="lg:col-span-3">
+              <CustomSelect
+                value={selectedAssignee}
+                placeholder="All Assignees"
+                className="py-1.5 text-xs"
+                onChange={(v) => setSelectedAssignee(v || "all")}
+                options={[
+                  { value: "all", label: "All Team Members" },
+                  { value: "unassigned", label: "⚠️ Unassigned Only" },
+                  ...employees.map((e) => ({
+                    value: e.id,
+                    label: e.full_name,
+                  })),
+                ]}
+              />
+            </div>
+          )}
 
           {/* Priority Filter */}
-          <div className="lg:col-span-2">
+          <div className={canManage ? "lg:col-span-2" : "lg:col-span-3"}>
             <CustomSelect
               value={selectedPriority}
               placeholder="All Priorities"
@@ -482,7 +488,7 @@ export default function TaskBoard({
         </div>
 
         {/* Active Filters Pill Row */}
-        {(search || selectedProject !== "all" || selectedAssignee !== "all" || selectedPriority !== "all" || onlyOverdue) && (
+        {(search || selectedProject !== "all" || (canManage && selectedAssignee !== "all") || selectedPriority !== "all" || onlyOverdue) && (
           <div className="flex flex-wrap items-center gap-2 pt-1">
             <span className="mono-tag text-[10px] text-bone-400">Active filters:</span>
             {search && (
@@ -501,7 +507,7 @@ export default function TaskBoard({
                 </button>
               </span>
             )}
-            {selectedAssignee !== "all" && (
+            {canManage && selectedAssignee !== "all" && (
               <span className="inline-flex items-center gap-1 rounded-full border border-ink-600 bg-ink-800 px-2 py-0.5 text-[10px] text-bone-200">
                 Assignee: {selectedAssignee === "unassigned" ? "Unassigned" : employees.find((e) => e.id === selectedAssignee)?.full_name}
                 <button type="button" onClick={() => setSelectedAssignee("all")} className="hover:text-rose-400">
@@ -700,7 +706,7 @@ export default function TaskBoard({
       )}
 
       {/* ── View 3: Grouped by Staff Assignee ───────────────────── */}
-      {viewMode === "assignee" && (
+      {canManage && viewMode === "assignee" && (
         <div className="space-y-6">
           {/* Unassigned Work Triage Section */}
           {staffGroups.unassigned.length > 0 && (
@@ -893,16 +899,23 @@ function TaskCardItem({
       {/* Assignee Footer */}
       <div className="mt-2.5 flex items-center justify-between border-t border-ink-700/70 pt-2">
         <div className="flex items-center gap-1.5">
-          {t.assignee ? (
-            <div className="flex items-center gap-1.5">
-              <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-lime-400/15 font-mono text-[9px] font-semibold text-lime-300">
-                {initials(t.assignee)}
+          {canManage ? (
+            t.assignee ? (
+              <div className="flex items-center gap-1.5">
+                <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-lime-400/15 font-mono text-[9px] font-semibold text-lime-300">
+                  {initials(t.assignee)}
+                </span>
+                <span className="max-w-[120px] truncate text-[11px] text-bone-200">{t.assignee}</span>
+              </div>
+            ) : (
+              <span className="inline-flex items-center gap-1 rounded-full border border-amber-400/30 bg-amber-400/10 px-2 py-0.5 text-[10px] font-medium text-amber-300">
+                <UserPlus size={10} /> Unassigned
               </span>
-              <span className="max-w-[120px] truncate text-[11px] text-bone-200">{t.assignee}</span>
-            </div>
+            )
           ) : (
-            <span className="inline-flex items-center gap-1 rounded-full border border-amber-400/30 bg-amber-400/10 px-2 py-0.5 text-[10px] font-medium text-amber-300">
-              <UserPlus size={10} /> Unassigned
+            <span className="inline-flex items-center gap-1 text-[11px] text-bone-400">
+              <span className="h-1.5 w-1.5 rounded-full bg-lime-400" />
+              Assigned to you
             </span>
           )}
         </div>
@@ -1001,10 +1014,12 @@ function TaskRowItem({
           </div>
 
           <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-bone-400">
-            {t.assignee ? (
-              <span className="text-bone-200">👤 {t.assignee}</span>
-            ) : (
-              <span className="text-amber-300 font-medium">⚠️ Unassigned</span>
+            {canManage && (
+              t.assignee ? (
+                <span className="text-bone-200">👤 {t.assignee}</span>
+              ) : (
+                <span className="text-amber-300 font-medium">⚠️ Unassigned</span>
+              )
             )}
 
             {t.due_date && (
