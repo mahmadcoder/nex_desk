@@ -167,6 +167,16 @@ export function humanDuration(seconds?: number | null): string {
   return m ? `${h}h ${m}m` : `${h}h`;
 }
 
+/** "8h 11m" or "45m" — formats duration given in minutes into human-readable notation. */
+export function formatMinutes(minutes?: number | null): string {
+  if (!minutes || minutes <= 0) return "0m";
+  const total = Math.round(minutes);
+  const h = Math.floor(total / 60);
+  const m = total % 60;
+  if (!h) return `${m}m`;
+  return m ? `${h}h ${m}m` : `${h}h`;
+}
+
 /** Decimal hours for the daily log's numeric field. 15000s → 4.17 */
 export function decimalHours(seconds?: number | null): number {
   if (!seconds || seconds <= 0) return 0;

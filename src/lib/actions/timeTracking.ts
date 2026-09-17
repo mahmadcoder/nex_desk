@@ -135,6 +135,33 @@ export async function startTimer(input: {
     }
   }
 
+  // Check if a timer is already running for this employee. If so, cleanly stop
+  // the previous segment (recording its full elapsed time) so switching tasks is seamless.
+  const { data: running } = await db
+    .from("time_entries")
+    .select("id, started_at, task_id")
+    .eq("employee_id", employeeId)
+    .is("ended_at", null)
+    .maybeSingle();
+
+  if (running) {
+    if (input.taskId && running.task_id === input.taskId) {
+      return { ok: true as const, id: running.id, startedAt: running.started_at, alreadyRunning: true };
+    }
+    const endedAt = new Date();
+    const durationSec = Math.max(
+      0,
+      Math.round((endedAt.getTime() - new Date(running.started_at).getTime()) / 1000)
+    );
+    await db
+      .from("time_entries")
+      .update({
+        ended_at: endedAt.toISOString(),
+        duration_sec: durationSec,
+      })
+      .eq("id", running.id);
+  }
+
   const { data, error } = await db
     .from("time_entries")
     .insert({
@@ -150,6 +177,9 @@ export async function startTimer(input: {
   if (error) return { ok: false as const, error: describe(error) };
 
   revalidatePath(`/${ADMIN}`);
+  revalidatePath(`/${ADMIN}/tasks`);
+  revalidatePath(`/${ADMIN}/timesheets`);
+  if (projectId) revalidatePath(`/${ADMIN}/projects/${projectId}`);
   return { ok: true as const, id: data.id, startedAt: data.started_at };
 }
 
@@ -192,7 +222,9 @@ export async function stopTimer(note?: string) {
   if (error) return { ok: false as const, error: describe(error) };
 
   revalidatePath(`/${ADMIN}`);
+  revalidatePath(`/${ADMIN}/tasks`);
   revalidatePath(`/${ADMIN}/timesheets`);
+  if (running.project_id) revalidatePath(`/${ADMIN}/projects/${running.project_id}`);
   return {
     ok: true as const,
     durationSec,

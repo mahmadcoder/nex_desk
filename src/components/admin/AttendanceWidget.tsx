@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { LogIn, LogOut, Loader2 } from "lucide-react";
 import { checkIn, checkOut } from "@/lib/actions/attendance";
-import { humanDuration, type AttendanceVerdict, type WorkHours } from "@/lib/workHours";
+import { humanDuration, formatMinutes, type AttendanceVerdict, type WorkHours } from "@/lib/workHours";
 import { fmtTime, TZ_LABEL } from "@/lib/datetime";
 import AcceptOfferLetter from "@/components/admin/AcceptOfferLetter";
 import type { StaffOfferAcceptance } from "@/lib/staffOffer";
@@ -70,7 +70,7 @@ export default function AttendanceWidget({
       case "absent":
         return `Not checked in. The day starts at ${hours.start}.`;
       case "late":
-        return `Checked in ${fmtTime(inAt)} — ${verdict.lateBy}m past the ${hours.graceMin}m grace.`;
+        return `Checked in ${fmtTime(inAt)} — ${formatMinutes(verdict.lateBy)} past the ${hours.graceMin}m grace.`;
       default:
         return `Checked in ${fmtTime(inAt)}.`;
     }

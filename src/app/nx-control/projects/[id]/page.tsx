@@ -137,6 +137,75 @@ export default async function ProjectDetail({ params }: { params: Promise<{ id: 
     console.error("Failed to load tasks for project", id, tasksError);
   }
 
+  // Aggregate tracked time and running timer for tasks on this project
+  const pTaskIds = (tasks ?? []).map((t: any) => t.id);
+  const pTaskTimeMap = new Map<
+    string,
+    {
+      totalDurationSec: number;
+      staffBreakdown: { employeeId: string; name: string; durationSec: number }[];
+    }
+  >();
+
+  const [{ data: pTimeEntries }, { data: pRunningTimer }] = await Promise.all([
+    pTaskIds.length
+      ? db
+          .from("time_entries")
+          .select("id, task_id, employee_id, duration_sec, started_at, ended_at, employees(id, full_name)")
+          .in("task_id", pTaskIds)
+      : Promise.resolve({ data: [] as any[] }),
+    me.employeeId
+      ? db
+          .from("time_entries")
+          .select("id, task_id")
+          .eq("employee_id", me.employeeId)
+          .is("ended_at", null)
+          .maybeSingle()
+      : Promise.resolve({ data: null }),
+  ]);
+
+  if (pTimeEntries?.length) {
+    for (const entry of pTimeEntries) {
+      if (!entry.task_id) continue;
+      const duration = entry.duration_sec
+        ? entry.duration_sec
+        : entry.started_at && !entry.ended_at
+        ? Math.max(0, Math.round((Date.now() - new Date(entry.started_at).getTime()) / 1000))
+        : 0;
+
+      const empName = (entry.employees as any)?.full_name || "Unknown Staff";
+      const empId = entry.employee_id || "unknown";
+
+      const curr = pTaskTimeMap.get(entry.task_id) ?? {
+        totalDurationSec: 0,
+        staffBreakdown: [],
+      };
+
+      curr.totalDurationSec += duration;
+      const existingStaff = curr.staffBreakdown.find((s) => s.employeeId === empId);
+      if (existingStaff) {
+        existingStaff.durationSec += duration;
+      } else {
+        curr.staffBreakdown.push({
+          employeeId: empId,
+          name: empName,
+          durationSec: duration,
+        });
+      }
+
+      pTaskTimeMap.set(entry.task_id, curr);
+    }
+  }
+
+  const tasksWithTime = (tasks ?? []).map((t: any) => {
+    const timeData = pTaskTimeMap.get(t.id);
+    return {
+      ...t,
+      totalDurationSec: timeData?.totalDurationSec ?? 0,
+      staffBreakdown: timeData?.staffBreakdown ?? [],
+    };
+  });
+
   const invoiceRows = invoices ?? [];
   const client = project.clients as any;
   const deal = (project.deals as any) ?? null;
@@ -277,11 +346,12 @@ export default async function ProjectDetail({ params }: { params: Promise<{ id: 
           {/* Tasks Kanban Board */}
           <TasksCard
             projectId={project.id}
-            tasks={tasks ?? []}
+            tasks={tasksWithTime}
             employees={activeEmployees}
             canManage={canManage}
             myEmployeeId={me.employeeId}
             isCheckedIn={isCheckedIn}
+            runningTaskId={pRunningTimer?.task_id ?? null}
             aiContext={{
               project: project.name,
               scope: deal?.scope ?? project.description ?? "",

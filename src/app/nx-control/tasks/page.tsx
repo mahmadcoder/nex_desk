@@ -119,6 +119,65 @@ export default async function TasksPage({
     }
   }
 
+  // Time tracking & running timer query
+  const taskTimeMap = new Map<
+    string,
+    {
+      totalDurationSec: number;
+      staffBreakdown: { employeeId: string; name: string; durationSec: number }[];
+    }
+  >();
+
+  const [{ data: timeRows }, { data: runningTimerRow }] = await Promise.all([
+    ids.length
+      ? db
+          .from("time_entries")
+          .select("id, task_id, employee_id, duration_sec, started_at, ended_at, employees(id, full_name)")
+          .in("task_id", ids)
+      : Promise.resolve({ data: [] as any[] }),
+    me.employeeId
+      ? db
+          .from("time_entries")
+          .select("id, task_id, started_at")
+          .eq("employee_id", me.employeeId)
+          .is("ended_at", null)
+          .maybeSingle()
+      : Promise.resolve({ data: null }),
+  ]);
+
+  if (timeRows?.length) {
+    for (const entry of timeRows) {
+      if (!entry.task_id) continue;
+      const duration = entry.duration_sec
+        ? entry.duration_sec
+        : entry.started_at && !entry.ended_at
+        ? Math.max(0, Math.round((Date.now() - new Date(entry.started_at).getTime()) / 1000))
+        : 0;
+
+      const empName = (entry.employees as any)?.full_name || "Unknown Staff";
+      const empId = entry.employee_id || "unknown";
+
+      const curr = taskTimeMap.get(entry.task_id) ?? {
+        totalDurationSec: 0,
+        staffBreakdown: [],
+      };
+
+      curr.totalDurationSec += duration;
+      const existingStaff = curr.staffBreakdown.find((s) => s.employeeId === empId);
+      if (existingStaff) {
+        existingStaff.durationSec += duration;
+      } else {
+        curr.staffBreakdown.push({
+          employeeId: empId,
+          name: empName,
+          durationSec: duration,
+        });
+      }
+
+      taskTimeMap.set(entry.task_id, curr);
+    }
+  }
+
   const employeeMap = new Map(
     (employees ?? []).map((e: any) => [e.id, { name: e.full_name, avatar: e.avatar_url, title: e.job_title }])
   );
@@ -126,9 +185,12 @@ export default async function TasksPage({
   const cards = rows.map((t: any) => {
     const emp = t.assigned_employee_id ? employeeMap.get(t.assigned_employee_id) : null;
     const clientName = (t.projects as any)?.clients?.company || (t.projects as any)?.clients?.name || null;
+    const timeData = taskTimeMap.get(t.id);
     return {
       ...t,
       attachmentCount: counts.get(t.id) ?? 0,
+      totalDurationSec: timeData?.totalDurationSec ?? 0,
+      staffBreakdown: timeData?.staffBreakdown ?? [],
       assignee: emp?.name ?? null,
       assigneeAvatar: emp?.avatar ?? null,
       assigneeTitle: emp?.title ?? null,
@@ -156,6 +218,8 @@ export default async function TasksPage({
         initialWho={who}
         initialProject={project}
         isCheckedIn={isCheckedIn}
+        runningTaskId={runningTimerRow?.task_id ?? null}
+        myEmployeeId={me.employeeId}
       />
     </>
   );

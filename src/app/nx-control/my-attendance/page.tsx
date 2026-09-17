@@ -8,7 +8,7 @@ import { getWorkHours, myAttendanceToday, getMyOvertimeSummary } from "@/lib/act
 import { holidayMap } from "@/lib/actions/hr";
 import { parseOfferAcceptance } from "@/lib/staffOffer";
 import AcceptOfferLetter from "@/components/admin/AcceptOfferLetter";
-import { judgeAttendance, humanDuration, isWorkingDay } from "@/lib/workHours";
+import { judgeAttendance, humanDuration, isWorkingDay, formatMinutes } from "@/lib/workHours";
 import { agencyDay, fmtMonth, fmtDate, fmtTime, TZ_LABEL } from "@/lib/datetime";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -260,7 +260,7 @@ export default async function MyAttendancePage({
                   }`}
                 >
                   {verdict.label ?? verdict.status.replace("_", " ")}
-                  {verdict.lateBy ? ` ${verdict.lateBy}m` : ""}
+                  {verdict.lateBy ? ` (${formatMinutes(verdict.lateBy)} late)` : ""}
                 </span>
               </div>
             </li>

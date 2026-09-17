@@ -1,11 +1,13 @@
 "use client";
 
-import { useState, useTransition, useMemo } from "react";
+import { useState, useTransition, useMemo, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
 import { toast } from "sonner";
 import { setTaskStatus, toggleTask } from "@/lib/actions/tasks";
+import { startTimer, stopTimer } from "@/lib/actions/timeTracking";
+import { humanDuration } from "@/lib/workHours";
 import { fmtDate, agencyDay } from "@/lib/datetime";
 import TaskDialog from "@/components/admin/TaskDialog";
 import CustomSelect from "@/components/ui/CustomSelect";
@@ -30,6 +32,8 @@ import {
   X,
   Sparkles,
   ArrowRight,
+  Play,
+  Square,
 } from "lucide-react";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -66,6 +70,8 @@ export default function TaskBoard({
   initialWho,
   initialProject,
   isCheckedIn = true,
+  runningTaskId = null,
+  myEmployeeId = null,
 }: {
   tasks: any[];
   canManage?: boolean;
@@ -74,13 +80,47 @@ export default function TaskBoard({
   initialWho?: string;
   initialProject?: string;
   isCheckedIn?: boolean;
+  runningTaskId?: string | null;
+  myEmployeeId?: string | null;
 }) {
   const router = useRouter();
   const [pending, start] = useTransition();
+  const [timerPending, startTimerTransition] = useTransition();
+  const [activeRunningTaskId, setActiveRunningTaskId] = useState<string | null>(runningTaskId ?? null);
   const [busy, setBusy] = useState<string | null>(null);
   const [editing, setEditing] = useState<any | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [defaultProjectForAdd, setDefaultProjectForAdd] = useState<string | null>(null);
+
+  useEffect(() => {
+    setActiveRunningTaskId(runningTaskId ?? null);
+  }, [runningTaskId]);
+
+  const handleStartTimer = (t: any) => {
+    startTimerTransition(async () => {
+      const res = await startTimer({ taskId: t.id, projectId: t.project_id });
+      if (!res.ok) {
+        toast.error(res.error);
+        return;
+      }
+      setActiveRunningTaskId(t.id);
+      toast.success(`Timer started on "${t.title}".`);
+      router.refresh();
+    });
+  };
+
+  const handleStopTimer = () => {
+    startTimerTransition(async () => {
+      const res = await stopTimer();
+      if (!res.ok) {
+        toast.error(res.error);
+        return;
+      }
+      setActiveRunningTaskId(null);
+      toast.success(`Timer stopped — ${humanDuration(res.durationSec)} recorded.`);
+      router.refresh();
+    });
+  };
 
   // View state
   const [viewMode, setViewMode] = useState<"kanban" | "project" | "assignee">("kanban");
@@ -637,6 +677,10 @@ export default function TaskBoard({
                       colCount={COLUMNS.length}
                       todayStr={todayStr}
                       isCheckedIn={isCheckedIn}
+                      isRunning={activeRunningTaskId === t.id}
+                      timerPending={timerPending}
+                      onStartTimer={() => handleStartTimer(t)}
+                      onStopTimer={handleStopTimer}
                     />
                   ))}
 
@@ -719,6 +763,10 @@ export default function TaskBoard({
                       onStatusChange={(status) => updateStatusDirect(t, status)}
                       todayStr={todayStr}
                       isCheckedIn={isCheckedIn}
+                      isRunning={activeRunningTaskId === t.id}
+                      timerPending={timerPending}
+                      onStartTimer={() => handleStartTimer(t)}
+                      onStopTimer={handleStopTimer}
                     />
                   ))}
 
@@ -770,6 +818,11 @@ export default function TaskBoard({
                     colIdx={0}
                     colCount={COLUMNS.length}
                     todayStr={todayStr}
+                    isCheckedIn={isCheckedIn}
+                    isRunning={activeRunningTaskId === t.id}
+                    timerPending={timerPending}
+                    onStartTimer={() => handleStartTimer(t)}
+                    onStopTimer={handleStopTimer}
                   />
                 ))}
               </div>
@@ -829,6 +882,10 @@ export default function TaskBoard({
                         onStatusChange={(status) => updateStatusDirect(t, status)}
                         todayStr={todayStr}
                         isCheckedIn={isCheckedIn}
+                        isRunning={activeRunningTaskId === t.id}
+                        timerPending={timerPending}
+                        onStartTimer={() => handleStartTimer(t)}
+                        onStopTimer={handleStopTimer}
                       />
                     ))}
 
@@ -859,6 +916,10 @@ function TaskCardItem({
   colCount,
   todayStr,
   isCheckedIn = true,
+  isRunning = false,
+  timerPending = false,
+  onStartTimer,
+  onStopTimer,
 }: {
   task: any;
   canManage: boolean;
@@ -869,6 +930,10 @@ function TaskCardItem({
   colCount: number;
   todayStr: string;
   isCheckedIn?: boolean;
+  isRunning?: boolean;
+  timerPending?: boolean;
+  onStartTimer?: () => void;
+  onStopTimer?: () => void;
 }) {
   const overdue = t.due_date && t.status !== "done" && t.due_date < todayStr;
   const pStyle = PRIORITY_STYLES[t.priority ?? "normal"] ?? PRIORITY_STYLES.normal;
@@ -902,7 +967,7 @@ function TaskCardItem({
         <p className="mt-1.5 line-clamp-2 text-xs leading-relaxed text-bone-400">{t.description}</p>
       )}
 
-      {/* Badges: Priority, Due Date, Attachments */}
+      {/* Badges: Priority, Due Date, Attachments, Tracked Time, 1-Click Timer */}
       <div className="mt-2.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px]">
         <span className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-medium capitalize ${pStyle.border} ${pStyle.bg} ${pStyle.text}`}>
           <Flag size={9} /> {t.priority ?? "normal"}
@@ -918,6 +983,76 @@ function TaskCardItem({
           <span className="inline-flex items-center gap-1 text-[10px] text-bone-400">
             <Paperclip size={10} /> {t.attachmentCount}
           </span>
+        )}
+
+        {/* Tracked Time Badge */}
+        {(t.totalDurationSec > 0 || isRunning) && (
+          <div className="relative group/time inline-flex items-center">
+            <span
+              className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-medium transition-colors ${
+                isRunning
+                  ? "border-lime-400/50 bg-lime-400/15 text-lime-300 font-semibold"
+                  : "border-ink-600 bg-ink-800 text-bone-300 hover:border-ink-500"
+              }`}
+            >
+              <Clock size={10} className={isRunning ? "text-lime-400 animate-spin" : "text-lime-400/80"} />
+              {humanDuration(t.totalDurationSec)}
+              {isRunning && <span className="ml-0.5 text-[9px] text-lime-400 font-bold tracking-wider animate-pulse">LIVE</span>}
+            </span>
+
+            {/* Admin / Manager breakdown tooltip on hover */}
+            {canManage && t.staffBreakdown?.length > 0 && (
+              <div className="pointer-events-none absolute bottom-full left-0 mb-1.5 hidden w-52 rounded-lg border border-ink-600 bg-ink-900 p-2.5 text-[10px] text-bone-200 shadow-2xl z-30 group-hover/time:block animate-in fade-in zoom-in-95 duration-150">
+                <p className="font-semibold text-bone-100 border-b border-ink-700 pb-1 mb-1.5 flex items-center justify-between">
+                  <span>Staff Breakdown</span>
+                  <span className="text-[9px] font-normal text-bone-400">Total: {humanDuration(t.totalDurationSec)}</span>
+                </p>
+                <div className="space-y-1">
+                  {t.staffBreakdown.map((s: any) => (
+                    <div key={s.employeeId} className="flex items-center justify-between">
+                      <span className="truncate pr-2 text-bone-300">{s.name}</span>
+                      <span className="font-mono text-lime-400 font-medium shrink-0">{humanDuration(s.durationSec)}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* 1-Click Timer Toggle Button */}
+        {t.status !== "done" && onStartTimer && onStopTimer && (
+          isRunning ? (
+            <button
+              type="button"
+              disabled={timerPending}
+              onClick={(e) => {
+                e.stopPropagation();
+                onStopTimer();
+              }}
+              className="inline-flex items-center gap-1 rounded-full border border-rose-500/40 bg-rose-500/15 px-2 py-0.5 text-[10px] font-medium text-rose-300 hover:bg-rose-500/25 transition-colors cursor-pointer"
+              title="Stop tracking time on this task"
+            >
+              <Square size={8} className="fill-current" /> Stop
+            </button>
+          ) : (
+            <button
+              type="button"
+              disabled={timerPending || (!canManage && !isCheckedIn)}
+              onClick={(e) => {
+                e.stopPropagation();
+                if (!canManage && !isCheckedIn) {
+                  toast.error("Please check in for attendance today before starting a timer.");
+                  return;
+                }
+                onStartTimer();
+              }}
+              className="inline-flex items-center gap-1 rounded-full border border-ink-600 bg-ink-800/80 px-2 py-0.5 text-[10px] text-bone-300 hover:border-lime-400/50 hover:bg-lime-400/10 hover:text-lime-300 transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+              title={!canManage && !isCheckedIn ? "Check in for attendance today to track time" : "Start timer on this task"}
+            >
+              <Play size={8} className="fill-current text-lime-400" /> Track Time
+            </button>
+          )
         )}
       </div>
 
@@ -1008,6 +1143,10 @@ function TaskRowItem({
   onStatusChange,
   todayStr,
   isCheckedIn = true,
+  isRunning = false,
+  timerPending = false,
+  onStartTimer,
+  onStopTimer,
 }: {
   task: any;
   canManage: boolean;
@@ -1017,6 +1156,10 @@ function TaskRowItem({
   onStatusChange: (status: "todo" | "doing" | "review" | "done") => void;
   todayStr: string;
   isCheckedIn?: boolean;
+  isRunning?: boolean;
+  timerPending?: boolean;
+  onStartTimer?: () => void;
+  onStopTimer?: () => void;
 }) {
   const isDone = t.status === "done";
   const overdue = t.due_date && !isDone && t.due_date < todayStr;
@@ -1073,6 +1216,41 @@ function TaskRowItem({
             {t.projectName && (
               <span className="text-bone-400 truncate max-w-[180px]">📁 {t.projectName}</span>
             )}
+
+            {/* Tracked Time Badge in row */}
+            {(t.totalDurationSec > 0 || isRunning) && (
+              <div className="relative group/rowtime inline-flex items-center">
+                <span
+                  className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-medium transition-colors ${
+                    isRunning
+                      ? "border-lime-400/50 bg-lime-400/15 text-lime-300 font-semibold"
+                      : "border-ink-600 bg-ink-800 text-bone-300 hover:border-ink-500"
+                  }`}
+                >
+                  <Clock size={10} className={isRunning ? "text-lime-400 animate-spin" : "text-lime-400/80"} />
+                  {humanDuration(t.totalDurationSec)}
+                  {isRunning && <span className="ml-0.5 text-[9px] text-lime-400 font-bold tracking-wider animate-pulse">LIVE</span>}
+                </span>
+
+                {/* Admin / Manager breakdown tooltip on hover */}
+                {canManage && t.staffBreakdown?.length > 0 && (
+                  <div className="pointer-events-none absolute bottom-full left-0 mb-1.5 hidden w-52 rounded-lg border border-ink-600 bg-ink-900 p-2.5 text-[10px] text-bone-200 shadow-2xl z-30 group-hover/rowtime:block animate-in fade-in zoom-in-95 duration-150">
+                    <p className="font-semibold text-bone-100 border-b border-ink-700 pb-1 mb-1.5 flex items-center justify-between">
+                      <span>Staff Breakdown</span>
+                      <span className="text-[9px] font-normal text-bone-400">Total: {humanDuration(t.totalDurationSec)}</span>
+                    </p>
+                    <div className="space-y-1">
+                      {t.staffBreakdown.map((s: any) => (
+                        <div key={s.employeeId} className="flex items-center justify-between">
+                          <span className="truncate pr-2 text-bone-300">{s.name}</span>
+                          <span className="font-mono text-lime-400 font-medium shrink-0">{humanDuration(s.durationSec)}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -1080,6 +1258,37 @@ function TaskRowItem({
       {/* Controls */}
       <div className="flex items-center gap-2 self-end sm:self-center">
         {working && <Loader2 size={13} className="animate-spin text-lime-400" />}
+
+        {/* 1-Click Timer Toggle Button */}
+        {t.status !== "done" && onStartTimer && onStopTimer && (
+          isRunning ? (
+            <button
+              type="button"
+              disabled={timerPending}
+              onClick={onStopTimer}
+              className="inline-flex items-center gap-1 rounded-full border border-rose-500/40 bg-rose-500/15 px-2 py-1 text-[11px] font-medium text-rose-300 hover:bg-rose-500/25 transition-colors cursor-pointer"
+              title="Stop tracking time"
+            >
+              <Square size={9} className="fill-current" /> Stop
+            </button>
+          ) : (
+            <button
+              type="button"
+              disabled={timerPending || (!canManage && !isCheckedIn)}
+              onClick={() => {
+                if (!canManage && !isCheckedIn) {
+                  toast.error("Please check in for attendance today before starting a timer.");
+                  return;
+                }
+                onStartTimer();
+              }}
+              className="inline-flex items-center gap-1 rounded-full border border-ink-600 bg-ink-800/80 px-2 py-1 text-[11px] text-bone-300 hover:border-lime-400/50 hover:bg-lime-400/10 hover:text-lime-300 transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+              title={!canManage && !isCheckedIn ? "Check in for attendance today to track time" : "Start timer on this task"}
+            >
+              <Play size={9} className="fill-current text-lime-400" /> Track Time
+            </button>
+          )
+        )}
 
         {/* Quick Status Select */}
         <select

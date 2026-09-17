@@ -7,6 +7,7 @@ import { saveClient, checkEmailExists } from "@/lib/actions";
 import { COUNTRIES, CURRENCIES, type CountryData } from "@/lib/countries";
 import { PlatformIcon } from "@/components/brand/PlatformIcons";
 import ImageUpload from "@/components/admin/ImageUpload";
+import { useScrollLock } from "@/lib/useScrollLock";
 import { X, ChevronDown, Check, Search, MapPin, Loader2 } from "lucide-react";
 
 const field =
@@ -41,6 +42,8 @@ export default function ClientDialog({
       setInternalOpen(val);
     }
   };
+
+  useScrollLock(!!open);
 
   const [pending, start] = useTransition();
   const router = useRouter();
@@ -251,10 +254,12 @@ export default function ClientDialog({
   return (
     <div
       className="fixed inset-0 z-50 grid place-items-center bg-ink-950/80 p-4 backdrop-blur-sm animate-in fade-in duration-200 text-left"
+      data-lenis-prevent
     >
       <div
         className="card w-full max-w-xl p-5 sm:p-7 relative bg-ink-900 border-ink-600 shadow-2xl my-auto max-h-[calc(100dvh-2rem)] overflow-y-auto custom-admin-scrollbar text-left"
         onClick={(e) => e.stopPropagation()}
+        data-lenis-prevent
       >
         {/* Top Header with Close Icon */}
         <div className="flex items-start justify-between border-b border-ink-600 pb-4">

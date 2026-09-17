@@ -13,6 +13,7 @@ import CustomSelect, { SelectOption } from "@/components/ui/CustomSelect";
 import { IDailyWorkLog } from "@/types/cms";
 import { fmtDate, agencyDay } from "@/lib/datetime";
 import { myTrackedTasksToday } from "@/lib/actions/timeTracking";
+import { useScrollLock } from "@/lib/useScrollLock";
 import {
   Plus,
   Trash2,
@@ -55,6 +56,8 @@ export default function DailyLogsClient({
   const [logs, setLogs] = useState<IDailyWorkLog[]>(initialLogs);
   const [showAddModal, setShowAddModal] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+
+  useScrollLock(showAddModal);
 
   // Form State
   // Agency time. As a UTC slice this prefilled yesterday's date on anyone
@@ -209,7 +212,7 @@ export default function DailyLogsClient({
 
     startTransition(async () => {
       try {
-        await submitDailyWorkLog({
+        const res = await submitDailyWorkLog({
           employee_id: empObj.id,
           employee_name: empObj.name,
           project_id: projObj?.id ?? null,
@@ -233,15 +236,20 @@ export default function DailyLogsClient({
           metrics,
         });
 
+        if (!res.ok) {
+          toast.error(res.error || "Failed to submit work log.");
+          return;
+        }
+
         // Tick off whatever this log finished. Deliberately AFTER the log is
         // saved and in its own try — a task-board hiccup must never look like
         // a lost work log.
         let closed = 0;
         if (closingTasks.length) {
           try {
-            const res = await closeTasksFromLog(closingTasks);
-            if (res.ok) closed = res.closed;
-            else toast.warning(res.error);
+            const cRes = await closeTasksFromLog(closingTasks);
+            if (cRes.ok) closed = cRes.closed;
+            else toast.warning(cRes.error);
           } catch {
             toast.warning("The log saved, but the tasks could not be ticked off.");
           }
@@ -467,10 +475,14 @@ export default function DailyLogsClient({
 
       {/* Add Work Log Modal */}
       {showAddModal && (
-        <div className="fixed inset-0 z-50 grid place-items-center bg-ink-950/80 backdrop-blur-xs p-4 animate-in fade-in duration-200">
+        <div
+          className="fixed inset-0 z-50 grid place-items-center bg-ink-950/80 backdrop-blur-xs p-4 animate-in fade-in duration-200"
+          data-lenis-prevent
+        >
           <div
             className="card w-full max-w-2xl p-6 sm:p-7 bg-ink-900 border-ink-600 relative space-y-4 shadow-2xl my-auto max-h-[calc(100dvh-2rem)] overflow-y-auto custom-admin-scrollbar"
             onClick={(e) => e.stopPropagation()}
+            data-lenis-prevent
           >
             <div className="flex items-center justify-between border-b border-ink-700/80 pb-3">
               <h2 className="text-lg font-semibold text-bone-50">

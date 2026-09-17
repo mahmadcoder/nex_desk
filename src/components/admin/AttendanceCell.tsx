@@ -7,7 +7,7 @@ import Modal from "@/components/admin/Modal";
 import CustomSelect from "@/components/ui/CustomSelect";
 import { adminSetAttendance, adminClearAttendance } from "@/lib/actions/attendance";
 import { fmtDate } from "@/lib/datetime";
-import type { AttendanceVerdict } from "@/lib/workHours";
+import { formatMinutes, type AttendanceVerdict } from "@/lib/workHours";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
@@ -114,7 +114,7 @@ export default function AttendanceCell({
 
   const title = [
     `${date} — ${verdict.label ?? verdict.status.replace("_", " ")}`,
-    verdict.lateBy ? `(${verdict.lateBy}m late)` : "",
+    verdict.lateBy ? `(${formatMinutes(verdict.lateBy)} late)` : "",
     verdict.edited ? `· corrected${editorName ? ` by ${editorName}` : ""}` : "",
     locked ? "" : "· click to change",
   ]

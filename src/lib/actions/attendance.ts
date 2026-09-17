@@ -6,7 +6,7 @@ import { requireStaff, requireOwnerAdmin } from "@/lib/auth/guards";
 import { getCurrentStaff } from "@/lib/auth/staff";
 import { recordAudit } from "@/lib/actions/audit";
 import { agencyDay, AGENCY_TZ } from "@/lib/datetime";
-import { workHoursFrom, judgeAttendance, type WorkHours } from "@/lib/workHours";
+import { workHoursFrom, judgeAttendance, formatMinutes, type WorkHours } from "@/lib/workHours";
 import { holidayMap } from "@/lib/actions/hr";
 import { parseOfferAcceptance } from "@/lib/staffOffer";
 
@@ -133,7 +133,7 @@ export async function checkIn(note?: string) {
   if (todayData.verdict.status === "late") {
     await notify({
       kind: "staff.late",
-      title: `Late Attendance: ${staff.fullName} checked in ${todayData.verdict.lateBy}m late`,
+      title: `Late Attendance: ${staff.fullName} checked in ${formatMinutes(todayData.verdict.lateBy)} late`,
       body: `Arrival: ${fmtTime(new Date().toISOString())} (Scheduled: ${todayData.hours.start})`,
       href: `/${ADMIN}/attendance`,
       actorKind: "staff",

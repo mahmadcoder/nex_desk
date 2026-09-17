@@ -1261,187 +1261,217 @@ export async function submitDailyWorkLog(data: {
   hours_source?: "manual" | "tracked" | "adjusted";
   hours_tracked?: number | null;
 }) {
-  // Staff-accessible: logging your own work is the whole point of this screen.
-  const me = await requireStaff();
-  const db = createAdminClient();
+  try {
+    // Staff-accessible: logging your own work is the whole point of this screen.
+    const me = await requireStaff();
+    const db = createAdminClient();
 
-  // These columns are uuid. Anything that isn't a uuid must become NULL rather
-  // than reaching Postgres, which would raise 22P02 and 500 the whole action.
-  let employeeId = asUuid(data.employee_id);
-  const projectId = asUuid(data.project_id);
+    // These columns are uuid. Anything that isn't a uuid must become NULL rather
+    // than reaching Postgres, which would raise 22P02 and 500 the whole action.
+    let employeeId = asUuid(data.employee_id);
+    const projectId = asUuid(data.project_id);
 
-  if (!me.isPrivileged) {
-    if (!me.employeeId) {
-      throw new Error("Your account is not linked to an employee record.");
-    }
-    employeeId = me.employeeId;
+    if (!me.isPrivileged) {
+      if (!me.employeeId) {
+        return { ok: false as const, error: "Your account is not linked to an employee record." };
+      }
+      employeeId = me.employeeId;
 
-    const checkedIn = await isStaffCheckedInToday(employeeId);
-    if (!checkedIn) {
-      throw new Error("You must check in for attendance today before submitting a daily work log.");
-    }
-  }
+      // Verify employee checked in for attendance on the specified work date
+      const { data: attendance } = await db
+        .from("attendance_records")
+        .select("id")
+        .eq("employee_id", employeeId)
+        .eq("date", data.work_date)
+        .not("checked_in_at", "is", null)
+        .maybeSingle();
 
-  if (!employeeId) {
-    throw new Error("Select a valid employee before submitting a work log.");
-  }
-
-  // Validate project if provided
-  if (projectId) {
-    const { data: project } = await db
-      .from("projects")
-      .select("id, status, client_id")
-      .eq("id", projectId)
-      .maybeSingle();
-
-    if (!project) throw new Error("Project not found.");
-    if (project.status === "cancelled" || project.status === "completed") {
-      throw new Error(`Cannot submit a work log on a ${project.status} project.`);
-    }
-
-    if (!me.isPrivileged && project.client_id) {
-      const allowed = await assignedClientIds(employeeId);
-      if (!allowed.includes(project.client_id)) {
-        throw new Error("You are not assigned to this project's client.");
+      if (!attendance) {
+        return {
+          ok: false as const,
+          error: `You must check in for attendance on ${fmtDate(data.work_date)} before submitting a daily work log.`,
+        };
       }
     }
-  }
 
-  // Only managers/admins can broadcast client-visible progress updates directly to clients
-  const clientVisible = me.isPrivileged && !!data.client_visible && !!projectId;
-  const progressDelta = Math.max(0, Math.min(100, Number(data.progress_delta) || 0));
+    if (!employeeId) {
+      return { ok: false as const, error: "Select a valid employee before submitting a work log." };
+    }
 
-  const { data: res, error } = await db.from("daily_work_logs").insert({
-    employee_id: employeeId,
-    employee_name: data.employee_name || null,
-    project_id: projectId,
-    project_title: data.project_title || null,
-    work_date: data.work_date,
-    hours_spent: data.hours_spent,
-    hours_source: data.hours_source ?? "manual",
-    hours_tracked: data.hours_tracked ?? null,
-    tasks_completed: data.tasks_completed,
-    blockers: data.blockers || null,
-    proof_url: data.proof_url || null,
-    client_visible: clientVisible,
-    progress_delta: progressDelta,
-    // Blank answers are dropped rather than stored as empty strings, so a
-    // report can treat "absent" and "zero" as different things.
-    metrics: Object.fromEntries(
-      Object.entries(data.metrics ?? {}).filter(
-        ([, v]) => v !== "" && v !== null && v !== undefined && v !== false
-      )
-    ),
-  }).select().single();
+    // Validate project if provided
+    if (projectId) {
+      const { data: project } = await db
+        .from("projects")
+        .select("id, status, client_id")
+        .eq("id", projectId)
+        .maybeSingle();
 
-  if (error) throw new Error(error.message || "Failed to submit daily work log.");
+      if (!project) return { ok: false as const, error: "Project not found." };
+      if (project.status === "cancelled" || project.status === "completed") {
+        return { ok: false as const, error: `Cannot submit a work log on a ${project.status} project.` };
+      }
 
-  // Recompute whenever real work was reported, not only when it is shared —
-  // internal progress still has to move the admin and staff views.
-  let progress: number | null = null;
-  if (projectId) {
-    progress = await recomputeProjectProgress(projectId, progressDelta);
-    revalidatePath("/portal");
-    revalidatePath(`/${ADMIN}/projects/${projectId}`);
-    // The dashboards read project progress too, and both were stale before.
-    revalidatePath(`/${ADMIN}`, "layout");
-  }
+      if (!me.isPrivileged && project.client_id) {
+        const allowed = await assignedClientIds(employeeId);
+        const isClientAssigned = allowed.includes(project.client_id);
+        if (!isClientAssigned) {
+          // Check if employee has any task assigned on this project
+          const { data: assignedTask } = await db
+            .from("tasks")
+            .select("id")
+            .eq("project_id", projectId)
+            .eq("assigned_employee_id", employeeId)
+            .limit(1)
+            .maybeSingle();
 
-  const adminEmail = await adminNotifyAddress();
-  const emailed = { client: false, admin: false };
-
-  // The client only hears about entries the team chose to share.
-  if (clientVisible && projectId) {
-    const { data: project } = await db
-      .from("projects")
-      .select("name, client_id, clients(name, email)")
-      .eq("id", projectId)
-      .maybeSingle();
-
-    const projectClient = (project?.clients as any) ?? null;
-    if (projectClient?.email) {
-      const res = await sendEmail({
-        templateKey: "client_work_update",
-        to: projectClient.email,
-        clientId: project?.client_id ?? undefined,
-        projectId,
-        vars: {
-          client_name: projectClient.name || "there",
-          project_name: project?.name || data.project_title || "your project",
-          work_date: data.work_date,
-          progress: progress ?? 0,
-          tasks_completed: data.tasks_completed,
-          portal_url: `${getSiteBaseUrl()}/portal`,
-        },
-      });
-      emailed.client = res.ok;
-
-      // Trigger in-app notification in client portal
-      if (project?.client_id) {
-        await notifyClientGrouped({
-          clientId: project.client_id,
-          kind: "project.progress",
-          title: (count) =>
-            count === 1
-              ? `New work update on ${project.name || "your project"}`
-              : `${count} new work updates on ${project.name || "your project"}`,
-          body: String(data.tasks_completed).split("\n")[0].slice(0, 140),
-          href: `/portal/projects/${projectId}?tab=timeline`,
-          entityId: projectId,
-        }).catch(() => null);
+          if (!assignedTask) {
+            return { ok: false as const, error: "You are not assigned to this project or any of its tasks." };
+          }
+        }
       }
     }
+
+    // Only managers/admins can broadcast client-visible progress updates directly to clients
+    const clientVisible = me.isPrivileged && !!data.client_visible && !!projectId;
+    const progressDelta = Math.max(0, Math.min(100, Number(data.progress_delta) || 0));
+
+    const { data: res, error } = await db.from("daily_work_logs").insert({
+      employee_id: employeeId,
+      employee_name: data.employee_name || null,
+      project_id: projectId,
+      project_title: data.project_title || null,
+      work_date: data.work_date,
+      hours_spent: data.hours_spent,
+      hours_source: data.hours_source ?? "manual",
+      hours_tracked: data.hours_tracked ?? null,
+      tasks_completed: data.tasks_completed,
+      blockers: data.blockers || null,
+      proof_url: data.proof_url || null,
+      client_visible: clientVisible,
+      progress_delta: progressDelta,
+      // Blank answers are dropped rather than stored as empty strings, so a
+      // report can treat "absent" and "zero" as different things.
+      metrics: Object.fromEntries(
+        Object.entries(data.metrics ?? {}).filter(
+          ([, v]) => v !== "" && v !== null && v !== undefined && v !== false
+        )
+      ),
+    }).select().single();
+
+    if (error) {
+      return { ok: false as const, error: error.message || "Failed to submit daily work log." };
+    }
+
+    // Recompute whenever real work was reported, not only when it is shared —
+    // internal progress still has to move the admin and staff views.
+    let progress: number | null = null;
+    if (projectId) {
+      progress = await recomputeProjectProgress(projectId, progressDelta);
+      revalidatePath("/portal");
+      revalidatePath(`/${ADMIN}/projects/${projectId}`);
+      // The dashboards read project progress too, and both were stale before.
+      revalidatePath(`/${ADMIN}`, "layout");
+    }
+
+    const adminEmail = await adminNotifyAddress();
+    const emailed = { client: false, admin: false };
+
+    // The client only hears about entries the team chose to share.
+    if (clientVisible && projectId) {
+      const { data: project } = await db
+        .from("projects")
+        .select("name, client_id, clients(name, email)")
+        .eq("id", projectId)
+        .maybeSingle();
+
+      const projectClient = (project?.clients as any) ?? null;
+      if (projectClient?.email) {
+        const res = await sendEmail({
+          templateKey: "client_work_update",
+          to: projectClient.email,
+          clientId: project?.client_id ?? undefined,
+          projectId,
+          vars: {
+            client_name: projectClient.name || "there",
+            project_name: project?.name || data.project_title || "your project",
+            work_date: data.work_date,
+            progress: progress ?? 0,
+            tasks_completed: data.tasks_completed,
+            portal_url: `${getSiteBaseUrl()}/portal`,
+          },
+        });
+        emailed.client = res.ok;
+
+        // Trigger in-app notification in client portal
+        if (project?.client_id) {
+          await notifyClientGrouped({
+            clientId: project.client_id,
+            kind: "project.progress",
+            title: (count) =>
+              count === 1
+                ? `New work update on ${project.name || "your project"}`
+                : `${count} new work updates on ${project.name || "your project"}`,
+            body: String(data.tasks_completed).split("\n")[0].slice(0, 140),
+            href: `/portal/projects/${projectId}?tab=timeline`,
+            entityId: projectId,
+          }).catch(() => null);
+        }
+      }
+    }
+
+    await notify({
+      kind: "worklog.submitted",
+      title: `${data.employee_name} logged ${data.hours_spent}h on ${data.project_title || "agency work"}`,
+      body: data.blockers?.trim()
+        ? `Blocked: ${data.blockers.trim()}`
+        : String(data.tasks_completed).split("\n")[0].slice(0, 140),
+      href: `/${ADMIN}/daily-logs`,
+      entity: "daily_work_logs",
+      entityId: res?.id ?? null,
+      actorLabel: data.employee_name,
+      actorKind: "staff",
+      clientId: null,
+      meta: { blocked: !!data.blockers?.trim() },
+    });
+
+    // Awaited, not fire-and-forget: a detached promise is killed when the
+    // serverless function returns, which is why some of these never arrived.
+    const adminRes = await sendEmail({
+      templateKey: "admin_work_log_notice",
+      to: adminEmail,
+      projectId: projectId ?? undefined,
+      vars: {
+        employee_name: data.employee_name || "Staff Member",
+        project_title: data.project_title || "General Task",
+      },
+      bodyOverride:
+        `A new daily work log has been submitted.\n\n` +
+        `• Staff member: ${data.employee_name || "N/A"}\n` +
+        `• Project: ${data.project_title || "N/A"}\n` +
+        `• Work date: ${fmtDate(data.work_date)}\n` +
+        `• Hours: ${data.hours_spent}\n` +
+        (progress !== null ? `• Project progress now: ${progress}%\n` : "") +
+        `• Shared with client: ${clientVisible ? "yes" : "no"}\n\n` +
+        `What they did:\n\n${data.tasks_completed}` +
+        (data.blockers ? `\n\n## Blocker raised\n\n${data.blockers}` : "") +
+        `\n\nReview every log here:\n${getSiteBaseUrl()}/${ADMIN}/daily-logs`,
+      subjectOverride: data.blockers
+        ? `⚠️ Blocker raised by ${data.employee_name || "staff"} — ${data.project_title || "project"}`
+        : `📝 Work log — ${data.employee_name || "staff"} (${fmtDate(data.work_date)})`,
+    }).catch((emailErr) => {
+      console.error("Error sending work log notice email:", emailErr);
+      return { ok: false as const };
+    });
+    emailed.admin = adminRes.ok;
+
+    revalidatePath(`/${ADMIN}/daily-logs`);
+    revalidatePath(`/${ADMIN}/employees`);
+    revalidatePath(`/${ADMIN}/projects`);
+    return { ok: true as const, data: { ...res, progress, emailed } };
+  } catch (err: any) {
+    console.error("submitDailyWorkLog failed:", err);
+    return { ok: false as const, error: err?.message || "Failed to submit daily work log." };
   }
-
-  await notify({
-    kind: "worklog.submitted",
-    title: `${data.employee_name} logged ${data.hours_spent}h on ${data.project_title || "agency work"}`,
-    body: data.blockers?.trim()
-      ? `Blocked: ${data.blockers.trim()}`
-      : String(data.tasks_completed).split("\n")[0].slice(0, 140),
-    href: `/${ADMIN}/daily-logs`,
-    entity: "daily_work_logs",
-    entityId: res?.id ?? null,
-    actorLabel: data.employee_name,
-    actorKind: "staff",
-    clientId: null,
-    meta: { blocked: !!data.blockers?.trim() },
-  });
-
-  // Awaited, not fire-and-forget: a detached promise is killed when the
-  // serverless function returns, which is why some of these never arrived.
-  const adminRes = await sendEmail({
-    templateKey: "admin_work_log_notice",
-    to: adminEmail,
-    projectId: projectId ?? undefined,
-    vars: {
-      employee_name: data.employee_name || "Staff Member",
-      project_title: data.project_title || "General Task",
-    },
-    bodyOverride:
-      `A new daily work log has been submitted.\n\n` +
-      `• Staff member: ${data.employee_name || "N/A"}\n` +
-      `• Project: ${data.project_title || "N/A"}\n` +
-      `• Work date: ${fmtDate(data.work_date)}\n` +
-      `• Hours: ${data.hours_spent}\n` +
-      (progress !== null ? `• Project progress now: ${progress}%\n` : "") +
-      `• Shared with client: ${clientVisible ? "yes" : "no"}\n\n` +
-      `What they did:\n\n${data.tasks_completed}` +
-      (data.blockers ? `\n\n## Blocker raised\n\n${data.blockers}` : "") +
-      `\n\nReview every log here:\n${getSiteBaseUrl()}/${ADMIN}/daily-logs`,
-    subjectOverride: data.blockers
-      ? `⚠️ Blocker raised by ${data.employee_name || "staff"} — ${data.project_title || "project"}`
-      : `📝 Work log — ${data.employee_name || "staff"} (${fmtDate(data.work_date)})`,
-  }).catch((emailErr) => {
-    console.error("Error sending work log notice email:", emailErr);
-    return { ok: false as const };
-  });
-  emailed.admin = adminRes.ok;
-
-  revalidatePath(`/${ADMIN}/daily-logs`);
-  revalidatePath(`/${ADMIN}/employees`);
-  revalidatePath(`/${ADMIN}/projects`);
-  return { ...res, progress, emailed };
 }
 
 export async function deleteDailyWorkLog(id: string) {
