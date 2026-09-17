@@ -1,25 +1,21 @@
-import Link from "next/link";
+import { Suspense } from "react";
 import { createAdminClient } from "@/lib/supabase/server";
 import { getCurrentStaff, assignedClientIds } from "@/lib/auth/staff";
 import { PageHead } from "@/components/admin/ui";
-import { buildCalendar, monthGrid, isoOf, KIND_STYLE, type CalendarKind } from "@/lib/calendar";
-import { agencyDay, fmtMonth, fmtTime } from "@/lib/datetime";
+import { buildCalendar, isoOf } from "@/lib/calendar";
+import { agencyDay, fmtMonth } from "@/lib/datetime";
+import CalendarClient from "@/components/admin/CalendarClient";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-export const metadata = { title: "Calendar" };
+const BASE = `/${process.env.ADMIN_PATH || "nx-control"}`;
+export const metadata = { title: "Calendar | NexDesk" };
 export const dynamic = "force-dynamic";
 
-const WEEKDAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
-
 /**
- * Meetings, deadlines, milestones and leave, in one month.
- *
- * Everything here already exists in another table — nothing new is stored, so
- * the calendar can never disagree with the project it is describing.
- *
- * Scoped like everywhere else: staff see only their assigned clients, plus
- * their own leave.
+ * Supercharged Calendar:
+ * Tasks due dates, meetings with 1-click video join links, project milestones & deadlines,
+ * employee leaves, and official agency holidays.
  */
 export default async function CalendarPage({
   searchParams,
@@ -41,22 +37,48 @@ export default async function CalendarPage({
   const from = isoOf(new Date(year, mon, 1));
   const to = isoOf(new Date(year, mon + 1, 0));
 
-  // A staff member with no assignments must match nothing, not everything.
-  const scope = <T,>(q: any, column = "client_id") =>
-    clientIds ? q.in(column, clientIds.length ? clientIds : ["00000000-0000-0000-0000-000000000000"]) : q;
+  // Scoping helper for client-based queries
+  const scopeClient = (q: any, column = "client_id") =>
+    clientIds
+      ? q.in(column, clientIds.length ? clientIds : ["00000000-0000-0000-0000-000000000000"])
+      : q;
 
-  const [{ data: meetings }, { data: projects }, { data: leave }] = await Promise.all([
-    scope(
-      db
-        .from("meetings")
-        .select("id, title, starts_at, status, client_id, clients(name)")
-        .gte("starts_at", `${from}T00:00:00`)
-        .lte("starts_at", `${to}T23:59:59`)
-    ),
-    scope(
+  // Build tasks query: scoped to employee if staff, or all if privileged
+  let tasksQuery = db
+    .from("tasks")
+    .select(
+      "id, title, status, priority, due_date, project_id, assigned_employee_id, projects(id, name, client_id, clients(id, name)), employees(id, full_name)"
+    )
+    .eq("is_recurring_template", false)
+    .gte("due_date", from)
+    .lte("due_date", to);
+
+  if (!canManage) {
+    tasksQuery = tasksQuery.eq(
+      "assigned_employee_id",
+      me.employeeId ?? "00000000-0000-0000-0000-000000000000"
+    );
+  }
+
+  // Fetch all calendar sources in parallel
+  const [
+    { data: rawMeetings },
+    { data: rawProjects },
+    { data: rawLeave },
+    { data: rawTasks },
+    { data: rawHolidays },
+  ] = await Promise.all([
+    db
+      .from("meetings")
+      .select(
+        "id, title, starts_at, duration_min, join_url, agenda, status, client_id, staff_ids, clients(name), projects(name)"
+      )
+      .gte("starts_at", `${from}T00:00:00`)
+      .lte("starts_at", `${to}T23:59:59`),
+    scopeClient(
       db
         .from("projects")
-        .select("id, name, deadline, estimated_delivery, client_id")
+        .select("id, name, deadline, estimated_delivery, client_id, clients(name)")
         .or(
           `and(deadline.gte.${from},deadline.lte.${to}),and(estimated_delivery.gte.${from},estimated_delivery.lte.${to})`
         )
@@ -66,16 +88,32 @@ export default async function CalendarPage({
       .select("id, start_date, end_date, leave_type, employee_id, employees(full_name)")
       .eq("status", "approved")
       .lte("start_date", to)
-      .gte("end_date", from)
-      // Staff see their own leave only; whose else is off is management info.
-      .then((r: any) =>
-        canManage
-          ? r
-          : { ...r, data: (r.data ?? []).filter((l: any) => l.employee_id === me.employeeId) }
-      ),
+      .gte("end_date", from),
+    tasksQuery,
+    db
+      .from("holidays")
+      .select("id, holiday_on, name")
+      .gte("holiday_on", from)
+      .lte("holiday_on", to),
   ]);
 
-  const projectIds = (projects ?? []).map((p: any) => p.id);
+  // Filter meetings for staff: assigned clients OR staff_ids includes me
+  const meetings = canManage
+    ? (rawMeetings ?? [])
+    : (rawMeetings ?? []).filter((m: any) => {
+        if (m.client_id && clientIds?.includes(m.client_id)) return true;
+        if (Array.isArray(m.staff_ids) && me.employeeId && m.staff_ids.includes(me.employeeId))
+          return true;
+        return false;
+      });
+
+  // Filter leave: staff sees own leave only; privileged sees all
+  const leave = canManage
+    ? (rawLeave ?? [])
+    : (rawLeave ?? []).filter((l: any) => l.employee_id === me.employeeId);
+
+  // Fetch milestones for visible projects
+  const projectIds = (rawProjects ?? []).map((p: any) => p.id);
   const { data: milestones } = projectIds.length
     ? await db
         .from("milestones")
@@ -87,21 +125,15 @@ export default async function CalendarPage({
 
   const byDay = buildCalendar({
     meetings: meetings ?? [],
-    projects: projects ?? [],
+    projects: rawProjects ?? [],
     milestones: milestones ?? [],
     leave: leave ?? [],
+    tasks: rawTasks ?? [],
+    holidays: rawHolidays ?? [],
   });
 
-  const grid = monthGrid(year, mon);
+  const eventsArray = [...byDay.entries()];
   const today = agencyDay();
-  const monthParam = (d: Date) =>
-    `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
-
-  // Agenda for small screens — a 7-column grid at 390px is unreadable, and an
-  // ordered list of what is actually coming is more useful anyway.
-  const agenda = [...byDay.entries()]
-    .filter(([d]) => d >= from && d <= to)
-    .sort(([a], [b]) => a.localeCompare(b));
 
   return (
     <>
@@ -109,126 +141,32 @@ export default async function CalendarPage({
         title="Calendar"
         sub={
           canManage
-            ? "Meetings, deadlines, milestones and leave across the agency."
-            : "Your meetings, deadlines and milestones."
+            ? "Unified schedule of tasks, meetings, project deadlines, team leave, and agency holidays."
+            : "Your daily work agenda: assigned tasks due, client meetings, project milestones, and holidays."
         }
       />
 
-      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-3">
-          <Link href={`?month=${monthParam(new Date(year, mon - 1, 1))}`} className="mono-tag hover:text-lime-400">
-            ← prev
-          </Link>
-          <span className="text-sm text-bone-200">{fmtMonth(anchor)}</span>
-          <Link href={`?month=${monthParam(new Date(year, mon + 1, 1))}`} className="mono-tag hover:text-lime-400">
-            next →
-          </Link>
-        </div>
-        <div className="flex flex-wrap gap-3 text-[11px] text-bone-400">
-          {(Object.keys(KIND_STYLE) as CalendarKind[]).map((k) => (
-            <span key={k} className="inline-flex items-center gap-1.5">
-              <span className={`h-2 w-2 rounded-full ${KIND_STYLE[k].dot}`} />
-              {KIND_STYLE[k].label}
-            </span>
-          ))}
-        </div>
-      </div>
-
-      {/* ── Month grid (md and up) ── */}
-      <div className="card hidden overflow-hidden md:block">
-        <div className="grid grid-cols-7 border-b border-ink-600">
-          {WEEKDAYS.map((d) => (
-            <div key={d} className="px-2 py-2 text-center text-[11px] text-bone-400">
-              {d}
+      <Suspense
+        fallback={
+          <div className="flex h-72 items-center justify-center rounded-xl border border-ink-800 bg-ink-900/40">
+            <div className="text-center">
+              <div className="mx-auto mb-2 h-6 w-6 animate-spin rounded-full border-2 border-lime-400 border-t-transparent" />
+              <p className="text-xs text-bone-300">Loading calendar events…</p>
             </div>
-          ))}
-        </div>
-        <div className="grid grid-cols-7">
-          {grid.map((d) => {
-            const iso = isoOf(d);
-            const items = byDay.get(iso) ?? [];
-            const outside = d.getMonth() !== mon;
-            const isToday = iso === today;
-
-            return (
-              <div
-                key={iso}
-                className={`min-h-[104px] border-b border-r border-ink-700/60 p-1.5 ${
-                  outside ? "bg-ink-950/40" : ""
-                }`}
-              >
-                <p
-                  className={`mb-1 text-[11px] ${
-                    isToday
-                      ? "inline-flex h-5 w-5 items-center justify-center rounded-full bg-lime-400 font-semibold text-lime-950"
-                      : outside
-                        ? "text-bone-600"
-                        : "text-bone-400"
-                  }`}
-                >
-                  {d.getDate()}
-                </p>
-
-                <div className="space-y-0.5">
-                  {items.slice(0, 3).map((i, n) => (
-                    <Link
-                      key={`${iso}-${n}`}
-                      href={i.href ?? "#"}
-                      title={`${KIND_STYLE[i.kind].label}: ${i.title}${i.detail ? ` — ${i.detail}` : ""}`}
-                      className="flex items-center gap-1 truncate rounded px-1 py-0.5 text-[10px] hover:bg-ink-800"
-                    >
-                      <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${KIND_STYLE[i.kind].dot}`} />
-                      <span className="truncate text-bone-300">
-                        {i.time ? `${fmtTime(i.time)} ` : ""}
-                        {i.title}
-                      </span>
-                    </Link>
-                  ))}
-                  {items.length > 3 && (
-                    <p className="px-1 text-[10px] text-bone-500">+{items.length - 3} more</p>
-                  )}
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* ── Agenda (below md) ── */}
-      <div className="space-y-3 md:hidden">
-        {!agenda.length && (
-          <p className="card p-8 text-center text-sm text-bone-400">Nothing this month.</p>
-        )}
-        {agenda.map(([iso, items]) => (
-          <section key={iso} className={`card p-4 ${iso === today ? "border-lime-400/30" : ""}`}>
-            <p className="mono-tag mb-2">
-              {new Date(`${iso}T00:00:00`).toLocaleDateString("en-GB", {
-                weekday: "short",
-                day: "numeric",
-                month: "short",
-              })}
-              {iso === today ? " · today" : ""}
-            </p>
-            <ul className="space-y-2">
-              {items.map((i, n) => (
-                <li key={n} className="flex items-start gap-2 text-sm">
-                  <span className={`mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full ${KIND_STYLE[i.kind].dot}`} />
-                  <div className="min-w-0">
-                    <p className="text-bone-200">
-                      {i.time ? `${fmtTime(i.time)} · ` : ""}
-                      {i.title}
-                    </p>
-                    <p className="mono-tag text-[10px]">
-                      {KIND_STYLE[i.kind].label}
-                      {i.detail ? ` · ${i.detail}` : ""}
-                    </p>
-                  </div>
-                </li>
-              ))}
-            </ul>
-          </section>
-        ))}
-      </div>
+          </div>
+        }
+      >
+        <CalendarClient
+          key={`${year}-${mon}`}
+          events={eventsArray}
+          currentYear={year}
+          currentMonth={mon}
+          monthLabel={fmtMonth(anchor)}
+          todayIso={today}
+          isPrivileged={canManage}
+          basePath={BASE}
+        />
+      </Suspense>
     </>
   );
 }

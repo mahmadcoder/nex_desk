@@ -1,20 +1,9 @@
 /**
  * CSV that survives Excel.
  *
- * `SubscribersClient` built its own by wrapping every value in quotes, which
- * breaks the moment a value contains a quote — a company called 6'2" Studio
- * produced a file with the columns shifted from that row down, and nobody
- * notices until the totals are wrong.
+ * Escaped per RFC 4180 with CSV formula injection protection and UTF-8 BOM.
  */
 
-/**
- * One field, escaped per RFC 4180.
- *
- * A leading `=`, `+`, `-` or `@` is prefixed with a quote: Excel treats those
- * as formulas, so a client note reading `=1+1` becomes a calculation, and
- * `=HYPERLINK(...)` in a name field is a genuine injection route into whoever
- * opens the export.
- */
 function cell(value: unknown): string {
   if (value === null || value === undefined) return "";
 
@@ -38,14 +27,41 @@ export function toCsv(rows: Record<string, unknown>[], columns?: string[]): stri
   const head = cols.map(cell).join(",");
   const body = rows.map((r) => cols.map((c) => cell(r[c])).join(",")).join("\r\n");
 
-  // A BOM, so Excel opens UTF-8 as UTF-8 rather than mangling every accented
-  // name and every currency symbol that is not a dollar.
-  return `﻿${head}\r\n${body}`;
+  // A BOM, so Excel opens UTF-8 as UTF-8 rather than mangling accented names and symbols.
+  return `\uFEFF${head}\r\n${body}`;
 }
 
-/** Triggers the download. Browser-only. */
-export function downloadCsv(filename: string, rows: Record<string, unknown>[], columns?: string[]) {
-  const blob = new Blob([toCsv(rows, columns)], { type: "text/csv;charset=utf-8;" });
+/**
+ * Triggers the download. Browser-only.
+ * Supports:
+ * 1. downloadCsv(filename, rows: Record<string, unknown>[], columns?: string[])
+ * 2. downloadCsv(filename, headers: string[], rows: (string | number | null | undefined)[][])
+ */
+export function downloadCsv(
+  filename: string,
+  arg1: Record<string, unknown>[] | string[],
+  arg2?: string[] | (string | number | null | undefined)[][]
+): void {
+  if (typeof window === "undefined") return;
+
+  let csvContent = "";
+
+  // Check signature
+  if (Array.isArray(arg1) && typeof arg1[0] === "string") {
+    // Signature 2: (filename, headers: string[], rows: (string | number)[][])
+    const headers = arg1 as string[];
+    const rows = (arg2 as (string | number | null | undefined)[][]) ?? [];
+    const head = headers.map(cell).join(",");
+    const body = rows.map((r) => r.map(cell).join(",")).join("\r\n");
+    csvContent = `\uFEFF${head}\r\n${body}`;
+  } else {
+    // Signature 1: (filename, rows: Record<string, unknown>[], columns?: string[])
+    const rows = (arg1 as Record<string, unknown>[]) ?? [];
+    const cols = arg2 as string[] | undefined;
+    csvContent = toCsv(rows, cols);
+  }
+
+  const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
@@ -53,6 +69,5 @@ export function downloadCsv(filename: string, rows: Record<string, unknown>[], c
   document.body.appendChild(a);
   a.click();
   a.remove();
-  // Released rather than left held for the life of the page.
   URL.revokeObjectURL(url);
 }

@@ -26,6 +26,9 @@ export type MonthlyOvertimeSummary = {
   recoveredDeficitSec: number;
   netOvertimeSec: number;
   unrecoveredDeficitSec: number;
+  deficitDeduction: number;
+  lateOccurrences: number;
+  absentDaysCount: number;
   hourlyRate: number;
   overtimeMultiplier: number;
   overtimePay: number;
@@ -147,6 +150,8 @@ export function computeMonthlyOvertimeSummary(input: {
   const dailyDetails: DailyOvertimeDetail[] = [];
   let totalExtraSec = 0;
   let totalLateDeficitSec = 0;
+  let lateOccurrences = 0;
+  let absentDaysCount = 0;
 
   for (let d = 1; d <= totalDays; d++) {
     const dateStr = `${year}-${String(month + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
@@ -162,6 +167,8 @@ export function computeMonthlyOvertimeSummary(input: {
 
     totalExtraSec += detail.extraSec;
     totalLateDeficitSec += detail.lateDeficitSec;
+    if (detail.lateMin > 0) lateOccurrences++;
+    if (detail.status === "absent" && detail.isWorkDay) absentDaysCount++;
   }
 
   // Offset logic: Extra time automatically offsets previous late deficit first!
@@ -177,6 +184,7 @@ export function computeMonthlyOvertimeSummary(input: {
   const multiplier = Number(input.overtimeMultiplier ?? 1.0) || 1.0;
   const netOvertimeHours = netOvertimeSec / 3600;
   const overtimePay = Math.round(netOvertimeHours * hourlyRate * multiplier * 100) / 100;
+  const deficitDeduction = Math.round((unrecoveredDeficitSec / 3600) * hourlyRate * 100) / 100;
 
   return {
     periodMonth: period,
@@ -187,6 +195,9 @@ export function computeMonthlyOvertimeSummary(input: {
     recoveredDeficitSec,
     netOvertimeSec,
     unrecoveredDeficitSec,
+    deficitDeduction,
+    lateOccurrences,
+    absentDaysCount,
     hourlyRate: Math.round(hourlyRate * 100) / 100,
     overtimeMultiplier: multiplier,
     overtimePay,

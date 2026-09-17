@@ -8,6 +8,7 @@ import { agencyDay, fmtMonth, fmtTime, TZ_LABEL } from "@/lib/datetime";
 import { money } from "@/lib/utils";
 import Avatar from "@/components/Avatar";
 import AttendanceCell from "@/components/admin/AttendanceCell";
+import ExportCsvButton from "@/components/admin/ExportCsvButton";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
@@ -111,11 +112,70 @@ export default async function AttendancePage({
   const next = new Date(year, mon + 1, 1);
   const monthParam = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
 
+  const csvHeaders = [
+    "Employee Name",
+    "Job Title",
+    "Days Present",
+    "Days Late",
+    "Days Absent",
+    "Days On Leave",
+    "Total Tracked Hours",
+  ];
+
+  const csvRows = (employees ?? []).map((e: any) => {
+    let presentCount = 0;
+    let lateCount = 0;
+    let absentCount = 0;
+    let leaveCount = 0;
+    let totalSec = 0;
+
+    for (const d of days) {
+      const iso = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(
+        d.getDate()
+      ).padStart(2, "0")}`;
+      const row = byKey.get(`${e.id}|${iso}`) ?? null;
+      const v = judgeAttendance(row, hours, {
+        date: d,
+        onLeave: onLeave(e.id, iso),
+        holiday: holidays[iso] ?? null,
+      });
+
+      if (v.status === "present") presentCount++;
+      else if (v.status === "late") {
+        lateCount++;
+        presentCount++;
+      } else if (v.status === "absent") absentCount++;
+      else if (v.status === "on_leave") leaveCount++;
+
+      totalSec += v.presentSec ?? 0;
+    }
+
+    const totalHours = Math.round((totalSec / 3600) * 10) / 10;
+
+    return [
+      e.full_name,
+      e.job_title ?? "",
+      presentCount,
+      lateCount,
+      absentCount,
+      leaveCount,
+      totalHours,
+    ];
+  });
+
   return (
     <>
       <PageHead
         title="Attendance"
         sub={`${hours.start}–${hours.end} ${TZ_LABEL}, ${hours.graceMin} minutes' grace. Click any day to correct it. Late is recalculated from Settings every time this page loads.`}
+        action={
+          <ExportCsvButton
+            filename={`attendance-${from.slice(0, 7)}`}
+            headers={csvHeaders}
+            rows={csvRows}
+            label="Export Attendance CSV"
+          />
+        }
       />
 
       <div className="mb-4 flex items-center justify-between">

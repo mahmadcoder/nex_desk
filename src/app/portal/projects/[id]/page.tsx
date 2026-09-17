@@ -14,6 +14,7 @@ import ApproveMilestone from "@/components/portal/ApproveMilestone";
 import KickoffChecklist from "@/components/portal/KickoffChecklist";
 import ClientChangeRequest from "@/components/portal/ClientChangeRequest";
 import ClientFileUpload from "@/components/portal/ClientFileUpload";
+import ProjectDeliverablesClient from "@/components/portal/ProjectDeliverablesClient";
 import ProjectTabs, { type TabKey } from "@/components/portal/ProjectTabs";
 import MessageThread from "@/components/MessageThread";
 import { listMessages, markClientMessagesRead } from "@/lib/actions/messages";
@@ -211,6 +212,12 @@ export default async function PortalProject({
       <div className="mt-6">
         {tab === "overview" && (
           <div className="space-y-6">
+            <ProjectDeliverablesClient
+              project={project}
+              milestones={ms}
+              isPaused={isPaused}
+            />
+
             <section className="card p-5 sm:p-6">
               <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
                 <Field label="Started" value={project.start_date ? fmtDate(project.start_date) : "—"} />

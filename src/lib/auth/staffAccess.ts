@@ -40,6 +40,8 @@ const STAFF_ALLOWED_SEGMENTS = [
   // Their OWN attendance. `/attendance` — everybody's — stays closed; this
   // page never accepts an employee id and reads only the signed-in one.
   "my-attendance",
+  // Agency handbook: SOPs, policies, guidelines. Read-only for staff.
+  "handbook",
 ];
 
 /**

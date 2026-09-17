@@ -6,6 +6,7 @@ import PayrollRunClient from "@/components/admin/PayrollRunClient";
 import { proRataSalary } from "@/lib/payroll";
 import { fmtMonth } from "@/lib/datetime";
 import { getTeamOvertimeSummary } from "@/lib/actions/attendance";
+import ExportCsvButton from "@/components/admin/ExportCsvButton";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
@@ -62,6 +63,13 @@ export default async function PayrollPage({
     const already = paidBy.get(e.id);
     const otSummary = overtimeByEmp.get(e.id);
     const overtimePay = otSummary?.overtimePay ?? 0;
+    const deficitDeduction = otSummary?.deficitDeduction ?? 0;
+    const lateOccurrences = otSummary?.lateOccurrences ?? 0;
+    const absentDaysCount = otSummary?.absentDaysCount ?? 0;
+    const unrecoveredDeficitHours = otSummary?.unrecoveredDeficitSec
+      ? Math.round((otSummary.unrecoveredDeficitSec / 3600) * 10) / 10
+      : 0;
+
     const pro = proRataSalary({
       salary: Number(e.salary_amount || 0),
       periodMonth,
@@ -69,7 +77,11 @@ export default async function PayrollPage({
       leavingDate: e.leaving_date,
     });
 
-    const suggestedTotal = Math.round((pro.amount + overtimePay) * 100) / 100;
+    const suggestedWithDeduction = Math.max(
+      0,
+      Math.round((pro.amount + overtimePay - deficitDeduction) * 100) / 100
+    );
+    const suggestedWithoutDeduction = Math.round((pro.amount + overtimePay) * 100) / 100;
 
     return {
       id: e.id,
@@ -81,9 +93,14 @@ export default async function PayrollPage({
       overtimePay,
       overtimeHours: otSummary?.netOvertimeSec ? Math.round((otSummary.netOvertimeSec / 3600) * 10) / 10 : 0,
       deficitRecoveredHours: otSummary?.recoveredDeficitSec ? Math.round((otSummary.recoveredDeficitSec / 3600) * 10) / 10 : 0,
+      deficitDeduction,
+      lateOccurrences,
+      absentDaysCount,
+      unrecoveredDeficitHours,
       currency: String(e.salary_currency || "USD").toUpperCase(),
       departmentName: e.department_id ? deptName.get(e.department_id) ?? null : null,
-      suggested: suggestedTotal,
+      suggested: suggestedWithDeduction,
+      suggestedWithoutDeduction,
       proRataReason: pro.isPartial ? pro.reason : null,
       alreadyPaid: !!already,
       paidAmount: already?.amount ?? 0,
@@ -95,6 +112,32 @@ export default async function PayrollPage({
   const next = new Date(anchor.getFullYear(), anchor.getMonth() + 1, 1);
   const param = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
 
+  const csvHeaders = [
+    "Employee Name",
+    "Job Title",
+    "Department",
+    "Base Salary",
+    "Overtime Bonus",
+    "Late Deficit Deduction",
+    "Suggested Net Payout",
+    "Currency",
+    "Payment Status",
+    "Paid Amount",
+  ];
+
+  const csvRows = rows.map((r) => [
+    r.full_name,
+    r.job_title ?? "",
+    r.departmentName ?? "—",
+    r.baseSalary,
+    r.overtimePay,
+    r.deficitDeduction,
+    r.suggested,
+    r.currency,
+    r.alreadyPaid ? "Paid" : "Pending",
+    r.alreadyPaid ? r.paidAmount : 0,
+  ]);
+
   return (
     <>
       <PageHead
@@ -103,6 +146,14 @@ export default async function PayrollPage({
           outstanding
             ? `${outstanding} still to pay for ${fmtMonth(anchor)}.`
             : `Everyone is paid for ${fmtMonth(anchor)}.`
+        }
+        action={
+          <ExportCsvButton
+            filename={`payroll-${periodMonth.slice(0, 7)}`}
+            headers={csvHeaders}
+            rows={csvRows}
+            label="Export Payroll CSV"
+          />
         }
       />
 

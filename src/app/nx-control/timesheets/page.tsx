@@ -5,6 +5,7 @@ import { humanDuration, decimalHours } from "@/lib/workHours";
 import { agencyDay, fmtDate, TZ_LABEL } from "@/lib/datetime";
 import Avatar from "@/components/Avatar";
 import { AlertTriangle } from "lucide-react";
+import ExportCsvButton from "@/components/admin/ExportCsvButton";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
@@ -78,11 +79,39 @@ export default async function TimesheetsPage({
   const rows = [...byEmployee.values()].sort((a, b) => b.total - a.total);
   const grandTotal = rows.reduce((s, r) => s + r.total, 0);
 
+  const csvHeaders = [
+    "Date",
+    "Employee",
+    "Project",
+    "Task / Note",
+    "Duration (Seconds)",
+    "Duration (Hours)",
+    "Source",
+  ];
+
+  const csvRows = (entries ?? []).map((e: any) => [
+    fmtDate(e.started_at),
+    e.employees?.full_name ?? "—",
+    e.projects?.name ?? "—",
+    e.tasks?.title ?? e.note ?? "—",
+    e.duration_sec ?? 0,
+    Math.round((Number(e.duration_sec ?? 0) / 3600) * 100) / 100,
+    e.source ?? "timer",
+  ]);
+
   return (
     <>
       <PageHead
         title="Timesheets"
         sub={`${fmtDate(start)} – ${fmtDate(end)} · ${TZ_LABEL} · ${humanDuration(grandTotal)} tracked in total.`}
+        action={
+          <ExportCsvButton
+            filename={`timesheets-${span}d`}
+            headers={csvHeaders}
+            rows={csvRows}
+            label="Export Timesheets CSV"
+          />
+        }
       />
 
       <div className="mb-4 flex flex-wrap gap-2">

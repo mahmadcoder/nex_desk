@@ -7,6 +7,7 @@ import { DollarSign, Receipt, FileText } from "lucide-react";
 import { redirect } from "next/navigation";
 import { createAdminClient } from "@/lib/supabase/server";
 import ClientInvoiceRow from "@/components/portal/ClientInvoiceRow";
+import StatementOfAccountModal from "@/components/portal/StatementOfAccountModal";
 import { normalizeBankDetails, filterAllowedBankAccounts } from "@/lib/bank";
 import { invoiceOriginLabel } from "@/lib/billing";
 
@@ -63,18 +64,31 @@ export default async function PortalInvoices() {
 
   return (
     <>
-      <header className="border-b border-ink-600 pb-6">
-        <p className="mono-tag text-lime-400">Invoices</p>
-        <h1 className="mt-2 text-3xl font-semibold leading-tight text-bone-50">
-          Every number, and where it came from.
-        </h1>
-        {!!billing.billedCurrencies.length && (
-          <p className="mt-2 text-sm text-bone-300">
-            Billed in{" "}
-            <strong className="font-semibold text-lime-400">
-              {billing.billedCurrencies.join(", ")}
-            </strong>
-          </p>
+      <header className="border-b border-ink-600 pb-6 flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <p className="mono-tag text-lime-400">Invoices</p>
+          <h1 className="mt-2 text-3xl font-semibold leading-tight text-bone-50">
+            Every number, and where it came from.
+          </h1>
+          {!!billing.billedCurrencies.length && (
+            <p className="mt-2 text-sm text-bone-300">
+              Billed in{" "}
+              <strong className="font-semibold text-lime-400">
+                {billing.billedCurrencies.join(", ")}
+              </strong>
+            </p>
+          )}
+        </div>
+
+        {perms.show_financials && (
+          <div className="self-end sm:self-auto">
+            <StatementOfAccountModal
+              clientName={session.client.name}
+              companyName={session.client.company}
+              billing={billing}
+              agencyName={settings?.company_name || "NexDesk Agency"}
+            />
+          </div>
         )}
       </header>
 

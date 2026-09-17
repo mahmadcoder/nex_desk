@@ -39,8 +39,21 @@ export default function PayrollRunClient({
   const [amounts, setAmounts] = useState<Record<string, string>>(
     Object.fromEntries(payable.map((r) => [r.id, String(r.suggested)]))
   );
+  const [applyDeductions, setApplyDeductions] = useState<Record<string, boolean>>(
+    Object.fromEntries(payable.map((r) => [r.id, (r.deficitDeduction ?? 0) > 0]))
+  );
   const [notify, setNotify] = useState(true);
   const [progress, setProgress] = useState<string | null>(null);
+
+  const toggleDeduction = (id: string) => {
+    const row = rows.find((r) => r.id === id);
+    if (!row) return;
+    const current = !!applyDeductions[id];
+    const next = !current;
+    setApplyDeductions((prev) => ({ ...prev, [id]: next }));
+    const newAmount = next ? row.suggested : row.suggestedWithoutDeduction;
+    setAmounts((prev) => ({ ...prev, [id]: String(newAmount) }));
+  };
 
   const toggle = (id: string) =>
     setPicked((p) => {
@@ -108,7 +121,7 @@ export default function PayrollRunClient({
               <th className="px-4 py-3 font-medium text-bone-300">Pay</th>
               <th className="px-4 py-3 font-medium text-bone-300">Employee</th>
               <th className="px-4 py-3 font-medium text-bone-300">Base salary</th>
-              <th className="px-4 py-3 font-medium text-bone-300">Overtime / Offset</th>
+              <th className="px-4 py-3 font-medium text-bone-300">Overtime &amp; Lateness</th>
               <th className="px-4 py-3 font-medium text-bone-300">This run</th>
               <th className="px-4 py-3 font-medium text-bone-300">Status</th>
             </tr>
@@ -147,23 +160,52 @@ export default function PayrollRunClient({
                 </td>
 
                 <td className="px-4 py-3">
-                  {r.overtimePay > 0 ? (
-                    <div className="space-y-0.5">
-                      <span className="mono-tag text-[11px] text-lime-400 font-semibold">
-                        +{money(Number(r.overtimePay), r.currency)}
+                  <div className="space-y-1.5">
+                    {r.overtimePay > 0 && (
+                      <div className="flex items-center gap-1.5">
+                        <span className="mono-tag text-[11px] text-lime-400 font-semibold">
+                          +{money(Number(r.overtimePay), r.currency)}
+                        </span>
+                        <span className="text-[10px] text-bone-400">
+                          ({r.overtimeHours}h OT)
+                        </span>
+                      </div>
+                    )}
+
+                    {r.deficitDeduction > 0 && (
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-1.5">
+                          <span className="mono-tag text-[11px] text-amber-400 font-semibold">
+                            -{money(Number(r.deficitDeduction), r.currency)}
+                          </span>
+                          <span className="text-[10px] text-bone-400">
+                            ({r.unrecoveredDeficitHours}h late/deficit)
+                          </span>
+                        </div>
+                        {!r.alreadyPaid && (
+                          <label className="flex items-center gap-1.5 text-[11px] text-bone-300 hover:text-bone-100 cursor-pointer select-none">
+                            <input
+                              type="checkbox"
+                              checked={!!applyDeductions[r.id]}
+                              onChange={() => toggleDeduction(r.id)}
+                              className="accent-amber-400 h-3.5 w-3.5 rounded"
+                            />
+                            <span>Deduct late penalty</span>
+                          </label>
+                        )}
+                      </div>
+                    )}
+
+                    {r.overtimePay <= 0 && r.deficitDeduction <= 0 && r.deficitRecoveredHours > 0 && (
+                      <span className="mono-tag text-[10px] text-emerald-400">
+                        {r.deficitRecoveredHours}h late offset by extra hours
                       </span>
-                      <p className="text-[10px] text-bone-400">
-                        {r.overtimeHours}h overtime
-                        {r.deficitRecoveredHours > 0 ? ` (${r.deficitRecoveredHours}h late offset)` : ""}
-                      </p>
-                    </div>
-                  ) : r.deficitRecoveredHours > 0 ? (
-                    <span className="mono-tag text-[10px] text-emerald-400">
-                      {r.deficitRecoveredHours}h late offset
-                    </span>
-                  ) : (
-                    <span className="text-bone-500 text-xs">—</span>
-                  )}
+                    )}
+
+                    {r.overtimePay <= 0 && r.deficitDeduction <= 0 && r.deficitRecoveredHours <= 0 && (
+                      <span className="text-bone-500 text-xs">—</span>
+                    )}
+                  </div>
                 </td>
 
                 <td className="px-4 py-3">
@@ -180,9 +222,11 @@ export default function PayrollRunClient({
                         value={amounts[r.id] ?? ""}
                         onChange={(e) => setAmounts({ ...amounts, [r.id]: e.target.value })}
                       />
-                      {r.overtimePay > 0 && (
-                        <p className="mt-0.5 text-[10px] text-lime-400">
-                          Base {money(Number(r.baseSalary), r.currency)} + OT {money(Number(r.overtimePay), r.currency)}
+                      {(r.overtimePay > 0 || (r.deficitDeduction > 0 && applyDeductions[r.id])) && (
+                        <p className="mt-0.5 text-[10px] text-bone-400">
+                          Base {money(Number(r.baseSalary), r.currency)}
+                          {r.overtimePay > 0 && ` + OT ${money(Number(r.overtimePay), r.currency)}`}
+                          {r.deficitDeduction > 0 && applyDeductions[r.id] && ` - Late ${money(Number(r.deficitDeduction), r.currency)}`}
                         </p>
                       )}
                     </div>

@@ -101,6 +101,7 @@ const STAFF_NAV = [
       { href: "/leave", label: "My Leave", icon: CalendarDays },
       { href: "/my-pay", label: "My Pay", icon: Wallet },
       { href: "/profile", label: "My Profile", icon: UserCircle },
+      { href: "/handbook", label: "Handbook", icon: BookOpen },
     ],
   },
 ];
