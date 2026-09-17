@@ -213,6 +213,7 @@ export default async function StaffDashboard({
               project_id: t.project_id,
             }))}
             offerAccepted={offerStatus.isAccepted}
+            isCheckedIn={!!(attendance?.row?.checked_in_at && !attendance?.row?.checked_out_at)}
           />
         </div>
       </div>

@@ -3,9 +3,10 @@
 import { revalidatePath } from "next/cache";
 import { createAdminClient } from "@/lib/supabase/server";
 import { requireStaff } from "@/lib/auth/guards";
-import { getCurrentStaff } from "@/lib/auth/staff";
+import { getCurrentStaff, assignedClientIds } from "@/lib/auth/staff";
 import { agencyDay } from "@/lib/datetime";
 import { parseOfferAcceptance } from "@/lib/staffOffer";
+import { isStaffCheckedInToday, isOnLeave } from "@/lib/actions/attendance";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
@@ -69,16 +70,69 @@ export async function startTimer(input: {
     };
   }
 
+  // Enforce leave restriction: cannot track time on an approved leave day
+  const day = agencyDay();
+  const onLeave = await isOnLeave(employeeId, day);
+  if (onLeave) {
+    return {
+      ok: false as const,
+      error: "You are on approved leave today and cannot track work hours.",
+    };
+  }
+
+  // Enforce attendance check-in: must be checked in today before running a timer
+  const checkedIn = await isStaffCheckedInToday(employeeId);
+  if (!checkedIn) {
+    return {
+      ok: false as const,
+      error: "You must check in for attendance today before starting a timer.",
+    };
+  }
+
   // Resolve the project from the task when only a task was given, so a report
   // grouped by project never drops task time.
   let projectId = input.projectId ?? null;
   if (!projectId && input.taskId) {
     const { data: task } = await db
       .from("tasks")
-      .select("project_id")
+      .select("project_id, assigned_employee_id")
       .eq("id", input.taskId)
       .maybeSingle();
     projectId = task?.project_id ?? null;
+  }
+
+  // Verify project / task assignment for non-privileged staff
+  const staff = await getCurrentStaff();
+  if (staff && !staff.isPrivileged) {
+    if (input.taskId) {
+      const { data: task } = await db
+        .from("tasks")
+        .select("assigned_employee_id")
+        .eq("id", input.taskId)
+        .maybeSingle();
+      if (task?.assigned_employee_id && task.assigned_employee_id !== employeeId) {
+        return {
+          ok: false as const,
+          error: "You can only track time on tasks assigned to you.",
+        };
+      }
+    }
+    if (projectId) {
+      const { data: proj } = await db
+        .from("projects")
+        .select("client_id")
+        .eq("id", projectId)
+        .maybeSingle();
+      if (proj?.client_id) {
+        const allowed = await assignedClientIds(employeeId);
+        if (!allowed.includes(proj.client_id)) {
+          return {
+            ok: false as const,
+            error: "You are not assigned to this project's client.",
+          };
+        }
+      }
+    }
   }
 
   const { data, error } = await db

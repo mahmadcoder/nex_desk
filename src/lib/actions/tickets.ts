@@ -7,6 +7,7 @@ import { getCurrentStaff, assignedClientIds } from "@/lib/auth/staff";
 import { recordAudit } from "@/lib/actions/audit";
 import { notify } from "@/lib/actions/notify";
 import { notifyClient } from "@/lib/actions/notifyClient";
+import { isStaffCheckedInToday } from "@/lib/actions/attendance";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
@@ -42,7 +43,7 @@ async function currentClient() {
 
   const { data } = await createAdminClient()
     .from("clients")
-    .select("id, name, lifecycle")
+    .select("id, name, lifecycle, is_active")
     .eq("email", user.email!)
     .maybeSingle();
 
@@ -62,6 +63,13 @@ export async function raiseTicket(input: {
 }) {
   const client = await currentClient();
   if (!client) return { ok: false as const, error: "Please sign in again." };
+
+  if (String(client.lifecycle ?? "active") !== "active" || client.is_active === false) {
+    return {
+      ok: false as const,
+      error: "Your account is currently paused or inactive. Please use the reactivation request to get in touch.",
+    };
+  }
 
   const subject = input.subject?.trim();
   const body = input.body?.trim();
@@ -135,6 +143,13 @@ export async function raiseTicketForClient(input: {
   if (!input.body?.trim()) return { ok: false as const, error: "Describe the problem." };
 
   if (!me.isPrivileged) {
+    if (!me.employeeId) {
+      return { ok: false as const, error: "Your account is not linked to an employee record." };
+    }
+    const checkedIn = await isStaffCheckedInToday(me.employeeId);
+    if (!checkedIn) {
+      return { ok: false as const, error: "You must check in for attendance today before raising a ticket." };
+    }
     const allowed = await assignedClientIds(me.employeeId);
     if (!allowed.includes(input.clientId)) {
       return { ok: false as const, error: "You are not assigned to this client." };
@@ -185,6 +200,13 @@ export async function replyToTicket(
   if (!ticket) return { ok: false as const, error: "That ticket no longer exists." };
 
   if (!me.isPrivileged) {
+    if (!me.employeeId) {
+      return { ok: false as const, error: "Your account is not linked to an employee record." };
+    }
+    const checkedIn = await isStaffCheckedInToday(me.employeeId);
+    if (!checkedIn) {
+      return { ok: false as const, error: "You must check in for attendance today before replying to tickets." };
+    }
     const allowed = await assignedClientIds(me.employeeId);
     if (!allowed.includes(ticket.client_id)) {
       return { ok: false as const, error: "You are not assigned to this client." };
@@ -234,6 +256,13 @@ export async function replyToTicket(
 export async function clientReplyToTicket(ticketId: string, body: string) {
   const client = await currentClient();
   if (!client) return { ok: false as const, error: "Please sign in again." };
+
+  if (String(client.lifecycle ?? "active") !== "active" || client.is_active === false) {
+    return {
+      ok: false as const,
+      error: "Your account is currently paused or inactive. Please use the reactivation request to get in touch.",
+    };
+  }
 
   const text = body?.trim();
   if (!text) return { ok: false as const, error: "Write something first." };
@@ -306,6 +335,13 @@ export async function setTicketStatus(ticketId: string, status: string) {
   if (!before) return { ok: false as const, error: "That ticket no longer exists." };
 
   if (!me.isPrivileged) {
+    if (!me.employeeId) {
+      return { ok: false as const, error: "Your account is not linked to an employee record." };
+    }
+    const checkedIn = await isStaffCheckedInToday(me.employeeId);
+    if (!checkedIn) {
+      return { ok: false as const, error: "You must check in for attendance today before updating ticket status." };
+    }
     const allowed = await assignedClientIds(me.employeeId);
     if (!allowed.includes(before.client_id)) {
       return { ok: false as const, error: "You are not assigned to this client." };

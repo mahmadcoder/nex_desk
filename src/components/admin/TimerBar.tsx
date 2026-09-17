@@ -25,11 +25,13 @@ export default function TimerBar({
   running,
   tasks,
   offerAccepted = true,
+  isCheckedIn = true,
 }: {
   running: any | null;
   /** The staff member's open tasks, to start against. */
   tasks: { id: string; title: string; project_id: string }[];
   offerAccepted?: boolean;
+  isCheckedIn?: boolean;
 }) {
   const router = useRouter();
   const [pending, start] = useTransition();
@@ -76,6 +78,13 @@ export default function TimerBar({
   /* ---- Nothing running ---- */
   if (!running) {
     const canResume = !!lastWork;
+    const canStart = offerAccepted && isCheckedIn;
+    const disabledReason = !offerAccepted
+      ? "Sign your offer letter to unlock time tracking"
+      : !isCheckedIn
+      ? "Check in for attendance today to start time tracking"
+      : undefined;
+
     return (
       <div className="flex flex-wrap items-center gap-2 rounded-lg border border-ink-600 bg-ink-800/50 p-2.5">
         <Timer size={15} className="shrink-0 text-bone-400" aria-hidden />
@@ -97,17 +106,21 @@ export default function TimerBar({
 
         <button
           type="button"
-          disabled={pending || !offerAccepted}
-          title={!offerAccepted ? "Sign your offer letter to unlock time tracking" : undefined}
+          disabled={pending || !canStart}
+          title={disabledReason}
           onClick={() => {
             if (!offerAccepted) {
               toast.error("Please review and digitally sign your offer letter to start time tracking.");
               return;
             }
+            if (!isCheckedIn) {
+              toast.error("Please check in for attendance today before starting time tracking.");
+              return;
+            }
             begin({ taskId: taskId || null });
           }}
           className={`btn h-8 shrink-0 gap-1.5 px-3 text-xs ${
-            !offerAccepted
+            !canStart
               ? "opacity-50 cursor-not-allowed bg-ink-800 text-bone-400 border border-ink-600"
               : "btn-primary"
           }`}
@@ -115,7 +128,7 @@ export default function TimerBar({
           <Play size={13} /> Start
         </button>
 
-        {canResume && offerAccepted && (
+        {canResume && canStart && (
           <button
             type="button"
             disabled={pending}
@@ -129,6 +142,12 @@ export default function TimerBar({
         {!offerAccepted && (
           <p className="w-full mt-1 text-[10px] text-amber-300 font-medium">
             * Sign your offer letter to unlock time tracking
+          </p>
+        )}
+
+        {offerAccepted && !isCheckedIn && (
+          <p className="w-full mt-1 text-[10px] text-amber-400/90 font-medium">
+            * Check in for attendance above to start tracking work hours
           </p>
         )}
       </div>

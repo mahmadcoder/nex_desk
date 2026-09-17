@@ -29,10 +29,14 @@ async function ownProject(projectId: string) {
 
   const { data: project } = await db
     .from("projects")
-    .select("*, clients(id, name, email, profile_id)")
+    .select("*, clients(id, name, email, profile_id, lifecycle, is_active)")
     .eq("id", id)
     .maybeSingle();
   if (!project) return { error: "Project not found." };
+
+  if (project.status === "cancelled") {
+    return { error: "This project has been cancelled." };
+  }
 
   const client = (project.clients as any) ?? null;
 
@@ -44,6 +48,11 @@ async function ownProject(projectId: string) {
       client?.email?.toLowerCase() === user.email?.toLowerCase());
 
   if (!owns) return { error: "Sign in to your portal first." };
+
+  if (String(client?.lifecycle ?? "active") !== "active" || client?.is_active === false) {
+    return { error: "Your account is currently paused or inactive." };
+  }
+
   return { db, project, client, userEmail: user!.email as string };
 }
 

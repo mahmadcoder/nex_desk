@@ -8,6 +8,7 @@ import { getPortalSession } from "@/lib/portal/session";
 import { recordAudit } from "@/lib/actions/audit";
 import { notifyClientGrouped } from "@/lib/actions/notifyClient";
 import { notify } from "@/lib/actions/notify";
+import { isStaffCheckedInToday } from "@/lib/actions/attendance";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
@@ -44,13 +45,23 @@ export async function recordProjectFile(input: {
 
   const { data: project } = await db
     .from("projects")
-    .select("name, client_id")
+    .select("name, client_id, status")
     .eq("id", input.projectId)
     .maybeSingle();
 
   if (!project) return { ok: false as const, error: "Project not found." };
+  if (project.status === "cancelled") {
+    return { ok: false as const, error: "Cannot upload files to a cancelled project." };
+  }
 
   if (!me.isPrivileged) {
+    if (!me.employeeId) {
+      return { ok: false as const, error: "Your account is not linked to an employee record." };
+    }
+    const checkedIn = await isStaffCheckedInToday(me.employeeId);
+    if (!checkedIn) {
+      return { ok: false as const, error: "You must check in for attendance today before uploading project files." };
+    }
     const allowed = await assignedClientIds(me.employeeId);
     if (!project.client_id || !allowed.includes(project.client_id)) {
       return { ok: false as const, error: "You are not assigned to this project's client." };
@@ -175,17 +186,24 @@ export async function clientUploadProjectFile(input: {
   if (!session) return { ok: false as const, error: "Please log in to upload files." };
   const { client } = session;
 
+  if (session.isPaused || String(client.lifecycle ?? "active") !== "active" || client.is_active === false) {
+    return { ok: false as const, error: "Your account is currently paused or inactive." };
+  }
+
   const db = createAdminClient();
 
-  // Verify the project belongs to this client
+  // Verify the project belongs to this client and is not cancelled/completed
   const { data: project } = await db
     .from("projects")
-    .select("id, name, client_id")
+    .select("id, name, client_id, status")
     .eq("id", input.projectId)
     .eq("client_id", client.id)
     .maybeSingle();
 
   if (!project) return { ok: false as const, error: "Project not found." };
+  if (project.status === "cancelled" || project.status === "completed") {
+    return { ok: false as const, error: `Cannot upload files to a ${project.status} project.` };
+  }
 
   const { data, error } = await db
     .from("project_files")

@@ -9,6 +9,8 @@ import { asUuid, getSiteBaseUrl, money, pdfFilename } from "@/lib/utils";
 import { tryEncrypt, decryptSecret } from "@/lib/crypto";
 import { recordAudit } from "@/lib/actions/audit";
 import { diffFields, changeLines, EMPLOYEE_FIELDS } from "@/lib/diff";
+import { isStaffCheckedInToday } from "@/lib/actions/attendance";
+import { assignedClientIds } from "@/lib/auth/staff";
 
 const ADMIN = process.env.ADMIN_PATH || "nx-control";
 
@@ -1273,13 +1275,40 @@ export async function submitDailyWorkLog(data: {
       throw new Error("Your account is not linked to an employee record.");
     }
     employeeId = me.employeeId;
+
+    const checkedIn = await isStaffCheckedInToday(employeeId);
+    if (!checkedIn) {
+      throw new Error("You must check in for attendance today before submitting a daily work log.");
+    }
   }
 
   if (!employeeId) {
     throw new Error("Select a valid employee before submitting a work log.");
   }
 
-  const clientVisible = !!data.client_visible && !!projectId;
+  // Validate project if provided
+  if (projectId) {
+    const { data: project } = await db
+      .from("projects")
+      .select("id, status, client_id")
+      .eq("id", projectId)
+      .maybeSingle();
+
+    if (!project) throw new Error("Project not found.");
+    if (project.status === "cancelled" || project.status === "completed") {
+      throw new Error(`Cannot submit a work log on a ${project.status} project.`);
+    }
+
+    if (!me.isPrivileged && project.client_id) {
+      const allowed = await assignedClientIds(employeeId);
+      if (!allowed.includes(project.client_id)) {
+        throw new Error("You are not assigned to this project's client.");
+      }
+    }
+  }
+
+  // Only managers/admins can broadcast client-visible progress updates directly to clients
+  const clientVisible = me.isPrivileged && !!data.client_visible && !!projectId;
   const progressDelta = Math.max(0, Math.min(100, Number(data.progress_delta) || 0));
 
   const { data: res, error } = await db.from("daily_work_logs").insert({

@@ -57,6 +57,23 @@ export async function isOnLeave(employeeId: string, date: string): Promise<boole
   }
 }
 
+/** Has this staff member actively checked in today (and not checked out)? */
+export async function isStaffCheckedInToday(employeeId: string): Promise<boolean> {
+  try {
+    const day = agencyDay();
+    const { data } = await createAdminClient()
+      .from("attendance")
+      .select("id, checked_in_at, checked_out_at")
+      .eq("employee_id", employeeId)
+      .eq("work_date", day)
+      .maybeSingle();
+
+    return !!(data?.checked_in_at && !data?.checked_out_at);
+  } catch {
+    return false;
+  }
+}
+
 import { notify } from "@/lib/actions/notify";
 import { fmtTime } from "@/lib/datetime";
 
@@ -85,6 +102,15 @@ export async function checkIn(note?: string) {
   }
 
   const day = agencyDay();
+
+  // Enforce leave restriction: cannot check in on approved leave day
+  const leaveActive = await isOnLeave(staff.employeeId, day);
+  if (leaveActive) {
+    return {
+      ok: false as const,
+      error: "You have approved leave scheduled for today and cannot check in.",
+    };
+  }
 
   const { error } = await db
     .from("attendance")
@@ -140,14 +166,38 @@ export async function checkOut(note?: string) {
     return { ok: false as const, error: "You have not checked in today." };
   }
 
+  // Auto-stop any active timer for this employee so it does not run continuously overnight
+  const endedAt = new Date();
+  const { data: runningTimer } = await db
+    .from("time_entries")
+    .select("id, started_at")
+    .eq("employee_id", staff.employeeId)
+    .is("ended_at", null)
+    .maybeSingle();
+
+  if (runningTimer) {
+    const durationSec = Math.max(
+      0,
+      Math.round((endedAt.getTime() - new Date(runningTimer.started_at).getTime()) / 1000)
+    );
+    await db
+      .from("time_entries")
+      .update({
+        ended_at: endedAt.toISOString(),
+        duration_sec: durationSec,
+        note: "Auto-stopped upon attendance checkout.",
+      })
+      .eq("id", runningTimer.id);
+  }
+
   // Overwrites on purpose — the opposite rule to check-in. Leaving twice means
   // the later time is the one that is true.
   const { error } = await db
     .from("attendance")
     .update({
-      checked_out_at: new Date().toISOString(),
+      checked_out_at: endedAt.toISOString(),
       note: note?.trim() || null,
-      updated_at: new Date().toISOString(),
+      updated_at: endedAt.toISOString(),
     })
     .eq("id", row.id);
 

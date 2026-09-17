@@ -39,26 +39,7 @@ export type TaskInput = {
   isInternal?: boolean | null;
 };
 
-/**
- * Has this staff member checked in for work today?
- * Must have an attendance row for today with checked_in_at present and checked_out_at null.
- */
-async function isStaffCheckedInToday(employeeId: string): Promise<boolean> {
-  try {
-    const db = createAdminClient();
-    const day = agencyDay();
-    const { data: row } = await db
-      .from("attendance")
-      .select("id, checked_in_at, checked_out_at")
-      .eq("employee_id", employeeId)
-      .eq("work_date", day)
-      .maybeSingle();
-
-    return !!row?.checked_in_at && !row?.checked_out_at;
-  } catch {
-    return false;
-  }
-}
+import { isStaffCheckedInToday } from "@/lib/actions/attendance";
 
 /**
  * Staff may only touch tasks on projects for clients they are assigned to,

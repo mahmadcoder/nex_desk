@@ -7,6 +7,7 @@ import { recordAudit } from "@/lib/actions/audit";
 import { notify } from "@/lib/actions/notify";
 import { getCurrentStaff, assignedClientIds } from "@/lib/auth/staff";
 import { notifyClientGrouped } from "@/lib/actions/notifyClient";
+import { isStaffCheckedInToday } from "@/lib/actions/attendance";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
@@ -60,6 +61,16 @@ export async function postStaffMessage(projectId: string, body: string) {
   const text = body.trim();
   if (!text) return { ok: false as const, error: "Write something first." };
   if (text.length > MAX) return { ok: false as const, error: "That is too long to send." };
+
+  if (!me.isPrivileged) {
+    if (!me.employeeId) {
+      return { ok: false as const, error: "Your account is not linked to an employee record." };
+    }
+    const checkedIn = await isStaffCheckedInToday(me.employeeId);
+    if (!checkedIn) {
+      return { ok: false as const, error: "You must check in for attendance today before posting project messages." };
+    }
+  }
 
   const { allowed } = await canAccessProjectMessages(projectId);
   if (!allowed) {
@@ -131,23 +142,27 @@ export async function postClientMessage(projectId: string, body: string) {
 
   const { data: client } = await db
     .from("clients")
-    .select("id, name, lifecycle")
+    .select("id, name, lifecycle, is_active")
     .eq("email", user.email!)
     .maybeSingle();
   if (!client) return { ok: false as const, error: "No client profile on this account." };
 
   const { data: project } = await db
     .from("projects")
-    .select("id, name, client_id")
+    .select("id, name, client_id, status")
     .eq("id", projectId)
     .maybeSingle();
   if (!project || project.client_id !== client.id) {
     return { ok: false as const, error: "That project is not on your account." };
   }
 
-  // A paused account is read-only everywhere else; it is read-only here too.
-  if (String(client.lifecycle ?? "active") !== "active") {
+  // A paused or inactive account is read-only
+  if (String(client.lifecycle ?? "active") !== "active" || client.is_active === false) {
     return { ok: false as const, error: "Your account is paused. Use the return request instead." };
+  }
+
+  if (project.status === "cancelled") {
+    return { ok: false as const, error: "This project has been cancelled." };
   }
 
   const { error } = await db.from("messages").insert({
