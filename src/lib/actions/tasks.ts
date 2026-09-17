@@ -7,7 +7,7 @@ import { requireOwnerAdmin } from "@/lib/auth/guards";
 import { asUuid } from "@/lib/utils";
 import { recordAudit } from "@/lib/actions/audit";
 import { notify } from "@/lib/actions/notify";
-import { fmtDate } from "@/lib/datetime";
+import { fmtDate, agencyDay } from "@/lib/datetime";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
@@ -40,7 +40,29 @@ export type TaskInput = {
 };
 
 /**
- * Staff may only touch tasks on projects for clients they are assigned to.
+ * Has this staff member checked in for work today?
+ * Must have an attendance row for today with checked_in_at present and checked_out_at null.
+ */
+async function isStaffCheckedInToday(employeeId: string): Promise<boolean> {
+  try {
+    const db = createAdminClient();
+    const day = agencyDay();
+    const { data: row } = await db
+      .from("attendance")
+      .select("id, checked_in_at, checked_out_at")
+      .eq("employee_id", employeeId)
+      .eq("work_date", day)
+      .maybeSingle();
+
+    return !!row?.checked_in_at && !row?.checked_out_at;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Staff may only touch tasks on projects for clients they are assigned to,
+ * and must be actively checked in for work today.
  * Returns the task row when allowed, so callers do not fetch it twice.
  */
 async function taskIfAllowed(taskId: string) {
@@ -64,6 +86,14 @@ async function taskIfAllowed(taskId: string) {
     }
     if (!me.employeeId || task.assigned_employee_id !== me.employeeId) {
       return { me, task: null, error: "You can only update tasks assigned to you." };
+    }
+    const checkedIn = await isStaffCheckedInToday(me.employeeId);
+    if (!checkedIn) {
+      return {
+        me,
+        task: null,
+        error: "You must check in for attendance today before updating task progress.",
+      };
     }
   }
 

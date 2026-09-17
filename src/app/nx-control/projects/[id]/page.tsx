@@ -30,6 +30,7 @@ import { hourlyRates, projectSpend, budgetHealth } from "@/lib/projectCost";
 import { getLiveExchangeRates, convertCurrency } from "@/lib/currency";
 import { invoiceOriginLabel } from "@/lib/billing";
 import { fmtDate } from "@/lib/datetime";
+import { myAttendanceToday } from "@/lib/actions/attendance";
 
 const BASE = `/${process.env.ADMIN_PATH || "nx-control"}`;
 export const dynamic = "force-dynamic";
@@ -75,10 +76,14 @@ export default async function ProjectDetail({ params }: { params: Promise<{ id: 
 
   // Signed URLs and the thread. Read after the assignment check above, so an
   // unauthorised staff member never causes the files to be signed at all.
-  const [projectFiles, messages] = await Promise.all([
+  const [projectFiles, messages, attendanceToday] = await Promise.all([
     listProjectFiles(id, { staffView: !canManage }),
     listMessages(id),
+    !canManage ? myAttendanceToday() : Promise.resolve(null),
   ]);
+  const isCheckedIn = canManage
+    ? true
+    : !!attendanceToday?.row?.checked_in_at && !attendanceToday?.row?.checked_out_at;
   const unreadFromClient = messages.filter(
     (m: { sender_kind: string; read_at: string | null }) =>
       m.sender_kind === "client" && !m.read_at
@@ -276,6 +281,7 @@ export default async function ProjectDetail({ params }: { params: Promise<{ id: 
             employees={activeEmployees}
             canManage={canManage}
             myEmployeeId={me.employeeId}
+            isCheckedIn={isCheckedIn}
             aiContext={{
               project: project.name,
               scope: deal?.scope ?? project.description ?? "",

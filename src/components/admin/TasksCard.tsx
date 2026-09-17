@@ -2,6 +2,7 @@
 
 import { useState, useTransition, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { toast } from "sonner";
 import {
   ListChecks,
@@ -118,41 +119,27 @@ function TaskAssigneeSelect({
             ? "border-amber-400/40 bg-amber-400/10 text-amber-300 hover:bg-amber-400/20 hover:border-amber-400/70"
             : isMine
               ? "border-lime-400/40 bg-lime-400/10 text-lime-300 hover:bg-lime-400/20 hover:border-lime-400/70 font-semibold"
-              : "border-ink-500 bg-ink-700/60 text-bone-200 hover:border-bone-400 hover:text-bone-100"
+              : "border-ink-500 bg-ink-700/70 text-bone-200 hover:bg-ink-700 hover:border-bone-400"
         }`}
       >
         {!assignedId ? (
           <>
-            <UserPlus size={11} className="text-amber-400" />
-            <span>Unassigned</span>
+            <UserPlus size={11} /> Unassigned
           </>
         ) : isMine ? (
           <>
-            <UserCheck size={11} className="text-lime-400" />
-            <span>Assigned to You</span>
+            <UserCheck size={11} /> Myself
           </>
         ) : (
           <>
-            <User size={11} className="text-bone-400" />
-            <span className="max-w-[120px] truncate">{assigneeName || "Assigned"}</span>
+            <User size={11} /> {assigneeName ?? "Someone"}
           </>
         )}
-        <ChevronDown
-          size={10}
-          className={`transition-transform duration-150 opacity-70 ${open ? "rotate-180 text-lime-400" : ""}`}
-        />
+        <ChevronDown size={10} className="opacity-60" />
       </button>
 
       {open && (
-        <div
-          onClick={(e) => e.stopPropagation()}
-          className="nd-select-menu nd-scroll absolute left-0 top-full z-50 mt-1 max-h-64 min-w-[210px] overflow-y-auto rounded-lg border border-ink-600 bg-ink-900/98 p-1.5 shadow-2xl backdrop-blur-md"
-        >
-          <div className="px-2.5 py-1 text-[10px] font-mono uppercase tracking-wider text-bone-400">
-            Assign Task
-          </div>
-
-          {/* Unassign option */}
+        <div className="absolute left-0 top-full z-30 mt-1 w-48 rounded-lg border border-ink-600 bg-ink-900 p-1.5 shadow-xl">
           <button
             type="button"
             onClick={() => {
@@ -162,41 +149,38 @@ function TaskAssigneeSelect({
             className={`flex w-full items-center justify-between rounded-md px-2.5 py-1.5 text-left text-xs transition-colors ${
               !assignedId
                 ? "bg-amber-400/15 font-semibold text-amber-300"
-                : "text-amber-300/80 hover:bg-ink-800 hover:text-amber-300"
+                : "text-bone-300 hover:bg-ink-800 hover:text-bone-100"
             }`}
           >
             <span className="flex items-center gap-1.5">
-              <UserPlus size={12} /> Unassigned
+              <UserPlus size={12} className="text-amber-400" />
+              <span>Unassigned</span>
             </span>
-            {!assignedId && <Check size={13} className="text-amber-300" />}
+            {!assignedId && <Check size={13} className="text-amber-400" />}
           </button>
 
-          {/* Assign to myself (Owner/Admin) */}
           {myEmployeeId && (
-            <>
-              <div className="my-1 border-t border-ink-700/80" />
-              <button
-                type="button"
-                onClick={() => {
-                  onAssign(task.id, myEmployeeId);
-                  setOpen(false);
-                }}
-                className={`flex w-full items-center justify-between rounded-md px-2.5 py-1.5 text-left text-xs transition-colors ${
-                  isMine
-                    ? "bg-lime-400/15 font-semibold text-lime-400"
-                    : "text-lime-300 hover:bg-ink-800 hover:text-lime-200"
-                }`}
-              >
-                <span className="flex items-center gap-1.5">
-                  <UserCheck size={12} /> Assign to Myself ({myName})
-                </span>
-                {isMine && <Check size={13} className="text-lime-400" />}
-              </button>
-            </>
+            <button
+              type="button"
+              onClick={() => {
+                onAssign(task.id, myEmployeeId);
+                setOpen(false);
+              }}
+              className={`flex w-full items-center justify-between rounded-md px-2.5 py-1.5 text-left text-xs transition-colors ${
+                isMine
+                  ? "bg-lime-400/15 font-semibold text-lime-400"
+                  : "text-bone-200 hover:bg-ink-800 hover:text-bone-50"
+              }`}
+            >
+              <span className="flex items-center gap-1.5">
+                <UserCheck size={12} className="text-lime-400" />
+                <span>Myself ({myName})</span>
+              </span>
+              {isMine && <Check size={13} className="text-lime-400" />}
+            </button>
           )}
 
-          {/* Team Members */}
-          {employees.length > 0 && (
+          {employees.filter((e) => e.id !== myEmployeeId).length > 0 && (
             <>
               <div className="my-1 border-t border-ink-700/80" />
               <div className="px-2.5 py-1 text-[10px] font-mono uppercase tracking-wider text-bone-500">
@@ -249,6 +233,7 @@ export default function TasksCard({
   employees,
   canManage,
   myEmployeeId,
+  isCheckedIn = true,
   aiContext,
 }: {
   projectId: string;
@@ -256,6 +241,7 @@ export default function TasksCard({
   employees: { id: string; full_name: string }[];
   canManage: boolean;
   myEmployeeId: string | null;
+  isCheckedIn?: boolean;
   /** Scope and deliverables, for the task suggester. Absent = no button. */
   aiContext?: Record<string, string>;
 }) {
@@ -307,6 +293,11 @@ export default function TasksCard({
   }
 
   function tick(task: any, next: boolean) {
+    if (!canManage && !isCheckedIn) {
+      toast.error("You must check in for attendance today before updating task progress.");
+      return;
+    }
+
     start(async () => {
       const res = await toggleTask(task.id, next);
       if (!res.ok) {
@@ -372,6 +363,15 @@ export default function TasksCard({
           </div>
         )}
       </div>
+
+      {!canManage && !isCheckedIn && (
+        <div className="flex items-center justify-between gap-2 rounded-lg border border-amber-400/30 bg-amber-400/10 p-2.5 text-xs text-amber-300">
+          <span>⚠️ Check in on your dashboard to work on tasks today.</span>
+          <Link href={`/${process.env.NEXT_PUBLIC_ADMIN_PATH || "nx-control"}`} className="underline text-amber-200 hover:text-white font-medium">
+            Check in →
+          </Link>
+        </div>
+      )}
 
       {canManage && adding && (
         <div className="space-y-2 rounded-lg border border-ink-600 bg-ink-800/50 p-3">
@@ -442,10 +442,11 @@ export default function TasksCard({
               <li key={t.id} className="flex items-start gap-3 py-2.5">
                 <input
                   type="checkbox"
-                  className="mt-1 h-3.5 w-3.5 shrink-0 accent-lime-400 cursor-pointer"
+                  className="mt-1 h-3.5 w-3.5 shrink-0 accent-lime-400 cursor-pointer disabled:cursor-not-allowed disabled:opacity-40"
                   checked={false}
-                  disabled={pending}
+                  disabled={pending || (!canManage && !isCheckedIn)}
                   onChange={() => tick(t, true)}
+                  title={!canManage && !isCheckedIn ? "Check in on dashboard to update tasks" : undefined}
                   aria-label={`Mark "${t.title}" done`}
                 />
                 <div className="min-w-0 flex-1">

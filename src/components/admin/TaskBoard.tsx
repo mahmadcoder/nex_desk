@@ -65,6 +65,7 @@ export default function TaskBoard({
   employees = [],
   initialWho,
   initialProject,
+  isCheckedIn = true,
 }: {
   tasks: any[];
   canManage?: boolean;
@@ -72,6 +73,7 @@ export default function TaskBoard({
   employees?: { id: string; full_name: string; avatar_url?: string; job_title?: string }[];
   initialWho?: string;
   initialProject?: string;
+  isCheckedIn?: boolean;
 }) {
   const router = useRouter();
   const [pending, start] = useTransition();
@@ -162,6 +164,11 @@ export default function TaskBoard({
   };
 
   const move = (task: any, dir: -1 | 1) => {
+    if (!canManage && !isCheckedIn) {
+      toast.error("You must check in for attendance today before updating task progress.");
+      return;
+    }
+
     const currentKey = COLUMNS.find((c) => (c.statuses as readonly string[]).includes(task.status))?.key ?? "todo";
     const idx = ORDER.indexOf(currentKey as any);
     const next = ORDER[idx + dir];
@@ -177,6 +184,11 @@ export default function TaskBoard({
   };
 
   const updateStatusDirect = (task: any, newStatus: "todo" | "doing" | "review" | "done") => {
+    if (!canManage && !isCheckedIn) {
+      toast.error("You must check in for attendance today before updating task progress.");
+      return;
+    }
+
     setBusy(task.id);
     start(async () => {
       const res = await setTaskStatus(task.id, newStatus);
@@ -188,6 +200,11 @@ export default function TaskBoard({
   };
 
   const handleToggle = (task: any, nextDone: boolean) => {
+    if (!canManage && !isCheckedIn) {
+      toast.error("You must check in for attendance today before completing tasks.");
+      return;
+    }
+
     setBusy(task.id);
     start(async () => {
       const res = await toggleTask(task.id, nextDone);
@@ -261,6 +278,22 @@ export default function TaskBoard({
 
   return (
     <div className="space-y-6">
+      {/* ── Attendance Gate Warning for Staff ──────────────────── */}
+      {!canManage && !isCheckedIn && (
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-amber-400/40 bg-amber-400/10 p-3.5 text-xs text-amber-300">
+          <span className="flex items-center gap-2">
+            <AlertTriangle size={16} className="shrink-0 text-amber-400" />
+            <span>You have not checked in for attendance today. Please check in on your dashboard before starting or advancing tasks.</span>
+          </span>
+          <Link
+            href={`/${process.env.NEXT_PUBLIC_ADMIN_PATH || "nx-control"}`}
+            className="btn btn-sm btn-primary h-7 px-3 text-xs"
+          >
+            Go to Check In →
+          </Link>
+        </div>
+      )}
+
       {/* ── Executive Metric Pulse Bar ──────────────────────────── */}
       <div className={`grid grid-cols-2 gap-3 sm:grid-cols-3 ${canManage ? "lg:grid-cols-6" : "lg:grid-cols-5"}`}>
         <button
@@ -603,6 +636,7 @@ export default function TaskBoard({
                       colIdx={colIdx}
                       colCount={COLUMNS.length}
                       todayStr={todayStr}
+                      isCheckedIn={isCheckedIn}
                     />
                   ))}
 
@@ -684,6 +718,7 @@ export default function TaskBoard({
                       onToggle={(next) => handleToggle(t, next)}
                       onStatusChange={(status) => updateStatusDirect(t, status)}
                       todayStr={todayStr}
+                      isCheckedIn={isCheckedIn}
                     />
                   ))}
 
@@ -793,6 +828,7 @@ export default function TaskBoard({
                         onToggle={(next) => handleToggle(t, next)}
                         onStatusChange={(status) => updateStatusDirect(t, status)}
                         todayStr={todayStr}
+                        isCheckedIn={isCheckedIn}
                       />
                     ))}
 
@@ -822,6 +858,7 @@ function TaskCardItem({
   colIdx,
   colCount,
   todayStr,
+  isCheckedIn = true,
 }: {
   task: any;
   canManage: boolean;
@@ -831,6 +868,7 @@ function TaskCardItem({
   colIdx: number;
   colCount: number;
   todayStr: string;
+  isCheckedIn?: boolean;
 }) {
   const overdue = t.due_date && t.status !== "done" && t.due_date < todayStr;
   const pStyle = PRIORITY_STYLES[t.priority ?? "normal"] ?? PRIORITY_STYLES.normal;
@@ -924,10 +962,11 @@ function TaskCardItem({
         <div className="flex items-center gap-1">
           <button
             type="button"
-            disabled={colIdx === 0}
+            disabled={colIdx === 0 || (!canManage && !isCheckedIn)}
             onClick={() => onMove(-1)}
             aria-label="Move back"
-            className="rounded p-1 text-bone-400 hover:bg-ink-700 hover:text-bone-100 disabled:invisible"
+            title={!canManage && !isCheckedIn ? "Check in on dashboard to update tasks" : undefined}
+            className="rounded p-1 text-bone-400 hover:bg-ink-700 hover:text-bone-100 disabled:opacity-30 disabled:hover:bg-transparent"
           >
             <ChevronLeft size={13} />
           </button>
@@ -945,10 +984,11 @@ function TaskCardItem({
 
           <button
             type="button"
-            disabled={colIdx === colCount - 1}
+            disabled={colIdx === colCount - 1 || (!canManage && !isCheckedIn)}
             onClick={() => onMove(1)}
             aria-label="Move forward"
-            className="rounded p-1 text-bone-400 hover:bg-ink-700 hover:text-lime-400 disabled:invisible"
+            title={!canManage && !isCheckedIn ? "Check in on dashboard to update tasks" : undefined}
+            className="rounded p-1 text-bone-400 hover:bg-ink-700 hover:text-lime-400 disabled:opacity-30 disabled:hover:bg-transparent"
           >
             <ChevronRight size={13} />
           </button>
@@ -967,6 +1007,7 @@ function TaskRowItem({
   onToggle,
   onStatusChange,
   todayStr,
+  isCheckedIn = true,
 }: {
   task: any;
   canManage: boolean;
@@ -975,6 +1016,7 @@ function TaskRowItem({
   onToggle: (next: boolean) => void;
   onStatusChange: (status: "todo" | "doing" | "review" | "done") => void;
   todayStr: string;
+  isCheckedIn?: boolean;
 }) {
   const isDone = t.status === "done";
   const overdue = t.due_date && !isDone && t.due_date < todayStr;
@@ -986,8 +1028,10 @@ function TaskRowItem({
         <input
           type="checkbox"
           checked={isDone}
+          disabled={!canManage && !isCheckedIn}
           onChange={(e) => onToggle(e.target.checked)}
-          className="mt-1 h-4 w-4 shrink-0 accent-lime-400 cursor-pointer"
+          title={!canManage && !isCheckedIn ? "Check in on dashboard to update tasks" : undefined}
+          className="mt-1 h-4 w-4 shrink-0 accent-lime-400 cursor-pointer disabled:cursor-not-allowed disabled:opacity-30"
         />
 
         <div className="min-w-0 flex-1 space-y-1">
@@ -1040,8 +1084,10 @@ function TaskRowItem({
         {/* Quick Status Select */}
         <select
           value={t.status}
+          disabled={!canManage && !isCheckedIn}
           onChange={(e) => onStatusChange(e.target.value as any)}
-          className="rounded-lg border border-ink-600 bg-ink-800 px-2 py-1 text-[11px] text-bone-200 focus:border-lime-400 focus:outline-none"
+          title={!canManage && !isCheckedIn ? "Check in on dashboard to update tasks" : undefined}
+          className="rounded-lg border border-ink-600 bg-ink-800 px-2 py-1 text-[11px] text-bone-200 focus:border-lime-400 focus:outline-none disabled:cursor-not-allowed disabled:opacity-40"
         >
           <option value="todo">Todo</option>
           <option value="doing">In Progress</option>

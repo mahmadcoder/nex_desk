@@ -2,6 +2,7 @@ import { createAdminClient } from "@/lib/supabase/server";
 import { getCurrentStaff, assignedClientIds } from "@/lib/auth/staff";
 import { PageHead } from "@/components/admin/ui";
 import TaskBoard from "@/components/admin/TaskBoard";
+import { myAttendanceToday } from "@/lib/actions/attendance";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
@@ -33,7 +34,14 @@ export default async function TasksPage({
   const canManage = me.isPrivileged;
   const { who, project } = await searchParams;
 
-  const allowedClients = !canManage ? await assignedClientIds(me.employeeId) : [];
+  const [allowedClients, attendanceToday] = await Promise.all([
+    !canManage ? assignedClientIds(me.employeeId) : Promise.resolve([]),
+    !canManage ? myAttendanceToday() : Promise.resolve(null),
+  ]);
+
+  const isCheckedIn = canManage
+    ? true
+    : !!attendanceToday?.row?.checked_in_at && !attendanceToday?.row?.checked_out_at;
 
   let q = db
     .from("tasks")
@@ -147,6 +155,7 @@ export default async function TasksPage({
         employees={employees ?? []}
         initialWho={who}
         initialProject={project}
+        isCheckedIn={isCheckedIn}
       />
     </>
   );
