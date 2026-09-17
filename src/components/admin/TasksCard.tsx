@@ -272,8 +272,11 @@ export default function TasksCard({
   const [taskToDelete, setTaskToDelete] = useState<any | null>(null);
   const [editingTask, setEditingTask] = useState<any | null>(null);
 
-  const open = tasks.filter((t) => t.status !== "done");
-  const done = tasks.filter((t) => t.status === "done");
+  const visibleTasks = canManage
+    ? tasks
+    : tasks.filter((t) => myEmployeeId && t.assigned_employee_id === myEmployeeId);
+  const open = visibleTasks.filter((t) => t.status !== "done");
+  const done = visibleTasks.filter((t) => t.status === "done");
 
   const nameOf = (id: string | null) =>
     employees.find((e) => e.id === id)?.full_name ?? null;
@@ -355,7 +358,7 @@ export default function TasksCard({
     <section className="card space-y-3 border-ink-600 p-5">
       <div className="flex items-center justify-between gap-3 border-b border-ink-700 pb-3">
         <h2 className="flex items-center gap-2 text-base font-semibold text-bone-50">
-          <ListChecks size={16} className="text-lime-400" /> Tasks
+          <ListChecks size={16} className="text-lime-400" /> {canManage ? "Tasks" : "My Tasks"}
           {!!open.length && <span className="mono-tag text-[11px]">{open.length} open</span>}
         </h2>
         {canManage && !adding && (
@@ -428,9 +431,9 @@ export default function TasksCard({
 
       {!open.length && !done.length ? (
         <p className="text-xs leading-relaxed text-bone-300">
-          Nothing assigned on this project. Tasks are for the things agreed in a conversation
-          and then forgotten — write them here and they show up on the right person&rsquo;s
-          dashboard.
+          {canManage
+            ? "Nothing assigned on this project. Tasks are for the things agreed in a conversation and then forgotten — write them here and they show up on the right person’s dashboard."
+            : "No tasks assigned to you on this project yet. When tasks are assigned to you by a project manager, they will show up here."}
         </p>
       ) : (
         <ul className="divide-y divide-ink-700">
@@ -463,15 +466,21 @@ export default function TasksCard({
                     )}
                   </div>
                   <div className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1.5 text-[11px] text-bone-400">
-                    {/* Interactive Assignee Picker */}
-                    <TaskAssigneeSelect
-                      task={t}
-                      employees={employees}
-                      myEmployeeId={myEmployeeId}
-                      canManage={canManage}
-                      pending={pending}
-                      onAssign={handleAssign}
-                    />
+                    {/* Interactive Assignee Picker or Staff Badge */}
+                    {canManage ? (
+                      <TaskAssigneeSelect
+                        task={t}
+                        employees={employees}
+                        myEmployeeId={myEmployeeId}
+                        canManage={canManage}
+                        pending={pending}
+                        onAssign={handleAssign}
+                      />
+                    ) : (
+                      <span className="inline-flex items-center gap-1 font-medium text-lime-300 text-[11px]">
+                        <UserCheck size={11} /> Assigned to you
+                      </span>
+                    )}
 
                     {/* Due date */}
                     {t.due_date && (
@@ -482,41 +491,41 @@ export default function TasksCard({
                       </span>
                     )}
 
-                    {/* Client Portal Visibility Toggle */}
-                    <button
-                      type="button"
-                      disabled={pending || !canManage}
-                      onClick={() => {
-                        start(async () => {
-                          const nextInternal = !t.is_internal;
-                          const res = await toggleTaskVisibility(t.id, nextInternal);
-                          if (!res.ok) {
-                            toast.error(res.error);
-                            return;
-                          }
-                          toast.success(
-                            nextInternal
-                              ? "Task hidden from client (internal only)."
-                              : "Task is now visible to client in portal."
-                          );
-                          router.refresh();
-                        });
-                      }}
-                      className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-medium transition-colors ${
-                        t.is_internal
-                          ? "border-ink-500 bg-ink-700/60 text-bone-400 hover:border-bone-400 hover:text-bone-200"
-                          : "border-sky-400/40 bg-sky-400/10 text-sky-300 hover:bg-sky-400/20"
-                      }`}
-                      title={
-                        canManage
-                          ? t.is_internal
+                    {/* Client Portal Visibility Toggle — Owner/Admin only */}
+                    {canManage && (
+                      <button
+                        type="button"
+                        disabled={pending}
+                        onClick={() => {
+                          start(async () => {
+                            const nextInternal = !t.is_internal;
+                            const res = await toggleTaskVisibility(t.id, nextInternal);
+                            if (!res.ok) {
+                              toast.error(res.error);
+                              return;
+                            }
+                            toast.success(
+                              nextInternal
+                                ? "Task hidden from client (internal only)."
+                                : "Task is now visible to client in portal."
+                            );
+                            router.refresh();
+                          });
+                        }}
+                        className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-medium transition-colors ${
+                          t.is_internal
+                            ? "border-ink-500 bg-ink-700/60 text-bone-400 hover:border-bone-400 hover:text-bone-200"
+                            : "border-sky-400/40 bg-sky-400/10 text-sky-300 hover:bg-sky-400/20"
+                        }`}
+                        title={
+                          t.is_internal
                             ? "Click to publish to client portal"
                             : "Click to hide from client portal"
-                          : undefined
-                      }
-                    >
-                      {t.is_internal ? "🔒 Internal only" : "👁️ Visible to client"}
-                    </button>
+                        }
+                      >
+                        {t.is_internal ? "🔒 Internal only" : "👁️ Visible to client"}
+                      </button>
+                    )}
                   </div>
                 </div>
 

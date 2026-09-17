@@ -62,6 +62,9 @@ async function taskIfAllowed(taskId: string) {
     if (!clientId || !allowed.includes(clientId)) {
       return { me, task: null, error: "That task is not on one of your projects." };
     }
+    if (!me.employeeId || task.assigned_employee_id !== me.employeeId) {
+      return { me, task: null, error: "You can only update tasks assigned to you." };
+    }
   }
 
   return { me, task, error: null };

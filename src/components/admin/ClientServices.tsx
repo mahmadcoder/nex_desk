@@ -183,7 +183,7 @@ export default function ClientServices({
                   {/* Renewals are their own list. They belong to this deal but
                       are priced per period, so they must not be read as
                       progress towards the contract total above. */}
-                  {!!issuedRenewals.length && (
+                  {canManage && !!issuedRenewals.length && (
                     <div>
                       <p className="mono-tag mb-2 text-[11px]">
                         Recurring renewals · {money(renewalPaid, deal.currency)} collected

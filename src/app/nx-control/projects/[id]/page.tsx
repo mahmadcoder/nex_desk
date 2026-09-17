@@ -107,8 +107,11 @@ export default async function ProjectDetail({ params }: { params: Promise<{ id: 
         .select("*").eq("project_id", id).order("created_at", { ascending: false }),
       db.from("project_expenses")
         .select("*").eq("project_id", id).order("incurred_on", { ascending: false }),
-      db.from("tasks")
-        .select("*").eq("project_id", id).order("sort_order").order("created_at"),
+      canManage
+        ? db.from("tasks").select("*").eq("project_id", id).order("sort_order").order("created_at")
+        : me.employeeId
+          ? db.from("tasks").select("*").eq("project_id", id).eq("assigned_employee_id", me.employeeId).order("sort_order").order("created_at")
+          : Promise.resolve({ data: [] as any[], error: null }),
       db.from("employees").select("id, full_name").ilike("status", "active").order("full_name"),
     ]);
 
