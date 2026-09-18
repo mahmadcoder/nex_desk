@@ -457,13 +457,13 @@ import { buildStaffOfferPdf } from "@/lib/pdf/staffDocs";
 import { recomputeProjectProgress } from "@/lib/actions";
 import { fmtDateTime, fmtDate } from "@/lib/datetime";
 
-/** Where staff sign in. Employees use the same control panel as admins, with a reduced menu. */
+/** Dedicated staff portal sign-in URL. */
 export async function staffLoginUrl(email?: string) {
-  const base = `${getSiteBaseUrl()}/${ADMIN}/login`;
+  const base = `${getSiteBaseUrl()}/staff/login`;
   if (email) {
-    return `${base}?role=staff&email=${encodeURIComponent(email)}`;
+    return `${base}?email=${encodeURIComponent(email)}`;
   }
-  return `${base}?role=staff`;
+  return base;
 }
 
 /**

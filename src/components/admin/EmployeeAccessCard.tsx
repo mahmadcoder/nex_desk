@@ -34,8 +34,8 @@ export default function EmployeeAccessCard({
   const [reveal, setReveal] = useState(false);
   const [downloading, setDownloading] = useState(false);
 
-  const personalizedLoginUrl = `${getSiteBaseUrl()}${adminPath(
-    `/login?role=staff&email=${encodeURIComponent(employee.email)}`
+  const personalizedLoginUrl = `${getSiteBaseUrl()}/staff/login?email=${encodeURIComponent(
+    employee.email
   )}`;
   const hasAccount = !!employee.user_id;
   const offerStatus = parseOfferAcceptance(employee.notes);

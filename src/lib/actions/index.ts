@@ -107,10 +107,19 @@ export async function signIn(_prev: unknown, formData: FormData) {
 
 export async function signOut() {
   const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  const isStaffUser = user?.user_metadata?.role === "staff";
+
   await supabase.auth.signOut();
   const cookieStore = await cookies();
   cookieStore.delete("nx_admin_login_at");
   cookieStore.delete("nx_admin_last_activity");
+
+  if (isStaffUser) {
+    redirect("/staff/login?logged_out=1");
+  }
   redirect(`/${ADMIN}/login?logged_out=1`);
 }
 

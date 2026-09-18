@@ -20,9 +20,10 @@ export async function middleware(req: NextRequest) {
 
   const isAdmin = pathname.startsWith(`/${ADMIN_PATH}`);
   const isPortal = pathname.startsWith("/portal");
+  const isStaff = pathname.startsWith("/staff");
 
   // Fast path for public marketing pages — skip Supabase auth network roundtrips
-  if (!isAdmin && !isPortal) {
+  if (!isAdmin && !isPortal && !isStaff) {
     return res;
   }
 
@@ -93,7 +94,9 @@ export async function middleware(req: NextRequest) {
 
       if ((is24hExpired || isInactiveExpired) && !isLoginPage) {
         await supabase.auth.signOut();
-        const response = NextResponse.redirect(new URL(`/${ADMIN_PATH}/login?expired=1`, req.url));
+        const roleHint = user?.user_metadata?.role;
+        const targetPath = roleHint === "staff" ? "/staff/login?expired=1" : `/${ADMIN_PATH}/login?expired=1`;
+        const response = NextResponse.redirect(new URL(targetPath, req.url));
         response.cookies.delete("nx_admin_login_at");
         response.cookies.delete("nx_admin_last_activity");
         return response;
@@ -150,7 +153,8 @@ export async function middleware(req: NextRequest) {
     if (!role || !isActive) {
       if (isLoginPage) return res;
       await supabase.auth.signOut();
-      const redirectRes = NextResponse.redirect(new URL(`/${ADMIN_PATH}/login?deactivated=1`, req.url));
+      const targetPath = role === "staff" ? "/staff/login?deactivated=1" : `/${ADMIN_PATH}/login?deactivated=1`;
+      const redirectRes = NextResponse.redirect(new URL(targetPath, req.url));
       redirectRes.cookies.delete("nx_admin_login_at");
       redirectRes.cookies.delete("nx_admin_last_activity");
       return redirectRes;
@@ -164,6 +168,23 @@ export async function middleware(req: NextRequest) {
       return NextResponse.redirect(new URL(`/${ADMIN_PATH}`, req.url));
     }
 
+    return res;
+  }
+
+  // ---------- STAFF PORTAL ----------
+  if (pathname.startsWith("/staff")) {
+    if (pathname === "/staff/login") {
+      if (user) {
+        return NextResponse.redirect(new URL(`/${ADMIN_PATH}`, req.url));
+      }
+      return res;
+    }
+    if (pathname === "/staff") {
+      if (user) {
+        return NextResponse.redirect(new URL(`/${ADMIN_PATH}`, req.url));
+      }
+      return NextResponse.redirect(new URL("/staff/login", req.url));
+    }
     return res;
   }
 
