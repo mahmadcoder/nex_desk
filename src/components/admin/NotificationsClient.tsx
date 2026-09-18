@@ -103,7 +103,9 @@ export default function NotificationsClient({
 
   // Read URL params or default
   const urlTab = searchParams.get("tab") === "read" ? "read" : "unread";
-  const urlSource = (searchParams.get("source") as "all" | NotificationCategory) || "all";
+  const urlSource = isPrivileged
+    ? ((searchParams.get("source") as "all" | NotificationCategory) || "all")
+    : "all";
   const initialSearch = searchParams.get("q") || "";
 
   const [activeTab, setActiveTab] = useState<"unread" | "read">(urlTab);
@@ -124,7 +126,7 @@ export default function NotificationsClient({
   const updateUrl = (tab: "unread" | "read", source: "all" | NotificationCategory, q: string) => {
     const params = new URLSearchParams();
     if (tab === "read") params.set("tab", "read");
-    if (source !== "all") params.set("source", source);
+    if (isPrivileged && source !== "all") params.set("source", source);
     if (q.trim()) params.set("q", q.trim());
     const str = params.toString();
     router.replace(str ? `${basePath}/notifications?${str}` : `${basePath}/notifications`, {
@@ -314,39 +316,41 @@ export default function NotificationsClient({
 
       {/* ── Tier 2: Source Category Tabs & Search Bar ─────────── */}
       <div className="card space-y-3 p-3 sm:p-4">
-        {/* Source Navigation Tabs */}
-        <div className="flex flex-wrap items-center gap-2">
-          {SOURCE_TABS.map((tab) => {
-            const Icon = tab.icon;
-            const count = currentTabCounts[tab.id];
-            const isActive = activeSource === tab.id;
+        {/* Source Navigation Tabs (Management / Admin stream view only) */}
+        {isPrivileged && (
+          <div className="flex flex-wrap items-center gap-2">
+            {SOURCE_TABS.map((tab) => {
+              const Icon = tab.icon;
+              const count = currentTabCounts[tab.id];
+              const isActive = activeSource === tab.id;
 
-            return (
-              <button
-                key={tab.id}
-                type="button"
-                onClick={() => handleSourceChange(tab.id)}
-                className={cn(
-                  "mono-tag flex items-center gap-2 rounded-lg border px-3 py-2 text-xs transition-all cursor-pointer",
-                  isActive
-                    ? tab.activeClass
-                    : "border-ink-600 bg-ink-800/80 text-bone-300 hover:border-ink-500 hover:bg-ink-800 hover:text-bone-100"
-                )}
-              >
-                <Icon size={14} className={isActive ? "text-current" : tab.toneColor} />
-                <span>{tab.label}</span>
-                <span
+              return (
+                <button
+                  key={tab.id}
+                  type="button"
+                  onClick={() => handleSourceChange(tab.id)}
                   className={cn(
-                    "rounded-full px-1.5 py-0.2 text-[10px] font-semibold",
-                    isActive ? "bg-black/20 text-current" : "bg-ink-700 text-bone-400"
+                    "mono-tag flex items-center gap-2 rounded-lg border px-3 py-2 text-xs transition-all cursor-pointer",
+                    isActive
+                      ? tab.activeClass
+                      : "border-ink-600 bg-ink-800/80 text-bone-300 hover:border-ink-500 hover:bg-ink-800 hover:text-bone-100"
                   )}
                 >
-                  {count}
-                </span>
-              </button>
-            );
-          })}
-        </div>
+                  <Icon size={14} className={isActive ? "text-current" : tab.toneColor} />
+                  <span>{tab.label}</span>
+                  <span
+                    className={cn(
+                      "rounded-full px-1.5 py-0.2 text-[10px] font-semibold",
+                      isActive ? "bg-black/20 text-current" : "bg-ink-700 text-bone-400"
+                    )}
+                  >
+                    {count}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        )}
 
         {/* Live Search Input */}
         <div className="relative">
@@ -355,7 +359,11 @@ export default function NotificationsClient({
             type="text"
             value={search}
             onChange={(e) => handleSearchChange(e.target.value)}
-            placeholder="Search by client, staff member, task title, or keyword…"
+            placeholder={
+              isPrivileged
+                ? "Search by client, staff member, task title, or keyword…"
+                : "Search your tasks, decisions, or updates…"
+            }
             className="w-full rounded-lg border border-ink-600 bg-ink-850 py-2 pl-9 pr-8 text-xs text-bone-100 placeholder:text-bone-500 focus:border-lime-400 focus:outline-none transition-colors"
           />
           {search && (
@@ -380,19 +388,27 @@ export default function NotificationsClient({
             {search
               ? `No notifications found matching "${search}"`
               : activeTab === "read"
-                ? `No past notifications in ${activeSource === "all" ? "history" : activeSource + " history"}`
-                : `You're all caught up on ${activeSource === "all" ? "everything" : activeSource + " activity"}!`}
+                ? isPrivileged
+                  ? `No past notifications in ${activeSource === "all" ? "history" : activeSource + " history"}`
+                  : "No past notifications in your history"
+                : isPrivileged
+                  ? `You're all caught up on ${activeSource === "all" ? "everything" : activeSource + " activity"}!`
+                  : "You're all caught up!"}
           </h3>
           <p className="mx-auto max-w-md text-xs text-bone-400 leading-relaxed">
             {search
               ? "Try searching for a different keyword, name, or clear the search input."
-              : activeSource === "client"
-                ? "When clients sign agreements, approve deliverables, submit payment proofs, or open support tickets, they will appear here."
-                : activeSource === "staff"
-                  ? "When staff submit daily work logs, move task statuses, request leave, or check in for attendance, they will appear here."
-                  : activeSource === "system"
-                    ? "Automated alerts like incoming website leads, expense renewals, and system warnings will appear here."
-                    : "No notifications need your attention right now."}
+              : !isPrivileged
+                ? activeTab === "read"
+                  ? "Completed tasks and reviewed decisions will be archived here for reference."
+                  : "When tasks are assigned to you or decisions are made on your requests, they will appear here."
+                : activeSource === "client"
+                  ? "When clients sign agreements, approve deliverables, submit payment proofs, or open support tickets, they will appear here."
+                  : activeSource === "staff"
+                    ? "When staff submit daily work logs, move task statuses, request leave, or check in for attendance, they will appear here."
+                    : activeSource === "system"
+                      ? "Automated alerts like incoming website leads, expense renewals, and system warnings will appear here."
+                      : "No notifications need your attention right now."}
           </p>
           {search && (
             <button
@@ -450,26 +466,28 @@ export default function NotificationsClient({
                       <div className="min-w-0 flex-1 space-y-1">
                         {/* Header Badge Row */}
                         <div className="flex flex-wrap items-center gap-2">
-                          {/* Source Category Pill */}
-                          <span
-                            className={cn(
-                              "inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider",
-                              category === "client"
-                                ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-300"
-                                : category === "staff"
-                                  ? "border-sky-500/30 bg-sky-500/10 text-sky-300"
-                                  : "border-amber-500/30 bg-amber-500/10 text-amber-300"
-                            )}
-                          >
-                            {category === "client" ? (
-                              <User size={9} />
-                            ) : category === "staff" ? (
-                              <Users size={9} />
-                            ) : (
-                              <Sparkles size={9} />
-                            )}
-                            {category}
-                          </span>
+                          {/* Source Category Pill (Admin triage stream only) */}
+                          {isPrivileged && (
+                            <span
+                              className={cn(
+                                "inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider",
+                                category === "client"
+                                  ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-300"
+                                  : category === "staff"
+                                    ? "border-sky-500/30 bg-sky-500/10 text-sky-300"
+                                    : "border-amber-500/30 bg-amber-500/10 text-amber-300"
+                              )}
+                            >
+                              {category === "client" ? (
+                                <User size={9} />
+                              ) : category === "staff" ? (
+                                <Users size={9} />
+                              ) : (
+                                <Sparkles size={9} />
+                              )}
+                              {category}
+                            </span>
+                          )}
 
                           {/* Event Kind Label */}
                           <span className="mono-tag text-[10px] text-bone-400">

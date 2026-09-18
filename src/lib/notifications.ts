@@ -24,8 +24,12 @@ function scope(query: any, me: CurrentStaff) {
       ? query.or(`audience.eq.admins,employee_id.eq.${me.employeeId}`)
       : query.eq("audience", "admins");
   }
-  // Fails closed: a staff login with no employee row matches nothing.
-  return query.eq("employee_id", me.employeeId ?? "00000000-0000-0000-0000-000000000000");
+  // Staff member view: strictly restricted to notifications addressed to this specific employee.
+  // Fails closed: if no employeeId, matches nothing.
+  if (!me.employeeId) {
+    return query.eq("id", "00000000-0000-0000-0000-000000000000");
+  }
+  return query.eq("audience", "employee").eq("employee_id", me.employeeId);
 }
 
 /**

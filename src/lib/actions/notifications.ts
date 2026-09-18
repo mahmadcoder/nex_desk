@@ -75,7 +75,9 @@ export async function markAllNotificationsRead(
         ? q.or(`audience.eq.admins,employee_id.eq.${me.employeeId}`)
         : q.eq("audience", "admins");
     } else {
-      q = q.eq("employee_id", me.employeeId ?? "00000000-0000-0000-0000-000000000000");
+      q = q
+        .eq("audience", "employee")
+        .eq("employee_id", me.employeeId ?? "00000000-0000-0000-0000-000000000000");
     }
 
     const { data: rows, error: fetchErr } = await q;
@@ -107,10 +109,17 @@ export async function markAllNotificationsRead(
       db.from("notifications").update(stamp)
         .eq("audience", "admins").is("read_at", null) as unknown as Promise<unknown>
     );
-  }
-  if (me.employeeId) {
+    if (me.employeeId) {
+      jobs.push(
+        db.from("notifications").update(stamp)
+          .eq("audience", "employee")
+          .eq("employee_id", me.employeeId).is("read_at", null) as unknown as Promise<unknown>
+      );
+    }
+  } else if (me.employeeId) {
     jobs.push(
       db.from("notifications").update(stamp)
+        .eq("audience", "employee")
         .eq("employee_id", me.employeeId).is("read_at", null) as unknown as Promise<unknown>
     );
   }
