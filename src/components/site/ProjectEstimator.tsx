@@ -578,7 +578,7 @@ export default function ProjectEstimator() {
       <div className="lg:sticky lg:top-24 h-fit space-y-4">
         <div className="rounded-2xl border border-ink-600/90 bg-ink-850/90 p-5 sm:p-6 shadow-2xl backdrop-blur-xl space-y-6">
           {/* Header & Currency Switcher */}
-          <div className="flex items-center justify-between border-b border-ink-700/80 pb-4">
+          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-ink-700/80 pb-4">
             <div>
               <span className="mono-tag text-[10px] uppercase tracking-wider text-lime-400">
                 Instant Calculation
@@ -587,7 +587,7 @@ export default function ProjectEstimator() {
             </div>
 
             {/* Currency Pill Selector */}
-            <div className="flex rounded-lg border border-ink-700 bg-ink-900/90 p-0.5">
+            <div className="flex shrink-0 overflow-x-auto no-scrollbar rounded-lg border border-ink-700 bg-ink-900/90 p-0.5">
               {(Object.keys(CURRENCY_RATES) as Currency[]).map((cur) => (
                 <button
                   key={cur}
@@ -675,7 +675,7 @@ export default function ProjectEstimator() {
                   placeholder="Work email address *"
                   className="w-full rounded-lg border border-ink-600 bg-ink-900/80 px-3 py-2 text-xs text-bone-100 placeholder:text-bone-500 focus:border-lime-400 focus:outline-none transition-colors"
                 />
-                <div className="grid grid-cols-2 gap-2">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                   <input
                     type="text"
                     value={form.company}

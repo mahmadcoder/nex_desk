@@ -196,7 +196,7 @@ export default function CallScheduler() {
               <label className="mono-tag text-xs text-bone-300 font-semibold uppercase tracking-wider block">
                 1. Select Preferred Date:
               </label>
-              <div className="grid grid-cols-5 gap-2 sm:gap-2.5">
+              <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 sm:gap-2.5">
                 {availableDates.map((d) => {
                   const isSelected = selectedDate === d.dateStr;
                   return (

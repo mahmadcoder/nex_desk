@@ -29,9 +29,11 @@ const field =
 export default function LeadRow({
   lead,
   convertedClientId = null,
+  existingClient = null,
 }: {
   lead: any;
   convertedClientId?: string | null;
+  existingClient?: { id: string; name: string; company?: string | null } | null;
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -161,7 +163,19 @@ export default function LeadRow({
                 }`}
               />
             )}
-            <p className={isSpam ? "line-through" : undefined}>{lead.name}</p>
+            <div className="flex flex-wrap items-center gap-1.5">
+              <p className={isSpam ? "line-through" : undefined}>{lead.name}</p>
+              {existingClient && (
+                <Link
+                  href={adminPath(`/clients/${existingClient.id}`)}
+                  onClick={(e) => e.stopPropagation()}
+                  className="inline-flex items-center gap-1 rounded-full border border-sky-400/40 bg-sky-400/10 px-2 py-0.2 text-[10px] font-mono font-bold text-sky-300 hover:bg-sky-400/20"
+                  title={`Existing client: ${existingClient.name} (${existingClient.company || "Client"})`}
+                >
+                  <span>🏢 Existing Client</span>
+                </Link>
+              )}
+            </div>
           </div>
           <p className="text-xs text-bone-400">{lead.email}</p>
         </td>
@@ -180,6 +194,28 @@ export default function LeadRow({
               <div className="grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
                 {/* Left Column: Client Message & Metadata */}
                 <div className="space-y-5">
+                  {existingClient && (
+                    <div className="flex items-center justify-between rounded-xl border border-sky-400/30 bg-sky-400/[0.08] p-3.5">
+                      <div className="space-y-0.5">
+                        <span className="mono-tag text-[10px] font-bold text-sky-300 uppercase tracking-wider">
+                          ⭐ Existing Client Match
+                        </span>
+                        <p className="text-xs text-bone-100">
+                          This enquiry was submitted by existing client{" "}
+                          <strong>{existingClient.name}</strong>{" "}
+                          {existingClient.company ? `(${existingClient.company})` : ""}.
+                        </p>
+                      </div>
+                      <Link
+                        href={adminPath(`/clients/${existingClient.id}`)}
+                        onClick={(e) => e.stopPropagation()}
+                        className="btn btn-sm border-sky-400/40 bg-sky-400/15 text-sky-200 hover:bg-sky-400/25 text-xs h-8 px-3"
+                      >
+                        Open Profile →
+                      </Link>
+                    </div>
+                  )}
+
                   <div className="rounded-xl border border-ink-600 bg-ink-900/80 p-4">
                     <span className="mono-tag text-[10px] text-lime-400 font-semibold uppercase tracking-wider block mb-1.5">
                       Client Message
@@ -407,7 +443,15 @@ export default function LeadRow({
                     </a>
                   )}
 
-                  {convertedClientId ? (
+                  {existingClient ? (
+                    <Link
+                      href={adminPath(`/clients/${existingClient.id}`)}
+                      onClick={(e) => e.stopPropagation()}
+                      className="inline-flex h-9 items-center gap-1.5 rounded-full border border-sky-400/40 bg-sky-400/10 px-4 text-xs font-semibold text-sky-300 hover:bg-sky-400/20"
+                    >
+                      🏢 Open Client Profile ({existingClient.name}) →
+                    </Link>
+                  ) : convertedClientId ? (
                     <Link
                       href={adminPath(`/clients/${convertedClientId}`)}
                       onClick={(e) => e.stopPropagation()}

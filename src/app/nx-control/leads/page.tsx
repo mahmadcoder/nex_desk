@@ -19,16 +19,20 @@ export default async function LeadsPage({
   const { status, q, view } = await searchParams;
   const asBoard = view === "board";
   const db = createAdminClient();
-  const [{ data: leads }, { data: converted }] = await Promise.all([
+  const [{ data: leads }, { data: allClients }] = await Promise.all([
     db.from("leads").select("*").order("created_at", { ascending: false }),
-    db.from("clients").select("id, lead_id").not("lead_id", "is", null),
+    db.from("clients").select("id, lead_id, email, name, company"),
   ]);
 
-  // lead_id → client_id, so an already-converted lead shows a link instead of
-  // a button that would create a second client.
-  const clientByLead = new Map<string, string>(
-    (converted ?? []).map((c) => [c.lead_id as string, c.id as string])
-  );
+  // Maps to recognize existing clients by lead_id OR email
+  const clientByLead = new Map<string, { id: string; name: string; company?: string | null }>();
+  const clientByEmail = new Map<string, { id: string; name: string; company?: string | null }>();
+
+  for (const c of allClients ?? []) {
+    const info = { id: c.id, name: c.name, company: c.company };
+    if (c.lead_id) clientByLead.set(c.lead_id, info);
+    if (c.email) clientByEmail.set(c.email.trim().toLowerCase(), info);
+  }
 
   const counts = (leads ?? []).reduce<Record<string, number>>((a, l) => {
     a[l.status] = (a[l.status] ?? 0) + 1;
@@ -102,9 +106,20 @@ export default async function LeadsPage({
         />
       ) : (
         <Table head={["Who", "Wants", "Budget", "When", "Status", ""]}>
-          {rows.map((l) => (
-            <LeadRow key={l.id} lead={l} convertedClientId={clientByLead.get(l.id) ?? null} />
-          ))}
+          {rows.map((l) => {
+            const existingClient =
+              clientByLead.get(l.id) ??
+              (l.email ? clientByEmail.get(l.email.trim().toLowerCase()) : null);
+
+            return (
+              <LeadRow
+                key={l.id}
+                lead={l}
+                convertedClientId={clientByLead.get(l.id)?.id ?? null}
+                existingClient={existingClient ?? null}
+              />
+            );
+          })}
         </Table>
       ))}
     </>

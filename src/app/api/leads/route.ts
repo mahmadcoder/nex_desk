@@ -55,7 +55,27 @@ export async function POST(req: Request) {
     if (website) return NextResponse.json({ ok: true }); // silently drop bots
 
     const db = createAdminClient();
-    const { data, error } = await db.from("leads").insert(lead).select().single();
+
+    // Check if the submitter is an existing client in the database
+    const { data: existingClient } = await db
+      .from("clients")
+      .select("id, name, company, email")
+      .ilike("email", lead.email.trim())
+      .limit(1)
+      .maybeSingle();
+
+    const isExistingClient = !!existingClient;
+    const adminPath = process.env.ADMIN_PATH || "nx-control";
+
+    const leadPayload = {
+      ...lead,
+      source: isExistingClient ? "existing_client" : "website",
+      notes: isExistingClient
+        ? `[EXISTING CLIENT] Associated with client record: ${existingClient.name} (${existingClient.company || "Client"}).`
+        : undefined,
+    };
+
+    const { data, error } = await db.from("leads").insert(leadPayload).select().single();
     if (error) throw error;
 
     // Echo back what they submitted — it reassures them the form worked and
@@ -72,13 +92,25 @@ export async function POST(req: Request) {
     // `notify` never throws.
     await notify({
       kind: "lead.new",
-      title: `New enquiry from ${lead.name}`,
-      body: [lead.company, serviceInterest, budgetRange].filter(Boolean).join(" · "),
-      href: `/${process.env.ADMIN_PATH || "nx-control"}/leads`,
-      entity: "leads",
-      entityId: data.id,
+      title: isExistingClient
+        ? `Existing Client Enquiry: ${existingClient.name} (${existingClient.company || "Client"})`
+        : `New enquiry from ${lead.name}`,
+      body: [
+        isExistingClient ? "⭐ Existing Client" : null,
+        lead.company || existingClient?.company,
+        serviceInterest,
+        budgetRange,
+      ]
+        .filter(Boolean)
+        .join(" · "),
+      href: isExistingClient
+        ? `/${adminPath}/clients/${existingClient.id}`
+        : `/${adminPath}/leads`,
+      entity: isExistingClient ? "clients" : "leads",
+      entityId: isExistingClient ? existingClient.id : data.id,
       actorLabel: lead.name,
       actorKind: "client",
+      clientId: existingClient?.id || null,
     });
 
     // Both sends are individually guarded. Previously a failing email threw
@@ -86,14 +118,14 @@ export async function POST(req: Request) {
     // already saved — so they submitted again and you got duplicates.
     try {
       await sendEmail({
-      templateKey: "lead_autoreply",
-      to: lead.email,
-      vars: {
-        client_name: lead.name.split(" ")[0],
-        client_email: lead.email,
-        service_interest: serviceInterest,
-        budget_range: budgetRange,
-        timeline,
+        templateKey: "lead_autoreply",
+        to: lead.email,
+        vars: {
+          client_name: lead.name.split(" ")[0],
+          client_email: lead.email,
+          service_interest: serviceInterest,
+          budget_range: budgetRange,
+          timeline,
           portal_url: `${getSiteBaseUrl()}/work`,
         },
       });
@@ -103,22 +135,29 @@ export async function POST(req: Request) {
 
     try {
       await sendEmail({
-      templateKey: "internal_new_lead",
-      to: await adminNotifyAddress(),
-      subjectOverride: `New lead — ${lead.name}${lead.company ? ` (${lead.company})` : ""}`,
-      bodyOverride:
-        `A new enquiry came in through the website.\n\n` +
-        `• Name: ${lead.name}\n` +
-        `• Email: ${lead.email}\n` +
-        (lead.phone ? `• Phone: ${lead.phone}\n` : "") +
-        (lead.company ? `• Company: ${lead.company}\n` : "") +
-        `• Location: ${[lead.city, lead.country].filter(Boolean).join(", ") || "—"}\n` +
-        `• Wants: ${serviceInterest}\n` +
-        `• Budget: ${budgetRange}\n` +
-        `• Timeline: ${timeline}\n\n` +
-        (lead.message ? `Their message:\n\n${lead.message}\n\n` : "") +
-        `Open the Leads board to reply or convert them:\n` +
-        `${getSiteBaseUrl()}/${process.env.ADMIN_PATH || "nx-control"}/leads`,
+        templateKey: "internal_new_lead",
+        to: await adminNotifyAddress(),
+        subjectOverride: isExistingClient
+          ? `[Existing Client] New Enquiry — ${existingClient.name} (${existingClient.company || lead.name})`
+          : `New lead — ${lead.name}${lead.company ? ` (${lead.company})` : ""}`,
+        bodyOverride:
+          (isExistingClient
+            ? `⭐ An EXISTING CLIENT submitted an enquiry on the website.\n\n` +
+              `• Client: ${existingClient.name} (${existingClient.company || "—"})\n` +
+              `• Client Profile: ${getSiteBaseUrl()}/${adminPath}/clients/${existingClient.id}\n\n`
+            : `A new enquiry came in through the website.\n\n`) +
+          `• Name: ${lead.name}\n` +
+          `• Email: ${lead.email}\n` +
+          (lead.phone ? `• Phone: ${lead.phone}\n` : "") +
+          (lead.company ? `• Company: ${lead.company}\n` : "") +
+          `• Location: ${[lead.city, lead.country].filter(Boolean).join(", ") || "—"}\n` +
+          `• Wants: ${serviceInterest}\n` +
+          `• Budget: ${budgetRange}\n` +
+          `• Timeline: ${timeline}\n\n` +
+          (lead.message ? `Their message:\n\n${lead.message}\n\n` : "") +
+          (isExistingClient
+            ? `Open Client Record:\n${getSiteBaseUrl()}/${adminPath}/clients/${existingClient.id}`
+            : `Open the Leads board to reply or convert them:\n${getSiteBaseUrl()}/${adminPath}/leads`),
         vars: {},
       });
     } catch (mailErr) {
