@@ -2,6 +2,7 @@
 
 import { useActionState, useState, useEffect, Suspense, useCallback } from "react";
 import { useSearchParams } from "next/navigation";
+import Link from "next/link";
 import { toast } from "sonner";
 import { signIn } from "@/lib/actions";
 import { getStaffLoginGreeting, type StaffLoginGreeting } from "@/lib/actions/staffAuth";
@@ -16,6 +17,7 @@ import {
   ArrowRight,
   RefreshCw,
   ShieldAlert,
+  ShieldCheck,
 } from "lucide-react";
 
 const REMEMBER_STAFF_KEY = "nx_staff_visitor";
@@ -297,6 +299,15 @@ function StaffLoginForm() {
           </span>
         )}
       </button>
+
+      <div className="pt-2 text-center">
+        <Link
+          href="/nx-control/login"
+          className="text-xs text-bone-400 hover:text-lime-400 transition-colors inline-flex items-center gap-1.5"
+        >
+          <ShieldCheck size={12} /> Agency owner or admin? Sign in here →
+        </Link>
+      </div>
     </form>
   );
 }

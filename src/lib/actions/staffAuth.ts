@@ -38,20 +38,23 @@ export async function getStaffLoginGreeting(emailOrQuery: string): Promise<Staff
     // 1. Look up in employees table
     const { data: employee } = await db
       .from("employees")
-      .select("id, full_name, email, job_title, department, avatar_url, status, user_id")
+      .select(
+        "id, full_name, email, job_title, avatar_url, status, user_id, departments:departments!employees_department_id_fkey(name)"
+      )
       .ilike("email", clean)
       .maybeSingle();
 
     if (employee) {
       const fullName = employee.full_name?.trim() || "Team Member";
       const firstName = fullName.split(/\s+/)[0] || fullName;
+      const deptName = (employee.departments as any)?.name || undefined;
 
       return {
         found: true,
         name: fullName,
         firstName,
         jobTitle: employee.job_title || "Staff Specialist",
-        department: employee.department || undefined,
+        department: deptName,
         avatarUrl: employee.avatar_url || null,
         email: employee.email || clean,
         isActive: employee.status !== "terminated" && employee.status !== "inactive",

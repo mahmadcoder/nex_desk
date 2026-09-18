@@ -1,11 +1,12 @@
 "use client";
 
 import { useActionState, useState, useEffect, Suspense } from "react";
-import { useSearchParams } from "next/navigation";
+import { useSearchParams, useRouter } from "next/navigation";
+import Link from "next/link";
 import { toast } from "sonner";
 import { signIn } from "@/lib/actions";
 import { LogoMark } from "@/components/brand/Logo";
-import { Eye, EyeOff, ShieldCheck, ShieldAlert, Clock } from "lucide-react";
+import { Eye, EyeOff, ShieldCheck, ShieldAlert, Clock, Users } from "lucide-react";
 
 const field =
   "w-full rounded-lg border border-ink-500 bg-ink-800 px-4 py-3 text-sm text-bone-50 placeholder:text-bone-600 focus:border-lime-400 focus:outline-none transition-colors";
@@ -14,8 +15,17 @@ function AdminLoginForm() {
   const [state, action, pending] = useActionState(signIn, null);
   const [showPassword, setShowPassword] = useState(false);
   const searchParams = useSearchParams();
+  const router = useRouter();
 
   useEffect(() => {
+    // If a staff member arrives via a link with their email or role=staff, seamlessly forward to dedicated staff portal
+    const roleParam = searchParams.get("role");
+    const emailParam = searchParams.get("email");
+    if (roleParam === "staff" || (emailParam && emailParam.includes("@"))) {
+      router.replace(`/staff/login${emailParam ? `?email=${encodeURIComponent(emailParam)}` : ""}`);
+      return;
+    }
+
     if (searchParams.get("logged_out") === "1") {
       toast.success("Successfully logged out.");
     }
@@ -25,7 +35,7 @@ function AdminLoginForm() {
     if (searchParams.get("expired") === "1") {
       toast.info("Your session has timed out. Please enter your credentials to return to the control center.");
     }
-  }, [searchParams]);
+  }, [searchParams, router]);
 
   const isDeactivated = searchParams.get("deactivated") === "1";
   const isExpired = searchParams.get("expired") === "1";
@@ -105,6 +115,15 @@ function AdminLoginForm() {
       <button className="btn btn-primary w-full justify-center h-11 text-sm mt-2 cursor-pointer" disabled={pending}>
         {pending ? "Authenticating…" : "Sign In to Control Center →"}
       </button>
+
+      <div className="pt-2 text-center">
+        <Link
+          href="/staff/login"
+          className="text-xs text-bone-400 hover:text-violet-400 transition-colors inline-flex items-center gap-1.5"
+        >
+          <Users size={12} /> Team member? Sign in to Staff Workspace →
+        </Link>
+      </div>
     </form>
   );
 }
