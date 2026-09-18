@@ -10,6 +10,7 @@ const NAV = [
   { href: "/services", label: "Services" },
   { href: "/work", label: "Work" },
   { href: "/pricing", label: "Pricing" },
+  { href: "/estimate", label: "Estimator" },
   { href: "/about", label: "About" },
   { href: "/blog", label: "Blog" },
 ];
@@ -86,9 +87,9 @@ export default function Header() {
         </nav>
 
         <div className="flex items-center gap-3">
-          {/* Book a call — desktop only */}
+          {/* Book a call — direct to scheduler */}
           <Link
-            href="/contact"
+            href="/book"
             className="btn h-10 px-4 !hidden md:!inline-flex"
           >
             Book a call
@@ -207,7 +208,7 @@ export default function Header() {
               Start a project
             </Link>
             <Link
-              href="/contact"
+              href="/book"
               onClick={() => setOpen(false)}
               className="btn h-12 w-full justify-center text-sm border-ink-600 bg-ink-900/80 hover:bg-ink-800"
             >

@@ -67,8 +67,11 @@ export default function CTA() {
             <Link href="/contact" className="btn btn-primary cursor-pointer">
               Start a project
             </Link>
-            <Link href="/pricing" className="btn cursor-pointer">
-              See pricing
+            <Link href="/estimate" className="btn cursor-pointer">
+              Scope Estimator (60s)
+            </Link>
+            <Link href="/demo" className="btn cursor-pointer text-lime-400 border-lime-400/30 hover:border-lime-400">
+              Explore Client Portal Demo →
             </Link>
           </div>
         </div>

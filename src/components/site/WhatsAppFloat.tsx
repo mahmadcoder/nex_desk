@@ -43,22 +43,29 @@ export default function WhatsAppFloat() {
       href={whatsappLink(CONTACT_WHATSAPP, OPENER)}
       target="_blank"
       rel="noopener noreferrer"
-      aria-label="Message us on WhatsApp"
-      /* z-75: above the cookie banner (70) so it is never buried, below the
-         exit nudge (80) so that dialog's backdrop still covers it. */
-      className={`group fixed right-5 z-[75] flex items-center gap-0 overflow-hidden rounded-full bg-[#25D366] text-ink-950 shadow-lg shadow-ink-950/40 transition-[bottom,gap,padding] duration-300 hover:gap-2 sm:right-6 ${
+      aria-label="Chat with Nex Desk on WhatsApp"
+      className={`group fixed right-5 z-[75] flex items-center gap-0 overflow-hidden rounded-full bg-[#25D366] text-ink-950 shadow-xl shadow-ink-950/50 transition-[bottom,gap,padding] duration-300 hover:gap-2.5 sm:right-6 border border-white/20 ${
         bannerUp ? "bottom-32 sm:bottom-28" : "bottom-5 sm:bottom-6"
       }`}
     >
-      <span className="grid h-14 w-14 shrink-0 place-items-center">
-        <FaWhatsapp size={28} />
+      <span className="relative grid h-13 w-13 sm:h-14 sm:w-14 shrink-0 place-items-center">
+        <FaWhatsapp size={27} className="text-white drop-shadow-sm" />
+        {/* Pulsing online status indicator */}
+        <span className="absolute top-2.5 right-2.5 flex h-3 w-3">
+          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-75" />
+          <span className="relative inline-flex rounded-full h-3 w-3 bg-white" />
+        </span>
       </span>
 
-      {/* Label unrolls on hover at desktop widths. Hidden on touch, where there
-          is no hover and the icon is universally understood anyway. */}
-      <span className="hidden max-w-0 whitespace-nowrap text-sm font-semibold transition-[max-width,padding] duration-300 group-hover:max-w-[12rem] group-hover:pr-5 sm:block">
-        Chat with us
-      </span>
+      {/* Label unrolls on hover at desktop widths */}
+      <div className="hidden max-w-0 flex-col justify-center whitespace-nowrap text-left transition-[max-width,padding] duration-300 group-hover:max-w-[13rem] group-hover:pr-5 sm:flex">
+        <span className="text-xs font-bold text-white tracking-tight leading-tight">
+          Chat with Founder
+        </span>
+        <span className="text-[10px] font-mono text-white/90 leading-tight">
+          Online · Replies &lt;15m
+        </span>
+      </div>
     </a>
   );
 }
