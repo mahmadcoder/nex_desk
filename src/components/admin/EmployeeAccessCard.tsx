@@ -4,7 +4,7 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import StatusControl from "@/components/admin/StatusControl";
-import { KeyRound, Copy, Send, Eye, EyeOff, FileDown, CheckCircle2, Clock } from "lucide-react";
+import { KeyRound, Copy, Send, Eye, EyeOff, FileDown, CheckCircle2, Clock, Link2 } from "lucide-react";
 import { sendEmployeeCredentials } from "@/lib/actions/cms";
 import { getSiteBaseUrl, adminPath } from "@/lib/utils";
 import { parseOfferAcceptance } from "@/lib/staffOffer";
@@ -34,17 +34,26 @@ export default function EmployeeAccessCard({
   const [reveal, setReveal] = useState(false);
   const [downloading, setDownloading] = useState(false);
 
-  const loginUrl = `${getSiteBaseUrl()}${adminPath("/login")}`;
+  const personalizedLoginUrl = `${getSiteBaseUrl()}${adminPath(
+    `/login?role=staff&email=${encodeURIComponent(employee.email)}`
+  )}`;
   const hasAccount = !!employee.user_id;
   const offerStatus = parseOfferAcceptance(employee.notes);
 
+  const copyStaffLoginLink = () => {
+    navigator.clipboard.writeText(personalizedLoginUrl);
+    toast.success("Personalized Staff Login Link copied!", {
+      description: "When opened on any browser, it greets this employee by name.",
+    });
+  };
+
   const copyCredentials = () => {
     navigator.clipboard.writeText(
-      `Nex Desk staff panel\nURL: ${loginUrl}\nEmail: ${employee.email}\nPassword: ${
+      `Nex Desk Staff Workspace\nLogin URL: ${personalizedLoginUrl}\nEmail: ${employee.email}\nPassword: ${
         employee.portal_password_preview || "(not generated yet)"
       }`
     );
-    toast.success("Credentials copied.");
+    toast.success("Credentials and personalized staff login link copied.");
   };
 
   const resend = () => {
@@ -130,8 +139,18 @@ export default function EmployeeAccessCard({
 
       <div className="space-y-2.5 text-xs">
         <div>
-          <span className="mono-tag mb-1 block text-[10px]">Sign-in URL</span>
-          <p className="break-all font-mono text-bone-100">{loginUrl}</p>
+          <span className="mono-tag mb-1 block text-[10px]">Personalized Staff Login URL</span>
+          <div className="flex items-center justify-between gap-2 rounded-lg border border-ink-700 bg-ink-900/80 p-2">
+            <p className="break-all font-mono text-xs text-violet-300 select-all">{personalizedLoginUrl}</p>
+            <button
+              type="button"
+              onClick={copyStaffLoginLink}
+              className="btn h-7 px-2 text-[11px] shrink-0 text-violet-300 border-violet-500/30 hover:bg-violet-600/20"
+              title="Copy personalized staff link to clipboard"
+            >
+              <Link2 className="mr-1 h-3 w-3" /> Copy Link
+            </button>
+          </div>
         </div>
         <div>
           <span className="mono-tag mb-1 block text-[10px]">Email</span>
@@ -181,7 +200,10 @@ export default function EmployeeAccessCard({
 
       <div className="flex flex-wrap gap-2 border-t border-ink-700 pt-3">
         <button onClick={copyCredentials} className="btn h-8 px-3 text-xs">
-          <Copy className="mr-1.5 h-3.5 w-3.5" /> Copy
+          <Copy className="mr-1.5 h-3.5 w-3.5" /> Copy Details
+        </button>
+        <button onClick={copyStaffLoginLink} className="btn h-8 px-3 text-xs text-violet-300 border-violet-500/30 hover:bg-violet-600/20">
+          <Link2 className="mr-1.5 h-3.5 w-3.5 text-violet-400" /> Copy Staff Link
         </button>
         <button onClick={downloadOffer} disabled={downloading} className="btn h-8 px-3 text-xs gap-1.5">
           <FileDown className="h-3.5 w-3.5" />

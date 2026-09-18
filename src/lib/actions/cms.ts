@@ -458,8 +458,12 @@ import { recomputeProjectProgress } from "@/lib/actions";
 import { fmtDateTime, fmtDate } from "@/lib/datetime";
 
 /** Where staff sign in. Employees use the same control panel as admins, with a reduced menu. */
-export async function staffLoginUrl() {
-  return `${getSiteBaseUrl()}/${ADMIN}/login`;
+export async function staffLoginUrl(email?: string) {
+  const base = `${getSiteBaseUrl()}/${ADMIN}/login`;
+  if (email) {
+    return `${base}?role=staff&email=${encodeURIComponent(email)}`;
+  }
+  return `${base}?role=staff`;
 }
 
 /**
@@ -574,7 +578,7 @@ export async function sendEmployeeCredentials(
 
   const account = await ensureEmployeeAccount(employeeId);
   const { data: employee } = await db.from("employees").select("*").eq("id", employeeId).single();
-  const loginUrl = await staffLoginUrl();
+  const loginUrl = await staffLoginUrl(account.email);
 
   // A failed PDF render must not cost the employee their login email, so the
   // attachment is best-effort and its absence is logged rather than thrown.
@@ -712,7 +716,7 @@ export async function saveEmployee(
         name: String(res.data?.full_name ?? "there"),
         oldEmail: previous.email,
         newEmail,
-        loginUrl: await staffLoginUrl(),
+        loginUrl: await staffLoginUrl(newEmail),
         actorId: staff.userId,
       });
       emailed = notice.ok;
@@ -835,7 +839,7 @@ export async function restoreEmployee(id: string, options?: { sendEmail?: boolea
         vars: {
           employee_name: employee.full_name || "Team Member",
           staff_email: employee.email,
-          staff_login_url: await staffLoginUrl(),
+          staff_login_url: await staffLoginUrl(employee.email),
         },
         actorId: me.userId,
       });
