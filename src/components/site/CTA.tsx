@@ -70,9 +70,14 @@ export default function CTA() {
             <Link href="/estimate" className="btn cursor-pointer">
               Scope Estimator (60s)
             </Link>
-            <Link href="/demo" className="btn cursor-pointer text-lime-400 border-lime-400/30 hover:border-lime-400">
-              Explore Client Portal Demo →
-            </Link>
+            <a
+              href="https://calendly.com/ahmadsadiq-dev/free-strategy-call"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="btn cursor-pointer text-lime-400 border-lime-400/30 hover:border-lime-400"
+            >
+              Book Strategy Call →
+            </a>
           </div>
         </div>
       </Reveal>

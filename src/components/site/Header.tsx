@@ -87,13 +87,15 @@ export default function Header() {
         </nav>
 
         <div className="flex items-center gap-3">
-          {/* Book a call — direct to scheduler */}
-          <Link
-            href="/book"
+          {/* Book a call — direct to Calendly */}
+          <a
+            href="https://calendly.com/ahmadsadiq-dev/free-strategy-call"
+            target="_blank"
+            rel="noopener noreferrer"
             className="btn h-10 px-4 !hidden md:!inline-flex"
           >
             Book a call
-          </Link>
+          </a>
           <Link href="/contact" className="btn btn-primary h-10 !hidden md:!inline-flex">
             Start a project
           </Link>
@@ -207,13 +209,15 @@ export default function Header() {
             >
               Start a project
             </Link>
-            <Link
-              href="/book"
+            <a
+              href="https://calendly.com/ahmadsadiq-dev/free-strategy-call"
+              target="_blank"
+              rel="noopener noreferrer"
               onClick={() => setOpen(false)}
               className="btn h-12 w-full justify-center text-sm border-ink-600 bg-ink-900/80 hover:bg-ink-800"
             >
               Book a call
-            </Link>
+            </a>
             <div className="mt-2 flex items-center justify-between text-[11px] text-bone-400">
               <span>© Nex Desk Agency</span>
               <span className="text-lime-400 font-mono">Available worldwide</span>

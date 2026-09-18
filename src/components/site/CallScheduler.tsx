@@ -334,8 +334,8 @@ export default function CallScheduler() {
               <Link href="/" className="btn h-10 px-5 text-xs">
                 Back to Nex Desk Home
               </Link>
-              <Link href="/demo" className="btn btn-primary h-10 px-5 text-xs">
-                Explore Client Portal Demo →
+              <Link href="/estimate" className="btn btn-primary h-10 px-5 text-xs">
+                Explore Project Estimator →
               </Link>
             </div>
           </div>

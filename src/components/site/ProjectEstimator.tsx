@@ -727,9 +727,14 @@ export default function ProjectEstimator() {
                 deliverables plan.
               </p>
               <div className="pt-2 flex flex-col gap-2">
-                <Link href="/book" className="btn btn-primary h-9 text-xs w-full">
-                  Book 20-Min Strategy Call Now →
-                </Link>
+                <a
+                  href="https://calendly.com/ahmadsadiq-dev/free-strategy-call"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="btn btn-primary h-9 text-xs w-full"
+                >
+                  Book 20-Min Strategy Call on Calendly →
+                </a>
                 <button
                   type="button"
                   onClick={() => setSubmitted(false)}
@@ -747,23 +752,6 @@ export default function ProjectEstimator() {
             <span>✓ Milestone Escrow</span>
             <span>✓ Zero Obligation</span>
           </div>
-        </div>
-
-        {/* Client Experience Callout */}
-        <div className="rounded-xl border border-ink-700/80 bg-ink-900/60 p-4 text-xs text-bone-300 space-y-2">
-          <div className="flex items-center gap-2 text-lime-400 font-medium">
-            <Sparkles size={14} />
-            <span>Want to see how we build?</span>
-          </div>
-          <p className="text-bone-400 text-[11px] leading-relaxed">
-            Take a 60-second interactive tour of our Client Portal to see live milestone tracking, code deliveries, and chat.
-          </p>
-          <Link
-            href="/demo"
-            className="mono-tag text-[11px] text-lime-400 hover:underline inline-flex items-center gap-1 font-bold"
-          >
-            Launch Interactive Portal Demo →
-          </Link>
         </div>
       </div>
     </div>

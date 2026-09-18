@@ -13,8 +13,6 @@ const COMPANY_NAV = [
   { label: "Selected Work", href: "/work" },
   { label: "Pricing", href: "/pricing" },
   { label: "Project Estimator", href: "/estimate" },
-  { label: "Client Portal Demo", href: "/demo" },
-  { label: "Book Strategy Call", href: "/book" },
   { label: "About Studio", href: "/about" },
   { label: "Blog", href: "/blog" },
   { label: "Launch checklist", href: "/checklist" },
